@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <title>ConvertYard Mark — Direction B</title>
+  <g transform="translate(8, 8)">
+    <path d="M 6 4 L 32 4 L 44 16 L 44 44 Q 44 48 40 48 L 6 48 Q 2 48 2 44 L 2 8 Q 2 4 6 4 Z"
+          fill="none" stroke="#C2410C" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M 32 4 L 32 16 L 44 16" fill="none" stroke="#C2410C" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M -2 28 L 48 28" stroke="#C2410C" stroke-width="3.5" stroke-linecap="round"/>
+    <path d="M 42 22 L 50 28 L 42 34" fill="none" stroke="#C2410C" stroke-width="3.5"
+          stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>

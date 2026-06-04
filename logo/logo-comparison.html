@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>ConvertYard — Logo Directions Preview</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: ui-sans-serif, system-ui, -apple-system, sans-serif;
+    background: #FAFAF9;
+    color: #1C1917;
+    margin: 0;
+    padding: 48px 24px;
+    line-height: 1.5;
+  }
+  .container { max-width: 960px; margin: 0 auto; }
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 0 0 8px 0;
+    letter-spacing: -0.5px;
+  }
+  .sub {
+    color: #57534E;
+    margin: 0 0 48px 0;
+  }
+  .direction {
+    background: #FFFFFF;
+    border: 1px solid #E7E5E4;
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 24px;
+  }
+  .direction-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 4px;
+  }
+  .label {
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #C2410C;
+  }
+  h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin: 0;
+    letter-spacing: -0.3px;
+  }
+  .description {
+    color: #57534E;
+    font-size: 14px;
+    margin: 0 0 24px 0;
+  }
+  .showcase {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 24px;
+    align-items: center;
+    background: #FAFAF9;
+    border-radius: 12px;
+    padding: 32px;
+    margin-bottom: 16px;
+  }
+  .showcase-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  .showcase-item svg {
+    max-width: 100%;
+  }
+  .showcase-label {
+    font-size: 11px;
+    color: #A8A29E;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .size-test {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    padding: 16px;
+    background: #F5F5F4;
+    border-radius: 8px;
+  }
+  .size-test svg { display: block; }
+  .pros-cons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+    margin-top: 24px;
+    font-size: 14px;
+  }
+  .pros-cons h4 {
+    margin: 0 0 8px 0;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .pros h4 { color: #16A34A; }
+  .cons h4 { color: #57534E; }
+  .pros-cons ul { margin: 0; padding-left: 18px; color: #57534E; }
+  .pros-cons li { margin-bottom: 4px; }
+  @media (max-width: 640px) {
+    .showcase { grid-template-columns: 1fr; }
+    .pros-cons { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <h1>ConvertYard Logo Directions</h1>
+  <p class="sub">Three distinct approaches. Pick one (or mix elements) and we'll refine into production files.</p>
+
+  <!-- DIRECTION A -->
+  <div class="direction">
+    <div class="direction-header">
+      <span class="label">Direction A</span>
+      <h2>Stacks — Workshop / Crates</h2>
+    </div>
+    <p class="description">Three offset rectangles suggest stacks of files or crates in a yard. Most literal to the "yard" metaphor. Communicates: batch, organized, workshop.</p>
+
+    <div class="showcase">
+      <div class="showcase-item">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="280" height="70">
+          <g transform="translate(12, 16)">
+            <rect x="0"  y="32" width="40" height="9" rx="2" fill="#C2410C" opacity="0.45"/>
+            <rect x="6"  y="20" width="40" height="9" rx="2" fill="#C2410C" opacity="0.72"/>
+            <rect x="12" y="8"  width="40" height="9" rx="2" fill="#C2410C"/>
+          </g>
+          <text x="80" y="50" font-family="ui-sans-serif, system-ui, sans-serif" font-size="28" letter-spacing="-0.5" fill="#1C1917">
+            <tspan font-weight="500">Convert</tspan><tspan font-weight="700">Yard</tspan>
+          </text>
+        </svg>
+        <span class="showcase-label">Full lockup</span>
+      </div>
+      <div class="showcase-item">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+          <g transform="translate(6, 8)">
+            <rect x="0"  y="32" width="40" height="9" rx="2" fill="#C2410C" opacity="0.45"/>
+            <rect x="6"  y="20" width="40" height="9" rx="2" fill="#C2410C" opacity="0.72"/>
+            <rect x="12" y="8"  width="40" height="9" rx="2" fill="#C2410C"/>
+          </g>
+        </svg>
+        <span class="showcase-label">Mark only (favicon size)</span>
+      </div>
+      <div class="showcase-item">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="32" height="32">
+          <g transform="translate(6, 8)">
+            <rect x="0"  y="32" width="40" height="9" rx="2" fill="#C2410C" opacity="0.45"/>
+            <rect x="6"  y="20" width="40" height="9" rx="2" fill="#C2410C" opacity="0.72"/>
+            <rect x="12" y="8"  width="40" height="9" rx="2" fill="#C2410C"/>
+          </g>
+        </svg>
+        <span class="showcase-label">At 32px (browser tab)</span>
+      </div>
+    </div>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <h4>Strengths</h4>
+        <ul>
+          <li>Direct connection to "yard" + "batch" wedge</li>
+          <li>Reads clearly at small sizes</li>
+          <li>Unique among converter sites</li>
+          <li>Easy to animate (stacks growing)</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h4>Considerations</h4>
+        <ul>
+          <li>Could be mistaken for a logistics brand</li>
+          <li>Less obviously "conversion"-coded</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIRECTION B -->
+  <div class="direction">
+    <div class="direction-header">
+      <span class="label">Direction B</span>
+      <h2>Convert Arrow — Transformation</h2>
+    </div>
+    <p class="description">A document silhouette with an arrow piercing through it. Literally depicts file transformation. Communicates: conversion, action, file-focused.</p>
+
+    <div class="showcase">
+      <div class="showcase-item">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="280" height="70">
+          <g transform="translate(14, 16)">
+            <path d="M 6 4 L 32 4 L 44 16 L 44 44 Q 44 48 40 48 L 6 48 Q 2 48 2 44 L 2 8 Q 2 4 6 4 Z" fill="none" stroke="#C2410C" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M 32 4 L 32 16 L 44 16" fill="none" stroke="#C2410C" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M -2 28 L 48 28" stroke="#C2410C" stroke-width="3.5" stroke-linecap="round"/>
+            <path d="M 42 22 L 50 28 L 42 34" fill="none" stroke="#C2410C" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+          <text x="84" y="50" font-family="ui-sans-serif, system-ui, sans-serif" font-size="28" letter-spacing="-0.5" fill="#1C1917">
+            <tspan font-weight="500">Convert</tspan><tspan font-weight="700">Yard</tspan>
+          </text>
+        </svg>
+        <span class="showcase-label">Full lockup</span>
+      </div>
+      <div class="showcase-item">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+          <g transform="translate(8, 8)">
+            <path d="M 6 4 L 32 4 L 44 16 L 44 44 Q 44 48 40 48 L 6 48 Q 2 48 2 44 L 2 8 Q 2 4 6 4 Z" fill="none" stroke="#C2410C" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M 32 4 L 32 16 L 44 16" fill="none" stroke="#C2410C" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M -2 28 L 48 28" stroke="#C2410C" stroke-width="3.5" stroke-linecap="round"/>
+            <path d="M 42 22 L 50 28 L 42 34" fill="none" stroke="#C2410C" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+        </svg>
+        <span class="showcase-label">Mark only</span>
+      </div>
+      <div class="showcase-item">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="32" height="32">
+          <g transform="translate(8, 8)">
+            <path d="M 6 4 L 32 4 L 44 16 L 44 44 Q 44 48 40 48 L 6 48 Q 2 48 2 44 L 2 8 Q 2 4 6 4 Z" fill="none" stroke="#C2410C" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M 32 4 L 32 16 L 44 16" fill="none" stroke="#C2410C" stroke-width="3" stroke-linejoin="round"/>
+            <path d="M -2 28 L 48 28" stroke="#C2410C" stroke-width="3.5" stroke-linecap="round"/>
+            <path d="M 42 22 L 50 28 L 42 34" fill="none" stroke="#C2410C" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </g>
+        </svg>
+        <span class="showcase-label">At 32px</span>
+      </div>
+    </div>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <h4>Strengths</h4>
+        <ul>
+          <li>Immediately communicates "convert"</li>
+          <li>File-icon shape is universally understood</li>
+          <li>Clean and tool-coded</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h4>Considerations</h4>
+        <ul>
+          <li>Slightly busier at small sizes</li>
+          <li>Less unique — many tool brands use file icons</li>
+          <li>Doesn't lean into "yard" specifically</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- DIRECTION C -->
+  <div class="direction">
+    <div class="direction-header">
+      <span class="label">Direction C</span>
+      <h2>Wordmark — Pure Typography</h2>
+    </div>
+    <p class="description">All lowercase, modern, with a brand-colored dot separator. Mark is a "cy" monogram in a rounded square for favicon use only. Communicates: confident, technical, minimal.</p>
+
+    <div class="showcase">
+      <div class="showcase-item">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="280" height="70">
+          <text x="20" y="50" font-family="ui-sans-serif, system-ui, sans-serif" font-size="32" letter-spacing="-0.8" font-weight="600" fill="#1C1917">convert</text>
+          <circle cx="150" cy="40" r="4" fill="#C2410C"/>
+          <text x="162" y="50" font-family="ui-sans-serif, system-ui, sans-serif" font-size="32" letter-spacing="-0.8" font-weight="600" fill="#1C1917">yard</text>
+        </svg>
+        <span class="showcase-label">Full lockup</span>
+      </div>
+      <div class="showcase-item">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+          <rect x="2" y="2" width="60" height="60" rx="12" fill="#C2410C"/>
+          <text x="32" y="44" font-family="ui-sans-serif, system-ui, sans-serif" font-size="32" font-weight="700" letter-spacing="-1.5" fill="#FFFFFF" text-anchor="middle">cy</text>
+        </svg>
+        <span class="showcase-label">Favicon mark</span>
+      </div>
+      <div class="showcase-item">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="32" height="32">
+          <rect x="2" y="2" width="60" height="60" rx="12" fill="#C2410C"/>
+          <text x="32" y="44" font-family="ui-sans-serif, system-ui, sans-serif" font-size="32" font-weight="700" letter-spacing="-1.5" fill="#FFFFFF" text-anchor="middle">cy</text>
+        </svg>
+        <span class="showcase-label">At 32px</span>
+      </div>
+    </div>
+
+    <div class="pros-cons">
+      <div class="pros">
+        <h4>Strengths</h4>
+        <ul>
+          <li>Most modern / startup-feeling</li>
+          <li>Lowest risk — wordmarks age well</li>
+          <li>Fastest to refine and ship</li>
+          <li>Easy to redesign mark later</li>
+        </ul>
+      </div>
+      <div class="cons">
+        <h4>Considerations</h4>
+        <ul>
+          <li>Less distinctive at a glance</li>
+          <li>Relies entirely on type quality</li>
+          <li>No visual story about "yard" or "batch"</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="direction" style="background:#FFF7ED; border-color:#FED7AA;">
+    <h2 style="color:#C2410C;">My recommendation</h2>
+    <p style="margin-top:8px;">Go with <strong>Direction A (Stacks)</strong>. It's the only one that visually tells your story — stacked files in a yard, batch processing — without explanation. The mark survives at 16px (favicon), animates beautifully (stacks growing as you convert), and nothing else in the converter space looks like this. Direction C is the safe second choice if you want pure simplicity. Direction B is the weakest because every file-conversion site uses a file-icon-with-arrow somewhere.</p>
+  </div>
+
+</div>
+</body>
+</html>

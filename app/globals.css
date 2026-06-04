@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+/* ─── Design Tokens ─── */
+/* All tokens defined here as CSS variables AND in @theme for Tailwind utilities. */
+
+:root {
+  /* Brand */
+  --color-primary: #C2410C;
+  --color-primary-hover: #9A3412;
+  --color-primary-fg: #FFFFFF;
+
+  /* Surface */
+  --color-bg: #FAFAF9;
+  --color-bg-elevated: #FFFFFF;
+  --color-bg-muted: #F5F5F4;
+
+  /* Border */
+  --color-border: #E7E5E4;
+  --color-border-strong: #D6D3D1;
+
+  /* Text */
+  --color-fg: #1C1917;
+  --color-fg-muted: #57534E;
+  --color-fg-subtle: #A8A29E;
+
+  /* Status */
+  --color-success: #16A34A;
+  --color-warning: #CA8A04;
+  --color-error: #DC2626;
+  --color-info: #0EA5E9;
+
+  /* Typography */
+  --font-sans: 'Geist', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', ui-monospace, monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+  --text-5xl: 3rem;
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.65;
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-full: 9999px;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #1C1917;
+    --color-bg-elevated: #292524;
+    --color-bg-muted: #292524;
+    --color-border: #44403C;
+    --color-border-strong: #57534E;
+    --color-fg: #FAFAF9;
+    --color-fg-muted: #D6D3D1;
+    --color-fg-subtle: #78716C;
+    --color-primary: #FB923C;
+    --color-primary-hover: #FDBA74;
+    --color-primary-fg: #1C1917;
+  }
+}
+
+/* ─── Tailwind Theme Extensions ─── */
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-fg: var(--color-primary-fg);
+
+  --color-bg: var(--color-bg);
+  --color-bg-elevated: var(--color-bg-elevated);
+  --color-bg-muted: var(--color-bg-muted);
+
+  --color-border: var(--color-border);
+  --color-border-strong: var(--color-border-strong);
+
+  --color-fg: var(--color-fg);
+  --color-fg-muted: var(--color-fg-muted);
+  --color-fg-subtle: var(--color-fg-subtle);
+
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --color-info: var(--color-info);
+
+  --font-family-sans: var(--font-sans);
+  --font-family-mono: var(--font-mono);
+
+  --radius-sm: var(--radius-sm);
+  --radius-md: var(--radius-md);
+  --radius-lg: var(--radius-lg);
+  --radius-xl: var(--radius-xl);
+  --radius-full: var(--radius-full);
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+}
+
+/* ─── Base Reset ─── */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-sans);
+  color: var(--color-fg);
+  background-color: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+}
