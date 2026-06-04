@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 80" width="320" height="80">
+  <title>ConvertYard — Direction A: Stacks</title>
+
+  <!-- Mark: three stacked rectangles, slightly offset to suggest crates in a yard -->
+  <g transform="translate(12, 16)">
+    <rect x="0"  y="32" width="40" height="9" rx="2" fill="#C2410C" opacity="0.45"/>
+    <rect x="6"  y="20" width="40" height="9" rx="2" fill="#C2410C" opacity="0.72"/>
+    <rect x="12" y="8"  width="40" height="9" rx="2" fill="#C2410C"/>
+  </g>
+
+  <!-- Wordmark: "Convert" in medium, "Yard" in bold for emphasis on the wedge word -->
+  <text x="80" y="50" font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+        font-size="28" letter-spacing="-0.5" fill="#1C1917">
+    <tspan font-weight="500">Convert</tspan><tspan font-weight="700">Yard</tspan>
+  </text>
+</svg>
