@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@tanstack/react-virtual": "^3.14.2",
     "clsx": "^2.1.1",
     "fflate": "^0.8.2",
     "lucide-react": "^0.511.0",
