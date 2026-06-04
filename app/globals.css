@@ -112,6 +112,13 @@
   --shadow-lg: var(--shadow-lg);
 }
 
+/* ─── Component utilities ─── */
+@layer utilities {
+  .nav-surface {
+    background-color: color-mix(in srgb, var(--color-bg) 85%, transparent);
+  }
+}
+
 /* ─── Base Reset ─── */
 *,
 *::before,
