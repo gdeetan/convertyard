@@ -3,7 +3,11 @@ import { SiteShell } from '@/components/site-shell/site-shell'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'ConvertYard — Local-first conversion, built for batches.',
+  metadataBase: new URL('https://convertyard.com'),
+  title: {
+    default: 'ConvertYard — Local-first conversion, built for batches',
+    template: '%s — ConvertYard',
+  },
   description:
     'Batch file conversion in your browser. No uploads. No signups. Up to 1,000 files at once.',
 }
