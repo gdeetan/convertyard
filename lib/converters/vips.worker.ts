@@ -7,7 +7,12 @@ let vipsReady: Promise<any> | null = null
 function getVips() {
   if (!vipsReady) {
     vipsReady = import('wasm-vips')
-      .then(({ default: Vips }) => Vips({ locateFile: () => '/vips.wasm' }))
+      .then(({ default: Vips }) => Vips({
+        locateFile: (filename: string) => `/${filename}`,
+        // Only vips.wasm is bundled in public/. Disable optional dynamic
+        // libraries (JXL, HEIF) so the runtime doesn't 404 on them.
+        dynamicLibraries: [],
+      }))
       .then((v) => {
         console.log('[vips.worker] wasm-vips initialized')
         return v
