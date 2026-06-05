@@ -6,6 +6,17 @@ let vipsReady: Promise<any> | null = null
 
 function loadVips() {
   if (!vipsReady) {
+    // wasm-vips requires SharedArrayBuffer, which requires cross-origin isolation.
+    // If _headers isn't deployed correctly, this gives a clear error instead of a
+    // confusing DataCloneError from the Worker postMessage call.
+    if (typeof window !== 'undefined' && !window.crossOriginIsolated) {
+      return Promise.reject(
+        new Error(
+          'WASM threading unavailable: cross-origin isolation is not active. ' +
+          'Check that the _headers file is deployed with COOP/COEP headers.'
+        )
+      )
+    }
     vipsReady = import('wasm-vips')
       .then(({ default: Vips }) =>
         Vips({ locateFile: () => '/vips.wasm' })
