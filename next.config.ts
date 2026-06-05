@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   },
   // wasm-vips uses import.meta — must not be bundled by Next.js server/flight bundler
   serverExternalPackages: ['wasm-vips'],
-  webpack(config, { isServer }) {
+  webpack(config) {
     config.experiments = {
       ...config.experiments,
       asyncWebAssembly: true,
@@ -19,13 +19,6 @@ const nextConfig: NextConfig = {
       test: /node_modules\/wasm-vips\/.+\.js$/,
       type: 'javascript/esm',
     })
-    // Exclude from server bundle — only runs in the browser
-    if (isServer) {
-      config.externals = [
-        ...(Array.isArray(config.externals) ? config.externals : []),
-        'wasm-vips',
-      ]
-    }
     return config
   },
   async headers() {
