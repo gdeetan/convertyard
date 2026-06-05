@@ -6,21 +6,8 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  // wasm-vips uses import.meta — must not be bundled by Next.js server/flight bundler
+  // wasm-vips must not be bundled for the server/edge runtimes
   serverExternalPackages: ['wasm-vips'],
-  webpack(config) {
-    config.experiments = {
-      ...config.experiments,
-      asyncWebAssembly: true,
-    }
-    // wasm-vips is an Emscripten ES module using import.meta.
-    // Mark it as type 'javascript/esm' so webpack parses it correctly.
-    config.module.rules.push({
-      test: /node_modules\/wasm-vips\/.+\.js$/,
-      type: 'javascript/esm',
-    })
-    return config
-  },
 }
 
 export default nextConfig
