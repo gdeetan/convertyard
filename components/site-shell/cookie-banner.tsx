@@ -10,7 +10,7 @@ import { CONSENT_COOKIE, CONSENT_EVENT } from '@/components/analytics/ga4'
 const COOKIE_MAX_AGE = 31536000 // 1 year
 
 function setConsent(value: 'accepted' | 'rejected') {
-  document.cookie = `${CONSENT_COOKIE}=${value}; max-age=${COOKIE_MAX_AGE}; path=/; SameSite=Lax`
+  document.cookie = `${CONSENT_COOKIE}=${value}; max-age=${COOKIE_MAX_AGE}; path=/; SameSite=Lax; Secure`
   window.dispatchEvent(
     new CustomEvent(CONSENT_EVENT, { detail: { accepted: value === 'accepted' } })
   )
