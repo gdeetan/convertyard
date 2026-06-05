@@ -103,8 +103,8 @@ Ghost CTA: "How it works" — anchor scrolls to that section
 
 | 🔒 | 📦 | ⚡ |
 |---|---|---|
-| **Nothing uploads** | **Built for batches** | **Respectful by design** |
-| All processing runs via WebAssembly, on your device. | 1,000+ files at once, downloaded as a single ZIP. | No signups. No email walls. Tool UIs stay clean — minimal ads only appear below tools, never in your way. |
+| **Nothing uploads** | **Built for batches** | **Get in, get out** |
+| All processing runs via WebAssembly, on your device. | 1,000+ files at once, downloaded as a single ZIP. | No signups. No email walls. Open a tool, finish your work, close the tab. |
 
 Background: `--color-bg-muted` to separate from hero.
 Padding: generous (96px vertical desktop, 64px mobile).
@@ -213,7 +213,6 @@ Honest, factual. Don't name competitors.
 | Account required | No | Often |
 | Works offline after first load | Yes | No |
 | Watermarks on output | Never | Sometimes |
-| Ads above the fold | Never | Usually |
 | Ads in the conversion flow | Never | Usually |
 
 Visual style: clean table, alternating row backgrounds, checkmarks
@@ -264,12 +263,11 @@ Accordion-style, 8 questions, with FAQPage schema markup.
    use cookies or track individuals.
 
 5. **Do you show ads?**
-   Yes, minimal display ads appear below tools and within articles.
-   They never appear inside the conversion flow, above the fold, or
-   anywhere they'd get in your way. Your files are still processed
-   entirely locally — ads and file processing are completely separate.
-   We use Google AdSense and may add other ad networks (e.g.,
-   Mediavine) as the site grows.
+   Yes. Display ads appear below the FAQ on tool pages and within
+   articles. They never appear inside the conversion flow, above the
+   fold, or anywhere they'd get in your way. Your files are still
+   processed entirely locally — ads and file processing are completely
+   separate systems.
 
 6. **Do you use Google Analytics or cookies?**
    Yes — the site uses Google Analytics to understand which tools are

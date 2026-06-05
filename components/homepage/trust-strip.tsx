@@ -13,8 +13,8 @@ const PILLARS = [
   },
   {
     icon: Zap,
-    heading: 'Respectful by design',
-    body: 'No signups. No email walls. Tool UIs stay clean — minimal ads only appear below tools, never in your way.',
+    heading: 'Get in, get out',
+    body: 'No signups. No email walls. Open a tool, finish your work, close the tab.',
   },
 ]
 

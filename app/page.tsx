@@ -54,7 +54,7 @@ const FAQ = [
   },
   {
     q: 'Do you show ads?',
-    a: "Yes, minimal display ads appear below tools and within articles. They never appear inside the conversion flow, above the fold, or anywhere they'd get in your way. Your files are still processed entirely locally — ads and file processing are completely separate. We use Google AdSense and may add other ad networks (e.g., Mediavine) as the site grows.",
+    a: "Yes. Display ads appear below the FAQ on tool pages and within articles. They never appear inside the conversion flow, above the fold, or anywhere they'd get in your way. Your files are still processed entirely locally — ads and file processing are completely separate systems.",
   },
   {
     q: 'Do you use Google Analytics or cookies?',
