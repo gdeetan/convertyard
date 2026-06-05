@@ -4,10 +4,15 @@ import type { ToolOptions } from '@/lib/types'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let vipsReady: Promise<any> | null = null
 
-function loadVips() {
+function getVips() {
   if (!vipsReady) {
     vipsReady = import('wasm-vips')
-      .then(({ default: Vips }) => Vips({ locateFile: () => '/vips.wasm' }))
+      .then(({ default: Vips }) => Vips({
+        locateFile: (filename: string) => `/${filename}`,
+        // Only vips.wasm is bundled in public/. Disable optional dynamic
+        // libraries (JXL, HEIF) so the runtime doesn't 404 on them.
+        dynamicLibraries: [],
+      }))
       .then((v) => {
         console.log('[vips.worker] wasm-vips initialized')
         return v
@@ -38,7 +43,8 @@ self.onmessage = async (e: MessageEvent) => {
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const vips: any = await loadVips()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const vips: any = await getVips()
 
     self.postMessage({ id, type: 'progress', pct: 10 })
 
