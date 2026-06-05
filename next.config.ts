@@ -21,17 +21,6 @@ const nextConfig: NextConfig = {
     })
     return config
   },
-  async headers() {
-    return [
-      {
-        source: '/(tools)/:path*',
-        headers: [
-          { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
-          { key: 'Cross-Origin-Embedder-Policy', value: 'require-corp' },
-        ],
-      },
-    ]
-  },
 }
 
 export default nextConfig
