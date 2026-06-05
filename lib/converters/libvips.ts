@@ -6,12 +6,14 @@ let vipsReady: Promise<any> | null = null
 
 function loadVips() {
   if (!vipsReady) {
-    vipsReady = import('wasm-vips').then(({ default: Vips }) =>
-      Vips({
-        // Tell wasm-vips where to find its WASM binary (copied to public/ by postinstall)
-        locateFile: () => '/vips.wasm',
+    vipsReady = import('wasm-vips')
+      .then(({ default: Vips }) =>
+        Vips({ locateFile: () => '/vips.wasm' })
+      )
+      .catch((err) => {
+        vipsReady = null // allow retry on next call
+        throw err
       })
-    )
   }
   return vipsReady
 }
@@ -71,7 +73,9 @@ export async function libvipsConvert(
       try {
         // 1. Auto-orient: correct rotation from EXIF (default ON)
         if (opts.autoOrient !== false) {
-          image = image.autorot()
+          const oriented = image.autorot()
+          image.delete()
+          image = oriented
         }
 
         onProgress?.(i, 30)
@@ -81,7 +85,9 @@ export async function libvipsConvert(
         if (maxDim > 0) {
           const longer = Math.max(image.width, image.height)
           if (longer > maxDim) {
-            image = image.resize(maxDim / longer)
+            const resized = image.resize(maxDim / longer)
+            image.delete()
+            image = resized
           }
         }
 
@@ -89,7 +95,9 @@ export async function libvipsConvert(
 
         // 3. Sharpen (mild unsharp-mask to compensate for WebP softness)
         if (opts.sharpen === true) {
-          image = image.sharpen({ sigma: 0.5, x1: 1.0 })
+          const sharpened = image.sharpen({ sigma: 0.5, x1: 1.0 })
+          image.delete()
+          image = sharpened
         }
 
         onProgress?.(i, 70)
@@ -123,7 +131,7 @@ export async function libvipsConvert(
       }
     } catch (err) {
       onProgress?.(i, 100)
-      results.push(err instanceof Error ? err : new Error(`Failed to convert ${file.name}`))
+      results.push(new Error(`${file.name}: ${err instanceof Error ? err.message : 'conversion failed'}`))
     }
   }
 
