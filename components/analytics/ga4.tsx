@@ -5,12 +5,15 @@ import Script from 'next/script'
 
 const MID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
+export const CONSENT_COOKIE = 'convertyard_consent'
+export const CONSENT_EVENT = 'consent-changed'
+
 function getCookieValue(name: string): string | undefined {
   if (typeof document === 'undefined') return undefined
   return document.cookie
     .split('; ')
     .find((row) => row.startsWith(`${name}=`))
-    ?.split('=')[1]
+    ?.split('=').slice(1).join('=')
 }
 
 export function GA4() {
@@ -19,17 +22,17 @@ export function GA4() {
   useEffect(() => {
     if (!MID) return
 
-    if (getCookieValue('convertyard_consent') === 'accepted') {
+    if (getCookieValue(CONSENT_COOKIE) === 'accepted') {
       setLoad(true)
     }
 
     const handler = (e: Event) => {
       const detail = (e as CustomEvent<{ accepted: boolean }>).detail
-      if (detail.accepted) setLoad(true)
+      if (detail?.accepted) setLoad(true)
     }
 
-    window.addEventListener('consent-changed', handler)
-    return () => window.removeEventListener('consent-changed', handler)
+    window.addEventListener(CONSENT_EVENT, handler)
+    return () => window.removeEventListener(CONSENT_EVENT, handler)
   }, [])
 
   if (!MID || !load) return null
@@ -46,7 +49,6 @@ export function GA4() {
           function gtag(){window.dataLayer.push(arguments);}
           gtag('js', new Date());
           gtag('config', '${MID}', {
-            anonymize_ip: true,
             send_page_view: true
           });
         `}
