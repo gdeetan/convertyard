@@ -7,7 +7,8 @@ const ROWS = [
   { label: 'Account required', us: 'No', them: 'Often', usGood: true, themGood: false },
   { label: 'Works offline after first load', us: 'Yes', them: 'No', usGood: true, themGood: false },
   { label: 'Watermarks on output', us: 'Never', them: 'Sometimes', usGood: true, themGood: false },
-  { label: 'Ads inside the tool', us: 'Never', them: 'Usually', usGood: true, themGood: false },
+  { label: 'Ads above the fold', us: 'Never', them: 'Usually', usGood: true, themGood: false },
+  { label: 'Ads in the conversion flow', us: 'Never', them: 'Usually', usGood: true, themGood: false },
 ]
 
 function ValueCell({ value, good }: { value: string; good: boolean }) {

@@ -66,7 +66,7 @@ entirely in your browser. Nothing uploads.
 [Primary: Browse tools →]  [Ghost: How it works]
 
 [Trust micro-line, small text]
-🔒 No accounts. No uploads. No watermarks.
+🔒 No accounts. No uploads. No watermarks. Clean tool UIs.
 ```
 
 Right side (40%):
@@ -103,8 +103,8 @@ Ghost CTA: "How it works" — anchor scrolls to that section
 
 | 🔒 | 📦 | ⚡ |
 |---|---|---|
-| **Nothing uploads** | **Built for batches** | **No accounts** |
-| All processing runs via WebAssembly, on your device. | 1,000+ files at once, downloaded as a single ZIP. | No signups, no email walls, no ads in tools. |
+| **Nothing uploads** | **Built for batches** | **Respectful by design** |
+| All processing runs via WebAssembly, on your device. | 1,000+ files at once, downloaded as a single ZIP. | No signups. No email walls. Tool UIs stay clean — minimal ads only appear below tools, never in your way. |
 
 Background: `--color-bg-muted` to separate from hero.
 Padding: generous (96px vertical desktop, 64px mobile).
@@ -213,7 +213,8 @@ Honest, factual. Don't name competitors.
 | Account required | No | Often |
 | Works offline after first load | Yes | No |
 | Watermarks on output | Never | Sometimes |
-| Ads inside the tool | Never | Usually |
+| Ads above the fold | Never | Usually |
+| Ads in the conversion flow | Never | Usually |
 
 Visual style: clean table, alternating row backgrounds, checkmarks
 green and Xs muted red. ConvertYard column has subtle brand-color
@@ -262,21 +263,38 @@ Accordion-style, 8 questions, with FAQPage schema markup.
    privacy-first analytics (Cloudflare Web Analytics) that doesn't
    use cookies or track individuals.
 
-5. **Does it work offline?**
+5. **Do you show ads?**
+   Yes, minimal display ads appear below tools and within articles.
+   They never appear inside the conversion flow, above the fold, or
+   anywhere they'd get in your way. Your files are still processed
+   entirely locally — ads and file processing are completely separate.
+   We use Google AdSense and may add other ad networks (e.g.,
+   Mediavine) as the site grows.
+
+6. **Do you use Google Analytics or cookies?**
+   Yes — the site uses Google Analytics to understand which tools are
+   popular and improve them. Ad networks may also set cookies for ad
+   delivery. This is standard for content sites. None of it touches
+   your files, which are processed entirely in your browser. We show
+   a cookie consent banner to visitors in regulated regions.
+
+7. **Does it work offline?**
    Yes, after your first visit. Once the tool's WebAssembly module
    is cached, it works without internet.
 
-6. **Why is this free?**
-   Because tools should be. We may add a paid API tier in the future
-   for developers, but the web tools will always be free.
+8. **Why is this free?**
+   Tools should be free, so they are. The site is supported by
+   minimal display ads below tools and on articles. Tool UIs
+   themselves stay clean — no ads in the conversion flow, ever.
+   We may also add a paid API tier in the future for developers.
 
-7. **Do I need to create an account?**
+9. **Do I need to create an account?**
    No. There's no signup, no email wall, no login. Open a tool, use
    it, leave.
 
-8. **Are there watermarks on output files?**
-   Never. Your output files are identical to what you'd get from
-   desktop software.
+10. **Are there watermarks on output files?**
+    Never. Your output files are identical to what you'd get from
+    desktop software.
 
 Below FAQ: "Still have questions? Email hello@convertyard.com" with
 mailto link.
@@ -312,6 +330,7 @@ See `DESIGN-SYSTEM.md` for component spec. Content:
 
 **Bottom strip:**
 ConvertYard wordmark · Local-first conversion, built for batches.
+Your files stay on your device. Always.
 Files processed locally in your browser. We never see them.
 © {year} ConvertYard
 

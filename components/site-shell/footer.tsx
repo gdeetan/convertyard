@@ -141,7 +141,10 @@ export function Footer() {
           <div className="flex flex-col items-start gap-1 sm:items-end">
             <span className="flex items-center gap-1.5 text-xs text-fg-subtle">
               <Lock className="h-3 w-3 text-primary" aria-hidden="true" />
-              Files processed locally. We never see them.
+              Your files stay on your device. Always.
+            </span>
+            <span className="text-xs text-fg-subtle">
+              Files processed locally in your browser. We never see them.
             </span>
             <span className="text-xs text-fg-subtle">
               © {year} ConvertYard

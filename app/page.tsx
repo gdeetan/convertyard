@@ -53,12 +53,20 @@ const FAQ = [
     a: "No. We never see your files, so we can't store anything. We use privacy-first analytics (Cloudflare Web Analytics) that doesn't use cookies or track individuals.",
   },
   {
+    q: 'Do you show ads?',
+    a: "Yes, minimal display ads appear below tools and within articles. They never appear inside the conversion flow, above the fold, or anywhere they'd get in your way. Your files are still processed entirely locally — ads and file processing are completely separate. We use Google AdSense and may add other ad networks (e.g., Mediavine) as the site grows.",
+  },
+  {
+    q: 'Do you use Google Analytics or cookies?',
+    a: "Yes — the site uses Google Analytics to understand which tools are popular and improve them. Ad networks may also set cookies for ad delivery. This is standard for content sites. None of it touches your files, which are processed entirely in your browser. We show a cookie consent banner to visitors in regulated regions.",
+  },
+  {
     q: 'Does it work offline?',
     a: "Yes, after your first visit. Once the tool's WebAssembly module is cached, it works without internet.",
   },
   {
     q: 'Why is this free?',
-    a: 'Because tools should be. We may add a paid API tier in the future for developers, but the web tools will always be free.',
+    a: "Tools should be free, so they are. The site is supported by minimal display ads below tools and on articles. Tool UIs themselves stay clean — no ads in the conversion flow, ever. We may also add a paid API tier in the future for developers.",
   },
   {
     q: 'Do I need to create an account?',

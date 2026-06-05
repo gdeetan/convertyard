@@ -20,8 +20,8 @@ constraint is the product.
 3. **Speed is the feature.** LCP <1.5s, TTI <2s. No layout shift.
    No blocking fonts. Tool UI renders before WASM finishes loading.
 4. **No dark patterns.** No "sign up to download." No fake progress
-   bars. No ads inside the tool UI. Ads (if any) live on article pages
-   only.
+   bars. Ads are allowed below tools and in articles only — never inside
+   the conversion flow. See "Ad placement policy" below.
 
 ## Stack
 
@@ -146,6 +146,40 @@ download UI, related-tools strip, and SEO metadata. Don't reimplement.
 - `fix/*` — bug fixes
 - Squash-merge to keep history clean
 
+## Ad placement policy
+
+ConvertYard runs minimal, respectful display ads to keep tools free.
+The rules below are absolute and apply to every tool and article
+page now and in the future.
+
+### Allowed
+- One ad slot per tool page, placed BELOW the FAQ section
+- One ad slot in the middle of long-form articles (between H2s)
+- Standard display formats: 300×250, 728×90, responsive
+- Static placements (no refresh, no rotation during page view)
+- Lazy-loaded after main content paints (must not block LCP)
+- Clearly labeled "Advertisement" above the slot
+
+### Forbidden
+- Ads above the fold on any page
+- Ads inside the dropzone, options panel, progress UI, or result list
+- Ads between the convert button and the result
+- Ads on the homepage (homepage stays 100% ad-free as the brand
+  showcase)
+- Pop-ups, pop-unders, interstitials, vignettes
+- Auto-play video ads (especially with sound)
+- Sticky or floating ads on mobile
+- Ads that obscure download buttons or any CTA
+- Ads that load before WASM modules
+- Ads on the privacy, terms, or about pages
+
+### Why this matters
+Our differentiation is being the clean, trustworthy converter.
+Ads must be invisible enough that someone using the site for the
+first time doesn't notice them until after they've completed
+their conversion. If any future change pushes against these
+rules, it must be discussed and updated here first.
+
 ## Anti-patterns (do not do)
 
 - ❌ Server-side file processing for anything user-uploaded
@@ -157,6 +191,9 @@ download UI, related-tools strip, and SEO metadata. Don't reimplement.
 - ❌ The word "Photoshop" anywhere on the site (trademark + wrong frame)
 - ❌ Adding complex manual editing (layers, brushes) — that's Photopea's
   fight, not ours
+- ❌ Ads inside the conversion flow (above the fold, in the dropzone,
+  in progress UI, between convert and download)
+- ❌ Ads on the homepage
 
 ## Important note
 Do not make any changes until you have 95% confidence in what you need to build. Ask me follow-up questions until you reach that confidence.

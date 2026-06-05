@@ -349,7 +349,7 @@ export function Hero() {
           {/* Trust micro-line */}
           <p className="mt-6 flex items-center gap-1.5 text-sm text-fg-subtle">
             <Lock className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
-            No accounts. No uploads. No watermarks.
+            No accounts. No uploads. No watermarks. Clean tool UIs.
           </p>
         </div>
 
