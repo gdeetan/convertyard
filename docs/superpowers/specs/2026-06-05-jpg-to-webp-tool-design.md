@@ -40,10 +40,18 @@ export function libvipsConvert(
 - Lazy-loads `wasm-vips` on first call (never before user interaction)
 - Processes files **sequentially** — avoids peak-memory scaling with batch size; safe for 1000-file batches
 - Calls `onProgress(i, 50)` at encode start, `onProgress(i, 100)` at done
-- Returns `ConversionResult[]`: `File` on success, `Error` on failure
+- Returns `ConversionResult[]`: `File` on success, `Error` on failure — result carries original size + output size so the UI can show savings
 - Invalid MIME types return `Error` immediately, without loading WASM
 - Lossless: when `opts.lossless === true`, passes `{lossless: true}` to vips; quality slider ignored
-- Output filename: strip original extension, append `.webp` (e.g. `photo.jpg` → `photo.webp`)
+- Auto-orient: when `opts.autoOrient === true` (default), reads EXIF orientation tag and rotates/flips pixels, then strips the tag
+- Strip metadata: when `opts.stripMetadata === true`, removes all EXIF/ICC/XMP; when false (default), copies ICC profile and EXIF to output
+- Resize: when `opts.maxDimension > 0`, downscales the longer edge to that px value (aspect ratio preserved); no upscaling
+- Sharpen: when `opts.sharpen === true`, applies libvips unsharp-mask (sigma 0.5, x1 1.0) after encode — compensates for WebP's slight softness
+- Compression method: `opts.method` (0–6, default 4) passed as WebP `effort` param; 0 = fastest/largest, 6 = slowest/smallest
+- Output filename: strip original extension, append output format ext (e.g. `photo.jpg` → `photo.webp`)
+
+**Extended `ConversionResult` for size delta:**  
+The result `File` object gets two custom properties attached: `_originalSize: number` and `_outputSize: number`. The result list reads these to render the savings badge. (Using non-standard properties on `File` avoids changing the `ConversionResult` type or adding a wrapper type.)
 
 **COOP/COEP headers:**  
 `wasm-vips` uses `SharedArrayBuffer` for threading. `next.config` must add path-matched headers scoped to tool pages only (not global — would break third-party embeds on other pages):
@@ -87,6 +95,41 @@ Note: Cloudflare Pages respects `next.config` headers in static export via `_hea
       label: 'Lossless mode',
       default: false,
       hint: 'Larger files, perfect quality — ignores quality slider',
+    },
+    {
+      type: 'number',
+      name: 'maxDimension',
+      label: 'Max dimension (px)',
+      min: 0, max: 16000, step: 1, default: 0,
+      hint: 'Downscales the longer edge. 0 = keep original size. No upscaling.',
+    },
+    {
+      type: 'toggle',
+      name: 'autoOrient',
+      label: 'Auto-orient',
+      default: true,
+      hint: 'Fixes rotation from phone EXIF data',
+    },
+    {
+      type: 'toggle',
+      name: 'stripMetadata',
+      label: 'Strip metadata',
+      default: false,
+      hint: 'Removes EXIF/ICC data. Smaller files, less privacy info.',
+    },
+    {
+      type: 'toggle',
+      name: 'sharpen',
+      label: 'Sharpen',
+      default: false,
+      hint: 'Counteracts WebP\'s slight softness vs JPG',
+    },
+    {
+      type: 'slider',
+      name: 'method',
+      label: 'Compression effort',
+      min: 0, max: 6, step: 1, default: 4,
+      hint: '0 = fastest (larger file), 6 = smallest (slower)',
     },
   ],
 
@@ -134,14 +177,24 @@ No changes. The `MiniConverter` in `components/homepage/hero.tsx` stays canvas-b
 
 ---
 
+## Result list: size savings badge
+
+Each file row in `ResultList` shows: `originalSize → outputSize (−X%)` when `_originalSize` and `_outputSize` are present on the result `File`. This is the key trust/delight feature — users see proof of savings per file. If output is larger than input (can happen at quality 100 or lossless), show `+X%` in a neutral color (not red — lossless larger is expected).
+
+---
+
 ## Quality gates (from LAUNCH-CHECKLIST)
 
-- [ ] Converts 1 JPG correctly
+- [ ] Converts 1 JPG correctly, shows size savings badge
 - [ ] Converts 10 JPGs correctly (per-file progress visible)
 - [ ] Converts 100 JPGs without crashing
 - [ ] Converts 1000 JPGs (slow is fine, must complete)
 - [ ] Invalid file (PDF) → graceful `Error`, batch continues
-- [ ] Lossless toggle → output visually identical, file larger
+- [ ] Lossless toggle → output visually identical, file larger, badge shows `+X%` in neutral color
+- [ ] Auto-orient → a sideways phone photo is corrected
+- [ ] Strip metadata → exiftool on output shows no EXIF
+- [ ] Max dimension → 4000px wide image with maxDimension=1000 outputs 1000px wide
+- [ ] Sharpen → visible difference at quality 60 on a photo with fine detail
 - [ ] Mobile: file picker works on tap
 - [ ] Lighthouse all scores ≥ 90 on `/jpg-to-webp`
 
