@@ -1,16 +1,23 @@
 /// <reference lib="webworker" />
-import Vips from 'wasm-vips'
 import type { ToolOptions } from '@/lib/types'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let vipsInstance: any | null = null
+let vipsReady: Promise<any> | null = null
 
-async function getVips() {
-  if (!vipsInstance) {
-    vipsInstance = await Vips({ locateFile: () => '/vips.wasm' })
-    console.log('[vips.worker] wasm-vips initialized')
+function getVips() {
+  if (!vipsReady) {
+    vipsReady = import('wasm-vips')
+      .then(({ default: Vips }) => Vips({ locateFile: () => '/vips.wasm' }))
+      .then((v) => {
+        console.log('[vips.worker] wasm-vips initialized')
+        return v
+      })
+      .catch((err) => {
+        vipsReady = null
+        throw err
+      })
   }
-  return vipsInstance
+  return vipsReady
 }
 
 function getMimeType(outputFormat: string): string {
@@ -30,6 +37,7 @@ self.onmessage = async (e: MessageEvent) => {
   }
 
   try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vips: any = await getVips()
 
