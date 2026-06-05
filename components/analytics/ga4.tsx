@@ -2,19 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import Script from 'next/script'
+import { getCookieValue } from '@/lib/utils/cookies'
 
 const MID = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
 
 export const CONSENT_COOKIE = 'convertyard_consent'
 export const CONSENT_EVENT = 'consent-changed'
-
-function getCookieValue(name: string): string | undefined {
-  if (typeof document === 'undefined') return undefined
-  return document.cookie
-    .split('; ')
-    .find((row) => row.startsWith(`${name}=`))
-    ?.split('=').slice(1).join('=')
-}
 
 export function GA4() {
   const [load, setLoad] = useState(false)

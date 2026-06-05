@@ -4,17 +4,10 @@ import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
+import { getCookieValue } from '@/lib/utils/cookies'
 import { CONSENT_COOKIE, CONSENT_EVENT } from '@/components/analytics/ga4'
 
 const COOKIE_MAX_AGE = 31536000 // 1 year
-
-function getCookieValue(name: string): string | undefined {
-  if (typeof document === 'undefined') return undefined
-  return document.cookie
-    .split('; ')
-    .find((row) => row.startsWith(`${name}=`))
-    ?.split('=').slice(1).join('=')
-}
 
 function setConsent(value: 'accepted' | 'rejected') {
   document.cookie = `${CONSENT_COOKIE}=${value}; max-age=${COOKIE_MAX_AGE}; path=/; SameSite=Lax`
@@ -43,7 +36,10 @@ export function CookieBanner() {
     acceptRef.current?.focus()
 
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') handleReject()
+      if (e.key === 'Escape') {
+        setConsent('rejected')
+        setVisible(false)
+      }
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
@@ -65,9 +61,10 @@ export function CookieBanner() {
     <div
       role="dialog"
       aria-labelledby="cookie-banner-title"
+      aria-describedby="cookie-banner-desc"
       aria-modal="false"
       className={cn(
-        'fixed bottom-0 left-0 right-0 z-60',
+        'fixed bottom-0 left-0 right-0 [z-index:60]',
         'sm:bottom-4 sm:left-auto sm:right-4 sm:max-w-[420px]',
         'bg-[var(--color-bg-elevated)] border border-[var(--color-border-strong)]',
         'rounded-[var(--radius-lg)] sm:rounded-[var(--radius-xl)]',
@@ -90,13 +87,16 @@ export function CookieBanner() {
       </button>
 
       {/* Content */}
-      <p
+      <h2
         id="cookie-banner-title"
         className="mb-2 pr-8 font-display text-base font-semibold text-[var(--color-fg)]"
       >
         Cookies for analytics
-      </p>
-      <p className="mb-4 text-sm leading-relaxed text-[var(--color-fg-muted)]">
+      </h2>
+      <p
+        id="cookie-banner-desc"
+        className="mb-4 text-sm leading-relaxed text-[var(--color-fg-muted)]"
+      >
         We use Google Analytics to understand site usage. Your files are processed entirely in your
         browser and are never affected by this.{' '}
         <Link
