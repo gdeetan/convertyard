@@ -1,5 +1,7 @@
 import type { Metadata } from 'next'
 import { SiteShell } from '@/components/site-shell/site-shell'
+import { GA4 } from '@/components/analytics/ga4'
+import { CookieBanner } from '@/components/site-shell/cookie-banner'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -21,6 +23,8 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <SiteShell>{children}</SiteShell>
+        <GA4 />
+        <CookieBanner />
       </body>
     </html>
   )
