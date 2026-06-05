@@ -106,6 +106,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'JPG to WebP Converter — ConvertYard',
     description:
-      'Convert JPG to WebP in your browser. Batch up to 1,000 files at once — no uploads, no account, no watermarks. Free forever.',
+      'Convert JPG to WebP in your browser. Batch up to 1,000 files — no uploads, no account, no watermarks. Includes quality, resize, and metadata controls.',
   },
 }
