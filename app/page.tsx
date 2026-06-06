@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { organizationSchema, webSiteSchema, faqPageSchema } from '@/lib/seo/schema'
 import { Hero } from '@/components/homepage/hero'
 import { TrustStrip } from '@/components/homepage/trust-strip'
 import { ToolGrid } from '@/components/homepage/tool-grid'
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
     title: 'ConvertYard — Local-first conversion, built for batches',
     description:
       'Convert thousands of images, PDFs, videos, and audio files entirely in your browser. No uploads, no accounts. 60+ free tools.',
-    url: 'https://convertyard.com',
+    url: 'https://convertyard.com/',
     siteName: 'ConvertYard',
     type: 'website',
     locale: 'en_US',
@@ -29,7 +30,7 @@ export const metadata: Metadata = {
       'Batch convert files in your browser. Nothing uploads. No accounts. Free forever.',
   },
   alternates: {
-    canonical: 'https://convertyard.com',
+    canonical: 'https://convertyard.com/',
   },
 }
 
@@ -78,31 +79,6 @@ const FAQ = [
   },
 ]
 
-// ── JSON-LD schemas ───────────────────────────────────────────────────────
-
-const WEBSITE_SCHEMA = {
-  '@context': 'https://schema.org',
-  '@type': 'WebSite',
-  name: 'ConvertYard',
-  url: 'https://convertyard.com',
-  description:
-    'Local-first batch file conversion in your browser. No uploads. No accounts.',
-  potentialAction: {
-    '@type': 'SearchAction',
-    target: 'https://convertyard.com/tools?q={search_term_string}',
-    'query-input': 'required name=search_term_string',
-  },
-}
-
-const ORGANIZATION_SCHEMA = {
-  '@context': 'https://schema.org',
-  '@type': 'Organization',
-  name: 'ConvertYard',
-  url: 'https://convertyard.com',
-  logo: 'https://convertyard.com/logo.png',
-  sameAs: [],
-}
-
 // ── Page ──────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
@@ -112,12 +88,17 @@ export default function HomePage() {
       <script
         type="application/ld+json"
         // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(WEBSITE_SCHEMA) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteSchema()) }}
       />
       <script
         type="application/ld+json"
         // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(ORGANIZATION_SCHEMA) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema()) }}
+      />
+      <script
+        type="application/ld+json"
+        // eslint-disable-next-line react/no-danger
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqPageSchema(FAQ)) }}
       />
 
       <Hero />
