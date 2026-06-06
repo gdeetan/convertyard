@@ -4,6 +4,7 @@ import {
   softwareApplicationSchema,
   faqPageSchema,
   breadcrumbSchema,
+  BASE_URL,
 } from '@/lib/seo/schema'
 import type { Metadata } from 'next'
 
@@ -14,8 +15,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     softwareApplicationSchema(config),
     faqPageSchema(config.faq),
     breadcrumbSchema([
-      { name: 'ConvertYard', url: 'https://convertyard.com/' },
-      { name: config.title, url: `https://convertyard.com/${config.slug}/` },
+      { name: 'ConvertYard', url: `${BASE_URL}/` },
+      { name: config.title, url: `${BASE_URL}/${config.slug}/` },
     ]),
   ]
 

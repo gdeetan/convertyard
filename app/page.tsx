@@ -18,7 +18,7 @@ export const metadata: Metadata = {
     title: 'ConvertYard — Local-first conversion, built for batches',
     description:
       'Convert thousands of images, PDFs, videos, and audio files entirely in your browser. No uploads, no accounts. 60+ free tools.',
-    url: 'https://convertyard.com',
+    url: 'https://convertyard.com/',
     siteName: 'ConvertYard',
     type: 'website',
     locale: 'en_US',
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
       'Batch convert files in your browser. Nothing uploads. No accounts. Free forever.',
   },
   alternates: {
-    canonical: 'https://convertyard.com',
+    canonical: 'https://convertyard.com/',
   },
 }
 

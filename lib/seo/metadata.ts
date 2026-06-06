@@ -1,8 +1,7 @@
 // lib/seo/metadata.ts
 import type { Metadata } from 'next'
 import type { ToolConfig } from '@/lib/types'
-
-const BASE_URL = 'https://convertyard.com'
+import { BASE_URL } from '@/lib/seo/schema'
 
 export function toolMetadata(config: ToolConfig): Metadata {
   const canonicalUrl = `${BASE_URL}/${config.slug}/`

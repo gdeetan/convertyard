@@ -3,8 +3,7 @@ export const dynamic = 'force-static'
 
 import type { MetadataRoute } from 'next'
 import { tools } from '@/content/tool-registry'
-
-const BASE_URL = 'https://convertyard.com'
+import { BASE_URL } from '@/lib/seo/schema'
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const toolEntries: MetadataRoute.Sitemap = tools.map((t) => ({

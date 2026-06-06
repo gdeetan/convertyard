@@ -1,7 +1,7 @@
 // lib/seo/schema.ts
 import type { ToolConfig, FAQItem } from '@/lib/types'
 
-const BASE_URL = 'https://convertyard.com'
+export const BASE_URL = 'https://convertyard.com'
 
 export function softwareApplicationSchema(config: ToolConfig) {
   return {
@@ -63,7 +63,12 @@ export function articleSchema(opts: {
       '@type': 'Organization',
       name: opts.authorName ?? 'ConvertYard',
     },
-    publisher: organizationSchema(),
+    publisher: {
+      '@type': 'Organization',
+      name: 'ConvertYard',
+      url: BASE_URL,
+      logo: `${BASE_URL}/logo.png`,
+    },
   }
 }
 
@@ -86,10 +91,5 @@ export function webSiteSchema() {
     url: BASE_URL,
     description:
       'Local-first batch file conversion in your browser. No uploads. No accounts.',
-    potentialAction: {
-      '@type': 'SearchAction',
-      target: `${BASE_URL}/tools?q={search_term_string}`,
-      'query-input': 'required name=search_term_string',
-    },
   }
 }
