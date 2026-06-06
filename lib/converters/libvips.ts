@@ -1,20 +1,25 @@
 import type { ToolOptions, ConversionResult } from '@/lib/types'
 import { convertViaWorker } from './vips-client'
 
-/**
- * Convert an array of files to the given output format using libvips/wasm-vips.
- * Processing happens inside a dedicated Web Worker — wasm-vips never runs on the
- * main thread, which prevents double-initialization BindingErrors.
- *
- * Supported opts keys (all optional):
- *   quality       number  1-100, default 80. Ignored when lossless=true.
- *   lossless      boolean Lossless encode. Default false.
- *   method        number  0-6, WebP compression effort. Default 4.
- *   autoOrient    boolean Fix EXIF rotation. Default true.
- *   maxDimension  number  Downscale longer edge to this px. 0 = no resize. Default 0.
- *   stripMetadata boolean Remove all EXIF/ICC/XMP. Default false.
- *   sharpen       boolean Apply mild unsharp-mask after encode. Default false.
- */
+function isHeic(file: File): boolean {
+  return (
+    file.type === 'image/heic' ||
+    file.type === 'image/heif' ||
+    /\.(heic|heif)$/i.test(file.name)
+  )
+}
+
+// Decode HEIC → PNG using heic2any (includes libde265 HEVC decoder).
+// wasm-vips's heif library omits libde265 (patent constraints), so HEIC
+// files must be pre-decoded before being passed to the vips worker.
+async function decodeHeic(file: File): Promise<File> {
+  const heic2any = (await import('heic2any')).default
+  const result = await heic2any({ blob: file, toType: 'image/png' })
+  const blob = Array.isArray(result) ? result[0] : result
+  const baseName = file.name.replace(/\.(heic|heif)$/i, '')
+  return new File([blob], `${baseName}.png`, { type: 'image/png' })
+}
+
 export async function libvipsConvert(
   files: File[],
   outputFormat: string,
@@ -24,11 +29,11 @@ export async function libvipsConvert(
   const results: ConversionResult[] = []
 
   for (let i = 0; i < files.length; i++) {
-    const file = files[i]
+    let file = files[i]
 
     if (
       !file.type.startsWith('image/') &&
-      !file.name.match(/\.(jpe?g|png|webp|avif|heic|gif|tiff?)$/i)
+      !file.name.match(/\.(jpe?g|png|webp|avif|heic|heif|gif|tiff?)$/i)
     ) {
       results.push(new Error(`Unsupported file type: ${file.type || 'unknown'}`))
       onProgress?.(i, 100)
@@ -38,17 +43,23 @@ export async function libvipsConvert(
     onProgress?.(i, 10)
 
     try {
+      if (isHeic(file)) {
+        onProgress?.(i, 20)
+        file = await decodeHeic(file)
+        onProgress?.(i, 40)
+      }
+
       const result = await convertViaWorker(
         file,
         outputFormat,
         opts,
-        (pct) => onProgress?.(i, pct)
+        (pct) => onProgress?.(i, 40 + Math.round(pct * 0.6))
       )
       onProgress?.(i, 100)
       results.push(result)
     } catch (err) {
       onProgress?.(i, 100)
-      results.push(new Error(`${file.name}: ${err instanceof Error ? err.message : 'conversion failed'}`))
+      results.push(new Error(`${files[i].name}: ${err instanceof Error ? err.message : 'conversion failed'}`))
     }
   }
 
