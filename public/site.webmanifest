@@ -1,0 +1,21 @@
+{
+  "name": "ConvertYard",
+  "short_name": "ConvertYard",
+  "description": "Local-first conversion, built for batches.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FAFAA9",
+  "theme_color": "#C2410C",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
