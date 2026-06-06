@@ -1,14 +1,15 @@
-// app/opengraph-image.tsx
+// app/(tools)/jpg-to-webp/opengraph-image.tsx
 import { OG_SIZE, makeOgResponse } from '@/lib/seo/og-image'
+import { config } from '@/content/tools/jpg-to-webp'
 
 export const dynamic = 'force-static'
 export const size = OG_SIZE
 export const contentType = 'image/png'
-export const alt = 'ConvertYard — Local-first conversion, built for batches'
+export const alt = config.title
 
 export default function Image() {
   return makeOgResponse({
-    title: 'Local-first conversion,\nbuilt for batches.',
-    subtitle: 'No uploads. No accounts. Runs in your browser.',
+    title: config.title,
+    subtitle: config.subtitle,
   })
 }
