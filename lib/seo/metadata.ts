@@ -8,7 +8,7 @@ export function toolMetadata(config: ToolConfig): Metadata {
   const ogImage = config.meta.ogImage ?? `${BASE_URL}/${config.slug}/opengraph-image`
 
   return {
-    title: config.meta.title,
+    title: { absolute: config.meta.title },
     description: config.meta.description,
     alternates: { canonical: canonicalUrl },
     openGraph: {
