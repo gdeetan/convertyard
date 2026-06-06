@@ -9,9 +9,7 @@ function getVips() {
     vipsReady = import('wasm-vips')
       .then(({ default: Vips }) => Vips({
         locateFile: (filename: string) => `/${filename}`,
-        // Only vips.wasm is bundled in public/. Disable optional dynamic
-        // libraries (JXL, HEIF) so the runtime doesn't 404 on them.
-        dynamicLibraries: [],
+        dynamicLibraries: ['vips-heif.wasm'],
       }))
       .then((v) => {
         console.log('[vips.worker] wasm-vips initialized')
