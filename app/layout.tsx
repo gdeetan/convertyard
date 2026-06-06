@@ -1,8 +1,15 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { SiteShell } from '@/components/site-shell/site-shell'
 import { GA4 } from '@/components/analytics/ga4'
 import { CookieBanner } from '@/components/site-shell/cookie-banner'
 import './globals.css'
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#C2410C' },
+    { media: '(prefers-color-scheme: dark)', color: '#1C1917' },
+  ],
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://convertyard.com'),
@@ -21,6 +28,10 @@ export const metadata: Metadata = {
     ],
     apple: [
       { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    other: [
+      { rel: 'icon', url: '/android-chrome-192x192.png', sizes: '192x192', type: 'image/png' },
+      { rel: 'icon', url: '/android-chrome-512x512.png', sizes: '512x512', type: 'image/png' },
     ],
   },
   manifest: '/site.webmanifest',

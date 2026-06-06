@@ -55,9 +55,9 @@ export function HowItWorks() {
             Wait — how does it work without uploading?
           </p>
           <p className="mt-3 text-sm leading-relaxed text-fg-muted">
-            WebAssembly lets us run the same C++ libraries that desktop apps use (libvips, ffmpeg,
-            pdf-lib) directly inside your browser. The same code that powers Photoshop&apos;s CLI
-            runs in this tab, on your CPU, without sending your file anywhere.
+            WebAssembly lets us run the same C++ libraries that professional desktop apps use
+            (libvips, ffmpeg, pdf-lib) directly inside your browser. Your files are processed by
+            your CPU, right here in this tab, without sending anything anywhere.
           </p>
           <Link
             href="/how-it-works"
