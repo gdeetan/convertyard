@@ -56,6 +56,8 @@ const TOOLS: Tool[] = [
   { slug: 'jpg-to-webp',           name: 'JPG to WebP',           category: 'images',      desc: 'Compress JPGs to WebP without quality loss.' },
   { slug: 'png-to-webp',           name: 'PNG to WebP',           category: 'images',      desc: 'Convert PNGs to smaller WebP files.' },
   { slug: 'webp-to-jpg',           name: 'WebP to JPG',           category: 'images',      desc: 'Convert WebP back to universal JPEG.' },
+  { slug: 'webp-to-png',           name: 'WebP to PNG',           category: 'images',      desc: 'Lossless quality. Transparency preserved.' },
+  { slug: 'heic-to-png',           name: 'HEIC to PNG',           category: 'images',      desc: 'iPhone photos to lossless PNG.' },
   { slug: 'background-remover',    name: 'Background remover',    category: 'images',      desc: 'Remove backgrounds locally. No uploads.',     badge: 'AI' },
   { slug: 'bulk-image-compressor', name: 'Bulk image compressor', category: 'images',      desc: 'Compress hundreds of images at once.' },
   { slug: 'merge-pdf',             name: 'Merge PDF',             category: 'pdf',         desc: 'Combine multiple PDFs into one file.' },
