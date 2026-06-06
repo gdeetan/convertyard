@@ -80,12 +80,15 @@ self.onmessage = async (e: MessageEvent) => {
       self.postMessage({ id, type: 'progress', pct: 70 })
 
       const quality = typeof opts.quality === 'number' ? opts.quality : 80
-      const method = typeof opts.method === 'number' ? opts.method : 4
       const encodeOpts: Record<string, unknown> = {
-        Q: quality,
-        lossless: opts.lossless === true,
-        effort: method,
         strip: opts.stripMetadata === true,
+      }
+      if (outputFormat === 'webp') {
+        encodeOpts.Q = quality
+        encodeOpts.lossless = opts.lossless === true
+        encodeOpts.effort = typeof opts.method === 'number' ? opts.method : 4
+      } else if (outputFormat === 'jpg' || outputFormat === 'jpeg') {
+        encodeOpts.Q = quality
       }
 
       const outBuffer = image.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
