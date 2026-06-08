@@ -1,3 +1,6 @@
+import { config as mergePdf } from './tools/merge-pdf'
+import { config as compressPdf } from './tools/compress-pdf'
+import { config as pdfToJpg } from './tools/pdf-to-jpg'
 import { config as jpgToWebp } from './tools/jpg-to-webp'
 import { config as heicToJpg } from './tools/heic-to-jpg'
 import { config as pngToWebp } from './tools/png-to-webp'
@@ -13,6 +16,9 @@ import { config as imageResizer } from './tools/image-resizer'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
+  mergePdf,
+  compressPdf,
+  pdfToJpg,
   jpgToWebp,
   heicToJpg,
   pngToWebp,

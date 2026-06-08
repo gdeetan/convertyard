@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "cp node_modules/wasm-vips/lib/vips.wasm public/vips.wasm 2>/dev/null || true"
+    "postinstall": "cp node_modules/wasm-vips/lib/vips.wasm public/vips.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.wasm public/mupdf-wasm.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf.js public/mupdf.js 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.js public/mupdf-wasm.js 2>/dev/null || true"
   },
   "dependencies": {
     "@tanstack/react-virtual": "^3.14.2",
@@ -15,7 +15,9 @@
     "fflate": "^0.8.2",
     "heic2any": "^0.0.4",
     "lucide-react": "^0.511.0",
+    "mupdf": "^1.27.0",
     "next": "^15.3.3",
+    "pdf-lib": "^1.17.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "tailwind-merge": "^3.3.0",
