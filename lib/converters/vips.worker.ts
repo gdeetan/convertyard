@@ -89,6 +89,10 @@ self.onmessage = async (e: MessageEvent) => {
         encodeOpts.effort = typeof opts.method === 'number' ? opts.method : 4
       } else if (outputFormat === 'jpg' || outputFormat === 'jpeg') {
         encodeOpts.Q = quality
+      } else if (outputFormat === 'avif') {
+        encodeOpts.Q = quality
+        encodeOpts.effort = typeof opts.effort === 'number' ? opts.effort : 4
+        if (opts.lossless === true) encodeOpts.lossless = true
       }
 
       const outBuffer = image.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
