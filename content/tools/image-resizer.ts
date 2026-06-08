@@ -101,6 +101,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'Batch Image Resizer — ConvertYard',
     description:
-      'Resize images in bulk. Set width, height, and fit mode. JPG, PNG, and WebP — all processing in your browser, no uploads.',
+      'Resize JPG, PNG, and WebP images in bulk. Set width, height, and fit mode. Batch up to 1,000 files — all processing in your browser, no uploads.',
   },
 }

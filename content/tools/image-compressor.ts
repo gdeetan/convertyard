@@ -81,6 +81,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'Bulk Image Compressor — ConvertYard',
     description:
-      'Compress JPG, PNG, and WebP images in bulk. Set quality or target file size. All processing in your browser — no uploads, no account.',
+      'Compress JPG, PNG, and WebP images in bulk. Set quality or target file size. Batch up to 1,000 files — all processing in your browser, no uploads, no account.',
   },
 }
