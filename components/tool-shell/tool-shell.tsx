@@ -11,8 +11,17 @@ import { ResultList } from './result-list'
 import { FAQAccordion } from './faq-accordion'
 import { RelatedToolsStrip } from './related-tools-strip'
 import { RelatedArticlesStrip } from './related-articles-strip'
-import type { ToolConfig, FileEntry, ToolPhase, ToolOptions } from '@/lib/types'
+import type { ToolConfig, FileEntry, ToolPhase, ToolOptions, ToolCategory } from '@/lib/types'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
+
+const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
+  images:      { label: 'Image Converters', href: '/images' },
+  pdf:         { label: 'PDF Tools',        href: '/pdf' },
+  'video-audio': { label: 'Video & Audio',  href: '/video-audio' },
+  dev:         { label: 'Developer Tools',  href: '/developer' },
+  web:         { label: 'Web Tools',        href: '/web-tools' },
+  ai:          { label: 'AI Tools',         href: '/ai-tools' },
+}
 
 interface ToolShellProps {
   config: ToolConfig
@@ -185,7 +194,12 @@ export function ToolShell({ config }: ToolShellProps) {
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="mb-8">
-        <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: 'Tools', href: '/tools' }, { label: config.title }]} />
+        <Breadcrumb items={[
+          { label: 'Home', href: '/' },
+          { label: 'Tools', href: '/tools' },
+          { label: CATEGORY_META[config.category].label, href: CATEGORY_META[config.category].href },
+          { label: config.title },
+        ]} />
         <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">
           {config.title}
         </h1>
