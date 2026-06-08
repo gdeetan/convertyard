@@ -6,7 +6,8 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  // wasm-vips must not be bundled for the server/edge runtimes
+  // wasm-vips must not be bundled for server/edge runtimes.
+  // mupdf is loaded at runtime from /public/ — not bundled at all.
   serverExternalPackages: ['wasm-vips'],
   // COOP/COEP headers are required for SharedArrayBuffer (wasm-vips threading).
   // In production these come from public/_headers (Cloudflare Pages).
