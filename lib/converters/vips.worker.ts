@@ -122,29 +122,36 @@ self.onmessage = async (e: MessageEvent) => {
         if (opts.lossless === true) encodeOpts.lossless = true
       } else if (outputFormat === 'png') {
         // Map quality (1-100) to vips compression (0-9, higher = smaller/slower)
-        encodeOpts.compression = Math.round((100 - quality) / 11.1)
+        encodeOpts.compression = Math.min(9, Math.round((100 - quality) * 9 / 100))
       }
 
       const maxSizeKb = typeof opts.maxSizeKb === 'number' ? opts.maxSizeKb : 0
+      // AVIF excluded: wasm-vips AVIF Q adjustments are non-monotonic at low quality levels
       const isLossy = outputFormat === 'jpg' || outputFormat === 'jpeg' || outputFormat === 'webp'
 
-      let outBuffer: Uint8Array<ArrayBuffer>
+      let outBuffer: Uint8Array<ArrayBuffer> | undefined
 
       if (maxSizeKb > 0 && isLossy) {
         let q = quality
         while (q >= 20) {
           encodeOpts.Q = q
-          outBuffer = image.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
-          if (outBuffer.byteLength <= maxSizeKb * 1024) break
+          const candidate = image.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
+          if (candidate.byteLength <= maxSizeKb * 1024) {
+            outBuffer = candidate
+            break
+          }
+          outBuffer = candidate  // keep last attempt as fallback
           q -= 10
         }
-      } else {
+      }
+
+      if (!outBuffer) {
         outBuffer = image.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
       }
 
       self.postMessage(
-        { id, type: 'result', data: outBuffer!.buffer, fileName, mimeType: getMimeType(outputFormat) },
-        [outBuffer!.buffer]
+        { id, type: 'result', data: outBuffer.buffer, fileName, mimeType: getMimeType(outputFormat) },
+        [outBuffer.buffer]
       )
     } finally {
       image.delete()
