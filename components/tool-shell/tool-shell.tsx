@@ -185,7 +185,7 @@ export function ToolShell({ config }: ToolShellProps) {
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       {/* ── Header ──────────────────────────────────────────────────────── */}
       <div className="mb-8">
-        <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: config.title }]} />
+        <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: 'Tools', href: '/tools' }, { label: config.title }]} />
         <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">
           {config.title}
         </h1>
