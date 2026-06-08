@@ -20,6 +20,27 @@ async function decodeHeic(file: File): Promise<File> {
   return new File([blob], `${baseName}.png`, { type: 'image/png' })
 }
 
+function isAvif(file: File): boolean {
+  return file.type === 'image/avif' || /\.avif$/i.test(file.name)
+}
+
+// Decode AVIF → PNG via Canvas API (browser's native AV1 decoder).
+// wasm-vips ships libheif 1.x which rejects AVIF files encoded with
+// tooling that targets the libheif 2.x API. Using createImageBitmap
+// delegates decoding to the browser's built-in AV1 support, which
+// handles all AVIF variants the browser can display.
+async function decodeAvifViaCanvas(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file)
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Could not get 2D canvas context')
+  ctx.drawImage(bitmap, 0, 0)
+  bitmap.close()
+  const blob = await canvas.convertToBlob({ type: 'image/png' })
+  const baseName = file.name.replace(/\.avif$/i, '')
+  return new File([blob], `${baseName}.png`, { type: 'image/png' })
+}
+
 export async function libvipsConvert(
   files: File[],
   outputFormat: string,
@@ -46,6 +67,10 @@ export async function libvipsConvert(
       if (isHeic(file)) {
         onProgress?.(i, 20)
         file = await decodeHeic(file)
+        onProgress?.(i, 40)
+      } else if (isAvif(file)) {
+        onProgress?.(i, 20)
+        file = await decodeAvifViaCanvas(file)
         onProgress?.(i, 40)
       }
 
