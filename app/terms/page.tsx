@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
 
 export const metadata: Metadata = {
   title: 'Terms of Service',
@@ -13,6 +14,7 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+      <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: 'Terms of Service' }]} />
       <h1 className="mb-2 text-3xl font-bold tracking-tight text-fg">Terms of Service</h1>
       <p className="mb-10 text-sm text-fg-subtle">Last updated: June 6, 2026</p>
 

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
 
 export const metadata: Metadata = {
   title: 'How It Works',
@@ -46,6 +47,7 @@ const LIBRARIES = [
 export default function HowItWorksPage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+      <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: 'How It Works' }]} />
       <h1 className="mb-4 text-3xl font-bold tracking-tight text-fg sm:text-4xl">
         How it works
       </h1>
