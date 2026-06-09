@@ -42,9 +42,9 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'extract-audio',     title: 'Extract Audio',     description: 'Pull audio tracks from any video.', category: 'video-audio', status: 'coming-soon' },
 
   // Developer — all coming soon
-  { slug: 'json-formatter',  title: 'JSON Formatter',  description: 'Format, validate, and minify JSON.', category: 'developer', status: 'coming-soon' },
-  { slug: 'base64-encoder',  title: 'Base64 Encoder',  description: 'Encode and decode Base64 strings.', category: 'developer', status: 'coming-soon' },
-  { slug: 'json-to-csv',     title: 'JSON to CSV',     description: 'Flatten JSON arrays into spreadsheets.', category: 'developer', status: 'coming-soon' },
+  { slug: 'json-formatter', title: 'JSON Formatter',         description: 'Format, validate, and minify JSON.', category: 'developer', status: 'live' },
+  { slug: 'base64',         title: 'Base64 Encoder/Decoder', description: 'Encode and decode Base64 strings.', category: 'developer', status: 'live' },
+  { slug: 'json-to-csv',    title: 'JSON to CSV',            description: 'Flatten JSON arrays into spreadsheets.', category: 'developer', status: 'live' },
   { slug: 'diff-checker',    title: 'Diff Checker',    description: 'Visual diff for text and code.', category: 'developer', status: 'coming-soon' },
   { slug: 'jwt-decoder',     title: 'JWT Decoder',     description: 'Decode and inspect JWT tokens.', category: 'developer', status: 'coming-soon' },
   { slug: 'regex-tester',    title: 'Regex Tester',    description: 'Test regex patterns with live matches.', category: 'developer', status: 'coming-soon' },

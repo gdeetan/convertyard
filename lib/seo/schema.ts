@@ -1,5 +1,6 @@
 // lib/seo/schema.ts
 import type { ToolConfig, FAQItem } from '@/lib/types'
+import type { TextToolConfig } from '@/lib/types-text'
 
 export const BASE_URL = 'https://convertyard.com'
 
@@ -91,5 +92,18 @@ export function webSiteSchema() {
     url: BASE_URL,
     description:
       'Local-first batch file conversion in your browser. No uploads. No accounts.',
+  }
+}
+
+export function textSoftwareApplicationSchema(config: TextToolConfig) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: config.title,
+    url: `${BASE_URL}/${config.slug}/`,
+    applicationCategory: 'DeveloperApplication',
+    operatingSystem: 'Web',
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    description: config.meta.description,
   }
 }
