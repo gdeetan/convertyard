@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   },
   // wasm-vips must not be bundled for server/edge runtimes.
   // mupdf is loaded at runtime from /public/ — not bundled at all.
-  serverExternalPackages: ['wasm-vips', '@ffmpeg/ffmpeg', '@ffmpeg/core'],
+  serverExternalPackages: ['wasm-vips', '@ffmpeg/ffmpeg'],
   // COOP/COEP headers are required for SharedArrayBuffer (wasm-vips threading).
   // In production these come from public/_headers (Cloudflare Pages).
   // In dev mode next.config headers() is the only way to set them.

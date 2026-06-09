@@ -7,10 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "cp node_modules/wasm-vips/lib/vips.wasm public/vips.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.wasm public/mupdf-wasm.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf.js public/mupdf.js 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.js public/mupdf-wasm.js 2>/dev/null || true && cp node_modules/@ffmpeg/core/dist/umd/ffmpeg-core.js public/ffmpeg-core.js 2>/dev/null || true && cp node_modules/@ffmpeg/core/dist/umd/ffmpeg-core.wasm public/ffmpeg-core.wasm 2>/dev/null || true"
+    "postinstall": "cp node_modules/wasm-vips/lib/vips.wasm public/vips.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.wasm public/mupdf-wasm.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf.js public/mupdf.js 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.js public/mupdf-wasm.js 2>/dev/null || true"
   },
   "dependencies": {
-    "@ffmpeg/core": "^0.12.10",
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
     "@tanstack/react-virtual": "^3.14.2",
