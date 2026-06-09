@@ -6,7 +6,7 @@ const LARGE_FILE_BYTES = 500 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'mp4-to-mp3',
   title: 'MP4 to MP3 Converter',
-  subtitle: 'Extract audio from video. Local-first. Built for batches.',
+  subtitle: 'Extract audio from MP4, WebM, or MOV. Format your video as MP3 in seconds — no software, no uploads.',
   category: 'video-audio',
   accepts: ['video/mp4', 'video/webm', 'video/quicktime'],
   acceptsExt: ['.mp4', '.webm', '.mov'],
@@ -71,6 +71,14 @@ export const config: ToolConfig = {
       q: 'Are my video files uploaded to a server?',
       a: 'Never. Conversion runs entirely in your browser using WebAssembly — your video files never leave your device. ConvertYard\'s servers only deliver the tool\'s code. They never see your files, filenames, or audio content.',
     },
+    {
+      q: 'How do I switch an MP4 file to MP3?',
+      a: 'Drop your MP4 into the tool above, choose a bitrate, and click Convert. The audio track is extracted and saved as an MP3 — the video is discarded. No software to install, no account needed. If you have multiple files, drop them all at once and download everything as a ZIP when done.',
+    },
+    {
+      q: 'What does it mean to transform an MP4 into MP3?',
+      a: 'Transforming an MP4 into an MP3 means stripping out the video and keeping only the audio track. MP4 is a video container — it holds both picture and sound. MP3 is audio-only. The result is a much smaller file: a 500 MB MP4 video might produce a 4 MB MP3. This tool does that extraction entirely in your browser, so nothing gets uploaded anywhere.',
+    },
   ],
 
   relatedTools: ['video-compressor', 'extract-audio', 'trim-audio'],
@@ -79,6 +87,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'MP4 to MP3 Converter — ConvertYard',
     description:
-      'Convert MP4 to MP3 in your browser. Choose bitrate up to 320 kbps. Batch convert video files — no uploads, no account, no watermarks.',
+      'Convert MP4 to MP3 in your browser. Format or switch any MP4 to MP3 — choose bitrate up to 320 kbps, batch files, no uploads, no account.',
   },
 }
