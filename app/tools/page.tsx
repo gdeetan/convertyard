@@ -36,7 +36,7 @@ export default function ToolsPage() {
           const liveCount = tools.filter((t) => t.status === 'live').length
 
           return (
-            <section key={cat.slug} aria-labelledby={`${cat.slug}-heading`}>
+            <section key={cat.slug} id={cat.slug} aria-labelledby={`${cat.slug}-heading`}>
               <div className="mb-3 flex items-baseline justify-between">
                 <h2
                   id={`${cat.slug}-heading`}
