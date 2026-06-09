@@ -14,6 +14,23 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
+const POPULAR_SLUGS = new Set([
+  'heic-to-jpg',
+  'jpg-to-webp',
+  'png-to-webp',
+  'webp-to-jpg',
+  'background-remover',
+  'image-compressor',
+  'merge-pdf',
+  'compress-pdf',
+  'pdf-to-jpg',
+  'mp4-to-mp3',
+  'json-formatter',
+  'image-resizer',
+  'alt-text-generator',
+  'heic-to-png',
+])
+
 type Category = 'all' | 'images' | 'image-editing' | 'pdf' | 'video-audio' | 'dev' | 'web-tools' | 'ai'
 
 const FILTERS: { id: Category; label: string }[] = [
@@ -62,6 +79,10 @@ const TOOLS: Tool[] = [
   { slug: 'webp-to-jpg',           name: 'WebP to JPG',           category: 'images',      desc: 'Convert WebP back to universal JPEG.' },
   { slug: 'webp-to-png',           name: 'WebP to PNG',           category: 'images',      desc: 'Lossless quality. Transparency preserved.' },
   { slug: 'heic-to-png',           name: 'HEIC to PNG',           category: 'images',      desc: 'iPhone photos to lossless PNG.' },
+  { slug: 'jpg-to-avif',  name: 'JPG to AVIF',  category: 'images',        desc: 'Next-gen compression, up to 50% smaller than WebP.' },
+  { slug: 'avif-to-jpg',  name: 'AVIF to JPG',  category: 'images',        desc: 'Convert AVIF back to universal JPEG.' },
+  { slug: 'png-to-avif',  name: 'PNG to AVIF',  category: 'images',        desc: 'Best-in-class compression for PNG files.' },
+  { slug: 'avif-to-png',  name: 'AVIF to PNG',  category: 'images',        desc: 'AVIF decoded to lossless PNG with transparency.' },
   { slug: 'background-remover',    name: 'Background remover',    category: 'image-editing', desc: 'Remove backgrounds locally. No uploads.',     badge: 'AI' },
   { slug: 'image-compressor',      name: 'Bulk image compressor', category: 'image-editing', desc: 'Compress hundreds of images at once.' },
   { slug: 'image-resizer',         name: 'Batch image resizer',   category: 'image-editing', desc: 'Resize hundreds of images in one go.' },
@@ -99,7 +120,9 @@ export function ToolGrid() {
     setActive(id)
   }
 
-  const visible = active === 'all' ? TOOLS : TOOLS.filter((t) => t.category === active)
+  const visible = active === 'all'
+    ? TOOLS.filter((t) => POPULAR_SLUGS.has(t.slug))
+    : TOOLS.filter((t) => t.category === active)
 
   return (
     <section
