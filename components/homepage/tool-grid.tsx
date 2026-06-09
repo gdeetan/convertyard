@@ -65,6 +65,7 @@ const TOOLS: Tool[] = [
   { slug: 'compress-pdf',          name: 'Compress PDF',          category: 'pdf',         desc: 'Reduce PDF size without losing quality.' },
   { slug: 'pdf-to-jpg',            name: 'PDF to JPG',            category: 'pdf',         desc: 'Export every page as a separate JPG.' },
   { slug: 'mp4-to-mp3',            name: 'MP4 to MP3',            category: 'video-audio', desc: 'Extract audio from video files.' },
+  { slug: 'mp3-to-mp4',            name: 'MP3 to MP4',            category: 'video-audio', desc: 'Add a static image or waveform to any audio file.' },
   { slug: 'json-formatter',        name: 'JSON formatter',        category: 'dev',         desc: 'Format, validate, and minify JSON.' },
   { slug: 'base64',                name: 'Base64 encoder/decoder',category: 'dev',         desc: 'Encode and decode Base64 strings and files.' },
   { slug: 'json-to-csv',           name: 'JSON to CSV',           category: 'dev',         desc: 'Flatten JSON arrays into CSV spreadsheets.' },

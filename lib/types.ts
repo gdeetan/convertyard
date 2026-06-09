@@ -11,6 +11,7 @@ interface BaseOption {
   name: string
   label: string
   hint?: string
+  dependsOn?: { name: string; value: string }
 }
 
 export interface SliderOption extends BaseOption {
@@ -46,12 +47,24 @@ export interface NumberOption extends BaseOption {
   default: number
 }
 
+export interface ColorPickerOption extends BaseOption {
+  type: 'color-picker'
+  default: string
+}
+
+export interface ImageUploadOption extends BaseOption {
+  type: 'image-upload'
+  default: null
+}
+
 export type ToolOption =
   | SliderOption
   | ToggleOption
   | DropdownOption
   | RadioOption
   | NumberOption
+  | ColorPickerOption
+  | ImageUploadOption
 
 export type ToolOptions = Record<string, unknown>
 

@@ -23,9 +23,14 @@ export function OptionsPanel({ options, values, onChange, disabled = false }: Op
         Options
       </legend>
 
-      {options.map((opt) => (
-        <OptionRow key={opt.name} opt={opt} value={values[opt.name]} onChange={onChange} />
-      ))}
+      {options
+        .filter((opt) => {
+          if (!opt.dependsOn) return true
+          return values[opt.dependsOn.name] === opt.dependsOn.value
+        })
+        .map((opt) => (
+          <OptionRow key={opt.name} opt={opt} value={values[opt.name]} onChange={onChange} />
+        ))}
     </fieldset>
   )
 }
@@ -181,6 +186,45 @@ function OptionRow({
               'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
             )}
           />
+        )}
+
+        {opt.type === 'color-picker' && (
+          <div className="flex items-center gap-2">
+            <input
+              id={id}
+              type="color"
+              value={value as string}
+              onChange={(e) => onChange(opt.name, e.target.value)}
+              className="h-9 w-16 cursor-pointer rounded border border-border bg-bg-elevated p-0.5"
+            />
+            <span className="font-mono text-sm text-fg-muted">{value as string}</span>
+          </div>
+        )}
+
+        {opt.type === 'image-upload' && (
+          <div className="flex flex-col gap-1.5">
+            <input
+              id={id}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              onChange={(e) => {
+                const file = e.target.files?.[0] ?? null
+                onChange(opt.name, file)
+              }}
+              className={cn(
+                'cursor-pointer text-sm text-fg-muted',
+                'file:mr-3 file:cursor-pointer file:rounded-md file:border file:border-border',
+                'file:bg-bg-elevated file:px-3 file:py-1.5 file:text-sm file:text-fg',
+                'file:transition-colors file:hover:border-border-strong',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+              )}
+            />
+            {(value as File | null) && (
+              <p className="text-xs text-fg-subtle">
+                {(value as File).name}
+              </p>
+            )}
+          </div>
         )}
 
         {opt.hint && (
