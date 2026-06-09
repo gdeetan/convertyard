@@ -1,4 +1,4 @@
-export type ToolCategory = 'images' | 'pdf' | 'video-audio' | 'dev' | 'web' | 'ai'
+export type ToolCategory = 'images' | 'pdf' | 'video-audio' | 'dev' | 'web' | 'ai' | 'image-editing'
 
 export interface FAQItem {
   q: string

@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'image-compressor',
   title: 'Bulk Image Compressor',
   subtitle: 'Local-first image compression. Built for batches.',
-  category: 'images',
+  category: 'image-editing',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '',
