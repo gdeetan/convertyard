@@ -5,7 +5,7 @@ export interface CatalogTool {
   slug: string
   title: string
   description: string
-  category: 'images' | 'pdf' | 'video-audio' | 'developer' | 'web-tools' | 'ai-tools'
+  category: 'images' | 'pdf' | 'video-audio' | 'developer' | 'web-tools' | 'ai-tools' | 'image-editing'
   status: ToolStatus
   badge?: string
 }
@@ -22,10 +22,10 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'avif-to-jpg',  title: 'AVIF to JPG',   description: 'AVIF back to universal JPG.', category: 'images', status: 'live' },
   { slug: 'png-to-avif',  title: 'PNG to AVIF',   description: 'Best-in-class compression for PNGs.', category: 'images', status: 'live' },
   { slug: 'avif-to-png',  title: 'AVIF to PNG',   description: 'AVIF decoded to lossless PNG.', category: 'images', status: 'live' },
-  // Images — coming soon
-  { slug: 'background-remover', title: 'Background Remover', description: 'Remove backgrounds with AI, no account needed.', category: 'images', status: 'coming-soon', badge: 'AI' },
-  { slug: 'image-compressor',   title: 'Image Compressor',   description: 'Batch compress any image format.', category: 'images', status: 'coming-soon' },
-  { slug: 'image-resizer',      title: 'Image Resizer',      description: 'Resize to exact pixels or percent — batch.', category: 'images', status: 'coming-soon' },
+  // Image editing — coming soon
+  { slug: 'background-remover', title: 'Background Remover', description: 'Remove backgrounds with AI, no account needed.', category: 'image-editing', status: 'coming-soon', badge: 'AI' },
+  { slug: 'image-compressor',   title: 'Image Compressor',   description: 'Batch compress any image format.', category: 'image-editing', status: 'coming-soon' },
+  { slug: 'image-resizer',      title: 'Image Resizer',      description: 'Resize to exact pixels or percent — batch.', category: 'image-editing', status: 'coming-soon' },
 
   // PDF — 3 live, 2 coming soon
   { slug: 'merge-pdf',    title: 'Merge PDF',    description: 'Combine multiple PDFs into one.', category: 'pdf', status: 'live' },

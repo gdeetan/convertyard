@@ -3,12 +3,13 @@ import { ALL_TOOLS } from '@/content/tool-catalog'
 import { CATEGORY_META } from '@/content/category-meta'
 
 const CATEGORIES = [
-  { slug: 'images',      label: 'Images',       href: '/images' },
-  { slug: 'pdf',         label: 'PDF',           href: '/pdf' },
-  { slug: 'video-audio', label: 'Video & Audio', href: '/video-audio' },
-  { slug: 'developer',   label: 'Developer',     href: '/developer' },
-  { slug: 'web-tools',   label: 'Web Tools',     href: '/web-tools' },
-  { slug: 'ai-tools',    label: 'AI Tools',      href: '/ai-tools' },
+  { slug: 'images',        label: 'Images',         href: '/images' },
+  { slug: 'image-editing', label: 'Image Editing',  href: '/image-editing' },
+  { slug: 'pdf',           label: 'PDF',             href: '/pdf' },
+  { slug: 'video-audio',   label: 'Video & Audio',   href: '/video-audio' },
+  { slug: 'developer',     label: 'Developer',       href: '/developer' },
+  { slug: 'web-tools',     label: 'Web Tools',       href: '/web-tools' },
+  { slug: 'ai-tools',      label: 'AI Tools',        href: '/ai-tools' },
 ] as const
 
 type CategorySlug = typeof CATEGORIES[number]['slug']
