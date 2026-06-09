@@ -97,19 +97,22 @@ async function runBgRemoval(
     (img: unknown): Promise<{ pixel_values: unknown }>
   }
   const model = bgModel as {
-    (inputs: { pixel_values: unknown }): Promise<{ output: unknown[] }>
+    (inputs: Record<string, unknown>): Promise<Record<string, unknown>>
   }
 
   const { pixel_values } = await processor(image)
   self.postMessage({ type: 'infer-progress', id, progress: 30 })
 
-  // Inference
-  const { output } = await model({ pixel_values })
+  // MODNet's ONNX input is named 'input', not 'pixel_values'
+  const modelOutputs = await model({ input: pixel_values })
   self.postMessage({ type: 'infer-progress', id, progress: 70 })
 
+  // Handle both array outputs (RMBG-style) and direct tensor outputs (MODNet-style)
+  const rawOutput = modelOutputs.output
+  const maskTensor = Array.isArray(rawOutput) ? rawOutput[0] : rawOutput
+
   // Build mask (single-channel, 0–255)
-  // output[0] is shape [1, 1, H, W] — mul(255) scales sigmoid output to byte range
-  const tensor = (output[0] as { mul: (n: number) => { to: (t: string) => unknown } })
+  const tensor = (maskTensor as { mul: (n: number) => { to: (t: string) => unknown } })
     .mul(255)
     .to('uint8')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
