@@ -9,15 +9,17 @@ import {
   Code2,
   Globe,
   Sparkles,
+  Wand2,
   ArrowRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
-type Category = 'all' | 'images' | 'pdf' | 'video-audio' | 'dev' | 'web-tools' | 'ai'
+type Category = 'all' | 'images' | 'image-editing' | 'pdf' | 'video-audio' | 'dev' | 'web-tools' | 'ai'
 
 const FILTERS: { id: Category; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'images', label: 'Images' },
+  { id: 'image-editing', label: 'Editing' },
   { id: 'pdf', label: 'PDF' },
   { id: 'video-audio', label: 'Video & Audio' },
   { id: 'dev', label: 'Developer' },
@@ -27,6 +29,7 @@ const FILTERS: { id: Category; label: string }[] = [
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   images: Image,
+  'image-editing': Wand2,
   pdf: FileText,
   'video-audio': Film,
   dev: Code2,
@@ -36,6 +39,7 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
 
 const CATEGORY_LABELS: Record<string, string> = {
   images: 'Images',
+  'image-editing': 'Editing',
   pdf: 'PDF',
   'video-audio': 'Video & Audio',
   dev: 'Developer',
@@ -58,9 +62,9 @@ const TOOLS: Tool[] = [
   { slug: 'webp-to-jpg',           name: 'WebP to JPG',           category: 'images',      desc: 'Convert WebP back to universal JPEG.' },
   { slug: 'webp-to-png',           name: 'WebP to PNG',           category: 'images',      desc: 'Lossless quality. Transparency preserved.' },
   { slug: 'heic-to-png',           name: 'HEIC to PNG',           category: 'images',      desc: 'iPhone photos to lossless PNG.' },
-  { slug: 'background-remover',    name: 'Background remover',    category: 'images',      desc: 'Remove backgrounds locally. No uploads.',     badge: 'AI' },
-  { slug: 'image-compressor',      name: 'Bulk image compressor', category: 'images',      desc: 'Compress hundreds of images at once.' },
-  { slug: 'image-resizer',         name: 'Batch image resizer',   category: 'images',      desc: 'Resize hundreds of images in one go.' },
+  { slug: 'background-remover',    name: 'Background remover',    category: 'image-editing', desc: 'Remove backgrounds locally. No uploads.',     badge: 'AI' },
+  { slug: 'image-compressor',      name: 'Bulk image compressor', category: 'image-editing', desc: 'Compress hundreds of images at once.' },
+  { slug: 'image-resizer',         name: 'Batch image resizer',   category: 'image-editing', desc: 'Resize hundreds of images in one go.' },
   { slug: 'merge-pdf',             name: 'Merge PDF',             category: 'pdf',         desc: 'Combine multiple PDFs into one file.' },
   { slug: 'compress-pdf',          name: 'Compress PDF',          category: 'pdf',         desc: 'Reduce PDF size without losing quality.' },
   { slug: 'pdf-to-jpg',            name: 'PDF to JPG',            category: 'pdf',         desc: 'Export every page as a separate JPG.' },
