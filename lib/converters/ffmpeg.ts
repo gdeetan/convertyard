@@ -105,59 +105,60 @@ export async function mp3ToMp4(
 
       const baseCodecArgs = ['-c:v', 'libx264', '-crf', '28', '-preset', 'ultrafast', '-c:a', 'aac', '-b:a', '192k', '-shortest']
 
-      if (bgType === 'image' && bgImage) {
-        if (waveform === 'none') {
-          await ffmpeg.exec([
-            '-loop', '1', '-i', imageName,
-            '-i', inputName,
-            '-vf', `scale=${w}:${h},setsar=1`,
-            ...baseCodecArgs,
-            outputName,
-          ])
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        if (bgType === 'image' && bgImage) {
+          if (waveform === 'none') {
+            await ffmpeg.exec([
+              '-loop', '1', '-i', imageName,
+              '-i', inputName,
+              '-vf', `scale=${w}:${h},setsar=1`,
+              ...baseCodecArgs,
+              outputName,
+            ])
+          } else {
+            const mode = waveform === 'bar' ? 'p2p' : 'line'
+            await ffmpeg.exec([
+              '-loop', '1', '-i', imageName,
+              '-i', inputName,
+              '-filter_complex',
+              `[0:v]scale=${w}:${h},setsar=1[bg];[1:a]showwaves=s=${size}:mode=${mode}:colors=white:scale=sqrt[waves];[bg][waves]overlay[v]`,
+              '-map', '[v]', '-map', '1:a',
+              ...baseCodecArgs,
+              outputName,
+            ])
+          }
         } else {
-          const mode = waveform === 'bar' ? 'p2p' : 'line'
-          await ffmpeg.exec([
-            '-loop', '1', '-i', imageName,
-            '-i', inputName,
-            '-filter_complex',
-            `[0:v]scale=${w}:${h},setsar=1[bg];[1:a]showwaves=s=${size}:mode=${mode}:colors=white:scale=sqrt[waves];[bg][waves]overlay[v]`,
-            '-map', '[v]', '-map', '1:a',
-            ...baseCodecArgs,
-            outputName,
-          ])
+          const rate = waveform === 'none' ? '1' : '25'
+          if (waveform === 'none') {
+            await ffmpeg.exec([
+              '-f', 'lavfi', '-i', `color=c=${lavfiColor}:size=${size}:rate=${rate}`,
+              '-i', inputName,
+              ...baseCodecArgs,
+              outputName,
+            ])
+          } else {
+            const mode = waveform === 'bar' ? 'p2p' : 'line'
+            await ffmpeg.exec([
+              '-f', 'lavfi', '-i', `color=c=${lavfiColor}:size=${size}:rate=${rate}`,
+              '-i', inputName,
+              '-filter_complex',
+              `[1:a]showwaves=s=${size}:mode=${mode}:colors=white:scale=sqrt[waves];[0:v][waves]overlay[v]`,
+              '-map', '[v]', '-map', '1:a',
+              ...baseCodecArgs,
+              outputName,
+            ])
+          }
         }
-      } else {
-        const rate = waveform === 'none' ? '1' : '25'
-        if (waveform === 'none') {
-          await ffmpeg.exec([
-            '-f', 'lavfi', '-i', `color=c=${lavfiColor}:size=${size}:rate=${rate}`,
-            '-i', inputName,
-            ...baseCodecArgs,
-            outputName,
-          ])
-        } else {
-          const mode = waveform === 'bar' ? 'p2p' : 'line'
-          await ffmpeg.exec([
-            '-f', 'lavfi', '-i', `color=c=${lavfiColor}:size=${size}:rate=${rate}`,
-            '-i', inputName,
-            '-filter_complex',
-            `[1:a]showwaves=s=${size}:mode=${mode}:colors=white:scale=sqrt[waves];[0:v][waves]overlay[v]`,
-            '-map', '[v]', '-map', '1:a',
-            ...baseCodecArgs,
-            outputName,
-          ])
-        }
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+        if (bgImage) await ffmpeg.deleteFile(imageName).catch(() => {})
       }
 
-      ffmpeg.off('progress', progressHandler)
-
-      const data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
-      await ffmpeg.deleteFile(inputName)
-      await ffmpeg.deleteFile(outputName)
-      if (bgImage) {
-        await ffmpeg.deleteFile(imageName).catch(() => {})
-      }
-
+      if (!data) throw new Error('Conversion produced no output')
       const baseName = file.name.replace(/\.[^.]+$/, '')
       results.push(new File([data], `${baseName}.mp4`, { type: 'video/mp4' }))
       onProgress?.(i, 100)
