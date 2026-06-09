@@ -12,6 +12,7 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
     "@ffmpeg/util": "^0.12.2",
+    "@huggingface/transformers": "^4.2.0",
     "@tanstack/react-virtual": "^3.14.2",
     "clsx": "^2.1.1",
     "fflate": "^0.8.2",

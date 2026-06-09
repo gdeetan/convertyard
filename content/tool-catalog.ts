@@ -23,7 +23,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'png-to-avif',  title: 'PNG to AVIF',   description: 'Best-in-class compression for PNGs.', category: 'images', status: 'live' },
   { slug: 'avif-to-png',  title: 'AVIF to PNG',   description: 'AVIF decoded to lossless PNG.', category: 'images', status: 'live' },
   // Image editing — coming soon
-  { slug: 'background-remover', title: 'Background Remover', description: 'Remove backgrounds with AI, no account needed.', category: 'image-editing', status: 'coming-soon', badge: 'AI' },
+  { slug: 'background-remover', title: 'Background Remover', description: 'Remove backgrounds with AI, no account needed.', category: 'image-editing', status: 'live', badge: 'AI' },
   { slug: 'image-compressor',   title: 'Image Compressor',   description: 'Batch compress any image format.', category: 'image-editing', status: 'live' },
   { slug: 'image-resizer',      title: 'Image Resizer',      description: 'Resize to exact pixels or percent — batch.', category: 'image-editing', status: 'coming-soon' },
 
@@ -58,7 +58,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'gradient-generator',   title: 'Gradient Generator',   description: 'Build CSS gradients visually.', category: 'web-tools', status: 'coming-soon' },
 
   // AI Tools — all coming soon
-  { slug: 'alt-text-generator',  title: 'Alt Text Generator',  description: 'Generate descriptive alt text for any image.', category: 'ai-tools', status: 'coming-soon', badge: 'AI' },
+  { slug: 'alt-text-generator',  title: 'Alt Text Generator',  description: 'Generate descriptive alt text for any image.', category: 'ai-tools', status: 'live', badge: 'AI' },
   { slug: 'image-upscaler',      title: 'Image Upscaler',      description: 'Upscale images 2×–4× with AI.', category: 'ai-tools', status: 'coming-soon', badge: 'AI' },
   { slug: 'transcription',       title: 'Transcription',       description: 'Transcribe audio and video in your browser.', category: 'ai-tools', status: 'coming-soon', badge: 'AI' },
   { slug: 'image-description',   title: 'Image Description',   description: 'Generate captions for images with AI.', category: 'ai-tools', status: 'coming-soon', badge: 'AI' },

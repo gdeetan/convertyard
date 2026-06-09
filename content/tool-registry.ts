@@ -15,6 +15,8 @@ import { config as imageCompressor } from './tools/image-compressor'
 import { config as imageResizer } from './tools/image-resizer'
 import { config as mp4ToMp3 } from './tools/mp4-to-mp3'
 import { config as mp3ToMp4 } from './tools/mp3-to-mp4'
+import { config as backgroundRemover } from './tools/background-remover'
+import { config as altTextGenerator } from './tools/alt-text-generator'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
@@ -35,6 +37,8 @@ export const tools: ToolConfig[] = [
   imageResizer,
   mp4ToMp3,
   mp3ToMp4,
+  backgroundRemover,
+  altTextGenerator,
 ]
 
 export const toolBySlug = Object.fromEntries(
