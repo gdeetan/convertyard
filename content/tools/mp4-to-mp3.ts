@@ -81,7 +81,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['video-compressor', 'extract-audio', 'trim-audio'],
+  relatedTools: ['mp3-to-mp4'],
   relatedArticles: ['audio-bitrate-explained', 'extract-audio-from-mp4', 'browser-video-editing-2026'],
 
   meta: {

@@ -52,7 +52,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['merge-pdf', 'pdf-to-jpg', 'split-pdf'],
+  relatedTools: ['merge-pdf', 'pdf-to-jpg'],
   relatedArticles: [],
 
   meta: {

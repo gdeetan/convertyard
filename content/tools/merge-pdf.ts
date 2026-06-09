@@ -38,7 +38,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['compress-pdf', 'pdf-to-jpg', 'split-pdf'],
+  relatedTools: ['compress-pdf', 'pdf-to-jpg'],
   relatedArticles: [],
 
   meta: {

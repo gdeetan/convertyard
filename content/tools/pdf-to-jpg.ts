@@ -61,7 +61,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['compress-pdf', 'merge-pdf', 'split-pdf'],
+  relatedTools: ['compress-pdf', 'merge-pdf'],
   relatedArticles: [],
 
   meta: {
