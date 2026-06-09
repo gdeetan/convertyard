@@ -69,7 +69,7 @@ export async function mp3ToMp4(
   const results: ConversionResult[] = []
 
   const bgType     = (options.bgType     as string) ?? 'black'
-  const bgColor    = (options.bgColor    as string) ?? '#000000'
+  const bgColor    = (options.bgColor    as string) ?? '#1a1a2e'
   const bgImage    = (options.bgImage    as File | null) ?? null
   const waveform   = (options.waveform   as string) ?? 'none'
   const resolution = (options.resolution as string) ?? '720p'
@@ -88,7 +88,8 @@ export async function mp3ToMp4(
       const ext = file.name.split('.').pop() ?? 'mp3'
       const inputName = `audio_${i}.${ext}`
       const outputName = `out_${i}.mp4`
-      const imageName = `bg_${i}.jpg`
+      const imageExt = bgImage?.name.split('.').pop() ?? 'jpg'
+      const imageName = `bg_${i}.${imageExt}`
 
       await ffmpeg.writeFile(inputName, await fetchFile(file))
       onProgress?.(i, 10)
