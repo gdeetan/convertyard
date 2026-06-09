@@ -1,0 +1,26 @@
+// app/(tools)/base64/layout.tsx
+import type { Metadata } from 'next'
+import { config } from '@/content/tools/base64'
+import { textToolMetadata } from '@/lib/seo/metadata'
+import { textSoftwareApplicationSchema, faqPageSchema, breadcrumbSchema, BASE_URL } from '@/lib/seo/schema'
+
+export const metadata: Metadata = textToolMetadata(config)
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  const schemas = [
+    textSoftwareApplicationSchema(config),
+    faqPageSchema(config.faq),
+    breadcrumbSchema([
+      { name: 'ConvertYard', url: `${BASE_URL}/` },
+      { name: config.title, url: `${BASE_URL}/${config.slug}/` },
+    ]),
+  ]
+  return (
+    <>
+      {schemas.map((s, i) => (
+        <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(s) }} />
+      ))}
+      {children}
+    </>
+  )
+}
