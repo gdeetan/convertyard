@@ -14,6 +14,7 @@ import { config as avifToPng } from './tools/avif-to-png'
 import { config as imageCompressor } from './tools/image-compressor'
 import { config as imageResizer } from './tools/image-resizer'
 import { config as mp4ToMp3 } from './tools/mp4-to-mp3'
+import { config as mp3ToMp4 } from './tools/mp3-to-mp4'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
@@ -33,6 +34,7 @@ export const tools: ToolConfig[] = [
   imageCompressor,
   imageResizer,
   mp4ToMp3,
+  mp3ToMp4,
 ]
 
 export const toolBySlug = Object.fromEntries(
