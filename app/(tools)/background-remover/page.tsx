@@ -35,7 +35,7 @@ export default function Page() {
             <div className="h-2 w-2 animate-pulse rounded-full bg-primary shrink-0" aria-hidden="true" />
             <span className="flex-1 min-w-0">
               {modelProgress !== null && modelProgress > 0
-                ? `Downloading AI model… ${modelProgress}% (176 MB, one-time)`
+                ? `Downloading AI model… ${modelProgress}% (~14 MB, one-time)`
                 : 'Loading AI model…'}
             </span>
             {modelProgress !== null && modelProgress > 0 && (

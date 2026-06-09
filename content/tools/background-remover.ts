@@ -44,7 +44,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'How large is the AI model? Will it slow my browser?',
-      a: 'The model is about 176 MB and downloads once on your first visit, then stays cached. During inference, it runs on your CPU. Modern laptops process each image in 2–5 seconds. Older devices or phones may take 10–30 seconds per image — the page shows a per-image progress bar so you always know where things stand.',
+      a: 'The model is about 14 MB and downloads in seconds on your first visit, then stays cached. During inference, it runs on your CPU. Modern laptops process each image in 2–5 seconds. Older devices or phones may take 10–30 seconds per image — the page shows a per-image progress bar so you always know where things stand.',
     },
     {
       q: 'How long does each image take to process?',

@@ -3,9 +3,9 @@
 // Runs entirely in a Web Worker — never imported server-side.
 // Models are cached in browser IndexedDB/Cache Storage by transformers.js after first download.
 //
-// NOTE: briaai/RMBG-1.4 is used for background removal.
-// Review BRIA AI's license before commercial deployment — consider swapping to
-// ZhengPeng7/BiRefNet (MIT) once ONNX weights are widely available on HuggingFace.
+// Background removal uses Xenova/modnet (MIT license, ~14 MB quantized).
+// Upgrade path: ZhengPeng7/BiRefNet (MIT) once ONNX weights are on HuggingFace,
+// or license briaai/RMBG-1.4 commercially if hair/fur edge quality becomes a complaint.
 
 export type ModelType = 'bg-removal' | 'alt-text'
 
@@ -54,11 +54,11 @@ async function loadBgModel() {
 
   const cb = makeProgressCallback('bg-removal')
 
-  bgProcessor = await AutoImageProcessor.from_pretrained('briaai/RMBG-1.4', {
+  bgProcessor = await AutoImageProcessor.from_pretrained('Xenova/modnet', {
     progress_callback: cb,
   })
-  bgModel = await AutoModelForImageSegmentation.from_pretrained('briaai/RMBG-1.4', {
-    dtype: 'fp32',
+  bgModel = await AutoModelForImageSegmentation.from_pretrained('Xenova/modnet', {
+    dtype: 'q8',
     progress_callback: cb,
   })
 }
