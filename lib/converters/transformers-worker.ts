@@ -109,12 +109,14 @@ async function runBgRemoval(
 
   // Handle both array outputs (RMBG-style) and direct tensor outputs (MODNet-style)
   const rawOutput = modelOutputs.output
-  const maskTensor = Array.isArray(rawOutput) ? rawOutput[0] : rawOutput
+  type MaskTensor = { mul: (n: number) => MaskTensor; to: (t: string) => MaskTensor; squeeze: (d: number) => MaskTensor; dims: number[] }
+  const maskRaw = (Array.isArray(rawOutput) ? rawOutput[0] : rawOutput) as MaskTensor
+
+  // If 4D [1, 1, H, W] squeeze batch dim to 3D [1, H, W] — RawImage.fromTensor requires 3D
+  const maskTensor = maskRaw.dims.length === 4 ? maskRaw.squeeze(0) : maskRaw
 
   // Build mask (single-channel, 0–255)
-  const tensor = (maskTensor as { mul: (n: number) => { to: (t: string) => unknown } })
-    .mul(255)
-    .to('uint8')
+  const tensor = maskTensor.mul(255).to('uint8')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mask = await RawImage.fromTensor(tensor as any)
   const resizedMask = await mask.resize(image.width, image.height)
