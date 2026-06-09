@@ -35,7 +35,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'pdf-to-word',  title: 'PDF to Word',  description: 'Editable DOCX from any PDF.', category: 'pdf', status: 'coming-soon' },
 
   // Video & Audio — all coming soon
-  { slug: 'mp4-to-mp3',       title: 'MP4 to MP3',       description: 'Strip audio from video in seconds.', category: 'video-audio', status: 'coming-soon' },
+  { slug: 'mp4-to-mp3',       title: 'MP4 to MP3',       description: 'Strip audio from video in seconds.', category: 'video-audio', status: 'live' },
   { slug: 'video-compressor',  title: 'Video Compressor',  description: 'Compress MP4s for upload or storage.', category: 'video-audio', status: 'coming-soon' },
   { slug: 'video-to-gif',      title: 'Video to GIF',      description: 'Turn video clips into shareable GIFs.', category: 'video-audio', status: 'coming-soon' },
   { slug: 'audio-trimmer',     title: 'Audio Trimmer',     description: 'Cut audio clips without re-encoding.', category: 'video-audio', status: 'coming-soon' },

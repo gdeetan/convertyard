@@ -131,6 +131,7 @@ export function ToolShell({ config }: ToolShellProps) {
     announcement: '',
   })
   const [options, setOptions] = useState<ToolOptions>(() => buildDefaultOptions(config))
+  const [fileWarning, setFileWarning] = useState<string | null>(null)
 
   // Batch progress updates via RAF to avoid flooding React
   const pendingProgress = useRef<Array<[number, number]>>([])
@@ -151,6 +152,14 @@ export function ToolShell({ config }: ToolShellProps) {
 
   const handleAdd = useCallback((files: File[]) => {
     dispatch({ type: 'ADD_FILES', files })
+    if (config.warningFn) {
+      setFileWarning(config.warningFn(files))
+    }
+  }, [config])
+
+  const handleReset = useCallback(() => {
+    dispatch({ type: 'RESET' })
+    setFileWarning(null)
   }, [])
 
   const handleOptionChange = useCallback((name: string, value: unknown) => {
@@ -233,6 +242,12 @@ export function ToolShell({ config }: ToolShellProps) {
               totalBytes={totalBytes}
             />
 
+            {fileWarning && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                {fileWarning}
+              </div>
+            )}
+
             {config.options && config.options.length > 0 && (
               <OptionsPanel
                 options={config.options}
@@ -244,7 +259,7 @@ export function ToolShell({ config }: ToolShellProps) {
             <div className="flex items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={() => dispatch({ type: 'RESET' })}
+                onClick={handleReset}
                 className={cn(
                   'text-sm text-fg-muted hover:text-fg transition-colors',
                   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded'
@@ -281,7 +296,7 @@ export function ToolShell({ config }: ToolShellProps) {
             <div className="border-t border-border pt-4">
               <button
                 type="button"
-                onClick={() => dispatch({ type: 'RESET' })}
+                onClick={handleReset}
                 className={cn(
                   'flex items-center gap-2 text-sm text-fg-muted hover:text-fg transition-colors',
                   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded'

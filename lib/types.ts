@@ -77,6 +77,7 @@ export interface ToolConfig {
     onProgress?: (fileIndex: number, pct: number) => void
   ) => Promise<ConversionResult[]>
   options?: ToolOption[]
+  warningFn?: (files: File[]) => string | null
   faq: FAQItem[]
   relatedTools: string[]    // tool slugs, 3-5
   relatedArticles: string[] // article slugs, 2-3
