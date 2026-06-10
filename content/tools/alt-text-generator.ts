@@ -52,7 +52,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['background-remover', 'image-compressor', 'image-resizer'],
-  relatedArticles: [],
+  relatedArticles: ['alt-text-guide'],
 
   meta: {
     title: 'Alt Text Generator — ConvertYard',

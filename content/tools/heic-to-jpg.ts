@@ -84,7 +84,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['heic-to-png', 'jpg-to-webp', 'image-compressor'],
-  relatedArticles: ['heic-explained', 'heic-to-jpg-on-windows', 'batch-convert-images'],
+  relatedArticles: ['what-is-heic', 'heic-to-jpg-on-windows', 'batch-convert-images'],
 
   meta: {
     title: 'HEIC to JPG Converter — ConvertYard',

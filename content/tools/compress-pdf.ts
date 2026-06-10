@@ -53,7 +53,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['merge-pdf', 'pdf-to-jpg'],
-  relatedArticles: [],
+  relatedArticles: ['merge-pdf-without-uploading'],
 
   meta: {
     title: 'Compress PDF — ConvertYard',
