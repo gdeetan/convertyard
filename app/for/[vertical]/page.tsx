@@ -1,7 +1,7 @@
-import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { VerticalHubShell } from '@/components/vertical-hub-shell/vertical-hub-shell'
 import { verticals } from '@/content/vertical-registry'
+import { verticalMetadata } from '@/lib/seo/metadata'
 
 export function generateStaticParams() {
   // Returns empty array when no verticals are registered yet.
@@ -15,15 +15,11 @@ export async function generateMetadata({
   params,
 }: {
   params: Promise<{ vertical: string }>
-}): Promise<Metadata> {
+}) {
   const { vertical } = await params
   const config = verticals.find(v => v.slug === vertical)
   if (!config) return {}
-  return {
-    title: `${config.h1} — ConvertYard`,
-    description: config.intro.slice(0, 155),
-    alternates: { canonical: `https://convertyard.com/for/${vertical}/` },
-  }
+  return verticalMetadata(config)
 }
 
 export default async function Page({

@@ -1,6 +1,6 @@
 // lib/seo/metadata.ts
 import type { Metadata } from 'next'
-import type { ToolConfig } from '@/lib/types'
+import type { ToolConfig, SizeTargetConfig, VerticalHubConfig } from '@/lib/types'
 import type { TextToolConfig } from '@/lib/types-text'
 import { BASE_URL } from '@/lib/seo/schema'
 
@@ -26,6 +26,32 @@ export function toolMetadata(config: ToolConfig): Metadata {
       description: config.meta.description,
       images: [ogImage],
     },
+  }
+}
+
+export function sizeTargetMetadata(config: SizeTargetConfig): Metadata {
+  const canonicalUrl = `${BASE_URL}/${config.parentTool}/${config.slug}/`
+  const title = `${config.h1} — ConvertYard`
+  const description = config.intro.slice(0, 155)
+  return {
+    title: { absolute: title },
+    description,
+    alternates: { canonical: canonicalUrl },
+    openGraph: { title, description, url: canonicalUrl, siteName: 'ConvertYard', type: 'website' },
+    twitter: { card: 'summary_large_image', title, description },
+  }
+}
+
+export function verticalMetadata(config: VerticalHubConfig): Metadata {
+  const canonicalUrl = `${BASE_URL}/for/${config.slug}/`
+  const title = `${config.name} Upload Kit — ConvertYard`
+  const description = config.intro.slice(0, 155)
+  return {
+    title: { absolute: title },
+    description,
+    alternates: { canonical: canonicalUrl },
+    openGraph: { title, description, url: canonicalUrl, siteName: 'ConvertYard', type: 'website' },
+    twitter: { card: 'summary_large_image', title, description },
   }
 }
 
