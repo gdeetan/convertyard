@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
-import type { ToolOption, ToolOptions, NumberWithChipsOption } from '@/lib/types'
+import type { ToolOption, ToolOptions, NumberWithChipsOption, RadioOption } from '@/lib/types'
 
 interface OptionsPanelProps {
   options: ToolOption[]
@@ -142,34 +142,41 @@ function OptionRow({
         )}
 
         {opt.type === 'radio' && (
-          <fieldset>
-            <legend className="sr-only">{opt.label}</legend>
-            <div className="flex flex-wrap gap-2">
-              {opt.choices.map((c) => (
-                <label
-                  key={c.value}
-                  className={cn(
-                    'flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5',
-                    'text-sm transition-colors',
-                    'focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary',
-                    value === c.value
-                      ? 'border-primary bg-bg-muted text-primary font-medium'
-                      : 'border-border text-fg-muted hover:border-border-strong'
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name={`opt-${opt.name}`}
-                    value={c.value}
-                    checked={value === c.value}
-                    onChange={() => onChange(opt.name, c.value)}
-                    className="sr-only"
-                  />
-                  {c.label}
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <>
+            <fieldset>
+              <legend className="sr-only">{opt.label}</legend>
+              <div className="flex flex-wrap gap-2">
+                {opt.choices.map((c) => (
+                  <label
+                    key={c.value}
+                    className={cn(
+                      'flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5',
+                      'text-sm transition-colors',
+                      'focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary',
+                      value === c.value
+                        ? 'border-primary bg-bg-muted text-primary font-medium'
+                        : 'border-border text-fg-muted hover:border-border-strong'
+                    )}
+                  >
+                    <input
+                      type="radio"
+                      name={`opt-${opt.name}`}
+                      value={c.value}
+                      checked={value === c.value}
+                      onChange={() => onChange(opt.name, c.value)}
+                      className="sr-only"
+                    />
+                    {c.label}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
+            {(opt as RadioOption).conditionalHints?.[value as string] && (
+              <p className="mt-1.5 text-xs text-fg-subtle">
+                {(opt as RadioOption).conditionalHints![value as string]}
+              </p>
+            )}
+          </>
         )}
 
         {opt.type === 'number' && (
