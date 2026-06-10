@@ -1,0 +1,90 @@
+export const meta = {
+  title: 'How to Merge PDF Files Without Uploading Them',
+  description:
+    "Free PDF merge tools upload your documents to third-party servers. Here's what happens to your files — and how to merge PDFs locally in your browser instead.",
+  lastUpdated: '2026-06-10',
+  faq: [
+    {
+      q: 'Is it safe to merge PDFs online?',
+      a: "It depends entirely on the service. Most free PDF tools upload your files to third-party cloud infrastructure. Their terms of service typically allow them to retain files for 24 hours to several days, and some services use uploads to improve their machine learning models or run OCR indexing. For contracts, medical records, financial documents, or anything with personal information, using an in-browser tool that never uploads is significantly safer.",
+    },
+    {
+      q: 'How do I merge PDFs without Adobe Acrobat?',
+      a: "ConvertYard's PDF merger runs entirely in your browser — no Adobe subscription needed. Drop your PDFs in, drag to reorder, and click Merge. The result is a single merged PDF. On macOS, Preview can also merge PDFs natively: open the first PDF, open the page thumbnail sidebar, and drag pages from other PDFs in.",
+    },
+    {
+      q: 'Can I merge PDFs on iPhone or iPad?',
+      a: "Yes. ConvertYard works in mobile Safari and Chrome on iOS. Open the site, tap the dropzone to select files from Files app, and run the merge. On iPad, you can drag-and-drop PDFs directly from Files into the dropzone. The merge happens in your browser — nothing is uploaded.",
+    },
+    {
+      q: 'Does merging PDFs reduce quality?',
+      a: 'No. PDF merging copies page content from each source file without re-rendering or re-compressing anything. Text, vector graphics, and embedded images are preserved exactly as they appear in the source files. The output quality is identical to the inputs.',
+    },
+    {
+      q: 'How do I merge 100 PDF files at once?',
+      a: "Drop all 100 files into ConvertYard at once. Drag the file cards to set your desired order. Click Merge. The tool processes everything in your browser — no upload, no server queue. Memory usage scales with total file size; most computers handle 200–300 MB of PDFs without issue.",
+    },
+  ],
+  relatedTools: ['merge-pdf', 'compress-pdf'],
+}
+
+If you've ever Googled "merge PDF" and clicked the first result, you've almost certainly uploaded a document to a server run by a company you've never heard of. For most files, this is mildly annoying. For contracts, payslips, medical records, or tax documents, it's a meaningful privacy risk.
+
+This guide explains what actually happens when you upload a PDF to a free online tool, and how to merge your files locally in a browser instead.
+
+**[Merge PDF files — runs entirely in your browser →](/merge-pdf/)**
+
+## Why uploading PDFs is riskier than most people think
+
+The free PDF tool industry runs on a surprisingly opaque business model. The tools are free because the companies hosting them monetize in ways that don't involve charging users directly. Understanding how changes how you think about which tools to use.
+
+**Server retention.** Almost every free online PDF tool uploads your files to cloud infrastructure and retains them for a period after you download the result. "We delete your files after 1 hour" is the common claim. Some services make this genuinely true. Others retain files indefinitely or in archived form. The difference is only visible if you read the privacy policy carefully — and most people don't.
+
+**OCR indexing.** Several free PDF services run optical character recognition on uploaded documents as part of their normal processing pipeline. This is how they build searchable document features. It also means the text content of your PDF — names, addresses, account numbers, legal language — is extracted and stored on their infrastructure.
+
+**Metadata extraction.** PDFs contain rich metadata: author name, company, original creation software, last-edited date, document title. Some services extract and store this metadata separately from the document itself. A contract that says "Confidential" in the metadata is not confidential after it's been processed and indexed by a third-party server.
+
+**GDPR and jurisdiction.** Many free PDF services are operated from jurisdictions with weaker data protection laws than the EU or UK. If you're subject to GDPR (you process data about EU residents), uploading client documents to an unvetted third-party service may not be compliant.
+
+None of this means all online PDF tools are malicious. Most are straightforward utilities operated in good faith. The issue is that you typically have no way to verify the practices of a specific service before uploading a document. With an in-browser tool, this problem doesn't exist — the tool code runs on your device and the file never leaves.
+
+## What in-browser PDF merging actually means
+
+"In-browser" processing using WebAssembly (WASM) means the tool code executes in your browser's JavaScript runtime, which is sandboxed on your computer. The PDF library — in ConvertYard's case, pdf-lib — runs locally.
+
+The distinction from a standard web app is that no file data is transmitted to any server. When you drag a PDF into the dropzone, the browser's `FileReader` API reads it into memory on your machine. The WASM library manipulates that memory. The output is written back to your browser's memory and then offered as a download. Nothing is sent over the network except the initial page load of the tool itself.
+
+You can verify this with your browser's developer tools: open the Network tab before merging, run a merge operation, and observe that no POST requests containing your file data are made.
+
+## Step-by-step: merge PDFs locally in your browser
+
+1. Go to [ConvertYard's PDF merger](/merge-pdf/).
+2. Drop your PDF files into the dropzone — or click to select them.
+3. Drag the file cards to arrange them in the order you want the pages to appear in the merged document.
+4. Click **Merge**.
+5. Download the merged PDF.
+
+The output file size is approximately the sum of your input files, sometimes slightly smaller due to deduplication of shared resources like fonts.
+
+If the merged file is too large for your purpose (email attachment limits, upload size restrictions), run it through [Compress PDF](/compress-pdf/) afterward to reduce size without affecting visual quality.
+
+## Merging 50+ PDFs in order
+
+For larger merges — combining monthly reports, archiving a document set, assembling a multi-chapter document — the drag-to-reorder interface becomes important. ConvertYard lets you drag individual file cards to set the order before merging.
+
+Tips for large merges:
+- **Name your files in order before dropping them in.** Files are listed alphabetically on initial upload. Naming them `01-january.pdf`, `02-february.pdf` etc. means they arrive in the right order with no manual reordering needed.
+- **Check total file size.** Very large batches (500 MB+) may exhaust browser memory on older devices. Split into smaller batches and merge the results if you encounter memory issues.
+- **Consistent page sizes.** PDF merge works regardless of whether pages are the same size — you can merge A4 and Letter documents without issue. The output preserves each page's original dimensions.
+
+## When you might still need a desktop app
+
+In-browser merging covers the vast majority of use cases. There are a few scenarios where desktop software has an edge:
+
+**Password-protected PDFs.** PDFs that require a password to open cannot be processed by in-browser tools without you providing the password first. If you're merging documents with open-password protection, you'd typically need to remove the password in a desktop app first.
+
+**Very large documents in bulk.** Merging 500+ PDFs totaling several gigabytes is at the edge of what browser memory handles well. Desktop tools like PDF24 (offline mode) or command-line tools like `pdftk` handle this more reliably.
+
+**Advanced features.** Bookmark preservation, page labeling, and form field flattening across merged documents are features that in-browser tools don't yet fully support. For complex document workflows, Adobe Acrobat or a dedicated document management system may be appropriate.
+
+For everyday document merging — combining invoices, assembling reports, merging scanned pages — an in-browser tool handles it without the overhead of a subscription or a desktop installation.
