@@ -9,6 +9,10 @@ export const config: ToolConfig = {
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
   outputExt: '.pdf',
+  limitationNote: {
+    summary: 'What compresses well?',
+    body: 'PDFs heavy in metadata, structural overhead, or embedded JPEG images — scanned documents, exported reports — shrink the most. Text-only PDFs and vector-heavy files will see little change. Use Aggressive mode to guarantee a smaller file: it converts every page to an image.',
+  },
   convertFn: compressPDF,
 
   options: [
@@ -22,14 +26,21 @@ export const config: ToolConfig = {
     {
       type: 'radio',
       name: 'level',
-      label: 'Quick mode',
+      label: 'Compression level',
       choices: [
-        { value: 'low',    label: 'Low (better quality)' },
-        { value: 'medium', label: 'Medium' },
-        { value: 'high',   label: 'High (smallest files)' },
+        { value: 'low',        label: 'Low (better quality)' },
+        { value: 'medium',     label: 'Medium' },
+        { value: 'high',       label: 'High (smallest files)' },
+        { value: 'aggressive', label: 'Aggressive (convert to images)' },
       ],
       default: 'medium',
       dependsOn: { name: 'targetSizeMode', value: 'false' },
+      conditionalHints: {
+        low:        'Cleans up internal structure. Text and images untouched.',
+        medium:     'Strips metadata + optimises structure.',
+        high:       'Maximum metadata removal + JPEG re-encoding at 30%.',
+        aggressive: 'Converts every page to an image. Text won\'t be selectable. Best for scanned documents.',
+      },
     },
     {
       type: 'number-with-chips',
@@ -63,7 +74,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'How much smaller will my PDF get?',
-      a: 'Results vary by document. PDFs heavy in structural overhead (many small objects, rich metadata) can shrink 10–30%. PDFs that are mostly scanned images may see little or no reduction because the image data itself is already compressed. For maximum compression of image-heavy PDFs, consider reducing image quality in the original before converting to PDF.',
+      a: 'Results vary by document. PDFs heavy in structural overhead (many small objects, rich metadata) can shrink 10–30%. PDFs that are mostly scanned images may see little or no reduction because the image data itself is already compressed. For maximum compression of any PDF, switch to Aggressive mode — it converts each page to an image, guaranteeing a smaller file at the cost of text selectability.',
     },
     {
       q: 'What is the email attachment size limit I should target?',
