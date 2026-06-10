@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Download, Archive, CheckCircle2, XCircle, Loader2 } from 'lucide-react'
+import { Download, Archive, CheckCircle2, XCircle, Loader2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { downloadFile, formatBytes } from '@/lib/utils/download'
 import { downloadAsZip } from '@/lib/utils/zip'
@@ -181,6 +181,21 @@ function ResultRow({ entry }: { entry: FileEntry }) {
             </>
           )}
         </span>
+        {entry.resultMeta && (
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-fg-subtle">
+            <span>{formatBytes(entry.resultMeta.originalBytes)} → {formatBytes(entry.resultMeta.achievedBytes)}</span>
+            <span className="text-fg-subtle/60">target: {formatBytes(entry.resultMeta.targetBytes)}</span>
+            {!entry.resultMeta.reachedTarget && (
+              <span
+                title={entry.resultMeta.message ?? 'Could not reach target size'}
+                className="inline-flex items-center gap-1 text-amber-600 cursor-help"
+              >
+                <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                Couldn't reach target
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Individual download */}

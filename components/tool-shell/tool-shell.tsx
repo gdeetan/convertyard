@@ -11,7 +11,7 @@ import { ResultList } from './result-list'
 import { FAQAccordion } from './faq-accordion'
 import { RelatedToolsStrip } from './related-tools-strip'
 import { RelatedArticlesStrip } from './related-articles-strip'
-import type { ToolConfig, FileEntry, ToolPhase, ToolOptions, ToolCategory } from '@/lib/types'
+import type { ToolConfig, FileEntry, ToolPhase, ToolOptions, ToolCategory, CompressionMeta, ConversionResult } from '@/lib/types'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 
 const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
@@ -33,7 +33,7 @@ interface ToolShellProps {
 type Action =
   | { type: 'ADD_FILES'; files: File[] }
   | { type: 'SET_PROGRESS'; fileIndex: number; pct: number }
-  | { type: 'SET_RESULT'; fileIndex: number; result: File }
+  | { type: 'SET_RESULT'; fileIndex: number; result: File; resultMeta?: CompressionMeta }
   | { type: 'SET_ERROR'; fileIndex: number; error: string }
   | { type: 'START_CONVERTING' }
   | { type: 'FINISH' }
@@ -82,6 +82,7 @@ function reducer(state: State, action: Action): State {
           status: 'done',
           progress: 100,
           result: action.result,
+          resultMeta: action.resultMeta,
         }
       }
       return { ...state, entries }
@@ -176,7 +177,7 @@ export function ToolShell({ config }: ToolShellProps) {
       pendingProgress.current.push([fileIndex, pct])
     }
 
-    let results: (File | Error)[]
+    let results: ConversionResult[]
     try {
       results = await config.convertFn(files, options, onProgress)
     } catch (err) {
@@ -187,8 +188,10 @@ export function ToolShell({ config }: ToolShellProps) {
       const r = results[i]
       if (r instanceof Error) {
         dispatch({ type: 'SET_ERROR', fileIndex: i, error: r.message })
-      } else {
+      } else if (r instanceof File) {
         dispatch({ type: 'SET_RESULT', fileIndex: i, result: r })
+      } else {
+        dispatch({ type: 'SET_RESULT', fileIndex: i, result: r.file, resultMeta: r.meta })
       }
     }
     dispatch({ type: 'FINISH' })

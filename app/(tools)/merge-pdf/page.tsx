@@ -65,6 +65,7 @@ export default function MergePdfPage() {
       const results = await mergePDFs(files, {}, (_, pct) => setProgress(pct))
       const merged = results[0]
       if (merged instanceof Error) throw merged
+      if (!(merged instanceof File)) throw new Error('Merge failed')
       setResult(merged)
       setPhase('done')
     } catch (err) {
