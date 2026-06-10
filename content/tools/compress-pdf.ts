@@ -13,15 +13,42 @@ export const config: ToolConfig = {
 
   options: [
     {
+      type: 'toggle',
+      name: 'targetSizeMode',
+      label: 'Target size mode',
+      hint: 'Set an exact size target. The tool applies up to six compression passes — structural, then image quality reduction — until your target is met.',
+      default: false,
+    },
+    {
       type: 'radio',
       name: 'level',
-      label: 'Compression level',
+      label: 'Quick mode',
       choices: [
-        { value: 'low', label: 'Low (better quality)' },
+        { value: 'low',    label: 'Low (better quality)' },
         { value: 'medium', label: 'Medium' },
-        { value: 'high', label: 'High (smallest files)' },
+        { value: 'high',   label: 'High (smallest files)' },
       ],
       default: 'medium',
+      dependsOn: { name: 'targetSizeMode', value: 'false' },
+    },
+    {
+      type: 'number-with-chips',
+      name: 'targetKB',
+      label: 'Target size',
+      unitChoices: ['KB', 'MB'],
+      defaultUnit: 'KB',
+      chips: [
+        { label: '100 KB', valueKB: 100 },
+        { label: '200 KB', valueKB: 200 },
+        { label: '500 KB', valueKB: 500 },
+        { label: '1 MB',   valueKB: 1024 },
+        { label: '2 MB',   valueKB: 2048 },
+        { label: '5 MB',   valueKB: 5120 },
+        { label: '10 MB',  valueKB: 10240 },
+      ],
+      min: 1,
+      default: 500,
+      dependsOn: { name: 'targetSizeMode', value: 'true' },
     },
   ],
 
@@ -32,7 +59,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Will text and images inside my PDF look different after compression?',
-      a: 'Text is never affected — it is lossless. Images embedded in your PDF are not re-rendered or re-compressed by this tool, so image quality is preserved exactly. The savings come from structural overhead, not pixel data.',
+      a: 'Text is never affected — it is lossless. In Quick mode, images are not re-compressed either, so quality is preserved exactly. In Target size mode, embedded JPEG images may be re-encoded at lower quality to reach your target.',
     },
     {
       q: 'How much smaller will my PDF get?',
@@ -49,6 +76,14 @@ export const config: ToolConfig = {
     {
       q: 'Can I compress a batch of PDFs at once?',
       a: 'Yes. Drop multiple PDFs at once and they are all compressed using the same settings. Each compressed PDF downloads individually or you can grab all of them as a ZIP.',
+    },
+    {
+      q: 'How does target-size compression work?',
+      a: 'Enable Target size mode and enter your target. The tool runs up to six passes: first it strips metadata and rewrites the internal structure, then it re-encodes embedded JPEG images at progressively lower quality (80 → 60 → 40 → 30%). Each pass only keeps the result if it made the file smaller. Processing stops as soon as the target is met.',
+    },
+    {
+      q: "What if my file can't reach my target size?",
+      a: "If the PDF is already highly compressed — for example, a scanned document whose images are already low-quality JPEG — there may be nothing left to remove. The tool will return the smallest version it could produce and show you what was achieved versus your target. The file will not be broken; it simply cannot get any smaller without discarding content.",
     },
   ],
 
