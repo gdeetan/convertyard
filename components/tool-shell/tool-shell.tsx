@@ -11,7 +11,7 @@ import { ResultList } from './result-list'
 import { FAQAccordion } from './faq-accordion'
 import { RelatedToolsStrip } from './related-tools-strip'
 import { RelatedArticlesStrip } from './related-articles-strip'
-import type { ToolConfig, FileEntry, ToolPhase, ToolOptions, ToolCategory, CompressionMeta } from '@/lib/types'
+import type { ToolConfig, FileEntry, ToolPhase, ToolOptions, ToolCategory, CompressionMeta, ConversionResult } from '@/lib/types'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 
 const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
@@ -177,9 +177,9 @@ export function ToolShell({ config }: ToolShellProps) {
       pendingProgress.current.push([fileIndex, pct])
     }
 
-    let results: Array<File | Error | { file: File; meta: CompressionMeta }>
+    let results: ConversionResult[]
     try {
-      results = await config.convertFn(files, options, onProgress) as Array<File | Error | { file: File; meta: CompressionMeta }>
+      results = await config.convertFn(files, options, onProgress)
     } catch (err) {
       results = files.map(() => new Error(err instanceof Error ? err.message : 'Conversion failed'))
     }
