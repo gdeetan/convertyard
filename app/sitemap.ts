@@ -4,6 +4,7 @@ export const dynamic = 'force-static'
 import type { MetadataRoute } from 'next'
 import { tools }     from '@/content/tool-registry'
 import { textTools } from '@/content/text-tool-registry'
+import { articles }  from '@/content/article-registry'
 import { BASE_URL }  from '@/lib/seo/schema'
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -21,8 +22,16 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.8,
   }))
 
+  const articleEntries: MetadataRoute.Sitemap = articles.map((a) => ({
+    url: `${BASE_URL}/blog/${a.slug}/`,
+    lastModified: new Date(a.lastUpdated),
+    changeFrequency: 'monthly',
+    priority: 0.7,
+  }))
+
   const staticEntries: MetadataRoute.Sitemap = [
     { url: `${BASE_URL}/tools/`,       lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.95 },
+    { url: `${BASE_URL}/blog/`,        lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.8  },
     { url: `${BASE_URL}/images/`,      lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.9  },
     { url: `${BASE_URL}/pdf/`,         lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.9  },
     { url: `${BASE_URL}/video-audio/`, lastModified: new Date(), changeFrequency: 'weekly',  priority: 0.9  },
@@ -40,5 +49,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...staticEntries,
     ...toolEntries,
     ...textToolEntries,
+    ...articleEntries,
   ]
 }

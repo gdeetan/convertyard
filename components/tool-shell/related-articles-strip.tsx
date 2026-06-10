@@ -31,7 +31,7 @@ export function RelatedArticlesStrip({ slugs }: RelatedArticlesStripProps) {
         {slugs.map((slug) => (
           <Link
             key={slug}
-            href={`/${slug}`}
+            href={`/blog/${slug}/`}
             className="group flex flex-col gap-3 rounded-xl border border-border bg-bg-elevated p-4 transition-all hover:border-primary hover:shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             <div className="flex items-center gap-2 text-fg-subtle">
