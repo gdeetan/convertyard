@@ -37,6 +37,7 @@ export interface RadioOption extends BaseOption {
   type: 'radio'
   choices: Array<{ value: string; label: string }>
   default: string
+  conditionalHints?: Record<string, string>
 }
 
 export interface NumberOption extends BaseOption {
@@ -111,6 +112,10 @@ export interface ToolConfig {
     onProgress?: (fileIndex: number, pct: number) => void
   ) => Promise<ConversionResult[]>
   options?: ToolOption[]
+  limitationNote?: {
+    summary: string
+    body: string
+  }
   warningFn?: (files: File[]) => string | null
   faq: FAQItem[]
   relatedTools: string[]    // tool slugs, 3-5
