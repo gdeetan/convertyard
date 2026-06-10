@@ -217,6 +217,18 @@ export function ToolShell({ config }: ToolShellProps) {
           {config.title}
         </h1>
         <p className="mt-2 text-base text-fg-muted">{config.subtitle}</p>
+        {config.limitationNote && (
+          <details className="mt-2 group">
+            <summary className="cursor-pointer list-none text-sm text-fg-muted hover:text-fg transition-colors select-none inline-flex items-center gap-1">
+              <span className="group-open:hidden">▸</span>
+              <span className="hidden group-open:inline">▾</span>
+              {config.limitationNote.summary}
+            </summary>
+            <p className="mt-1.5 pl-3 text-sm text-fg-subtle border-l-2 border-border">
+              {config.limitationNote.body}
+            </p>
+          </details>
+        )}
         <div className="mt-3 flex items-center gap-1.5 text-xs text-fg-subtle">
           <Lock className="h-3 w-3 text-primary" aria-hidden="true" />
           Files never leave your browser. No uploads. No accounts.
