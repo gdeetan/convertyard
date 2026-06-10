@@ -93,6 +93,23 @@ async function recompressImages(
   return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
 }
 
+async function rasterizePdf(file: File, dpi: number, fileName: string): Promise<File> {
+  const buffer = await file.arrayBuffer()
+  const pageCount = await getPageCount(buffer)
+  const doc = await PDFDocument.create()
+
+  for (let p = 0; p < pageCount; p++) {
+    const jpegBuffer = await renderPage(buffer, p, dpi, 85)
+    const jpegBytes = new Uint8Array(jpegBuffer)
+    const image = await doc.embedJpg(jpegBytes)
+    const page = doc.addPage([image.width, image.height])
+    page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+  }
+
+  const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+  return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
+}
+
 // ── Target-size compression ───────────────────────────────────────────────────
 
 export async function compressPdfToTargetSize(
@@ -166,12 +183,19 @@ export async function compressPDF(
         )
         results.push(result)
       } else {
-        onProgress?.(i, 10)
-        const level = (options.level as 'low' | 'medium' | 'high') ?? 'medium'
-        const buffer = await files[i].arrayBuffer()
-        const file = await compressStructural(buffer, level, files[i].name)
-        onProgress?.(i, 100)
-        results.push(file)
+        const level = (options.level as 'low' | 'medium' | 'high' | 'aggressive') ?? 'medium'
+        if (level === 'aggressive') {
+          onProgress?.(i, 10)
+          const file = await rasterizePdf(files[i], 96, files[i].name)
+          onProgress?.(i, 100)
+          results.push(file)
+        } else {
+          onProgress?.(i, 10)
+          const buffer = await files[i].arrayBuffer()
+          const file = await compressStructural(buffer, level, files[i].name)
+          onProgress?.(i, 100)
+          results.push(file)
+        }
       }
     } catch (err) {
       results.push(new Error(err instanceof Error ? err.message : 'Compression failed'))
