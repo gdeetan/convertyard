@@ -92,7 +92,8 @@ export interface CompressionMeta {
 
 // Each index in the result array corresponds to the same index in the input
 // files array. An Error value means that file failed; File means success.
-export type ConversionResult = File | Error
+// { file, meta } variant carries compression metadata for target-size mode.
+export type ConversionResult = File | Error | { file: File; meta: CompressionMeta }
 
 // ── Tool config ──────────────────────────────────────────────────────────────
 
