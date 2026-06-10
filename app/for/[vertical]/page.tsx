@@ -4,7 +4,11 @@ import { VerticalHubShell } from '@/components/vertical-hub-shell/vertical-hub-s
 import { verticals } from '@/content/vertical-registry'
 
 export function generateStaticParams() {
-  return verticals.map(v => ({ vertical: v.slug }))
+  // Returns empty array when no verticals are registered yet.
+  // Next.js static export requires at least one entry to avoid a build error,
+  // so we return a placeholder that will hit notFound() at render time.
+  const params = verticals.map(v => ({ vertical: v.slug }))
+  return params.length > 0 ? params : [{ vertical: '__placeholder__' }]
 }
 
 export async function generateMetadata({

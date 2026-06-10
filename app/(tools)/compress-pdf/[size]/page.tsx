@@ -2,12 +2,12 @@ import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { SizeTargetShell } from '@/components/size-target-shell/size-target-shell'
 import { sizeTargets } from '@/content/size-target-registry'
-import { config as parentConfig } from '@/content/tools/compress-pdf'
 
 export function generateStaticParams() {
-  return sizeTargets
+  const params = sizeTargets
     .filter(t => t.parentTool === 'compress-pdf')
     .map(t => ({ size: t.slug }))
+  return params.length > 0 ? params : [{ size: '__placeholder__' }]
 }
 
 export async function generateMetadata({
@@ -37,7 +37,6 @@ export default async function Page({
   return (
     <SizeTargetShell
       config={config}
-      parentToolConfig={parentConfig}
       parentToolLabel="Compress PDF"
       parentToolHref="/compress-pdf/"
       parentCategory="PDF Tools"

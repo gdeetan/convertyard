@@ -4,11 +4,12 @@ import Link from 'next/link'
 import { ToolShell } from '@/components/tool-shell/tool-shell'
 import { sizeTargets } from '@/content/size-target-registry'
 import { verticals } from '@/content/vertical-registry'
+import { config as compressPdfConfig } from '@/content/tools/compress-pdf'
+import { config as compressImageConfig } from '@/content/tools/compress-image'
 import type { SizeTargetConfig, ToolConfig, ToolOption } from '@/lib/types'
 
 interface SizeTargetShellProps {
   config: SizeTargetConfig
-  parentToolConfig: ToolConfig
   parentToolLabel: string
   parentToolHref: string  // e.g. "/compress-pdf/"
   parentCategory: string  // e.g. "PDF Tools"
@@ -39,12 +40,12 @@ function buildPrefilledConfig(parentConfig: ToolConfig, config: SizeTargetConfig
 
 export function SizeTargetShell({
   config,
-  parentToolConfig,
   parentToolLabel,
   parentToolHref,
   parentCategory,
   parentCategoryHref,
 }: SizeTargetShellProps) {
+  const parentToolConfig = config.parentTool === 'compress-pdf' ? compressPdfConfig : compressImageConfig
   const toolConfig = buildPrefilledConfig(parentToolConfig, config)
 
   const relatedSizeConfigs = sizeTargets.filter(
