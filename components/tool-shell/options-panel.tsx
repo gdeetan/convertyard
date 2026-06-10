@@ -1,8 +1,9 @@
 'use client'
 
+import { useState } from 'react'
 import { HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
-import type { ToolOption, ToolOptions } from '@/lib/types'
+import type { ToolOption, ToolOptions, NumberWithChipsOption } from '@/lib/types'
 
 interface OptionsPanelProps {
   options: ToolOption[]
@@ -227,10 +228,103 @@ function OptionRow({
           </div>
         )}
 
+        {opt.type === 'number-with-chips' && (
+          <NumberWithChipsControl
+            opt={opt as NumberWithChipsOption}
+            value={value}
+            onChange={onChange}
+          />
+        )}
+
         {opt.hint && (
           <p className="mt-1 text-xs text-fg-subtle">{opt.hint}</p>
         )}
       </div>
+    </div>
+  )
+}
+
+function NumberWithChipsControl({
+  opt,
+  value,
+  onChange,
+}: {
+  opt: NumberWithChipsOption
+  value: unknown
+  onChange: (name: string, value: unknown) => void
+}) {
+  const rawKB = typeof value === 'number' ? value : opt.default
+  const hasUnits = (opt.unitChoices?.length ?? 0) > 1
+  const inferredUnit = hasUnits && rawKB >= 1024 ? 'MB' : 'KB'
+  const [unit, setUnit] = useState<string>(inferredUnit)
+
+  const displayValue = unit === 'MB' ? +(rawKB / 1024).toFixed(2) : rawKB
+
+  const handleInputChange = (v: number) => {
+    const kb = unit === 'MB' ? Math.round(v * 1024) : Math.round(v)
+    onChange(opt.name, kb)
+  }
+
+  const handleChipClick = (valueKB: number) => {
+    const newUnit = hasUnits && valueKB >= 1024 ? 'MB' : 'KB'
+    setUnit(newUnit)
+    onChange(opt.name, valueKB)
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-2">
+        <input
+          type="number"
+          min={opt.min ?? 1}
+          step={unit === 'MB' ? 0.1 : 1}
+          value={displayValue}
+          onChange={(e) => handleInputChange(Number(e.target.value))}
+          className={cn(
+            'w-28 rounded-md border border-border bg-bg-elevated px-3 py-1.5',
+            'text-sm text-fg',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+          )}
+        />
+        {hasUnits && (
+          <div className="flex overflow-hidden rounded-md border border-border text-sm">
+            {opt.unitChoices!.map((u) => (
+              <button
+                key={u}
+                type="button"
+                onClick={() => setUnit(u)}
+                className={cn(
+                  'px-3 py-1.5 transition-colors',
+                  u === unit
+                    ? 'bg-primary text-primary-fg font-medium'
+                    : 'bg-bg-elevated text-fg-muted hover:bg-bg-muted'
+                )}
+              >
+                {u}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {opt.chips && (
+        <div className="flex flex-wrap gap-1.5">
+          {opt.chips.map((chip) => (
+            <button
+              key={chip.label}
+              type="button"
+              onClick={() => handleChipClick(chip.valueKB)}
+              className={cn(
+                'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
+                rawKB === chip.valueKB
+                  ? 'border-primary bg-primary/10 text-primary font-medium'
+                  : 'border-border bg-bg-elevated text-fg-muted hover:border-primary/50 hover:text-fg'
+              )}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
