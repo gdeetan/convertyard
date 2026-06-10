@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { ToolShell } from '@/components/tool-shell/tool-shell'
 import { sizeTargets } from '@/content/size-target-registry'
 import { verticals } from '@/content/vertical-registry'
-import type { SizeTargetConfig, ToolConfig } from '@/lib/types'
+import type { SizeTargetConfig, ToolConfig, ToolOption } from '@/lib/types'
 
 interface SizeTargetShellProps {
   config: SizeTargetConfig
@@ -24,7 +24,7 @@ function buildPrefilledConfig(parentConfig: ToolConfig, config: SizeTargetConfig
         if (opt.name === 'targetSizeMode') return { ...opt, default: true }
         if (opt.name === 'targetKB') return { ...opt, default: targetKB }
         return opt
-      }),
+      }) as ToolOption[],
     }
   }
   // compress-image: set maxSizeKb to the target
@@ -33,7 +33,7 @@ function buildPrefilledConfig(parentConfig: ToolConfig, config: SizeTargetConfig
     options: parentConfig.options?.map(opt => {
       if (opt.name === 'maxSizeKb') return { ...opt, default: targetKB }
       return opt
-    }),
+    }) as ToolOption[],
   }
 }
 
