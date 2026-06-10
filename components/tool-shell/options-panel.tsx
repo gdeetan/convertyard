@@ -26,7 +26,7 @@ export function OptionsPanel({ options, values, onChange, disabled = false }: Op
       {options
         .filter((opt) => {
           if (!opt.dependsOn) return true
-          return values[opt.dependsOn.name] === opt.dependsOn.value
+          return String(values[opt.dependsOn.name]) === opt.dependsOn.value
         })
         .map((opt) => (
           <OptionRow key={opt.name} opt={opt} value={values[opt.name]} onChange={onChange} />
