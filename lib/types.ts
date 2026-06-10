@@ -142,3 +142,51 @@ export interface FileEntry {
 }
 
 export type ToolPhase = 'idle' | 'converting' | 'done'
+
+// ── Size-target landing page config ──────────────────────────────────────────
+
+export interface SizeTargetConfig {
+  parentTool: 'compress-pdf' | 'image-compressor'
+  targetBytes: number
+  targetLabel: string
+  slug: string
+  h1: string
+  subhead: string
+  intro: string
+  useCases: { label: string; description: string }[]
+  specificFaq: FAQItem[]
+  relatedSizes: string[]
+  relatedVerticals: string[]
+}
+
+// ── Vertical hub page config ──────────────────────────────────────────────────
+
+export interface VerticalHubConfig {
+  slug: string
+  name: string
+  fullName: string
+  country: string
+  category: 'exam' | 'visa' | 'court' | 'job' | 'platform'
+  h1: string
+  subhead: string
+  intro: string
+  toolPresets: {
+    toolSlug: string
+    label: string
+    targetBytes?: number
+    targetDimensions?: { width: number; height: number }
+    outputFormat?: string
+    notes?: string
+  }[]
+  officialSpecs: {
+    documentType: string
+    size: string
+    dimensions: string
+    format: string
+    notes?: string
+  }[]
+  commonMistakes: string[]
+  specificFaq: FAQItem[]
+  relatedVerticals: string[]
+  lastUpdated: string
+}
