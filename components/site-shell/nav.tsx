@@ -298,6 +298,17 @@ export function Nav() {
               Blog
             </Link>
 
+            <Link
+              href="/for/"
+              className={cn(
+                'rounded-md px-3 py-2 text-sm font-medium',
+                'text-fg-muted transition-colors hover:text-fg hover:bg-bg-muted',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+              )}
+            >
+              For exams &amp; forms
+            </Link>
+
             {/* Local-first badge */}
             <div
               className={cn(
@@ -489,6 +500,17 @@ export function Nav() {
               )}
             >
               Blog
+            </Link>
+            <Link
+              href="/for/"
+              onClick={closeMobileMenu}
+              className={cn(
+                'flex items-center min-h-[44px] px-1 py-2',
+                'text-sm font-medium text-fg hover:text-primary transition-colors',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm'
+              )}
+            >
+              For exams &amp; forms
             </Link>
           </nav>
         </div>
