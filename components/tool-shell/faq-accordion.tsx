@@ -15,28 +15,8 @@ export function FAQAccordion({ items, pageUrl }: FAQAccordionProps) {
 
   if (items.length === 0) return null
 
-  const schema = {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: items.map((item) => ({
-      '@type': 'Question',
-      name: item.q,
-      acceptedAnswer: {
-        '@type': 'Answer',
-        text: item.a,
-      },
-    })),
-  }
-
   return (
     <section aria-labelledby="faq-heading">
-      {/* FAQPage JSON-LD */}
-      <script
-        type="application/ld+json"
-        // eslint-disable-next-line react/no-danger
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(schema) }}
-      />
-
       <h2
         id="faq-heading"
         className="mb-6 text-xl font-semibold text-fg"
