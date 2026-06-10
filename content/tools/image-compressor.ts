@@ -23,14 +23,23 @@ export const config: ToolConfig = {
       hint: '80 is the sweet spot — visually identical at a fraction of the size. For PNG, this controls compression level.',
     },
     {
-      type: 'number',
+      type: 'number-with-chips',
       name: 'maxSizeKb',
-      label: 'Max file size (KB)',
+      label: 'Max file size',
+      unitChoices: ['KB', 'MB'],
+      defaultUnit: 'KB',
+      chips: [
+        { label: '20 KB',  valueKB: 20   },
+        { label: '50 KB',  valueKB: 50   },
+        { label: '100 KB', valueKB: 100  },
+        { label: '200 KB', valueKB: 200  },
+        { label: '500 KB', valueKB: 500  },
+        { label: '1 MB',   valueKB: 1024 },
+        { label: '2 MB',   valueKB: 2048 },
+      ],
       min: 0,
-      max: 100000,
-      step: 1,
       default: 0,
-      hint: '0 = disabled. For JPG and WebP, quality is reduced until the file fits. PNG size is not guaranteed.',
+      hint: '0 = no limit. Quality is reduced first; if still over target, dimensions shrink up to 50%.',
     },
     {
       type: 'toggle',
@@ -62,8 +71,12 @@ export const config: ToolConfig = {
       a: "PNG is a lossless format — it never degrades pixel data. The quality slider for PNGs controls the compression algorithm's effort level, not visual quality. A PNG at \"quality 50\" looks identical to one at \"quality 100\" — only the processing time and file size differ slightly. For significant PNG size reduction, consider converting to WebP.",
     },
     {
-      q: 'How does the "Max file size" target work?',
-      a: 'For JPG and WebP files, the tool starts at your chosen quality and compresses again at quality minus 10, repeating until the file is under your target size. It stops at quality 20 to avoid unusable output. For PNG files, the lossless nature means size reduction is limited — stripping metadata helps more than adjusting quality.',
+      q: 'How does target-size compression work?',
+      a: 'When a max file size is set, the tool first reduces quality in steps of 10 (from your chosen quality down to 20). If the file is still over target at quality 20, it then reduces the image dimensions by 10% per step, stopping at 50% of the original size. The smallest file achieved is returned — even if the target could not be fully reached.',
+    },
+    {
+      q: 'Why does my image look softer at very small targets?',
+      a: 'Very aggressive compression requires both lower quality and smaller dimensions. At quality 20 the encoder introduces visible artifacts, and at 50% dimensions fine detail is lost. If sharpness matters more than file size, raise the target or accept a larger output file.',
     },
     {
       q: 'Does lossy compression accumulate if I compress twice?',

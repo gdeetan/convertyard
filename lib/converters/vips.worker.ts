@@ -126,22 +126,47 @@ self.onmessage = async (e: MessageEvent) => {
       }
 
       const maxSizeKb = typeof opts.maxSizeKb === 'number' ? opts.maxSizeKb : 0
+      const targetBytes = maxSizeKb > 0 ? maxSizeKb * 1024 : 0
       // AVIF excluded: wasm-vips AVIF Q adjustments are non-monotonic at low quality levels
       const isLossy = outputFormat === 'jpg' || outputFormat === 'jpeg' || outputFormat === 'webp'
 
       let outBuffer: Uint8Array<ArrayBuffer> | undefined
 
-      if (maxSizeKb > 0 && isLossy) {
+      // Phase 1: quality reduction (lossy formats only)
+      if (targetBytes > 0 && isLossy) {
         let q = quality
         while (q >= 20) {
           encodeOpts.Q = q
           const candidate = image.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
-          if (candidate.byteLength <= maxSizeKb * 1024) {
+          if (candidate.byteLength <= targetBytes) {
             outBuffer = candidate
             break
           }
-          outBuffer = candidate  // keep last attempt as fallback
+          outBuffer = candidate
           q -= 10
+        }
+      }
+
+      // Phase 2: dimension reduction fallback — triggers when:
+      // (a) lossy format still exceeds target after quality loop, or
+      // (b) PNG with target set (lossless, so quality loop never ran)
+      const needsDimReduction =
+        targetBytes > 0 &&
+        (isLossy || outputFormat === 'png') &&
+        (!outBuffer || outBuffer.byteLength > targetBytes)
+
+      if (needsDimReduction) {
+        if (isLossy) encodeOpts.Q = 20
+        // scale: 0.9 → 0.8 → ... → 0.5, each relative to the original image
+        for (let scale = 0.9; scale >= 0.5 - 0.001; scale = Math.round((scale - 0.1) * 10) / 10) {
+          const resized = image.resize(scale)
+          const candidate = resized.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
+          resized.delete()
+          if (candidate.byteLength <= targetBytes) {
+            outBuffer = candidate
+            break
+          }
+          outBuffer = candidate
         }
       }
 
