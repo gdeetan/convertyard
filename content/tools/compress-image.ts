@@ -2,8 +2,8 @@ import { imageCompress } from '@/lib/converters/image-compress'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
-  slug: 'image-compressor',
-  title: 'Bulk Image Compressor',
+  slug: 'compress-image',
+  title: 'Image Compressor',
   subtitle: 'Local-first image compression. Built for batches.',
   category: 'image-editing',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
@@ -92,7 +92,7 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-images-without-losing-quality', 'webp-vs-avif-vs-jpeg', 'best-webp-quality', 'batch-convert-images'],
 
   meta: {
-    title: 'Bulk Image Compressor — ConvertYard',
+    title: 'Image Compressor — ConvertYard',
     description:
       'Compress JPG, PNG, and WebP images in bulk. Set quality or target file size. Batch up to 1,000 files — all processing in your browser, no uploads, no account.',
   },
