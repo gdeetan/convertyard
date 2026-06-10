@@ -11,7 +11,7 @@ import { config as jpgToAvif } from './tools/jpg-to-avif'
 import { config as avifToJpg } from './tools/avif-to-jpg'
 import { config as pngToAvif } from './tools/png-to-avif'
 import { config as avifToPng } from './tools/avif-to-png'
-import { config as imageCompressor } from './tools/image-compressor'
+import { config as compressImage } from './tools/compress-image'
 import { config as imageResizer } from './tools/image-resizer'
 import { config as mp4ToMp3 } from './tools/mp4-to-mp3'
 import { config as mp3ToMp4 } from './tools/mp3-to-mp4'
@@ -33,7 +33,7 @@ export const tools: ToolConfig[] = [
   avifToJpg,
   pngToAvif,
   avifToPng,
-  imageCompressor,
+  compressImage,
   imageResizer,
   mp4ToMp3,
   mp3ToMp4,

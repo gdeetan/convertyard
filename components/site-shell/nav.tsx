@@ -22,7 +22,7 @@ const MEGAMENU_CATEGORIES = [
     href: '/tools#image-editing',
     tools: [
       { name: 'Background remover', href: '/background-remover' },
-      { name: 'Image compressor',   href: '/image-compressor' },
+      { name: 'Image compressor',   href: '/compress-image' },
       { name: 'Image resizer',      href: '/image-resizer' },
     ],
   },

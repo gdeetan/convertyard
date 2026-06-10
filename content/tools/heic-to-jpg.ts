@@ -83,7 +83,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['heic-to-png', 'jpg-to-webp', 'image-compressor'],
+  relatedTools: ['heic-to-png', 'jpg-to-webp', 'compress-image'],
   relatedArticles: ['what-is-heic', 'heic-to-jpg-on-windows', 'batch-convert-images'],
 
   meta: {

@@ -95,7 +95,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['image-compressor', 'jpg-to-webp', 'png-to-webp'],
+  relatedTools: ['compress-image', 'jpg-to-webp', 'png-to-webp'],
   relatedArticles: ['webp-vs-avif-vs-jpeg', 'batch-convert-images', 'best-webp-quality'],
 
   meta: {

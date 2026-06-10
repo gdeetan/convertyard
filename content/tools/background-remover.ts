@@ -64,7 +64,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['image-compressor', 'image-resizer', 'alt-text-generator'],
+  relatedTools: ['compress-image', 'image-resizer', 'alt-text-generator'],
   relatedArticles: [],
 
   meta: {
