@@ -25,7 +25,7 @@ export const meta = {
       a: 'Yes. AVIF supports animated images using the same container format. Animated AVIF is significantly smaller than animated GIF or WebP. Browser support for animated AVIF is slightly behind still AVIF — Chrome and Firefox support it; Safari support arrived in v17.0.',
     },
   ],
-  relatedTools: ['jpg-to-webp', 'jpg-to-avif', 'image-compressor'],
+  relatedTools: ['jpg-to-webp', 'jpg-to-avif', 'compress-image'],
 }
 
 Choosing an image format used to be simple: use JPEG for photos, PNG for graphics with transparency. Today you have three serious options for the web, and the difference in file size between the worst and best choice can be 50% or more — for the same visual quality.
@@ -143,4 +143,4 @@ These percentages vary by image content. Images with smooth gradients (sky, skin
 
 **You're a photographer sharing proofs with clients:** JPEG. Clients may open images in Lightroom, older Photoshop, or any number of legacy tools. JPEG works everywhere.
 
-**You need to compress an existing library:** Format conversion is the biggest lever. If you have JPEGs from 2015, converting them to WebP typically saves 25–35% with no visible quality loss. Use [ConvertYard's image compressor](/image-compressor/) for mixed-format batches.
+**You need to compress an existing library:** Format conversion is the biggest lever. If you have JPEGs from 2015, converting them to WebP typically saves 25–35% with no visible quality loss. Use [ConvertYard's image compressor](/compress-image/) for mixed-format batches.
