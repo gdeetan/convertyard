@@ -57,6 +57,17 @@ export interface ImageUploadOption extends BaseOption {
   default: null
 }
 
+export interface NumberWithChipsOption extends BaseOption {
+  type: 'number-with-chips'
+  unitChoices?: string[]   // e.g. ['KB', 'MB'] — shows a unit selector
+  chips?: Array<{ label: string; valueKB: number }>  // valueKB always in KB; UI converts to display unit
+  min?: number
+  max?: number
+  step?: number
+  default: number
+  defaultUnit?: string
+}
+
 export type ToolOption =
   | SliderOption
   | ToggleOption
@@ -65,8 +76,17 @@ export type ToolOption =
   | NumberOption
   | ColorPickerOption
   | ImageUploadOption
+  | NumberWithChipsOption
 
 export type ToolOptions = Record<string, unknown>
+
+export interface CompressionMeta {
+  originalBytes: number
+  targetBytes: number
+  achievedBytes: number
+  reachedTarget: boolean
+  message?: string
+}
 
 // ── Conversion result ────────────────────────────────────────────────────────
 
@@ -111,6 +131,7 @@ export interface FileEntry {
   status: FileStatus
   progress: number  // 0-100
   result?: File
+  resultMeta?: CompressionMeta
   error?: string
 }
 
