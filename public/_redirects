@@ -1,2 +1,4 @@
 /image-compressor /compress-image 301
 /image-compressor/ /compress-image/ 301
+/bulk-image-compressor /compress-image 301
+/bulk-image-compressor/ /compress-image/ 301
