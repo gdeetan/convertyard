@@ -119,27 +119,6 @@
   }
 }
 
-/* ─── Article body ─── */
-.article-body table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-sm);
-  display: block;
-  overflow-x: auto;
-}
-
-.article-body table th,
-.article-body table td {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border);
-  text-align: left;
-}
-
-.article-body table th {
-  background-color: var(--color-bg-muted);
-  font-weight: 600;
-}
-
 /* ─── Base Reset ─── */
 *,
 *::before,

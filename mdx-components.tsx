@@ -61,7 +61,7 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
       </th>
     ),
     td: ({ children }: ComponentPropsWithoutRef<'td'>) => (
-      <td className="px-4 py-3 text-fg-subtle border-b border-border last:border-b-0">
+      <td className="px-4 py-3 text-fg-subtle border-b border-border">
         {children}
       </td>
     ),

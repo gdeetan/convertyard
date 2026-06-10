@@ -113,7 +113,7 @@ export function ArticleShell({
         </header>
 
         {/* MDX prose */}
-        <article className="article-body">{children}</article>
+        <article>{children}</article>
 
         {/* Social share */}
         <div className="mt-12 border-t border-border pt-8">
