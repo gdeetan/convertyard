@@ -259,17 +259,24 @@ async function runAltText(
     max_new_tokens: maxTokens,
   })
 
-  const decoded: string[] = processor.batch_decode(generatedIds, { skip_special_tokens: true })
+  // skip_special_tokens: false so <s>/<CAPTION>/</s> all stay in the string,
+  // then post_process_generation strips the task token cleanly.
+  const decoded: string[] = processor.batch_decode(generatedIds, { skip_special_tokens: false })
   const raw = decoded[0] ?? ''
 
-  // Florence-2 task tokens are BPE-split into regular vocab pieces — skip_special_tokens
-  // misses them. Find the first '>' (end of task token) and take everything after.
-  // Fallback strips leading ALL_CAPS remnant for cases where '>' was also stripped.
-  const gtIdx = raw.indexOf('>')
-  const content = gtIdx >= 0 ? raw.slice(gtIdx + 1) : raw
-  const text = content
-    .replace(/<[^>]*>/g, '')        // strip remaining <...> tokens e.g. </s>
-    .replace(/^[A-Z_]{3,}\s*/, '')  // strip leftover task token fragment if > was stripped too
+  // Use Florence-2's own post_process_generation — the canonical way to strip task tokens.
+  // Falls back to regex stripping if the method isn't available.
+  let text = ''
+  try {
+    const parsed = processor.post_process_generation(raw, taskToken, [image.height, image.width])
+    text = typeof parsed === 'object' && parsed !== null && taskToken in parsed
+      ? String(parsed[taskToken as keyof typeof parsed])
+      : raw
+  } catch {
+    text = raw
+  }
+  text = text
+    .replace(/<[^>]*>/g, '')   // strip any remaining <s>, </s>, <CAPTION> etc.
     .replace(/\s+/g, ' ')
     .trim()
 
