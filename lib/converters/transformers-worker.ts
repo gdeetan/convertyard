@@ -251,16 +251,10 @@ async function runAltText(
     max_new_tokens: maxTokens,
   })
 
-  // batch_decode with skip_special_tokens:false keeps task tokens for post_process_generation
-  const rawDecoded: string[] = processor.batch_decode(generatedIds, { skip_special_tokens: false })
-
-  // post_process_generation strips task tokens and returns clean caption text
-  const parsed = processor.post_process_generation(
-    rawDecoded[0] ?? '',
-    taskToken,
-    [image.height, image.width],
-  )
-  const text = (parsed[taskToken] ?? rawDecoded[0] ?? '').trim()
+  // skip_special_tokens:true strips <CAPTION>/<DETAILED_CAPTION>/etc. automatically
+  // post_process_generation is only needed for structured tasks (OD, OCR) not plain captioning
+  const decoded: string[] = processor.batch_decode(generatedIds, { skip_special_tokens: true })
+  const text = (decoded[0] ?? '').trim()
 
   self.postMessage({ type: 'infer-progress', id, progress: 100 })
   self.postMessage({ type: 'infer-result', id, result: text })
