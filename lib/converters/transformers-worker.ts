@@ -198,19 +198,27 @@ async function runBgRemoval(
 
 // ── Filename parser ───────────────────────────────────────────────────────────
 
-// Returns a human-readable description from a filename, or empty string if
-// the filename is generic (camera roll patterns like IMG_20240101, DSC_0001, etc.)
+// Returns a natural-language phrase from a filename for use as a Florence-2 context hint,
+// or empty string if the filename is generic (IMG_20240101, DSC_0001, etc.)
 function parseFilename(name: string): string {
-  // Strip extension
   const base = name.replace(/\.[^.]+$/, '')
-  // Replace separators with spaces
-  const words = base.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
-  // Skip generic camera/device filenames — all digits, or known patterns
-  if (/^(img|dsc|dcim|photo|image|screenshot|picture|clip|video|mov|file|document|scan|copy)\b/i.test(words) && /\d{4,}/.test(words)) return ''
+  const words = base.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase()
+
+  // Skip generic camera/device filenames
+  if (/^(img|dsc|dcim|photo|image|screenshot|picture|clip|video|mov|file|document|scan|copy)\b/.test(words) && /\d{4,}/.test(words)) return ''
   if (/^\d+$/.test(words.replace(/\s/g, ''))) return ''
-  // Require at least 2 meaningful characters after cleanup
   if (words.length < 4) return ''
-  return words.toLowerCase()
+
+  // Smart casing: product codes with digits go uppercase (v15 → V15),
+  // small connector words stay lowercase, everything else gets title-cased
+  const SMALL = new Set(['a', 'an', 'the', 'and', 'or', 'of', 'in', 'on', 'at', 'to', 'for', 'with'])
+  const titled = words.split(' ').map((w, i) => {
+    if (i > 0 && SMALL.has(w)) return w
+    if (/\d/.test(w)) return w.toUpperCase()
+    return w.charAt(0).toUpperCase() + w.slice(1)
+  }).join(' ')
+
+  return `a photo of the ${titled}`
 }
 
 // ── Inference: alt text ───────────────────────────────────────────────────────
@@ -251,10 +259,10 @@ async function runAltText(
     max_new_tokens: maxTokens,
   })
 
-  // skip_special_tokens:true strips <CAPTION>/<DETAILED_CAPTION>/etc. automatically
-  // post_process_generation is only needed for structured tasks (OD, OCR) not plain captioning
   const decoded: string[] = processor.batch_decode(generatedIds, { skip_special_tokens: true })
-  const text = (decoded[0] ?? '').trim()
+  // Florence-2 task tokens (<CAPTION>, <DETAILED_CAPTION>, etc.) are added_tokens, not
+  // special_tokens, so skip_special_tokens misses them. Strip all <...> patterns to be safe.
+  const text = (decoded[0] ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
 
   self.postMessage({ type: 'infer-progress', id, progress: 100 })
   self.postMessage({ type: 'infer-result', id, result: text })
