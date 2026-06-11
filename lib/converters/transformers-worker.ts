@@ -7,6 +7,13 @@
 // Alt text uses Xenova/blip-image-captioning-base (~190 MB, Apache 2.0).
 // Upgrade path: ZhengPeng7/BiRefNet (MIT) once ONNX weights are on HuggingFace,
 // or license briaai/RMBG-1.4 commercially if hair/fur edge quality becomes a complaint.
+//
+// HuggingFace now requires auth even for public Xenova models.
+// HF_TOKEN is injected at build time by webpack DefinePlugin from the Cloudflare Pages
+// environment variable. The token is read-only and only grants access to public models.
+
+// Injected at build time — empty string when env var is not set
+declare const __HF_TOKEN__: string
 
 export type ModelType = 'bg-removal' | 'alt-text'
 
@@ -45,10 +52,34 @@ function makeProgressCallback(modelType: ModelType) {
   }
 }
 
+// ── HuggingFace auth ──────────────────────────────────────────────────────────
+
+let _authReady = false
+
+async function ensureHfAuth() {
+  if (_authReady) return
+  _authReady = true
+  if (!__HF_TOKEN__) return
+  const { env } = await import('@huggingface/transformers')
+  const _fetch = env.fetch
+  env.fetch = (url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const u = url instanceof Request ? url.url : url instanceof URL ? url.href : String(url)
+    if (u.includes('huggingface.co') || u.includes('hf.co')) {
+      const headers = new Headers((init?.headers ?? {}) as HeadersInit)
+      headers.set('Authorization', `Bearer ${__HF_TOKEN__}`)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return _fetch(u as any, { ...init, headers })
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return _fetch(url as any, init)
+  }
+}
+
 // ── Model loaders ─────────────────────────────────────────────────────────────
 
 async function loadBgModel() {
   if (bgModel && bgProcessor) return
+  await ensureHfAuth()
 
   const { AutoModelForImageSegmentation, AutoImageProcessor } =
     await import('@huggingface/transformers')
@@ -66,6 +97,7 @@ async function loadBgModel() {
 
 async function loadAltModel() {
   if (altPipeline) return
+  await ensureHfAuth()
 
   const { pipeline } = await import('@huggingface/transformers')
 

@@ -31,13 +31,18 @@ const nextConfig: NextConfig = {
       },
     ]
   },
-  webpack(config) {
+  webpack(config, { webpack }) {
     // wasm-vips is an Emscripten ES module that uses import.meta.
     // Without this, webpack can't parse vips-es6.js in the main bundle context.
     config.module.rules.push({
       test: /node_modules\/wasm-vips\/.+\.js$/,
       type: 'javascript/esm',
     })
+    // Inject HF auth token into the worker bundle at build time.
+    // Set HF_TOKEN in Cloudflare Pages env variables (Settings → Environment variables).
+    config.plugins.push(new webpack.DefinePlugin({
+      __HF_TOKEN__: JSON.stringify(process.env.HF_TOKEN ?? ''),
+    }))
     return config
   },
 }
