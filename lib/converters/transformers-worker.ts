@@ -4,9 +4,10 @@
 // Models are cached in browser IndexedDB/Cache Storage by transformers.js after first download.
 //
 // Background removal uses Xenova/modnet (MIT license, ~14 MB quantized).
-// Alt text uses Xenova/vit-gpt2-image-captioning (~100 MB quantized, MIT).
-// Upgrade path: ZhengPeng7/BiRefNet (MIT) once ONNX weights are on HuggingFace,
-// or license briaai/RMBG-1.4 commercially if hair/fur edge quality becomes a complaint.
+// Alt text uses onnx-community/Florence-2-base-ft (~262 MB q8), self-hosted on
+// Cloudflare R2 (pub-4e06a0715aae49b1975bbe46902137a3.r2.dev) to avoid HuggingFace
+// auth/availability dependency. Florence-2 understands diverse product imagery and
+// uses task tokens (<CAPTION>, <DETAILED_CAPTION>, <MORE_DETAILED_CAPTION>).
 //
 // HuggingFace now requires auth even for public Xenova models.
 // HF_TOKEN is injected at build time by webpack DefinePlugin from the Cloudflare Pages
@@ -99,18 +100,20 @@ async function loadAltModel() {
   if (altPipeline) return
   await ensureHfAuth()
 
-  const { pipeline } = await import('@huggingface/transformers')
-
+  const { pipeline, env } = await import('@huggingface/transformers')
   const cb = makeProgressCallback('alt-text')
 
-  // vit-gpt2: confirmed working ONNX weights, ~100 MB q8
-  // graphOptimizationLevel 'disabled' bypasses TransposeDQWeightsForMatMulNBits pass in
-  // onnxruntime-web 1.26.0-dev that misapplies INT4 transforms to old-style INT8 QDQ models
-  altPipeline = await pipeline('image-to-text', 'Xenova/vit-gpt2-image-captioning', {
-    dtype: 'q8',
-    progress_callback: cb,
-    session_options: { graphOptimizationLevel: 'disabled' },
-  })
+  // Self-hosted on Cloudflare R2 — no HuggingFace dependency, no auth required
+  const prevRemoteHost = env.remoteHost
+  env.remoteHost = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev'
+  try {
+    altPipeline = await pipeline('image-to-text', 'onnx-community/Florence-2-base-ft', {
+      dtype: 'q8',
+      progress_callback: cb,
+    })
+  } finally {
+    env.remoteHost = prevRemoteHost
+  }
 }
 
 // ── Inference: background removal ─────────────────────────────────────────────
@@ -200,12 +203,17 @@ async function runAltText(
 
   self.postMessage({ type: 'infer-progress', id, progress: 20 })
 
+  // Map length preset token count to Florence-2 task tokens
+  const taskToken = maxTokens <= 25 ? '<CAPTION>'
+    : maxTokens <= 50 ? '<DETAILED_CAPTION>'
+    : '<MORE_DETAILED_CAPTION>'
+
   const pipe = altPipeline as (
     img: unknown,
-    opts: { max_new_tokens: number }
+    opts: { text: string; max_new_tokens: number }
   ) => Promise<Array<{ generated_text: string }>>
 
-  const result = await pipe(image, { max_new_tokens: maxTokens })
+  const result = await pipe(image, { text: taskToken, max_new_tokens: maxTokens })
   const text = result[0]?.generated_text?.trim() ?? ''
 
   self.postMessage({ type: 'infer-progress', id, progress: 100 })
