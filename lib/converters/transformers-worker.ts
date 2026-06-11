@@ -264,23 +264,37 @@ async function runAltText(
   const decoded: string[] = processor.batch_decode(generatedIds, { skip_special_tokens: false })
   const raw = decoded[0] ?? ''
 
+  // DIAGNOSTIC: log every intermediate value so we can see exactly what the decoder outputs
+  console.log('[alt-text DEBUG] taskToken:', taskToken)
+  console.log('[alt-text DEBUG] taskPrompt:', taskPrompt)
+  console.log('[alt-text DEBUG] raw decoded:', JSON.stringify(raw))
+  console.log('[alt-text DEBUG] generatedIds shape:', generatedIds?.dims, 'length:', generatedIds?.data?.length)
+
   // Use Florence-2's own post_process_generation — the canonical way to strip task tokens.
   // Falls back to regex stripping if the method isn't available.
   let text = ''
+  let ppgResult: unknown = null
   try {
     const parsed = processor.post_process_generation(raw, taskToken, [image.height, image.width])
+    ppgResult = parsed
     text = typeof parsed === 'object' && parsed !== null && taskToken in parsed
       ? String(parsed[taskToken as keyof typeof parsed])
       : raw
-  } catch {
+  } catch (e) {
+    console.log('[alt-text DEBUG] post_process_generation threw:', (e as Error).message)
     text = raw
   }
+  console.log('[alt-text DEBUG] post_process_generation result:', JSON.stringify(ppgResult))
+  console.log('[alt-text DEBUG] text before strip:', JSON.stringify(text))
+
   const taskTokenBare = taskToken.replace(/^<|>$/g, '') // e.g. 'MORE_DETAILED_CAPTION'
   text = text
     .replace(/<[^>]*>/g, '')             // strip <s>, </s>, <MORE_DETAILED_CAPTION>, etc.
     .replaceAll(taskTokenBare, '')       // strip bare form when decoder omits angle brackets
     .replace(/\s+/g, ' ')
     .trim()
+
+  console.log('[alt-text DEBUG] final text:', JSON.stringify(text))
 
   self.postMessage({ type: 'infer-progress', id, progress: 100 })
   self.postMessage({ type: 'infer-result', id, result: text })
