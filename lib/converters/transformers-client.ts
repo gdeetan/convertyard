@@ -99,6 +99,7 @@ export function removeBackground(
 export function generateAltText(
   file: File,
   maxTokens: number,
+  contextHint?: string,
   onProgress?: (pct: number) => void
 ): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -124,7 +125,7 @@ export function generateAltText(
 
     file.arrayBuffer().then((buffer) => {
       worker.postMessage(
-        { type: 'infer', id, modelType: 'alt-text', buffer, mimeType: file.type, opts: { maxTokens } },
+        { type: 'infer', id, modelType: 'alt-text', buffer, mimeType: file.type, opts: { maxTokens, contextHint } },
         [buffer]
       )
     }).catch(reject)

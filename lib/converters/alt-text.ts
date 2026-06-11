@@ -15,6 +15,7 @@ const LENGTH_TOKENS: Record<string, number> = {
 export async function generateAltTextBatch(
   files: File[],
   lengthPreset: string,
+  contextHint: string,
   onModelProgress: (pct: number) => void,
   onFileProgress: (fileIndex: number, pct: number) => void
 ): Promise<Array<AltTextResult | Error>> {
@@ -28,7 +29,7 @@ export async function generateAltTextBatch(
 
   for (let i = 0; i < files.length; i++) {
     try {
-      const text = await generateAltText(files[i], maxTokens, (pct) => onFileProgress(i, pct))
+      const text = await generateAltText(files[i], maxTokens, contextHint || undefined, (pct) => onFileProgress(i, pct))
       results.push({ filename: files[i].name, altText: text })
     } catch (err) {
       results.push(err instanceof Error ? err : new Error(String(err)))

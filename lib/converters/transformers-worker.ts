@@ -24,7 +24,7 @@ interface InferMsg {
   modelType: ModelType
   buffer: ArrayBuffer
   mimeType: string
-  opts: { maxTokens?: number; outputFormat?: string }
+  opts: { maxTokens?: number; outputFormat?: string; contextHint?: string }
 }
 type IncomingMsg = LoadMsg | InferMsg
 
@@ -103,15 +103,21 @@ async function loadAltModel() {
 
   const cb = makeProgressCallback('alt-text')
 
-  // vit-gpt2: ViT encoder + GPT-2 decoder, ~100 MB quantized, MIT license
-  // dtype 'q8' maps to *_quantized.onnx in Xenova repos (see transformers.js DATA_TYPES)
-  // graphOptimizationLevel 'disabled' bypasses TransposeDQWeightsForMatMulNBits pass in
-  // onnxruntime-web 1.26.0-dev that misapplies INT4 transforms to old-style INT8 QDQ models
-  altPipeline = await pipeline('image-to-text', 'Xenova/vit-gpt2-image-captioning', {
-    dtype: 'q8',
-    progress_callback: cb,
-    session_options: { graphOptimizationLevel: 'disabled' },
-  })
+  try {
+    // BLIP-base: trained on diverse web data (not just COCO), supports conditional captioning
+    // via text prefix — enables context hints like "cordless vacuum cleaner" for product photos.
+    // dtype 'q8' → *_quantized.onnx, ~100 MB download.
+    altPipeline = await pipeline('image-to-text', 'Xenova/blip-image-captioning-base', {
+      dtype: 'q8',
+      progress_callback: cb,
+    })
+  } catch {
+    // Fallback to fp32 if quantized weights are unavailable (~230 MB)
+    altPipeline = await pipeline('image-to-text', 'Xenova/blip-image-captioning-base', {
+      dtype: 'fp32',
+      progress_callback: cb,
+    })
+  }
 }
 
 // ── Inference: background removal ─────────────────────────────────────────────
@@ -190,7 +196,10 @@ async function runBgRemoval(
 
 // ── Inference: alt text ───────────────────────────────────────────────────────
 
-async function runAltText(id: string, buffer: ArrayBuffer, mimeType: string, maxTokens: number) {
+async function runAltText(
+  id: string, buffer: ArrayBuffer, mimeType: string,
+  maxTokens: number, contextHint?: string
+) {
   const { RawImage } = await import('@huggingface/transformers')
 
   const blob = new Blob([buffer], { type: mimeType })
@@ -200,10 +209,13 @@ async function runAltText(id: string, buffer: ArrayBuffer, mimeType: string, max
 
   const pipe = altPipeline as (
     img: unknown,
-    opts: { max_new_tokens: number }
+    opts: { max_new_tokens: number; text?: string }
   ) => Promise<Array<{ generated_text: string }>>
 
-  const result = await pipe(image, { max_new_tokens: maxTokens })
+  const inferOpts: { max_new_tokens: number; text?: string } = { max_new_tokens: maxTokens }
+  if (contextHint?.trim()) inferOpts.text = contextHint.trim()
+
+  const result = await pipe(image, inferOpts)
   const text = result[0]?.generated_text?.trim() ?? ''
 
   self.postMessage({ type: 'infer-progress', id, progress: 100 })
@@ -232,7 +244,7 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
       if (modelType === 'bg-removal') {
         await runBgRemoval(id, buffer, mimeType, opts.outputFormat ?? 'png')
       } else {
-        await runAltText(id, buffer, mimeType, opts.maxTokens ?? 50)
+        await runAltText(id, buffer, mimeType, opts.maxTokens ?? 50, opts.contextHint)
       }
     } catch (err) {
       self.postMessage({ type: 'error', id, message: (err as Error).message })

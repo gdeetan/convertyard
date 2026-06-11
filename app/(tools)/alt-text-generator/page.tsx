@@ -57,6 +57,7 @@ export default function AltTextGeneratorPage() {
   const [modelProgress, setModelProgress] = useState(0)
   const [entries, setEntries] = useState<FileEntry[]>([])
   const [lengthPreset, setLengthPreset] = useState<'short' | 'medium' | 'detailed'>('medium')
+  const [contextHint, setContextHint] = useState('')
   const processingRef = useRef(false)
 
   const updateEntry = useCallback((index: number, patch: Partial<FileEntry>) => {
@@ -90,6 +91,7 @@ export default function AltTextGeneratorPage() {
       const results = await generateAltTextBatch(
         entries.map((e) => e.file),
         lengthPreset,
+        contextHint,
         (pct) => {
           setModelProgress(pct)
           if (pct >= 100) setPhase('processing')
@@ -122,7 +124,7 @@ export default function AltTextGeneratorPage() {
     } finally {
       processingRef.current = false
     }
-  }, [entries, lengthPreset, updateEntry])
+  }, [entries, lengthPreset, contextHint, updateEntry])
 
   const handleReset = () => {
     entries.forEach((e) => URL.revokeObjectURL(e.preview))
@@ -172,7 +174,7 @@ export default function AltTextGeneratorPage() {
             <div className="h-2 w-2 animate-pulse rounded-full bg-primary shrink-0" />
             <span className="flex-1">
               {modelProgress > 0
-                ? `Downloading AI model… ${modelProgress}% (~100 MB, one-time)`
+                ? `Downloading AI model… ${modelProgress}% (~100–230 MB, one-time)`
                 : 'Loading AI model…'}
             </span>
             {modelProgress > 0 && (
@@ -265,6 +267,25 @@ export default function AltTextGeneratorPage() {
                 <span className="text-xs opacity-60">{opt.hint}</span>
               </button>
             ))}
+          </div>
+
+          {/* Context hint */}
+          <div className="mt-4">
+            <label htmlFor="context-hint" className="mb-1.5 block text-sm font-medium text-fg">
+              Subject or context <span className="font-normal text-fg-subtle">(optional)</span>
+            </label>
+            <input
+              id="context-hint"
+              type="text"
+              value={contextHint}
+              onChange={(e) => setContextHint(e.target.value)}
+              placeholder="e.g. cordless vacuum cleaner, product photo"
+              maxLength={120}
+              className="w-full rounded-lg border border-border bg-bg-muted px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <p className="mt-1 text-xs text-fg-subtle">
+              Helps the AI caption unfamiliar subjects like products, technical parts, or branded items.
+            </p>
           </div>
         </div>
       )}
