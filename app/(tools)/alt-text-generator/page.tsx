@@ -109,7 +109,14 @@ export default function AltTextGeneratorPage() {
       })
       setPhase('done')
     } catch (err) {
-      console.error(err)
+      console.error('[alt-text] processing failed:', err)
+      setEntries((prev) =>
+        prev.map((e) =>
+          e.status === 'pending'
+            ? { ...e, status: 'error', error: 'Processing failed — see browser console for details' }
+            : e
+        )
+      )
       setPhase('done')
     } finally {
       processingRef.current = false
@@ -150,7 +157,12 @@ export default function AltTextGeneratorPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 pb-20 pt-6 sm:px-6">
       {/* Breadcrumb */}
-      <Breadcrumb items={[{ label: 'AI Tools', href: '/ai-tools' }, { label: config.title }]} />
+      <Breadcrumb items={[
+        { label: 'Home', href: '/' },
+        { label: 'Tools', href: '/tools' },
+        { label: 'AI Tools', href: '/ai-tools' },
+        { label: config.title },
+      ]} />
 
       {/* Model download banner */}
       {phase === 'loading-model' && (
@@ -355,6 +367,14 @@ export default function AltTextGeneratorPage() {
           )}
         </div>
       )}
+
+      {/* CTA → blog post */}
+      <p className="mb-4 text-sm text-fg-muted">
+        Ready to import?{' '}
+        <a href="/blog/import-alt-text-csv-to-cms" className="text-primary underline-offset-2 hover:underline">
+          Step-by-step guide: import alt text CSV to WordPress, Shopify &amp; Contentful →
+        </a>
+      </p>
 
       {/* FAQ */}
       <div className="mb-12">

@@ -1,0 +1,277 @@
+export const meta = {
+  title: 'How to Import Alt Text CSV to WordPress, Shopify, and Contentful',
+  description:
+    'Step-by-step instructions for importing a bulk alt text CSV into WordPress, Shopify, and Contentful — plus guidance for Webflow, Squarespace, and custom CMS setups.',
+  lastUpdated: '2026-06-11',
+  faq: [
+    {
+      q: 'What format is the alt text CSV from ConvertYard?',
+      a: 'Two columns: filename and alt_text. The filename column contains the original image filename (e.g., product-shot.jpg). The alt_text column contains the generated description. Open it in Excel or Google Sheets to review and edit before importing.',
+    },
+    {
+      q: 'Can I bulk import alt text to WordPress without a plugin?',
+      a: "Without a plugin, WordPress has no built-in bulk alt text import. You can update alt text one image at a time via the Media Library, or use WP-CLI if you have server access. For batches of 50+ images, a plugin like WP All Import is faster.",
+    },
+    {
+      q: 'Does Shopify support bulk alt text import via CSV?',
+      a: "Yes. Shopify's product CSV includes an Image Alt Text column. Export your products CSV, add or update the alt text column using the ConvertYard CSV as a reference, then re-import via Products → Import.",
+    },
+    {
+      q: 'How do I import alt text to Contentful?',
+      a: "Contentful doesn't have a native CSV import for asset alt text. The most efficient approach is the Contentful Management API or the contentful-import CLI tool. For small batches, you can update the Description field on each asset directly in the web app.",
+    },
+    {
+      q: 'Should I review AI-generated alt text before importing?',
+      a: "Yes. AI-generated alt text describes what's visually present but doesn't know your brand terms, product names, or context. For product images, review each entry to add the product name and key attributes. For editorial images, check that the description matches the intent of the image in context.",
+    },
+  ],
+  relatedTools: ['alt-text-generator'],
+}
+
+Once ConvertYard's alt text generator finishes processing your images, you get a CSV with two columns: `filename` and `alt_text`. That CSV is the starting point. This guide walks through how to get those descriptions into your CMS — whether you're on WordPress, Shopify, Contentful, or something else.
+
+**[Generate alt text for 100+ images at once — runs in your browser →](/alt-text-generator/)**
+
+## The CSV format
+
+Before importing, open the CSV in a spreadsheet and review it:
+
+```
+filename,alt_text
+product-blue-hoodie.jpg,"Blue pullover hoodie with kangaroo pocket, front view"
+team-photo-2024.jpg,"Seven people standing in an office lobby smiling at the camera"
+hero-banner.png,"Close-up of a hand holding a coffee cup over a wooden table"
+```
+
+Two things to check at this stage:
+
+**Review for context gaps.** The AI describes what it sees, not what it means to your site. A product photo of a blue hoodie needs the product name added — `"Eastfield Classic Hoodie in Navy, front view"` is more useful than the generic description. Take 10 minutes to scan the alt_text column and update any entries where brand or product context is missing.
+
+**Check for errors.** Images that are very dark, heavily blurred, or mostly text (screenshots, infographics) sometimes produce inaccurate descriptions. Fix those before importing.
+
+---
+
+## WordPress
+
+### Option 1: Media Library (manual, small batches)
+
+For fewer than 20 images, the Media Library is fastest:
+
+1. Go to **Media → Library** and switch to list view.
+2. Click an image to open the attachment detail page.
+3. Find the **Alt Text** field on the right side.
+4. Paste the alt text from your spreadsheet and click **Update**.
+
+This works fine for a handful of images. For larger batches, use one of the approaches below.
+
+### Option 2: WP All Import (plugin, bulk)
+
+[WP All Import](https://www.wpallimport.com/) is a WordPress plugin that can import CSV data to post meta fields, including image alt text stored as `_wp_attachment_image_alt`.
+
+1. Install and activate WP All Import.
+2. Go to **All Import → New Import** and upload your alt text CSV.
+3. Set the import type to **Custom Post Type → Attachment**.
+4. In the field mapping step, map `filename` to the attachment identifier (post title or file URL) and `alt_text` to the **Image Alt Text** custom field (`_wp_attachment_image_alt`).
+5. Run the import.
+
+Note: matching by filename requires that your Media Library filenames match the CSV exactly. If you renamed files when uploading, you'll need to reconcile those differences in the spreadsheet first.
+
+### Option 3: WP-CLI (developer, any batch size)
+
+If you have SSH access to your server and WP-CLI installed, this is the most reliable approach for large libraries:
+
+```bash
+# Find the attachment ID for a given filename
+wp post list --post_type=attachment --name="product-blue-hoodie" --fields=ID
+
+# Update alt text for attachment ID 142
+wp post meta update 142 _wp_attachment_image_alt "Eastfield Classic Hoodie in Navy, front view"
+```
+
+For bulk updates, write a short bash script that reads your CSV and runs `wp post meta update` for each row. Here's a minimal example:
+
+```bash
+#!/bin/bash
+# update-alt-text.sh
+# Run from your WordPress root: bash update-alt-text.sh alt-text.csv
+
+while IFS=, read -r filename alt_text; do
+  # Skip header row
+  [[ "$filename" == "filename" ]] && continue
+
+  # Strip quotes from alt_text if present
+  alt_text="${alt_text//\"/}"
+
+  # Get attachment ID by filename (strips extension for slug matching)
+  slug="${filename%.*}"
+  id=$(wp post list --post_type=attachment --name="$slug" --fields=ID --format=csv | tail -1)
+
+  if [[ -n "$id" && "$id" != "ID" ]]; then
+    wp post meta update "$id" _wp_attachment_image_alt "$alt_text"
+    echo "Updated $filename (ID $id)"
+  else
+    echo "Not found: $filename"
+  fi
+done < "$1"
+```
+
+Run it with: `bash update-alt-text.sh alt-text.csv`
+
+---
+
+## Shopify
+
+Shopify product images have an alt text field that maps to the `Image Alt Text` column in the product CSV.
+
+### Via product CSV import
+
+1. Go to **Products → Export** and export all products as a CSV.
+2. Open the CSV in Excel or Google Sheets. Find the columns: `Image Src` and `Image Alt Text`.
+3. Open your alt text CSV from ConvertYard alongside it.
+4. Match rows by filename: the `Image Src` column contains the full URL — the filename is the last segment (e.g., `https://cdn.shopify.com/.../product-blue-hoodie.jpg`).
+5. Paste the corresponding `alt_text` value into the `Image Alt Text` column.
+6. Save the CSV and go to **Products → Import**, then upload the updated file.
+
+**Tip:** Use a VLOOKUP or XLOOKUP formula in Google Sheets to match filenames automatically rather than copying each value manually.
+
+```
+=IFERROR(VLOOKUP(RIGHT(B2,LEN(B2)-FIND("✦",SUBSTITUTE(B2,"/","✦",LEN(B2)-LEN(SUBSTITUTE(B2,"/",""))))), AltTextSheet!A:B, 2, 0), "")
+```
+
+(This extracts the filename from the full Shopify CDN URL and looks it up in your alt text sheet.)
+
+### Via Shopify Admin API
+
+For developers managing large catalogs programmatically:
+
+```javascript
+// Update image alt text via Shopify Admin API (REST)
+const response = await fetch(
+  `https://${shop}/admin/api/2024-01/products/${productId}/images/${imageId}.json`,
+  {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Shopify-Access-Token': accessToken,
+    },
+    body: JSON.stringify({
+      image: { id: imageId, alt: altText },
+    }),
+  }
+)
+```
+
+Loop over your CSV rows, look up the image ID by filename using the `GET /products/{id}/images.json` endpoint, then PUT the updated alt text.
+
+---
+
+## Contentful
+
+Contentful stores images as Assets. Each Asset has a `description` field that serves as alt text when you reference the asset in your templates.
+
+### Via the web app (small batches)
+
+1. Go to **Content → Media**.
+2. Find the asset by name (use the search bar).
+3. Click the asset to open it.
+4. Update the **Description** field with the alt text from your CSV.
+5. Click **Publish**.
+
+### Via the Contentful Management API
+
+For bulk updates, the Management API is the right tool:
+
+```javascript
+const contentful = require('contentful-management')
+
+const client = contentful.createClient({ accessToken: 'YOUR_CMA_TOKEN' })
+const space = await client.getSpace('YOUR_SPACE_ID')
+const environment = await space.getEnvironment('master')
+
+// altTextMap: { 'filename.jpg': 'Description text', ... }
+// Build this map by parsing your CSV
+
+for (const [filename, altText] of Object.entries(altTextMap)) {
+  const assets = await environment.getAssets({ 'fields.file.fileName': filename })
+
+  if (assets.items.length === 0) {
+    console.log(`Not found: ${filename}`)
+    continue
+  }
+
+  const asset = assets.items[0]
+  asset.fields.description = asset.fields.description ?? {}
+  asset.fields.description['en-US'] = altText
+
+  const updated = await asset.update()
+  await updated.publish()
+  console.log(`Updated: ${filename}`)
+}
+```
+
+Install the SDK with `npm install contentful-management`, replace the token and space ID, and run with Node.js.
+
+---
+
+## Webflow
+
+Webflow doesn't support bulk alt text import via CSV as of mid-2025. Your options:
+
+- **Manual:** In the Designer, select each image element, open the Settings panel, and update the Alt Text field.
+- **CMS items:** If images are in CMS collections, export the collection as CSV, add/update the alt text field, and re-import.
+- **Webflow API:** Use the [Webflow Data API](https://developers.webflow.com/) to update CMS item fields programmatically. The approach is similar to the Contentful API example above.
+
+---
+
+## Squarespace
+
+Squarespace image alt text is set per image block in the page editor:
+
+1. Click an image block to select it.
+2. Click the pencil icon to edit.
+3. Under the image, find the **Filename / Alt text** field.
+4. Update it with your CSV value.
+
+There is no bulk import path in Squarespace's standard interface. For large sites, consider migrating to a platform with better bulk editing support, or contact Squarespace support about API access.
+
+---
+
+## Custom CMS or database
+
+If you run a custom CMS backed by a database, the import is a SQL operation. The exact query depends on your schema. A common pattern (WordPress-compatible):
+
+```sql
+-- Update image alt text in a custom attachments table
+UPDATE attachments
+SET alt_text = 'Your alt text here'
+WHERE filename = 'product-blue-hoodie.jpg';
+```
+
+Or for a batch update using a temp table:
+
+```sql
+-- Create a temp table and bulk-load your CSV
+CREATE TEMP TABLE alt_imports (filename TEXT, alt_text TEXT);
+COPY alt_imports FROM '/path/to/alt-text.csv' DELIMITER ',' CSV HEADER;
+
+-- Update main table
+UPDATE attachments a
+SET alt_text = i.alt_text
+FROM alt_imports i
+WHERE a.filename = i.filename;
+```
+
+For systems using an ORM, write a migration script that reads the CSV and iterates over rows using your ORM's update method.
+
+---
+
+## Review checklist before importing
+
+Run through this before pushing alt text to production:
+
+- [ ] **Product names included** — AI doesn't know "Eastfield Classic Hoodie"; add product names to product images.
+- [ ] **Branded terms correct** — Company names, proper nouns, and product model numbers are often wrong or missing in AI descriptions.
+- [ ] **No "Image of" prefix** — Screen readers announce "image" automatically; starting alt text with "Image of" is redundant. Edit these out.
+- [ ] **Text-in-image handled** — If images contain important text (price tags, labels, signs), the alt text should include that text. AI may miss it.
+- [ ] **Decorative images marked** — Images that are purely decorative should have `alt=""` in HTML, not a description. If any images in your batch are decorative, remove their alt text from the CSV before importing.
+- [ ] **Spot-check 10 entries** — Manually verify at least 10 descriptions against the actual images before importing the full batch.

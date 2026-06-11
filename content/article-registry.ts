@@ -55,4 +55,11 @@ export const articles: ArticleEntry[] = [
       'The European Accessibility Act took effect June 2025. Learn what alt text is, what the law requires, how to write it well, and how to generate it for hundreds of images at once.',
     lastUpdated: '2026-06-10',
   },
+  {
+    slug: 'import-alt-text-csv-to-cms',
+    title: 'How to Import Alt Text CSV to WordPress, Shopify, and Contentful',
+    description:
+      'Step-by-step instructions for importing a bulk alt text CSV into WordPress, Shopify, and Contentful — plus guidance for Webflow, Squarespace, and custom CMS setups.',
+    lastUpdated: '2026-06-11',
+  },
 ]

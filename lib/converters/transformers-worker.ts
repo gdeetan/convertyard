@@ -72,7 +72,6 @@ async function loadAltModel() {
 
   // Florence-2-base: compact VLM with strong captioning, Apache 2.0
   altPipeline = await pipeline('image-to-text', 'Xenova/vit-gpt2-image-captioning', {
-    dtype: 'q8',
     progress_callback: cb,
   })
 }
