@@ -284,7 +284,8 @@ export default function AltTextGeneratorPage() {
               className="w-full rounded-lg border border-border bg-bg-muted px-3 py-2 text-sm text-fg placeholder:text-fg-subtle focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
             <p className="mt-1 text-xs text-fg-subtle">
-              Helps the AI caption unfamiliar subjects like products, technical parts, or branded items.
+              Your filenames are read automatically — <span className="text-fg-muted">cordless-vacuum-nozzle.jpg</span> tells the AI it&apos;s a vacuum part.
+              Type here to override or add detail.
             </p>
           </div>
         </div>
