@@ -33,7 +33,8 @@ type IncomingMsg = LoadMsg | InferMsg
 
 let bgModel: unknown = null
 let bgProcessor: unknown = null
-let altPipeline: unknown = null
+let altModel: unknown = null
+let altProcessor: unknown = null
 
 // ── Aggregated download progress tracker ──────────────────────────────────────
 
@@ -97,17 +98,22 @@ async function loadBgModel() {
 }
 
 async function loadAltModel() {
-  if (altPipeline) return
+  if (altModel && altProcessor) return
   await ensureHfAuth()
 
-  const { pipeline, env } = await import('@huggingface/transformers')
+  const { AutoModelForImageTextToText, AutoProcessor, env } = await import('@huggingface/transformers')
   const cb = makeProgressCallback('alt-text')
 
-  // Self-hosted on Cloudflare R2 — no HuggingFace dependency, no auth required
+  // Florence-2 requires AutoModelForImageTextToText — the image-to-text pipeline
+  // uses AutoModelForVision2Seq which doesn't include florence2 in its registry.
+  // Model is self-hosted on Cloudflare R2; no HuggingFace auth required.
   const prevRemoteHost = env.remoteHost
   env.remoteHost = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
   try {
-    altPipeline = await pipeline('image-to-text', 'onnx-community/Florence-2-base-ft', {
+    altProcessor = await AutoProcessor.from_pretrained('onnx-community/Florence-2-base-ft', {
+      progress_callback: cb,
+    })
+    altModel = await AutoModelForImageTextToText.from_pretrained('onnx-community/Florence-2-base-ft', {
       dtype: 'q8',
       progress_callback: cb,
     })
@@ -194,7 +200,7 @@ async function runBgRemoval(
 
 async function runAltText(
   id: string, buffer: ArrayBuffer, mimeType: string,
-  maxTokens: number, contextHint?: string
+  maxTokens: number, _contextHint?: string
 ) {
   const { RawImage } = await import('@huggingface/transformers')
 
@@ -203,18 +209,36 @@ async function runAltText(
 
   self.postMessage({ type: 'infer-progress', id, progress: 20 })
 
-  // Map length preset token count to Florence-2 task tokens
+  // Map length preset to Florence-2 task tokens
   const taskToken = maxTokens <= 25 ? '<CAPTION>'
     : maxTokens <= 50 ? '<DETAILED_CAPTION>'
     : '<MORE_DETAILED_CAPTION>'
 
-  const pipe = altPipeline as (
-    img: unknown,
-    opts: { text: string; max_new_tokens: number }
-  ) => Promise<Array<{ generated_text: string }>>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const processor = altProcessor as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const model = altModel as any
 
-  const result = await pipe(image, { text: taskToken, max_new_tokens: maxTokens })
-  const text = result[0]?.generated_text?.trim() ?? ''
+  // Florence-2: processor encodes image + task token → model.generate → processor decodes
+  const inputs = await processor(image, taskToken)
+
+  self.postMessage({ type: 'infer-progress', id, progress: 50 })
+
+  const generatedIds = await model.generate({
+    ...inputs,
+    max_new_tokens: maxTokens,
+  })
+
+  // batch_decode with skip_special_tokens:false keeps task tokens for post_process_generation
+  const rawDecoded: string[] = processor.batch_decode(generatedIds, { skip_special_tokens: false })
+
+  // post_process_generation strips task tokens and returns clean caption text
+  const parsed = processor.post_process_generation(
+    rawDecoded[0] ?? '',
+    taskToken,
+    [image.height, image.width],
+  )
+  const text = (parsed[taskToken] ?? rawDecoded[0] ?? '').trim()
 
   self.postMessage({ type: 'infer-progress', id, progress: 100 })
   self.postMessage({ type: 'infer-result', id, result: text })
