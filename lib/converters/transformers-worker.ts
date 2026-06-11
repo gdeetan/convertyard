@@ -25,7 +25,7 @@ interface InferMsg {
   modelType: ModelType
   buffer: ArrayBuffer
   mimeType: string
-  opts: { maxTokens?: number; outputFormat?: string; contextHint?: string }
+  opts: { maxTokens?: number; outputFormat?: string; contextHint?: string; filename?: string }
 }
 type IncomingMsg = LoadMsg | InferMsg
 
@@ -196,11 +196,28 @@ async function runBgRemoval(
   ])
 }
 
+// ── Filename parser ───────────────────────────────────────────────────────────
+
+// Returns a human-readable description from a filename, or empty string if
+// the filename is generic (camera roll patterns like IMG_20240101, DSC_0001, etc.)
+function parseFilename(name: string): string {
+  // Strip extension
+  const base = name.replace(/\.[^.]+$/, '')
+  // Replace separators with spaces
+  const words = base.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim()
+  // Skip generic camera/device filenames — all digits, or known patterns
+  if (/^(img|dsc|dcim|photo|image|screenshot|picture|clip|video|mov|file|document|scan|copy)\b/i.test(words) && /\d{4,}/.test(words)) return ''
+  if (/^\d+$/.test(words.replace(/\s/g, ''))) return ''
+  // Require at least 2 meaningful characters after cleanup
+  if (words.length < 4) return ''
+  return words.toLowerCase()
+}
+
 // ── Inference: alt text ───────────────────────────────────────────────────────
 
 async function runAltText(
   id: string, buffer: ArrayBuffer, mimeType: string,
-  maxTokens: number, _contextHint?: string
+  maxTokens: number, contextHint?: string, filename?: string
 ) {
   const { RawImage } = await import('@huggingface/transformers')
 
@@ -214,13 +231,18 @@ async function runAltText(
     : maxTokens <= 50 ? '<DETAILED_CAPTION>'
     : '<MORE_DETAILED_CAPTION>'
 
+  // Build task prompt: manual hint > parsed filename > task token alone
+  const filenameHint = filename ? parseFilename(filename) : ''
+  const hint = contextHint?.trim() || filenameHint
+  const taskPrompt = hint ? `${taskToken} ${hint}` : taskToken
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const processor = altProcessor as any
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const model = altModel as any
 
-  // Florence-2: processor encodes image + task token → model.generate → processor decodes
-  const inputs = await processor(image, taskToken)
+  // Florence-2: processor encodes image + task prompt → model.generate → processor decodes
+  const inputs = await processor(image, taskPrompt)
 
   self.postMessage({ type: 'infer-progress', id, progress: 50 })
 
@@ -266,7 +288,7 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
       if (modelType === 'bg-removal') {
         await runBgRemoval(id, buffer, mimeType, opts.outputFormat ?? 'png')
       } else {
-        await runAltText(id, buffer, mimeType, opts.maxTokens ?? 50, opts.contextHint)
+        await runAltText(id, buffer, mimeType, opts.maxTokens ?? 50, opts.contextHint, opts.filename)
       }
     } catch (err) {
       self.postMessage({ type: 'error', id, message: (err as Error).message })

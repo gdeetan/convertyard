@@ -100,6 +100,7 @@ export function generateAltText(
   file: File,
   maxTokens: number,
   contextHint?: string,
+  filename?: string,
   onProgress?: (pct: number) => void
 ): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -125,7 +126,7 @@ export function generateAltText(
 
     file.arrayBuffer().then((buffer) => {
       worker.postMessage(
-        { type: 'infer', id, modelType: 'alt-text', buffer, mimeType: file.type, opts: { maxTokens, contextHint } },
+        { type: 'infer', id, modelType: 'alt-text', buffer, mimeType: file.type, opts: { maxTokens, contextHint, filename } },
         [buffer]
       )
     }).catch(reject)

@@ -29,7 +29,7 @@ export async function generateAltTextBatch(
 
   for (let i = 0; i < files.length; i++) {
     try {
-      const text = await generateAltText(files[i], maxTokens, contextHint || undefined, (pct) => onFileProgress(i, pct))
+      const text = await generateAltText(files[i], maxTokens, contextHint || undefined, files[i].name, (pct) => onFileProgress(i, pct))
       results.push({ filename: files[i].name, altText: text })
     } catch (err) {
       results.push(err instanceof Error ? err : new Error(String(err)))
