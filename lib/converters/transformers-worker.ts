@@ -105,12 +105,12 @@ async function loadAltModel() {
 
   // vit-gpt2: ViT encoder + GPT-2 decoder, ~100 MB quantized, MIT license
   // dtype 'q8' maps to *_quantized.onnx in Xenova repos (see transformers.js DATA_TYPES)
-  // graphOptimizationLevel 'extended' skips the new MatMulNBits pass in onnxruntime-web
-  // 1.26.0-dev that crashes on old-style INT8 quantized models
+  // graphOptimizationLevel 'disabled' bypasses TransposeDQWeightsForMatMulNBits pass in
+  // onnxruntime-web 1.26.0-dev that misapplies INT4 transforms to old-style INT8 QDQ models
   altPipeline = await pipeline('image-to-text', 'Xenova/vit-gpt2-image-captioning', {
     dtype: 'q8',
     progress_callback: cb,
-    session_options: { graphOptimizationLevel: 'extended' },
+    session_options: { graphOptimizationLevel: 'disabled' },
   })
 }
 
