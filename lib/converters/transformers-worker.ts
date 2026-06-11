@@ -4,7 +4,7 @@
 // Models are cached in browser IndexedDB/Cache Storage by transformers.js after first download.
 //
 // Background removal uses Xenova/modnet (MIT license, ~14 MB quantized).
-// Alt text uses Xenova/blip-image-captioning-base (~190 MB, Apache 2.0).
+// Alt text uses Xenova/vit-gpt2-image-captioning (~100 MB quantized, MIT).
 // Upgrade path: ZhengPeng7/BiRefNet (MIT) once ONNX weights are on HuggingFace,
 // or license briaai/RMBG-1.4 commercially if hair/fur edge quality becomes a complaint.
 //
@@ -103,8 +103,10 @@ async function loadAltModel() {
 
   const cb = makeProgressCallback('alt-text')
 
-  // BLIP base: reliable image-to-text model, ~190 MB, Apache 2.0
-  altPipeline = await pipeline('image-to-text', 'Xenova/blip-image-captioning-base', {
+  // vit-gpt2: ViT encoder + GPT-2 decoder, ~100 MB quantized, MIT license
+  // dtype 'q8' maps to *_quantized.onnx in Xenova repos (see transformers.js DATA_TYPES)
+  altPipeline = await pipeline('image-to-text', 'Xenova/vit-gpt2-image-captioning', {
+    dtype: 'q8',
     progress_callback: cb,
   })
 }

@@ -39,7 +39,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'How long does each image take?',
-      a: 'On a modern laptop: 2–8 seconds per image. On older hardware or mobile: 10–30 seconds. The AI model (~400 MB) downloads once on first visit and is cached locally — subsequent visits start immediately.',
+      a: 'On a modern laptop: 2–8 seconds per image. On older hardware or mobile: 10–30 seconds. The AI model (~100 MB) downloads once on first visit and is cached locally — subsequent visits start immediately.',
     },
     {
       q: 'What format is the batch CSV download?',
