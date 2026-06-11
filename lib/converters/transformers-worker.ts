@@ -103,21 +103,14 @@ async function loadAltModel() {
 
   const cb = makeProgressCallback('alt-text')
 
-  try {
-    // BLIP-base: trained on diverse web data (not just COCO), supports conditional captioning
-    // via text prefix — enables context hints like "cordless vacuum cleaner" for product photos.
-    // dtype 'q8' → *_quantized.onnx, ~100 MB download.
-    altPipeline = await pipeline('image-to-text', 'Xenova/blip-image-captioning-base', {
-      dtype: 'q8',
-      progress_callback: cb,
-    })
-  } catch {
-    // Fallback to fp32 if quantized weights are unavailable (~230 MB)
-    altPipeline = await pipeline('image-to-text', 'Xenova/blip-image-captioning-base', {
-      dtype: 'fp32',
-      progress_callback: cb,
-    })
-  }
+  // vit-gpt2: confirmed working ONNX weights, ~100 MB q8
+  // graphOptimizationLevel 'disabled' bypasses TransposeDQWeightsForMatMulNBits pass in
+  // onnxruntime-web 1.26.0-dev that misapplies INT4 transforms to old-style INT8 QDQ models
+  altPipeline = await pipeline('image-to-text', 'Xenova/vit-gpt2-image-captioning', {
+    dtype: 'q8',
+    progress_callback: cb,
+    session_options: { graphOptimizationLevel: 'disabled' },
+  })
 }
 
 // ── Inference: background removal ─────────────────────────────────────────────
@@ -209,13 +202,10 @@ async function runAltText(
 
   const pipe = altPipeline as (
     img: unknown,
-    opts: { max_new_tokens: number; text?: string }
+    opts: { max_new_tokens: number }
   ) => Promise<Array<{ generated_text: string }>>
 
-  const inferOpts: { max_new_tokens: number; text?: string } = { max_new_tokens: maxTokens }
-  if (contextHint?.trim()) inferOpts.text = contextHint.trim()
-
-  const result = await pipe(image, inferOpts)
+  const result = await pipe(image, { max_new_tokens: maxTokens })
   const text = result[0]?.generated_text?.trim() ?? ''
 
   self.postMessage({ type: 'infer-progress', id, progress: 100 })

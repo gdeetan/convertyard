@@ -174,7 +174,7 @@ export default function AltTextGeneratorPage() {
             <div className="h-2 w-2 animate-pulse rounded-full bg-primary shrink-0" />
             <span className="flex-1">
               {modelProgress > 0
-                ? `Downloading AI model… ${modelProgress}% (~100–230 MB, one-time)`
+                ? `Downloading AI model… ${modelProgress}% (~100 MB, one-time)`
                 : 'Loading AI model…'}
             </span>
             {modelProgress > 0 && (
