@@ -275,8 +275,10 @@ async function runAltText(
   } catch {
     text = raw
   }
+  const taskTokenBare = taskToken.replace(/^<|>$/g, '') // e.g. 'MORE_DETAILED_CAPTION'
   text = text
-    .replace(/<[^>]*>/g, '')   // strip any remaining <s>, </s>, <CAPTION> etc.
+    .replace(/<[^>]*>/g, '')             // strip <s>, </s>, <MORE_DETAILED_CAPTION>, etc.
+    .replaceAll(taskTokenBare, '')       // strip bare form when decoder omits angle brackets
     .replace(/\s+/g, ' ')
     .trim()
 
