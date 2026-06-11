@@ -105,7 +105,7 @@ async function loadAltModel() {
 
   // Self-hosted on Cloudflare R2 — no HuggingFace dependency, no auth required
   const prevRemoteHost = env.remoteHost
-  env.remoteHost = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev'
+  env.remoteHost = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
   try {
     altPipeline = await pipeline('image-to-text', 'onnx-community/Florence-2-base-ft', {
       dtype: 'q8',
