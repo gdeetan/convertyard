@@ -4,6 +4,7 @@
 // Models are cached in browser IndexedDB/Cache Storage by transformers.js after first download.
 //
 // Background removal uses Xenova/modnet (MIT license, ~14 MB quantized).
+// Alt text uses Xenova/blip-image-captioning-base (~190 MB, Apache 2.0).
 // Upgrade path: ZhengPeng7/BiRefNet (MIT) once ONNX weights are on HuggingFace,
 // or license briaai/RMBG-1.4 commercially if hair/fur edge quality becomes a complaint.
 
@@ -70,8 +71,8 @@ async function loadAltModel() {
 
   const cb = makeProgressCallback('alt-text')
 
-  // Florence-2-base: compact VLM with strong captioning, Apache 2.0
-  altPipeline = await pipeline('image-to-text', 'Xenova/vit-gpt2-image-captioning', {
+  // BLIP base: reliable image-to-text model, ~190 MB, Apache 2.0
+  altPipeline = await pipeline('image-to-text', 'Xenova/blip-image-captioning-base', {
     progress_callback: cb,
   })
 }

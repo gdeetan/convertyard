@@ -109,11 +109,12 @@ export default function AltTextGeneratorPage() {
       })
       setPhase('done')
     } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
       console.error('[alt-text] processing failed:', err)
       setEntries((prev) =>
         prev.map((e) =>
           e.status === 'pending'
-            ? { ...e, status: 'error', error: 'Processing failed — see browser console for details' }
+            ? { ...e, status: 'error', error: msg }
             : e
         )
       )
