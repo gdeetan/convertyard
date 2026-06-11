@@ -103,22 +103,24 @@ async function loadAltModel() {
 
   const { AutoModelForImageTextToText, AutoProcessor, env } = await import('@huggingface/transformers')
   const cb = makeProgressCallback('alt-text')
+  const MODEL_ID = 'onnx-community/Florence-2-base-ft'
+  const R2_HOST = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
 
-  // Florence-2 requires AutoModelForImageTextToText — the image-to-text pipeline
-  // uses AutoModelForVision2Seq which doesn't include florence2 in its registry.
-  // Model is self-hosted on Cloudflare R2; no HuggingFace auth required.
-  const prevRemoteHost = env.remoteHost
-  env.remoteHost = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
+  async function tryLoad(useR2: boolean) {
+    const prev = env.remoteHost
+    if (useR2) env.remoteHost = R2_HOST
+    try {
+      altProcessor = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb })
+      altModel = await AutoModelForImageTextToText.from_pretrained(MODEL_ID, { dtype: 'q8', progress_callback: cb })
+    } finally {
+      env.remoteHost = prev
+    }
+  }
+
   try {
-    altProcessor = await AutoProcessor.from_pretrained('onnx-community/Florence-2-base-ft', {
-      progress_callback: cb,
-    })
-    altModel = await AutoModelForImageTextToText.from_pretrained('onnx-community/Florence-2-base-ft', {
-      dtype: 'q8',
-      progress_callback: cb,
-    })
-  } finally {
-    env.remoteHost = prevRemoteHost
+    await tryLoad(true)   // R2 first (faster, no auth needed)
+  } catch {
+    await tryLoad(false)  // HF Hub fallback (uses __HF_TOKEN__)
   }
 }
 
@@ -239,10 +241,11 @@ async function runAltText(
     : maxTokens <= 50 ? '<DETAILED_CAPTION>'
     : '<MORE_DETAILED_CAPTION>'
 
-  // Build task prompt: manual hint > parsed filename > task token alone
+  // Compute hint for post-processing use (prepend/fallback after generation).
+  // Florence-2 task tokens must be bare — never append text to the task prompt.
   const filenameHint = filename ? parseFilename(filename) : ''
   const hint = contextHint?.trim() || filenameHint
-  const taskPrompt = hint ? `${taskToken} ${hint}` : taskToken
+  const taskPrompt = taskToken
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const processor = altProcessor as any
@@ -259,60 +262,41 @@ async function runAltText(
     max_new_tokens: maxTokens,
   })
 
-  // skip_special_tokens: false so <s>/<CAPTION>/</s> all stay in the string,
-  // then post_process_generation strips the task token cleanly.
+  // skip_special_tokens: false preserves task tokens so post_process_generation can strip them.
   const decoded: string[] = processor.batch_decode(generatedIds, { skip_special_tokens: false })
   const raw = decoded[0] ?? ''
 
-  // DIAGNOSTIC: log every intermediate value so we can see exactly what the decoder outputs
-  console.log('[alt-text DEBUG] taskToken:', taskToken)
-  console.log('[alt-text DEBUG] taskPrompt:', taskPrompt)
-  console.log('[alt-text DEBUG] raw decoded:', JSON.stringify(raw))
-  console.log('[alt-text DEBUG] generatedIds shape:', generatedIds?.dims, 'length:', generatedIds?.data?.length)
-
-  // Use Florence-2's own post_process_generation — the canonical way to strip task tokens.
-  // Falls back to regex stripping if the method isn't available.
+  // Layer 1: Florence-2's canonical task token stripper.
   let text = ''
-  let ppgResult: unknown = null
   try {
     const parsed = processor.post_process_generation(raw, taskToken, [image.height, image.width])
-    ppgResult = parsed
-    // Use ppgText if non-empty; fall back to raw so we don't lose output when
-    // post_process_generation returns { taskToken: '' } (model generated only EOS).
-    const ppgText = typeof parsed === 'object' && parsed !== null && taskToken in parsed
-      ? String(parsed[taskToken as keyof typeof parsed]).trim()
-      : ''
-    text = ppgText || raw
-  } catch (e) {
-    console.log('[alt-text DEBUG] post_process_generation threw:', (e as Error).message)
-    text = raw
-  }
-  console.log('[alt-text DEBUG] post_process_generation result:', JSON.stringify(ppgResult))
-  console.log('[alt-text DEBUG] text before strip:', JSON.stringify(text))
-
-  const taskTokenBare = taskToken.replace(/^<|>$/g, '') // e.g. 'MORE_DETAILED_CAPTION'
-  text = text
-    .replace(/<[^>]*>/g, '')             // strip <s>, </s>, <MORE_DETAILED_CAPTION>, etc.
-    .replaceAll(taskTokenBare, '')       // strip bare form when decoder omits angle brackets
-    .replace(/\s+/g, ' ')
-    .trim()
-
-  // Last-resort fallback: if tag-stripping produced empty (model output was only special
-  // tokens), use the '>' position approach — find the task token's closing '>' and take
-  // everything after it. This recovers output when skip_special_tokens:false leaves the
-  // task token as text (e.g. 'ETAILED_CAPTION>description').
-  if (!text) {
-    const gtIdx = raw.indexOf('>')
-    if (gtIdx >= 0) {
-      text = raw.slice(gtIdx + 1)
-        .replace(/<[^>]*>/g, '')
-        .replaceAll(taskTokenBare, '')
-        .replace(/\s+/g, ' ')
-        .trim()
+    if (typeof parsed === 'object' && parsed !== null && taskToken in parsed) {
+      text = String(parsed[taskToken as keyof typeof parsed]).trim()
     }
+  } catch {
+    // post_process_generation unavailable; fall through to regex
   }
 
-  console.log('[alt-text DEBUG] final text:', JSON.stringify(text))
+  // Layer 2: regex fallback for when ppg returns empty or throws.
+  if (!text) {
+    const taskTokenBare = taskToken.replace(/^<|>$/g, '')
+    const gtIdx = raw.indexOf('>')
+    const slice = gtIdx >= 0 ? raw.slice(gtIdx + 1) : raw
+    text = slice
+      .replace(/<[^>]*>/g, '')
+      .replaceAll(taskTokenBare, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  }
+
+  // Apply context hint: prepend if not already referenced, or use as fallback if AI returned nothing.
+  const hintSubject = hint.replace(/^a photo of the /i, '').toLowerCase()
+  if (hint && text && !text.toLowerCase().includes(hintSubject)) {
+    text = `${hint} — ${text}`
+  }
+  if (!text && hint) {
+    text = hint
+  }
 
   self.postMessage({ type: 'infer-progress', id, progress: 100 })
   self.postMessage({ type: 'infer-result', id, result: text })
