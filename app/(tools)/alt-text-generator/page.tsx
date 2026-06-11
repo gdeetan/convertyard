@@ -363,6 +363,10 @@ export default function AltTextGeneratorPage() {
                       </div>
                     )}
 
+                    {entry.status === 'done' && !entry.altText && (
+                      <p className="text-xs text-fg-subtle italic">No description generated — try a different image or length setting.</p>
+                    )}
+
                     {entry.status === 'error' && (
                       <p className="text-xs text-error">{entry.error ?? 'Processing failed'}</p>
                     )}

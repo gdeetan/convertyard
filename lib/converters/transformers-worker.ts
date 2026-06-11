@@ -277,9 +277,12 @@ async function runAltText(
   try {
     const parsed = processor.post_process_generation(raw, taskToken, [image.height, image.width])
     ppgResult = parsed
-    text = typeof parsed === 'object' && parsed !== null && taskToken in parsed
-      ? String(parsed[taskToken as keyof typeof parsed])
-      : raw
+    // Use ppgText if non-empty; fall back to raw so we don't lose output when
+    // post_process_generation returns { taskToken: '' } (model generated only EOS).
+    const ppgText = typeof parsed === 'object' && parsed !== null && taskToken in parsed
+      ? String(parsed[taskToken as keyof typeof parsed]).trim()
+      : ''
+    text = ppgText || raw
   } catch (e) {
     console.log('[alt-text DEBUG] post_process_generation threw:', (e as Error).message)
     text = raw
@@ -293,6 +296,21 @@ async function runAltText(
     .replaceAll(taskTokenBare, '')       // strip bare form when decoder omits angle brackets
     .replace(/\s+/g, ' ')
     .trim()
+
+  // Last-resort fallback: if tag-stripping produced empty (model output was only special
+  // tokens), use the '>' position approach — find the task token's closing '>' and take
+  // everything after it. This recovers output when skip_special_tokens:false leaves the
+  // task token as text (e.g. 'ETAILED_CAPTION>description').
+  if (!text) {
+    const gtIdx = raw.indexOf('>')
+    if (gtIdx >= 0) {
+      text = raw.slice(gtIdx + 1)
+        .replace(/<[^>]*>/g, '')
+        .replaceAll(taskTokenBare, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+    }
+  }
 
   console.log('[alt-text DEBUG] final text:', JSON.stringify(text))
 
