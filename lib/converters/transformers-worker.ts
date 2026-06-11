@@ -260,9 +260,18 @@ async function runAltText(
   })
 
   const decoded: string[] = processor.batch_decode(generatedIds, { skip_special_tokens: true })
-  // Florence-2 task tokens (<CAPTION>, <DETAILED_CAPTION>, etc.) are added_tokens, not
-  // special_tokens, so skip_special_tokens misses them. Strip all <...> patterns to be safe.
-  const text = (decoded[0] ?? '').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
+  const raw = decoded[0] ?? ''
+
+  // Florence-2 task tokens are BPE-split into regular vocab pieces — skip_special_tokens
+  // misses them. Find the first '>' (end of task token) and take everything after.
+  // Fallback strips leading ALL_CAPS remnant for cases where '>' was also stripped.
+  const gtIdx = raw.indexOf('>')
+  const content = gtIdx >= 0 ? raw.slice(gtIdx + 1) : raw
+  const text = content
+    .replace(/<[^>]*>/g, '')        // strip remaining <...> tokens e.g. </s>
+    .replace(/^[A-Z_]{3,}\s*/, '')  // strip leftover task token fragment if > was stripped too
+    .replace(/\s+/g, ' ')
+    .trim()
 
   self.postMessage({ type: 'infer-progress', id, progress: 100 })
   self.postMessage({ type: 'infer-result', id, result: text })
