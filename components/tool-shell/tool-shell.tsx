@@ -204,8 +204,8 @@ export function ToolShell({ config, embedded = false }: ToolShellProps) {
 
   const zipName = `${config.slug}-converted.zip`
 
-  return (
-    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+  const inner = (
+    <div className={embedded ? undefined : 'mx-auto max-w-3xl px-4 py-10 sm:px-6'}>
       {/* ── Header ──────────────────────────────────────────────────────── */}
       {!embedded && (
         <div className="mb-8">
@@ -356,6 +356,8 @@ export function ToolShell({ config, embedded = false }: ToolShellProps) {
       )}
     </div>
   )
+
+  return inner
 }
 
 // ── How it works mini-section ──────────────────────────────────────────────
