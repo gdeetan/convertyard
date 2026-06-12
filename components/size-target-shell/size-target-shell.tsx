@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { ToolShell } from '@/components/tool-shell/tool-shell'
 import { sizeTargets } from '@/content/size-target-registry'
 import { verticals } from '@/content/vertical-registry'
@@ -65,32 +66,18 @@ export function SizeTargetShell({
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       {/* Breadcrumbs */}
-      <nav aria-label="Breadcrumb" className="mb-6">
-        <ol className="flex flex-wrap items-center gap-1.5 text-sm text-fg-muted">
-          <li><Link href="/" className="hover:text-fg transition-colors">Home</Link></li>
-          <li aria-hidden="true" className="text-fg-subtle">/</li>
-          <li><Link href="/tools" className="hover:text-fg transition-colors">Tools</Link></li>
-          <li aria-hidden="true" className="text-fg-subtle">/</li>
-          <li>
-            <Link href={parentCategoryHref} className="hover:text-fg transition-colors">
-              {parentCategory}
-            </Link>
-          </li>
-          <li aria-hidden="true" className="text-fg-subtle">/</li>
-          <li>
-            <Link href={parentToolHref} className="hover:text-fg transition-colors">
-              {parentToolLabel}
-            </Link>
-          </li>
-          <li aria-hidden="true" className="text-fg-subtle">/</li>
-          <li aria-current="page" className="text-fg font-medium">{config.targetLabel}</li>
-        </ol>
-      </nav>
+      <Breadcrumb items={[
+        { label: 'Home', href: '/' },
+        { label: 'Tools', href: '/tools' },
+        { label: parentCategory, href: parentCategoryHref },
+        { label: parentToolLabel, href: parentToolHref },
+        { label: config.targetLabel },
+      ]} />
 
       {/* Header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">{config.h1}</h1>
-        <p className="mt-3 text-lg text-fg-muted">{config.subhead}</p>
+        <p className="mt-2 text-base text-fg-muted">{config.subhead}</p>
       </div>
 
       {/* Tool — pre-filled with target */}
