@@ -110,6 +110,28 @@ async function rasterizePdf(file: File, dpi: number, fileName: string): Promise<
   return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
 }
 
+// Variant that takes an ArrayBuffer directly — used by target-size mode to avoid re-reading File
+async function rasterizeForTarget(
+  buffer: ArrayBuffer,
+  fileName: string,
+  dpi: number,
+  quality: number
+): Promise<File> {
+  const pageCount = await getPageCount(buffer)
+  const doc = await PDFDocument.create()
+
+  for (let p = 0; p < pageCount; p++) {
+    const jpegBuffer = await renderPage(buffer, p, dpi, quality)
+    const jpegBytes = new Uint8Array(jpegBuffer)
+    const image = await doc.embedJpg(jpegBytes)
+    const page = doc.addPage([image.width, image.height])
+    page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+  }
+
+  const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+  return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
+}
+
 // ── Target-size compression ───────────────────────────────────────────────────
 
 export async function compressPdfToTargetSize(
@@ -118,36 +140,68 @@ export async function compressPdfToTargetSize(
   onProgress?: (pct: number) => void
 ): Promise<{ file: File; meta: CompressionMeta }> {
   const originalBytes = input.size
-
-  const strategies: Array<(buf: ArrayBuffer, name: string) => Promise<File>> = [
-    (b, n) => compressStructural(b, 'medium', n),
-    (b, n) => compressStructural(b, 'high', n),
-    (b, n) => recompressImages(b, 80, n),
-    (b, n) => recompressImages(b, 60, n),
-    (b, n) => recompressImages(b, 40, n),
-    (b, n) => recompressImages(b, 30, n),
-  ]
-
   let bestFile = input
-  let buffer = await input.arrayBuffer()
 
-  for (let i = 0; i < strategies.length; i++) {
-    onProgress?.(Math.round(((i + 1) / strategies.length) * 90))
+  // Pass 1: structural — strip metadata + optimise object streams
+  onProgress?.(10)
+  let structuralBuffer = await input.arrayBuffer()
+  try {
+    const structural = await compressStructural(structuralBuffer, 'medium', input.name)
+    if (structural.size < bestFile.size) bestFile = structural
+    structuralBuffer = await structural.arrayBuffer()
+  } catch { /* continue */ }
+
+  if (bestFile.size <= targetBytes) {
+    onProgress?.(100)
+    return makeTargetResult(input, bestFile, targetBytes, originalBytes)
+  }
+
+  // Passes 2–3: JPEG re-encode at two quality levels.
+  // Both start from structuralBuffer to avoid cumulative generation loss.
+  const jpegQualities = [70, 40]
+  for (let i = 0; i < jpegQualities.length; i++) {
+    onProgress?.(Math.round(20 + (i + 1) * 10))
     try {
-      const candidate = await strategies[i](buffer, input.name)
-      if (candidate.size < bestFile.size) {
-        bestFile = candidate
-        buffer = await candidate.arrayBuffer()
-      }
-    } catch {
-      // strategy failed — continue
-    }
+      const candidate = await recompressImages(structuralBuffer, jpegQualities[i], input.name)
+      if (candidate.size < bestFile.size) bestFile = candidate
+    } catch { /* continue */ }
+    if (bestFile.size <= targetBytes) break
+  }
+
+  if (bestFile.size <= targetBytes) {
+    onProgress?.(100)
+    return makeTargetResult(input, bestFile, targetBytes, originalBytes)
+  }
+
+  // Passes 4–7: rasterise at decreasing DPI.
+  // Handles non-JPEG images (PNG, CCITT) that JPEG re-encoding cannot touch.
+  const rasterPasses: Array<{ dpi: number; quality: number }> = [
+    { dpi: 150, quality: 80 },
+    { dpi: 120, quality: 75 },
+    { dpi: 96,  quality: 70 },
+    { dpi: 72,  quality: 65 },
+  ]
+  for (let i = 0; i < rasterPasses.length; i++) {
+    onProgress?.(Math.round(40 + (i + 1) * 13))
+    try {
+      const { dpi, quality } = rasterPasses[i]
+      const candidate = await rasterizeForTarget(structuralBuffer, input.name, dpi, quality)
+      if (candidate.size < bestFile.size) bestFile = candidate
+    } catch { /* continue */ }
     if (bestFile.size <= targetBytes) break
   }
 
   onProgress?.(100)
-  const reachedTarget = bestFile.size <= targetBytes
+  return makeTargetResult(input, bestFile, targetBytes, originalBytes)
+}
 
+function makeTargetResult(
+  input: File,
+  bestFile: File,
+  targetBytes: number,
+  originalBytes: number
+): { file: File; meta: CompressionMeta } {
+  const reachedTarget = bestFile.size <= targetBytes
   return {
     file: bestFile,
     meta: {
