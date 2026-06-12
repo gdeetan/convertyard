@@ -95,7 +95,7 @@ export function SizeTargetShell({
 
       {/* Tool — pre-filled with target */}
       <div className="mb-12">
-        <ToolShell config={toolConfig} />
+        <ToolShell config={toolConfig} embedded />
       </div>
 
       {/* Intro */}

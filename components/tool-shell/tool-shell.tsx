@@ -26,6 +26,7 @@ const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
 
 interface ToolShellProps {
   config: ToolConfig
+  embedded?: boolean
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -126,7 +127,7 @@ function buildDefaultOptions(config: ToolConfig): ToolOptions {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export function ToolShell({ config }: ToolShellProps) {
+export function ToolShell({ config, embedded = false }: ToolShellProps) {
   const [state, dispatch] = useReducer(reducer, {
     entries: [],
     phase: 'idle',
@@ -206,34 +207,36 @@ export function ToolShell({ config }: ToolShellProps) {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="mb-8">
-        <Breadcrumb items={[
-          { label: 'Home', href: '/' },
-          { label: 'Tools', href: '/tools' },
-          { label: CATEGORY_META[config.category].label, href: CATEGORY_META[config.category].href },
-          { label: config.title },
-        ]} />
-        <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">
-          {config.title}
-        </h1>
-        <p className="mt-2 text-base text-fg-muted">{config.subtitle}</p>
-        {config.limitationNote && (
-          <details className="mt-2 group">
-            <summary className="cursor-pointer list-none text-sm text-fg-muted hover:text-fg transition-colors select-none inline-flex items-center gap-1">
-              <span className="group-open:hidden">▸</span>
-              <span className="hidden group-open:inline">▾</span>
-              {config.limitationNote.summary}
-            </summary>
-            <p className="mt-1.5 pl-3 text-sm text-fg-subtle border-l-2 border-border">
-              {config.limitationNote.body}
-            </p>
-          </details>
-        )}
-        <div className="mt-3 flex items-center gap-1.5 text-xs text-fg-subtle">
-          <Lock className="h-3 w-3 text-primary" aria-hidden="true" />
-          Files never leave your browser. No uploads. No accounts.
+      {!embedded && (
+        <div className="mb-8">
+          <Breadcrumb items={[
+            { label: 'Home', href: '/' },
+            { label: 'Tools', href: '/tools' },
+            { label: CATEGORY_META[config.category].label, href: CATEGORY_META[config.category].href },
+            { label: config.title },
+          ]} />
+          <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">
+            {config.title}
+          </h1>
+          <p className="mt-2 text-base text-fg-muted">{config.subtitle}</p>
+          {config.limitationNote && (
+            <details className="mt-2 group">
+              <summary className="cursor-pointer list-none text-sm text-fg-muted hover:text-fg transition-colors select-none inline-flex items-center gap-1">
+                <span className="group-open:hidden">▸</span>
+                <span className="hidden group-open:inline">▾</span>
+                {config.limitationNote.summary}
+              </summary>
+              <p className="mt-1.5 pl-3 text-sm text-fg-subtle border-l-2 border-border">
+                {config.limitationNote.body}
+              </p>
+            </details>
+          )}
+          <div className="mt-3 flex items-center gap-1.5 text-xs text-fg-subtle">
+            <Lock className="h-3 w-3 text-primary" aria-hidden="true" />
+            Files never leave your browser. No uploads. No accounts.
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Main tool card ───────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-bg-elevated p-6 shadow-sm">
@@ -329,25 +332,27 @@ export function ToolShell({ config }: ToolShellProps) {
       {/* ── How this tool works ──────────────────────────────────────────── */}
       <HowItWorks title={config.title} hasOptions={!!config.options?.length} />
 
-      {/* ── FAQ ─────────────────────────────────────────────────────────── */}
-      {config.faq.length > 0 && (
-        <section className="mt-12">
-          <FAQAccordion items={config.faq} />
-        </section>
-      )}
+      {/* ── FAQ, related tools, related articles (hidden when embedded) ─── */}
+      {!embedded && (
+        <>
+          {config.faq.length > 0 && (
+            <section className="mt-12">
+              <FAQAccordion items={config.faq} />
+            </section>
+          )}
 
-      {/* ── Related tools ────────────────────────────────────────────────── */}
-      {config.relatedTools.length > 0 && (
-        <section className="mt-12">
-          <RelatedToolsStrip slugs={config.relatedTools} />
-        </section>
-      )}
+          {config.relatedTools.length > 0 && (
+            <section className="mt-12">
+              <RelatedToolsStrip slugs={config.relatedTools} />
+            </section>
+          )}
 
-      {/* ── Related articles ─────────────────────────────────────────────── */}
-      {config.relatedArticles.length > 0 && (
-        <section className="mt-12">
-          <RelatedArticlesStrip slugs={config.relatedArticles} />
-        </section>
+          {config.relatedArticles.length > 0 && (
+            <section className="mt-12">
+              <RelatedArticlesStrip slugs={config.relatedArticles} />
+            </section>
+          )}
+        </>
       )}
     </div>
   )
