@@ -3,11 +3,18 @@
 import Link from 'next/link'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { ToolShell } from '@/components/tool-shell/tool-shell'
+import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
+import { RelatedToolsStrip } from '@/components/tool-shell/related-tools-strip'
 import { sizeTargets } from '@/content/size-target-registry'
 import { verticals } from '@/content/vertical-registry'
 import { config as compressPdfConfig } from '@/content/tools/compress-pdf'
 import { config as compressImageConfig } from '@/content/tools/compress-image'
 import type { SizeTargetConfig, ToolConfig, ToolOption } from '@/lib/types'
+
+const INHERITED_FAQ_INDICES: Record<string, number[]> = {
+  'compress-pdf':   [4, 5], // "Are files uploaded?" + "Can I batch?"
+  'compress-image': [6],    // "Are my images uploaded to your servers?"
+}
 
 interface SizeTargetShellProps {
   config: SizeTargetConfig
@@ -57,8 +64,9 @@ export function SizeTargetShell({
     config.relatedVerticals.includes(v.slug)
   )
 
-  // Inherit 2 generic FAQ items from parent (skip the first 4 which are tool-specific)
-  const inheritedFaq = parentToolConfig.faq.slice(4, 6)
+  const inheritedFaq = (INHERITED_FAQ_INDICES[config.parentTool] ?? [])
+    .map(i => parentToolConfig.faq[i])
+    .filter(Boolean)
   const allFaq = [...config.specificFaq, ...inheritedFaq]
 
   const normalizedParentHref = parentToolHref.replace(/\/$/, '')
@@ -111,18 +119,8 @@ export function SizeTargetShell({
       </section>
 
       {/* FAQ */}
-      <section className="mb-10" aria-labelledby="faq-heading">
-        <h2 id="faq-heading" className="text-xl font-semibold text-fg mb-4">
-          Frequently asked questions
-        </h2>
-        <dl className="space-y-4">
-          {allFaq.map((item, i) => (
-            <div key={i} className="rounded-lg border border-border p-4">
-              <dt className="font-medium text-fg">{item.q}</dt>
-              <dd className="mt-1.5 text-sm text-fg-muted leading-relaxed">{item.a}</dd>
-            </div>
-          ))}
-        </dl>
+      <section className="mb-10">
+        <FAQAccordion items={allFaq} />
       </section>
 
       {/* Other size targets */}
@@ -183,28 +181,9 @@ export function SizeTargetShell({
       )}
 
       {/* Related tools */}
-      <section aria-labelledby="related-tools-heading">
-        <h2 id="related-tools-heading" className="text-xl font-semibold text-fg mb-4">
-          Related tools
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          <Link
-            href={parentToolHref}
-            className="rounded-full border border-border px-4 py-1.5 text-sm text-fg-muted hover:text-fg hover:border-primary transition-colors"
-          >
-            {parentToolLabel}
-          </Link>
-          {parentToolConfig.relatedTools.slice(0, 2).map(slug => (
-            <Link
-              key={slug}
-              href={`/${slug}/`}
-              className="rounded-full border border-border px-4 py-1.5 text-sm text-fg-muted hover:text-fg hover:border-primary transition-colors"
-            >
-              {slug.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ')}
-            </Link>
-          ))}
-        </div>
-      </section>
+      <RelatedToolsStrip
+        slugs={[config.parentTool, ...parentToolConfig.relatedTools.slice(0, 2)]}
+      />
     </div>
   )
 }
