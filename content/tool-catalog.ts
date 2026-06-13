@@ -33,7 +33,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'pdf-to-jpg',   title: 'PDF to JPG',   description: 'Every page becomes a high-res JPG.', category: 'pdf', status: 'live' },
   { slug: 'pdf-to-png',   title: 'PDF to PNG',   description: 'Every page as a high-res PNG — up to 600 DPI.', category: 'pdf', status: 'live' },
   { slug: 'pdf-to-text',  title: 'PDF to Text',  description: 'Extract all text from any PDF as a .txt file.', category: 'pdf', status: 'live' },
-  { slug: 'split-pdf',    title: 'Split PDF',    description: 'Extract pages or split at page breaks.', category: 'pdf', status: 'coming-soon' },
+  { slug: 'split-pdf',    title: 'Split PDF',    description: 'Extract pages or split at page breaks.', category: 'pdf', status: 'live' },
   { slug: 'pdf-to-word',  title: 'PDF to Word',  description: 'Editable DOCX from any PDF.', category: 'pdf', status: 'coming-soon' },
 
   // Video & Audio — all coming soon

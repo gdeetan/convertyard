@@ -332,6 +332,70 @@ export async function pdfToPng(
   return results
 }
 
+// ── Split PDF ─────────────────────────────────────────────────────────────────
+
+export async function splitPdf(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const mode = (options.splitMode as string) ?? 'each-page'
+  const everyN = typeof options.everyN === 'number' ? Math.max(1, options.everyN) : 1
+  const pageFrom = typeof options.pageFrom === 'number' ? Math.max(1, options.pageFrom) : 1
+  const pageToOpt = typeof options.pageTo === 'number' ? options.pageTo : 9999
+  const results: ConversionResult[] = []
+
+  for (let i = 0; i < files.length; i++) {
+    try {
+      onProgress?.(i, 5)
+      const buffer = await files[i].arrayBuffer()
+      const srcDoc = await PDFDocument.load(buffer)
+      const pageCount = srcDoc.getPageCount()
+      const baseName = files[i].name.replace(/\.[^.]+$/, '')
+
+      // Build list of [startIdx, endIdx] chunks (0-indexed)
+      const chunks: Array<[number, number]> = []
+      if (mode === 'each-page') {
+        for (let p = 0; p < pageCount; p++) chunks.push([p, p])
+      } else if (mode === 'every-n') {
+        for (let start = 0; start < pageCount; start += everyN) {
+          chunks.push([start, Math.min(start + everyN - 1, pageCount - 1)])
+        }
+      } else {
+        // page-range
+        const start = Math.min(pageFrom - 1, pageCount - 1)
+        const end = Math.min(pageToOpt - 1, pageCount - 1)
+        if (start <= end) chunks.push([start, end])
+      }
+
+      for (let c = 0; c < chunks.length; c++) {
+        const [start, end] = chunks[c]
+        const outDoc = await PDFDocument.create()
+        const indices = Array.from({ length: end - start + 1 }, (_, k) => start + k)
+        const copied = await outDoc.copyPages(srcDoc, indices)
+        for (const page of copied) outDoc.addPage(page)
+        const bytes = await outDoc.save({ useObjectStreams: true, addDefaultPage: false })
+
+        let suffix: string
+        if (mode === 'each-page') {
+          suffix = pageCount === 1 ? '' : `-page-${start + 1}`
+        } else if (mode === 'every-n') {
+          suffix = chunks.length === 1 ? '' : `-part-${c + 1}`
+        } else {
+          suffix = start === end ? `-page-${start + 1}` : `-pages-${start + 1}-${end + 1}`
+        }
+
+        results.push(new File([bytes as Uint8Array<ArrayBuffer>], `${baseName}${suffix}.pdf`, { type: 'application/pdf' }))
+        onProgress?.(i, Math.round(5 + ((c + 1) / chunks.length) * 95))
+      }
+    } catch (err) {
+      results.push(new Error(err instanceof Error ? err.message : 'Split failed'))
+    }
+  }
+
+  return results
+}
+
 // ── PDF to Text ───────────────────────────────────────────────────────────────
 
 export async function pdfToText(
