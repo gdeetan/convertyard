@@ -26,13 +26,14 @@ function getMupdf(): Promise<any> {
 }
 
 self.onmessage = async (e: MessageEvent) => {
-  const { id, type, fileBuffer, pageIndex, dpi, quality } = e.data as {
+  const { id, type, fileBuffer, pageIndex, dpi, quality, transparent } = e.data as {
     id: string
-    type: 'render-page' | 'page-count'
+    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text'
     fileBuffer: ArrayBuffer
     pageIndex?: number
     dpi?: number
     quality?: number
+    transparent?: boolean
   }
 
   try {
@@ -59,6 +60,39 @@ self.onmessage = async (e: MessageEvent) => {
       doc.destroy()
       const buffer = jpegData.buffer.slice(jpegData.byteOffset, jpegData.byteOffset + jpegData.byteLength)
       self.postMessage({ id, type: 'result', data: buffer }, [buffer])
+      return
+    }
+
+    if (type === 'render-page-png') {
+      const doc = mupdf.Document.openDocument(fileBuffer, 'application/pdf')
+      const page = doc.loadPage(pageIndex ?? 0)
+      const scale = (dpi ?? 150) / 72
+      const matrix = mupdf.Matrix.scale(scale, scale)
+      const alpha = transparent ?? false
+      const pixmap = page.toPixmap(matrix, mupdf.ColorSpace.DeviceRGB, alpha, true)
+      const pngData: Uint8Array = pixmap.asPNG()
+      pixmap.destroy()
+      page.destroy()
+      doc.destroy()
+      const buffer = pngData.buffer.slice(pngData.byteOffset, pngData.byteOffset + pngData.byteLength)
+      self.postMessage({ id, type: 'result', data: buffer }, [buffer])
+      return
+    }
+
+    if (type === 'extract-text') {
+      const doc = mupdf.Document.openDocument(fileBuffer, 'application/pdf')
+      const pageCount = doc.countPages()
+      const pages: string[] = []
+      for (let p = 0; p < pageCount; p++) {
+        const page = doc.loadPage(p)
+        const stext = page.toStructuredText('preserve-whitespace,preserve-ligatures')
+        pages.push(stext.asText())
+        page.destroy()
+      }
+      doc.destroy()
+      const encoded = new TextEncoder().encode(JSON.stringify(pages))
+      const buf = encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength)
+      self.postMessage({ id, type: 'result', data: buf }, [buf])
       return
     }
 

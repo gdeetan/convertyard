@@ -54,3 +54,25 @@ export async function renderPage(
   )
   return res.data
 }
+
+export async function renderPagePng(
+  fileBuffer: ArrayBuffer,
+  pageIndex: number,
+  dpi: number,
+  transparent: boolean = false
+): Promise<ArrayBuffer> {
+  const clone = fileBuffer.slice(0)
+  const res = await send<{ data: ArrayBuffer }>(
+    'render-page-png',
+    { fileBuffer: clone, pageIndex, dpi, transparent },
+    [clone]
+  )
+  return res.data
+}
+
+export async function extractText(fileBuffer: ArrayBuffer): Promise<string[]> {
+  const clone = fileBuffer.slice(0)
+  const res = await send<{ data: ArrayBuffer }>('extract-text', { fileBuffer: clone }, [clone])
+  const json = new TextDecoder().decode(res.data)
+  return JSON.parse(json) as string[]
+}
