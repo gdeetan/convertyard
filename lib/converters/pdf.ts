@@ -422,3 +422,105 @@ export async function pdfToText(
 
   return results
 }
+
+// ── Images to PDF ─────────────────────────────────────────────────────────────
+
+async function embedImagePage(doc: PDFDocument, file: File, pageSize: string): Promise<void> {
+  const buffer = await file.arrayBuffer()
+  let imgBytes: Uint8Array<ArrayBuffer>
+  let embedFn: 'embedJpg' | 'embedPng'
+
+  if (file.type === 'image/jpeg') {
+    imgBytes = new Uint8Array(buffer) as Uint8Array<ArrayBuffer>
+    embedFn = 'embedJpg'
+  } else {
+    // Convert any non-JPEG format to PNG via canvas
+    const blob = new Blob([buffer], { type: file.type })
+    const bmp = await createImageBitmap(blob)
+    const canvas = new OffscreenCanvas(bmp.width, bmp.height)
+    const ctx = canvas.getContext('2d')!
+    ctx.drawImage(bmp, 0, 0)
+    bmp.close()
+    const pngBlob = await canvas.convertToBlob({ type: 'image/png' })
+    imgBytes = new Uint8Array(await pngBlob.arrayBuffer()) as Uint8Array<ArrayBuffer>
+    embedFn = 'embedPng'
+  }
+
+  const image = await doc[embedFn](imgBytes)
+  const { width, height } = image
+
+  // Page dimensions in PDF points (1 pt = 1/72 inch)
+  let pageW: number, pageH: number
+  if (pageSize === 'a4') {
+    pageW = 595; pageH = 842
+  } else if (pageSize === 'letter') {
+    pageW = 612; pageH = 792
+  } else {
+    // fit-to-image: use pixel dimensions directly (1 pt = 1 px at 72 DPI)
+    pageW = width; pageH = height
+  }
+
+  const page = doc.addPage([pageW, pageH])
+
+  if (pageSize !== 'fit-to-image') {
+    const margin = 36 // 0.5 inch
+    const availW = pageW - 2 * margin
+    const availH = pageH - 2 * margin
+    const scale = Math.min(availW / width, availH / height)
+    const drawW = width * scale
+    const drawH = height * scale
+    page.drawImage(image, {
+      x: (pageW - drawW) / 2,
+      y: (pageH - drawH) / 2,
+      width: drawW,
+      height: drawH,
+    })
+  } else {
+    page.drawImage(image, { x: 0, y: 0, width: pageW, height: pageH })
+  }
+}
+
+export async function imagesToPdf(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const pageSize = typeof options.pageSize === 'string' ? options.pageSize : 'fit-to-image'
+  const outputMode = typeof options.outputMode === 'string' ? options.outputMode : 'all-in-one'
+  const results: ConversionResult[] = []
+
+  if (outputMode === 'all-in-one') {
+    const doc = await PDFDocument.create()
+    for (let i = 0; i < files.length; i++) {
+      try {
+        await embedImagePage(doc, files[i], pageSize)
+      } catch {
+        // skip unreadable images and continue building the PDF
+      }
+      onProgress?.(i, Math.round(((i + 1) / files.length) * 90))
+    }
+    const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+    if (doc.getPageCount() === 0) {
+      return [new Error('No images could be embedded')]
+    }
+    const baseName = files[0].name.replace(/\.[^.]+$/, '')
+    const outName = files.length === 1 ? `${baseName}.pdf` : `${baseName}-and-${files.length - 1}-more.pdf`
+    results.push(new File([bytes as unknown as Uint8Array<ArrayBuffer>], outName, { type: 'application/pdf' }))
+  } else {
+    // one-per-image
+    for (let i = 0; i < files.length; i++) {
+      try {
+        const doc = await PDFDocument.create()
+        await embedImagePage(doc, files[i], pageSize)
+        const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+        const baseName = files[i].name.replace(/\.[^.]+$/, '')
+        results.push(new File([bytes as unknown as Uint8Array<ArrayBuffer>], `${baseName}.pdf`, { type: 'application/pdf' }))
+        onProgress?.(i, 100)
+      } catch (err) {
+        results.push(new Error(err instanceof Error ? err.message : 'Conversion failed'))
+      }
+    }
+  }
+
+  return results
+}
