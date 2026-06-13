@@ -33,12 +33,16 @@ export function sizeTargetMetadata(config: SizeTargetConfig): Metadata {
   const canonicalUrl = `${BASE_URL}/${config.parentTool}/${config.slug}/`
   const title = `${config.h1} — ConvertYard`
   const description = config.intro.slice(0, 155)
+  const ogImage = `${BASE_URL}/${config.parentTool}/opengraph-image`
   return {
     title: { absolute: title },
     description,
     alternates: { canonical: canonicalUrl },
-    openGraph: { title, description, url: canonicalUrl, siteName: 'ConvertYard', type: 'website' },
-    twitter: { card: 'summary_large_image', title, description },
+    openGraph: {
+      title, description, url: canonicalUrl, siteName: 'ConvertYard', type: 'website',
+      images: [{ url: ogImage, width: 1200, height: 630 }],
+    },
+    twitter: { card: 'summary_large_image', title, description, images: [ogImage] },
   }
 }
 

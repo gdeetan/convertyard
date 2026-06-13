@@ -2,6 +2,19 @@
 import type { ToolConfig, FAQItem } from '@/lib/types'
 import type { TextToolConfig } from '@/lib/types-text'
 
+export function buildSizeTargetSchemas(
+  specificFaq: FAQItem[],
+  parentFaq: FAQItem[],
+  inheritedIndices: number[],
+  breadcrumbItems: Array<{ name: string; url: string }>
+): object[] {
+  const allFaq = [
+    ...specificFaq,
+    ...inheritedIndices.map(i => parentFaq[i]).filter(Boolean),
+  ]
+  return [faqPageSchema(allFaq), breadcrumbSchema(breadcrumbItems)]
+}
+
 export const BASE_URL = 'https://convertyard.com'
 
 export function softwareApplicationSchema(config: ToolConfig) {
