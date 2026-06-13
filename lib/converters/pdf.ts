@@ -1,5 +1,5 @@
 import { PDFDocument, PDFRawStream, PDFName, PDFNumber } from 'pdf-lib'
-import { getPageCount, renderPage } from './mupdf-client'
+import { getPageCount, renderPage, renderPagePng } from './mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
 
@@ -284,6 +284,45 @@ export async function pdfToJpg(
           : `${baseName}-page-${p + 1}.jpg`
         results.push(new File([jpegBuffer], fileName, { type: 'image/jpeg' }))
         onProgress?.(i, Math.round(((p + 1) / pageCount) * 100))
+      }
+    } catch (err) {
+      results.push(new Error(err instanceof Error ? err.message : 'Conversion failed'))
+    }
+  }
+
+  return results
+}
+
+// ── PDF to PNG ────────────────────────────────────────────────────────────────
+
+export async function pdfToPng(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const dpi = typeof options.dpi === 'number' ? options.dpi : 150
+  const transparent = options.transparent === true
+  const pageFrom = typeof options.pageFrom === 'number' ? Math.max(1, options.pageFrom) : 1
+  const pageToOpt = typeof options.pageTo === 'number' ? options.pageTo : 9999
+  const results: ConversionResult[] = []
+
+  for (let i = 0; i < files.length; i++) {
+    try {
+      onProgress?.(i, 5)
+      const buffer = await files[i].arrayBuffer()
+      const pageCount = await getPageCount(buffer)
+      const baseName = files[i].name.replace(/\.[^.]+$/, '')
+      const startIdx = pageFrom - 1
+      const endIdx = Math.min(pageToOpt - 1, pageCount - 1)
+
+      for (let p = startIdx; p <= endIdx; p++) {
+        const pngBuffer = await renderPagePng(buffer, p, dpi, transparent)
+        const isAllPages = pageFrom === 1 && pageToOpt >= pageCount
+        const fileName = pageCount === 1 && isAllPages
+          ? `${baseName}.png`
+          : `${baseName}-page-${p + 1}.png`
+        results.push(new File([pngBuffer], fileName, { type: 'image/png' }))
+        onProgress?.(i, Math.round(5 + ((p - startIdx + 1) / (endIdx - startIdx + 1)) * 95))
       }
     } catch (err) {
       results.push(new Error(err instanceof Error ? err.message : 'Conversion failed'))
