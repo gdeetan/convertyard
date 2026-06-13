@@ -1,5 +1,5 @@
 import { PDFDocument, PDFRawStream, PDFName, PDFNumber } from 'pdf-lib'
-import { getPageCount, renderPage, renderPagePng } from './mupdf-client'
+import { getPageCount, renderPage, renderPagePng, extractText } from './mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
 
@@ -326,6 +326,33 @@ export async function pdfToPng(
       }
     } catch (err) {
       results.push(new Error(err instanceof Error ? err.message : 'Conversion failed'))
+    }
+  }
+
+  return results
+}
+
+// ── PDF to Text ───────────────────────────────────────────────────────────────
+
+export async function pdfToText(
+  files: File[],
+  _options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+
+  for (let i = 0; i < files.length; i++) {
+    try {
+      onProgress?.(i, 10)
+      const buffer = await files[i].arrayBuffer()
+      const pages = await extractText(buffer)
+      onProgress?.(i, 80)
+      const text = pages.join('\n\n---\n\n')
+      const baseName = files[i].name.replace(/\.[^.]+$/, '')
+      results.push(new File([text], `${baseName}.txt`, { type: 'text/plain' }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(new Error(err instanceof Error ? err.message : 'Text extraction failed'))
     }
   }
 
