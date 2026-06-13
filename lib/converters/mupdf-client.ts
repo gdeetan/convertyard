@@ -76,3 +76,12 @@ export async function extractText(fileBuffer: ArrayBuffer): Promise<string[]> {
   const json = new TextDecoder().decode(res.data)
   return JSON.parse(json) as string[]
 }
+
+// Returns one JSON string per page from mupdf's structured text API.
+// Each JSON string contains block/line/span data with font name, size, bold/italic flags.
+export async function extractStructuredText(fileBuffer: ArrayBuffer): Promise<string[]> {
+  const clone = fileBuffer.slice(0)
+  const res = await send<{ data: ArrayBuffer }>('extract-structured-text', { fileBuffer: clone }, [clone])
+  const json = new TextDecoder().decode(res.data)
+  return JSON.parse(json) as string[]
+}

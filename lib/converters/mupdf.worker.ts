@@ -28,7 +28,7 @@ function getMupdf(): Promise<any> {
 self.onmessage = async (e: MessageEvent) => {
   const { id, type, fileBuffer, pageIndex, dpi, quality, transparent } = e.data as {
     id: string
-    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text'
+    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text'
     fileBuffer: ArrayBuffer
     pageIndex?: number
     dpi?: number
@@ -87,6 +87,23 @@ self.onmessage = async (e: MessageEvent) => {
         const page = doc.loadPage(p)
         const stext = page.toStructuredText('preserve-whitespace,preserve-ligatures')
         pages.push(stext.asText())
+        page.destroy()
+      }
+      doc.destroy()
+      const encoded = new TextEncoder().encode(JSON.stringify(pages))
+      const buf = encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength)
+      self.postMessage({ id, type: 'result', data: buf }, [buf])
+      return
+    }
+
+    if (type === 'extract-structured-text') {
+      const doc = mupdf.Document.openDocument(fileBuffer, 'application/pdf')
+      const pageCount = doc.countPages()
+      const pages: string[] = []
+      for (let p = 0; p < pageCount; p++) {
+        const page = doc.loadPage(p)
+        const stext = page.toStructuredText('preserve-whitespace,preserve-ligatures,preserve-spans')
+        pages.push(stext.asJSON())
         page.destroy()
       }
       doc.destroy()
