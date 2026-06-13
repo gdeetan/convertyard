@@ -35,7 +35,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'pdf-to-text',  title: 'PDF to Text',  description: 'Extract all text from any PDF as a .txt file.', category: 'pdf', status: 'live' },
   { slug: 'split-pdf',    title: 'Split PDF',    description: 'Extract pages or split at page breaks.', category: 'pdf', status: 'live' },
   { slug: 'jpg-to-pdf',   title: 'JPG to PDF',   description: 'Combine images into a PDF, drag to reorder.', category: 'pdf', status: 'live' },
-  { slug: 'pdf-to-word',  title: 'PDF to Word',  description: 'Editable DOCX from any PDF.', category: 'pdf', status: 'coming-soon' },
+  { slug: 'pdf-to-word',  title: 'PDF to Word',  description: 'Editable DOCX from any PDF.', category: 'pdf', status: 'live' },
 
   // Video & Audio — all coming soon
   { slug: 'mp4-to-mp3',       title: 'MP4 to MP3',       description: 'Strip audio from video in seconds.', category: 'video-audio', status: 'live' },

@@ -2,6 +2,7 @@ import { PDFDocument, PDFRawStream, PDFName, PDFNumber } from 'pdf-lib'
 import { getPageCount, renderPage, renderPagePng, extractText } from './mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
+import { convertPdfToWord } from './pdf-to-word'
 
 // ── Merge ─────────────────────────────────────────────────────────────────────
 
@@ -519,6 +520,27 @@ export async function imagesToPdf(
       } catch (err) {
         results.push(new Error(err instanceof Error ? err.message : 'Conversion failed'))
       }
+    }
+  }
+
+  return results
+}
+
+// ── PDF to Word ───────────────────────────────────────────────────────────────
+
+export async function pdfToWord(
+  files: File[],
+  _options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+
+  for (let i = 0; i < files.length; i++) {
+    try {
+      const outFile = await convertPdfToWord(files[i], (pct) => onProgress?.(i, pct))
+      results.push(outFile)
+    } catch (err) {
+      results.push(new Error(err instanceof Error ? err.message : 'Conversion failed'))
     }
   }
 
