@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useCallback, useReducer, useRef, useEffect } from 'react'
-import { Lock, RefreshCcw, Upload } from 'lucide-react'
+import { Lock, RefreshCcw, Upload, ArrowRight } from 'lucide-react'
+import Link from 'next/link'
 import { cn } from '@/lib/utils/cn'
 import { formatBytes } from '@/lib/utils/download'
 import { Dropzone } from './dropzone'
@@ -13,6 +14,7 @@ import { RelatedToolsStrip } from './related-tools-strip'
 import { RelatedArticlesStrip } from './related-articles-strip'
 import type { ToolConfig, FileEntry, ToolPhase, ToolOptions, ToolCategory, CompressionMeta, ConversionResult } from '@/lib/types'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
+import { sizeTargets } from '@/content/size-target-registry'
 
 const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
   images:          { label: 'Image Converters', href: '/images' },
@@ -335,6 +337,8 @@ export function ToolShell({ config, embedded = false }: ToolShellProps) {
       {/* ── FAQ, related tools, related articles (hidden when embedded) ─── */}
       {!embedded && (
         <>
+          <SizeTargetGrid slug={config.slug} />
+
           {config.faq.length > 0 && (
             <section className="mt-12">
               <FAQAccordion items={config.faq} />
@@ -358,6 +362,47 @@ export function ToolShell({ config, embedded = false }: ToolShellProps) {
   )
 
   return inner
+}
+
+// ── Common target sizes grid ───────────────────────────────────────────────
+
+function SizeTargetGrid({ slug }: { slug: string }) {
+  const targets = sizeTargets.filter((t) => t.parentTool === slug)
+  if (targets.length === 0) return null
+
+  return (
+    <section className="mt-12" aria-labelledby="size-targets-heading">
+      <h2 id="size-targets-heading" className="mb-6 text-xl font-semibold text-fg">
+        Common target sizes
+      </h2>
+      <ul
+        className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+        role="list"
+      >
+        {targets.map((t) => (
+          <li key={t.slug}>
+            <Link
+              href={`/${slug}/${t.slug}`}
+              className={cn(
+                'group relative flex flex-col gap-1.5 rounded-xl border border-border bg-bg-elevated p-4',
+                'transition-colors hover:border-primary/40 hover:bg-bg-muted',
+                'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+              )}
+            >
+              <span className="text-sm font-semibold text-fg">{t.targetLabel}</span>
+              <span className="flex-1 text-xs leading-relaxed text-fg-muted line-clamp-2">
+                {t.subhead}
+              </span>
+              <ArrowRight
+                className="mt-2 h-3.5 w-3.5 self-end text-fg-subtle transition-transform group-hover:translate-x-0.5"
+                aria-hidden="true"
+              />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
 }
 
 // ── How it works mini-section ──────────────────────────────────────────────
