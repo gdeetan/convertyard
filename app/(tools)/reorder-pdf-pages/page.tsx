@@ -167,7 +167,7 @@ export default function ReorderPdfPage() {
   const hasChanges = pages.length !== originalCount || pages.some((p, i) => p.originalIndex !== i)
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <div className="mb-8">
         <Breadcrumb items={[
           { label: 'Home', href: '/' },
@@ -234,7 +234,7 @@ export default function ReorderPdfPage() {
             <span className="text-gray-400">&middot; Ctrl+Z / Ctrl+Y</span>
           </div>
 
-          <div className="grid grid-cols-5 gap-3 mb-6">
+          <div className="grid grid-cols-4 gap-3 mb-6">
             {pages.map((entry, listIdx) => (
               <div
                 key={entry.instanceId}

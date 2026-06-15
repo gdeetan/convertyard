@@ -88,7 +88,7 @@ export default function RotatePdfPage() {
   const allIndices = rotations.map((_, i) => i)
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
       <div className="mb-8">
         <Breadcrumb items={[
           { label: 'Home', href: '/' },
@@ -155,7 +155,7 @@ export default function RotatePdfPage() {
           <PdfThumbnailGrid
             file={file}
             thumbnailWidth={140}
-            columns={5}
+            columns={4}
             getImgStyle={(i) => ({
               transform: `rotate(${rotations[i]}deg)`,
               transition: 'transform 0.2s',
