@@ -76,6 +76,27 @@ function isTextBlock(block: StBlock): boolean {
   return block.type === 'text' || block.type === 0
 }
 
+// ── List detection ───────────────────────────────────────────────────────────
+
+const INDENT_THRESHOLD = 15 // pt — indent beyond base margin signals a list item
+
+export function baseLeftMargin(blocks: StBlock[]): number {
+  const x1s = blocks
+    .filter(b => isTextBlock(b) && b.bbox != null)
+    .map(b => Math.round(b.bbox![0]))
+  if (x1s.length === 0) return 0
+  const freq: Record<number, number> = {}
+  for (const x of x1s) freq[x] = (freq[x] ?? 0) + 1
+  return Number(Object.entries(freq).sort((a, b) => b[1] - a[1])[0][0])
+}
+
+export function isListItem(block: StBlock, baseMargin: number): boolean {
+  if (block.bbox && block.bbox[0] >= baseMargin + INDENT_THRESHOLD) return true
+  const allSpans = (block.lines ?? []).flatMap(l => l.spans ?? [])
+  const text = allSpans.map(spanText).join('').trim()
+  return /^[•\-\*▪◦◆➢➤→►▸]\s/.test(text) || /^\d+[\.\)]\s/.test(text) || /^[a-z][\.\)]\s/.test(text)
+}
+
 // ── Table detection ──────────────────────────────────────────────────────────
 
 interface DetectedTable {
@@ -246,7 +267,8 @@ export function detectHeadingLevel(
 function blockToParagraph(
   block: StBlock,
   body: number,
-  level: ReturnType<typeof detectHeadingLevel> = null
+  level: ReturnType<typeof detectHeadingLevel> = null,
+  listItem = false
 ): Paragraph | null {
   const allSpans = (block.lines ?? []).flatMap(l => l.spans ?? [])
   const text = allSpans.map(spanText).join('').trim()
@@ -259,15 +281,20 @@ function blockToParagraph(
     })
   }
 
-  // Normal paragraph — one TextRun per span to preserve bold/italic
+  // One TextRun per span to preserve bold/italic
   const runs: TextRun[] = []
   for (const span of allSpans) {
     const t = spanText(span)
     if (!t) continue
     runs.push(new TextRun({ text: t, bold: isBold(span), italics: isItalic(span) }))
   }
+  const children = runs.length > 0 ? runs : [new TextRun(text)]
 
-  return new Paragraph({ children: runs.length > 0 ? runs : [new TextRun(text)] })
+  if (listItem) {
+    return new Paragraph({ style: 'ListParagraph', indent: { left: 720 }, children })
+  }
+
+  return new Paragraph({ children })
 }
 
 // ── Page JSON → Paragraphs ───────────────────────────────────────────────────
@@ -290,6 +317,7 @@ function pagesToParagraphs(pages: StPage[], body: number): Array<Paragraph | Tab
 
     const pageBlocks = pages[p].blocks ?? []
     const pageWidth = estimatePageWidth(pages[p])
+    const baseMargin = baseLeftMargin(pageBlocks)
     const detected = detectTables(pageBlocks)
 
     // Map: block index → DetectedTable
@@ -316,7 +344,8 @@ function pagesToParagraphs(pages: StPage[], body: number): Array<Paragraph | Tab
 
       if (!isTextBlock(block)) continue
       const level = detectHeadingLevel(block, body, pageWidth)
-      const para = blockToParagraph(block, body, level)
+      const listItem = !level && isListItem(block, baseMargin)
+      const para = blockToParagraph(block, body, level, listItem)
       if (para) out.push(para)
     }
   }
@@ -473,11 +502,14 @@ export async function convertPdfToWord(
         // continue without image if render fails
       }
       // Then text blocks
+      const pageBlocks = pages[p].blocks ?? []
       const pageWidth = estimatePageWidth(pages[p])
-      for (const block of pages[p].blocks ?? []) {
+      const baseMargin = baseLeftMargin(pageBlocks)
+      for (const block of pageBlocks) {
         if (!isTextBlock(block)) continue
         const level = detectHeadingLevel(block, body, pageWidth)
-        const para = blockToParagraph(block, body, level)
+        const listItem = !level && isListItem(block, baseMargin)
+        const para = blockToParagraph(block, body, level, listItem)
         if (para) children.push(para)
       }
     }

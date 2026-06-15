@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clusterValues, detectHeadingLevel, detectTables } from '../pdf-to-word'
+import { clusterValues, detectHeadingLevel, detectTables, baseLeftMargin, isListItem } from '../pdf-to-word'
 
 describe('clusterValues', () => {
   it('groups values within tolerance', () => {
@@ -136,6 +136,63 @@ function makeGrid(
   })
   return blocks
 }
+
+describe('baseLeftMargin', () => {
+  it('returns the modal x1 across text blocks', () => {
+    const blocks = [
+      makeBlock({ text: 'a', bbox: [72, 100, 300, 120] }),
+      makeBlock({ text: 'b', bbox: [72, 130, 300, 150] }),
+      makeBlock({ text: 'c', bbox: [72, 160, 300, 180] }),
+      makeBlock({ text: 'd', bbox: [144, 190, 300, 210] }), // outlier
+    ]
+    expect(baseLeftMargin(blocks)).toBe(72)
+  })
+
+  it('returns 0 for empty block list', () => {
+    expect(baseLeftMargin([])).toBe(0)
+  })
+
+  it('ignores image blocks', () => {
+    const imageBlock: import('../pdf-to-word').StBlockPublic = {
+      type: 'image',
+      bbox: [200, 50, 400, 90],
+      lines: [],
+    }
+    const textBlock = makeBlock({ text: 'a', bbox: [72, 100, 300, 120] })
+    expect(baseLeftMargin([imageBlock, textBlock])).toBe(72)
+  })
+})
+
+describe('isListItem', () => {
+  const BASE = 72
+
+  it('detects indent beyond base margin as list item', () => {
+    const block = makeBlock({ text: 'Item one', bbox: [100, 100, 300, 120] }) // 100 > 72 + 15
+    expect(isListItem(block, BASE)).toBe(true)
+  })
+
+  it('does not flag block at base margin as list item', () => {
+    const block = makeBlock({ text: 'Normal paragraph', bbox: [72, 100, 300, 120] })
+    expect(isListItem(block, BASE)).toBe(false)
+  })
+
+  it('detects bullet prefix as list item even without indent', () => {
+    const block = makeBlock({ text: '• Bullet item', bbox: [72, 100, 300, 120] })
+    expect(isListItem(block, BASE)).toBe(true)
+  })
+
+  it('detects numbered prefix as list item', () => {
+    const block = makeBlock({ text: '1. First item', bbox: [72, 100, 300, 120] })
+    expect(isListItem(block, BASE)).toBe(true)
+  })
+
+  it('does not flag a heading-level indent block when already heading (caller guards)', () => {
+    // isListItem doesn't know about headings — the caller skips it for headings.
+    // Verify it still returns true so the caller's guard is meaningful.
+    const block = makeBlock({ text: 'SECTION TITLE', bbox: [90, 100, 300, 120] })
+    expect(isListItem(block, BASE)).toBe(true)
+  })
+})
 
 describe('detectTables', () => {
   it('detects a 3-column 2-row table', () => {
