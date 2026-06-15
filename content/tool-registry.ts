@@ -25,6 +25,8 @@ import { config as altTextGenerator } from './tools/alt-text-generator'
 import { config as rotatePdf } from './tools/rotate-pdf'
 import { config as reorderPdfPages } from './tools/reorder-pdf-pages'
 import { config as redactPdf } from './tools/redact-pdf'
+import { config as pdfToCsv } from './tools/pdf-to-csv'
+import { config as fillPdfForm } from './tools/fill-pdf-form'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
@@ -55,6 +57,8 @@ export const tools: ToolConfig[] = [
   rotatePdf,
   reorderPdfPages,
   redactPdf,
+  pdfToCsv,
+  fillPdfForm,
 ]
 
 export const toolBySlug = Object.fromEntries(

@@ -36,6 +36,11 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'split-pdf',    title: 'Split PDF',    description: 'Extract pages or split at page breaks.', category: 'pdf', status: 'live' },
   { slug: 'jpg-to-pdf',   title: 'JPG to PDF',   description: 'Combine images into a PDF, drag to reorder.', category: 'pdf', status: 'live' },
   { slug: 'pdf-to-word',  title: 'PDF to Word',  description: 'Editable DOCX from any PDF.', category: 'pdf', status: 'live' },
+  { slug: 'rotate-pdf',        title: 'Rotate PDF',        description: 'Rotate any pages permanently — batch.', category: 'pdf', status: 'live' },
+  { slug: 'reorder-pdf-pages', title: 'Reorder PDF Pages', description: 'Drag pages into a new order and save.', category: 'pdf', status: 'live' },
+  { slug: 'redact-pdf',        title: 'Redact PDF',        description: 'True redaction — content removed, not hidden.', category: 'pdf', status: 'live', badge: 'Privacy' },
+  { slug: 'pdf-to-csv',    title: 'PDF to CSV',    description: 'Extract tables from any PDF as CSV files.', category: 'pdf', status: 'live' },
+  { slug: 'fill-pdf-form', title: 'Fill PDF Form',  description: 'Fill AcroForm fields in your browser, then flatten.', category: 'pdf', status: 'live' },
 
   // Video & Audio — all coming soon
   { slug: 'mp4-to-mp3',       title: 'MP4 to MP3',       description: 'Strip audio from video in seconds.', category: 'video-audio', status: 'live' },
