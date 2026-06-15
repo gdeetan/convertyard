@@ -3,28 +3,36 @@ import { extractStructuredText, getPageCount, renderPage } from './mupdf-client'
 
 // ── mupdf structured-text JSON types ─────────────────────────────────────────
 
+type Bbox = [number, number, number, number] // [x1, y1, x2, y2]
+
 interface StChar { c: number }
 
 interface StSpan {
   font?: { name?: string; weight?: string; style?: string }
   size?: number
   color?: number
+  bbox?: Bbox
+  origin?: [number, number]
   chars?: StChar[]
   text?: string
 }
 
 interface StLine {
+  bbox?: Bbox
   spans?: StSpan[]
 }
 
 interface StBlock {
   type?: string | number  // "text" | "image" | 0 | 1
+  bbox?: Bbox
   lines?: StLine[]
 }
 
 interface StPage {
   blocks?: StBlock[]
 }
+
+export type StBlockPublic = StBlock
 
 // ── Span helpers ──────────────────────────────────────────────────────────────
 
