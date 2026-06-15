@@ -37,7 +37,7 @@ export default function RedactPdfPage() {
   const [resultUrl, setResultUrl] = useState<string | null>(null)
   const [resultName, setResultName] = useState('')
   const [report, setReport] = useState<RedactionReport | null>(null)
-  const [verificationPassed, setVerificationPassed] = useState<boolean | null>(null)
+  const [verificationMessage, setVerificationMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Keyword find state
@@ -60,7 +60,7 @@ export default function RedactPdfPage() {
     setMatches([])
     setResultUrl(null)
     setReport(null)
-    setVerificationPassed(null)
+    setVerificationMessage(null)
     setPageImages([])
 
     try {
@@ -277,7 +277,15 @@ export default function RedactPdfPage() {
         .filter(r => r.label && !Object.values(PATTERNS).some(p => p.label === r.label))
         .map(r => r.label!.toLowerCase())
       const leaks = customLabels.filter(s => s.length > 2 && allText.includes(s))
-      setVerificationPassed(leaks.length === 0)
+      if (customLabels.length > 0) {
+        setVerificationMessage(
+          leaks.length === 0
+            ? 'Verification passed — custom keywords confirmed absent from output'
+            : 'Verification warning — check output manually'
+        )
+      } else {
+        setVerificationMessage('Content removed — redacted pages have been rasterised, text structurally absent')
+      }
 
       setResultUrl(URL.createObjectURL(outFile))
       setResultName(outFile.name)
@@ -508,16 +516,14 @@ export default function RedactPdfPage() {
       {/* Done */}
       {phase === 'done' && resultUrl && (
         <div className="border rounded-xl p-6 mb-6">
-          {verificationPassed === true && (
-            <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2 mb-4 text-sm">
-              <span>✓</span>
-              <strong>Verification passed</strong> — redacted content confirmed absent from output
-            </div>
-          )}
-          {verificationPassed === false && (
-            <div className="flex items-center gap-2 text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 mb-4 text-sm">
-              <span>!</span>
-              Verification inconclusive — download and inspect manually
+          {verificationMessage && (
+            <div className={`flex items-center gap-2 rounded-lg px-4 py-2 mb-4 text-sm ${
+              verificationMessage.startsWith('Verification warning')
+                ? 'text-amber-700 bg-amber-50 border border-amber-200'
+                : 'text-green-700 bg-green-50 border border-green-200'
+            }`}>
+              <span>{verificationMessage.startsWith('Verification warning') ? '⚠' : '✓'}</span>
+              <span>{verificationMessage}</span>
             </div>
           )}
           <div className="flex flex-wrap gap-3">
