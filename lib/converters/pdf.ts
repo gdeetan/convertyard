@@ -608,3 +608,19 @@ export async function rotatePdf(
   const baseName = file.name.replace(/\.[^.]+$/, '')
   return new File([bytes as Uint8Array<ArrayBuffer>], `${baseName}-rotated.pdf`, { type: 'application/pdf' })
 }
+
+// ── Reorder PDF Pages ─────────────────────────────────────────────────────────
+
+export async function reorderPdf(
+  file: File,
+  pageOrder: number[]  // original 0-based page indices in desired output order; duplicates allowed for duplicated pages
+): Promise<File> {
+  const buffer = await file.arrayBuffer()
+  const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+  const outDoc = await PDFDocument.create()
+  const copied = await outDoc.copyPages(srcDoc, pageOrder)
+  for (const page of copied) outDoc.addPage(page)
+  const bytes = await outDoc.save({ useObjectStreams: true, addDefaultPage: false })
+  const baseName = file.name.replace(/\.[^.]+$/, '')
+  return new File([bytes as Uint8Array<ArrayBuffer>], `${baseName}-reordered.pdf`, { type: 'application/pdf' })
+}
