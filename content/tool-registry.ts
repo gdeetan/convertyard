@@ -24,6 +24,7 @@ import { config as backgroundRemover } from './tools/background-remover'
 import { config as altTextGenerator } from './tools/alt-text-generator'
 import { config as rotatePdf } from './tools/rotate-pdf'
 import { config as reorderPdfPages } from './tools/reorder-pdf-pages'
+import { config as redactPdf } from './tools/redact-pdf'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
@@ -53,6 +54,7 @@ export const tools: ToolConfig[] = [
   altTextGenerator,
   rotatePdf,
   reorderPdfPages,
+  redactPdf,
 ]
 
 export const toolBySlug = Object.fromEntries(
