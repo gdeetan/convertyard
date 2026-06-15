@@ -44,6 +44,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'Rotate PDF Pages — ConvertYard',
-    description: 'Rotate PDF pages permanently. Rotate all pages or select individual ones. Preview thumbnails before saving. Files never upload to a server.',
+    description: 'Rotate PDF pages permanently in your browser. Rotate all pages or individual ones. Preview thumbnails before saving. Files never leave your device.',
   },
 }
