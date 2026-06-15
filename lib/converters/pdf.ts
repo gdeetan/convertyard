@@ -574,11 +574,12 @@ export async function pdfToWord(
   const pageFrom = typeof options.pageFrom === 'number' ? Math.max(1, options.pageFrom) : 1
   const pageTo = typeof options.pageTo === 'number' ? options.pageTo : 9999
   const includeImages = options.includeImages !== false
+  const ocrLanguage = typeof options.ocrLanguage === 'string' ? options.ocrLanguage : 'eng'
   const results: ConversionResult[] = []
 
   for (let i = 0; i < files.length; i++) {
     try {
-      const outFile = await convertPdfToWord(files[i], (pct) => onProgress?.(i, pct), { pageFrom, pageTo, includeImages })
+      const outFile = await convertPdfToWord(files[i], (pct) => onProgress?.(i, pct), { pageFrom, pageTo, includeImages, ocrLanguage })
       results.push(outFile)
     } catch (err) {
       results.push(new Error(err instanceof Error ? err.message : 'Conversion failed'))

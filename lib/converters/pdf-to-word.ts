@@ -439,6 +439,7 @@ interface PdfToWordOptions {
   pageFrom?: number
   pageTo?: number
   includeImages?: boolean
+  ocrLanguage?: string  // tesseract language code, default 'eng'
 }
 
 export async function convertPdfToWord(
@@ -473,8 +474,9 @@ export async function convertPdfToWord(
 
   if (isScanned(pages)) {
     // OCR path for scanned/image-only PDFs
+    const lang = opts.ocrLanguage ?? 'eng'
     const { createWorker } = await import('tesseract.js')
-    const worker = await createWorker('eng')
+    const worker = await createWorker(lang)
     const ocrTexts: string[] = []
 
     for (let p = 0; p < totalPages; p++) {
