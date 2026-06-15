@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "cp node_modules/wasm-vips/lib/vips.wasm public/vips.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.wasm public/mupdf-wasm.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf.js public/mupdf.js 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.js public/mupdf-wasm.js 2>/dev/null || true"
+    "postinstall": "cp node_modules/wasm-vips/lib/vips.wasm public/vips.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.wasm public/mupdf-wasm.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf.js public/mupdf.js 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.js public/mupdf-wasm.js 2>/dev/null || true",
+    "test": "vitest run"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
@@ -43,6 +44,7 @@
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.8",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "vitest": "^4.1.8"
   }
 }
