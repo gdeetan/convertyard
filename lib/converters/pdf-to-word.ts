@@ -94,33 +94,63 @@ function bodyFontSize(pages: StPage[]): number {
   return Number(entries.sort((a, b) => b[1] - a[1])[0][0])
 }
 
-function headingLevel(
-  size: number,
-  body: number
+// Exported for testing only
+export function detectHeadingLevel(
+  block: StBlock,
+  body: number,
+  pageWidth: number
 ): typeof HeadingLevel.HEADING_1 | typeof HeadingLevel.HEADING_2 | typeof HeadingLevel.HEADING_3 | null {
-  const ratio = size / body
-  if (ratio >= 1.8) return HeadingLevel.HEADING_1
-  if (ratio >= 1.35) return HeadingLevel.HEADING_2
-  if (ratio >= 1.15) return HeadingLevel.HEADING_3
-  return null
-}
-
-// ── Block → docx Paragraph ───────────────────────────────────────────────────
-
-function blockToParagraph(block: StBlock, body: number): Paragraph | null {
   const allSpans = (block.lines ?? []).flatMap(l => l.spans ?? [])
-  const text = allSpans.map(spanText).join('').trim()
-  if (!text) return null
+  const text = allSpans.map(spanText).join(' ').trim()
+  const wordCount = text.split(/\s+/).filter(Boolean).length
 
-  // Dominant font size: most frequent non-zero size in this block
+  // Hard exclusion: more than 20 words can't be a heading
+  if (wordCount > 20) return null
+
+  // Dominant font size across spans
   const sizes = allSpans.filter(s => s.size).map(s => s.size as number)
   const sizeFreq: Record<number, number> = {}
   for (const s of sizes) { const r = Math.round(s); sizeFreq[r] = (sizeFreq[r] ?? 0) + 1 }
   const dominantSize = sizes.length > 0
     ? Number(Object.entries(sizeFreq).sort((a, b) => b[1] - a[1])[0][0])
     : body
+  const ratio = dominantSize / body
 
-  const level = headingLevel(dominantSize, body)
+  // Size-based levels (primary signal)
+  if (ratio >= 1.8) return HeadingLevel.HEADING_1
+  if (ratio >= 1.35) return HeadingLevel.HEADING_2
+  if (ratio >= 1.15) return HeadingLevel.HEADING_3
+
+  // Body-size heading candidates — require shortness + at least one secondary signal
+  if (wordCount > 12) return null
+
+  const bbox = block.bbox
+  const isCentered = bbox
+    ? Math.abs(((bbox[0] + bbox[2]) / 2) - pageWidth / 2) < pageWidth * 0.1
+    : false
+
+  const isAllCaps = /[A-Z]/.test(text) && text === text.toUpperCase()
+
+  const dominantSpan = allSpans.find(s => s.size && Math.round(s.size) === dominantSize)
+  const isBoldBlock = dominantSpan ? isBold(dominantSpan) : false
+
+  const signals = [isCentered, isAllCaps, isBoldBlock && wordCount <= 8].filter(Boolean).length
+
+  if (signals >= 1) return HeadingLevel.HEADING_3
+
+  return null
+}
+
+// ── Block → docx Paragraph ───────────────────────────────────────────────────
+
+function blockToParagraph(
+  block: StBlock,
+  body: number,
+  level: ReturnType<typeof detectHeadingLevel> = null
+): Paragraph | null {
+  const allSpans = (block.lines ?? []).flatMap(l => l.spans ?? [])
+  const text = allSpans.map(spanText).join('').trim()
+  if (!text) return null
 
   if (level) {
     return new Paragraph({
@@ -142,6 +172,14 @@ function blockToParagraph(block: StBlock, body: number): Paragraph | null {
 
 // ── Page JSON → Paragraphs ───────────────────────────────────────────────────
 
+function estimatePageWidth(page: StPage): number {
+  let maxX2 = 0
+  for (const block of page.blocks ?? []) {
+    if (block.bbox && block.bbox[2] > maxX2) maxX2 = block.bbox[2]
+  }
+  return maxX2 || 612 // US Letter fallback
+}
+
 function pagesToParagraphs(pages: StPage[], body: number): Paragraph[] {
   const out: Paragraph[] = []
 
@@ -149,9 +187,11 @@ function pagesToParagraphs(pages: StPage[], body: number): Paragraph[] {
     if (p > 0) {
       out.push(new Paragraph({ pageBreakBefore: true, children: [] }))
     }
+    const pageWidth = estimatePageWidth(pages[p])
     for (const block of pages[p].blocks ?? []) {
       if (!isTextBlock(block)) continue
-      const para = blockToParagraph(block, body)
+      const level = detectHeadingLevel(block, body, pageWidth)
+      const para = blockToParagraph(block, body, level)
       if (para) out.push(para)
     }
   }
@@ -308,9 +348,11 @@ export async function convertPdfToWord(
         // continue without image if render fails
       }
       // Then text blocks
+      const pageWidth = estimatePageWidth(pages[p])
       for (const block of pages[p].blocks ?? []) {
         if (!isTextBlock(block)) continue
-        const para = blockToParagraph(block, body)
+        const level = detectHeadingLevel(block, body, pageWidth)
+        const para = blockToParagraph(block, body, level)
         if (para) children.push(para)
       }
     }
