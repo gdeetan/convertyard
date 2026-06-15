@@ -1,10 +1,11 @@
 'use client'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Lock } from 'lucide-react'
 import { PDFDocument } from 'pdf-lib'
 import { PdfThumbnailGrid } from '@/components/pdf/PdfThumbnailGrid'
 import { rotatePdf } from '@/lib/converters/pdf'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
+import { Dropzone } from '@/components/tool-shell/dropzone'
 import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
 import { RelatedToolsStrip } from '@/components/tool-shell/related-tools-strip'
 import { config } from '@/content/tools/rotate-pdf'
@@ -20,7 +21,6 @@ export default function RotatePdfPage() {
   const [resultUrl, setResultUrl] = useState<string | null>(null)
   const [resultName, setResultName] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
 
   const loadFile = useCallback(async (f: File) => {
     setFile(f)
@@ -40,12 +40,6 @@ export default function RotatePdfPage() {
       setPhase('idle')
     }
   }, [])
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    const f = Array.from(e.dataTransfer.files).find(f => f.type === 'application/pdf')
-    if (f) loadFile(f)
-  }, [loadFile])
 
   const rotatePage = useCallback((idx: number, delta: number) => {
     setRotations(prev => {
@@ -111,29 +105,20 @@ export default function RotatePdfPage() {
       </div>
 
       {/* Drop zone */}
-      {(phase === 'idle' || phase === 'loading') && (
-        <div
-          onDrop={handleDrop}
-          onDragOver={(e) => e.preventDefault()}
-          onClick={() => inputRef.current?.click()}
-          className="border-2 border-dashed border-border rounded-xl p-16 text-center cursor-pointer hover:border-primary transition-colors mb-6"
-        >
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".pdf,application/pdf"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) loadFile(f) }}
+      {phase === 'loading' && (
+        <div className="rounded-2xl border border-border bg-bg-elevated p-6 shadow-sm mb-6">
+          <div className="flex min-h-[200px] items-center justify-center">
+            <p className="text-fg-muted">Loading PDF…</p>
+          </div>
+        </div>
+      )}
+      {phase === 'idle' && (
+        <div className="rounded-2xl border border-border bg-bg-elevated p-6 shadow-sm mb-6">
+          <Dropzone
+            accepts={config.accepts}
+            acceptsExt={config.acceptsExt}
+            onAdd={(files) => { if (files[0]) loadFile(files[0]) }}
           />
-          {phase === 'loading'
-            ? <p className="text-fg-muted">Loading PDF&hellip;</p>
-            : (
-              <>
-                <p className="text-lg font-medium mb-1 text-fg">Drop a PDF here</p>
-                <p className="text-sm text-fg-subtle">or click to browse</p>
-              </>
-            )
-          }
         </div>
       )}
 
@@ -245,6 +230,27 @@ export default function RotatePdfPage() {
           </button>
         </div>
       )}
+
+      {/* How it works */}
+      <section className="mt-12" aria-labelledby="how-it-works-heading">
+        <h2 id="how-it-works-heading" className="mb-6 text-xl font-semibold text-fg">How it works</h2>
+        <ol className="grid grid-cols-1 gap-4 sm:grid-cols-2" role="list">
+          {[
+            { n: '1', label: 'Drop your PDF', desc: 'Drag and drop, click to browse, or paste from clipboard.' },
+            { n: '2', label: 'Select & rotate pages', desc: 'Click pages to select them, then rotate left or right. Or rotate all pages at once from the toolbar.' },
+            { n: '3', label: 'Apply rotations', desc: 'Rotation is baked permanently into the PDF — not just a view setting. Runs entirely in your browser.' },
+            { n: '4', label: 'Download', desc: 'Save the rotated PDF directly to your device.' },
+          ].map((step) => (
+            <li key={step.n} className="flex gap-4">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bg-muted text-sm font-bold text-primary" aria-hidden="true">{step.n}</span>
+              <div>
+                <p className="text-sm font-semibold text-fg">{step.label}</p>
+                <p className="mt-0.5 text-sm text-fg-muted">{step.desc}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
 
       {/* FAQ */}
       {config.faq.length > 0 && (
