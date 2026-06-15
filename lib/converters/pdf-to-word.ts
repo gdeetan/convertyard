@@ -380,8 +380,8 @@ async function pageImageParagraph(
 ): Promise<Paragraph> {
   const jpegBuffer = await renderPage(buffer, pageIndex, 96, 85)
   const { width: rawW, height: rawH } = jpegDimensions(jpegBuffer)
-  // Scale to fit standard Word content width (468px at 96 DPI = 6.5 inch - 1 inch margins)
-  const maxW = 468
+  // Scale to fit standard Word content width: 6.5 inch × 96 DPI = 624px (Letter, 1-inch margins)
+  const maxW = 624
   const scale = Math.min(1, maxW / rawW)
   const w = Math.round(rawW * scale)
   const h = Math.round(rawH * scale)
