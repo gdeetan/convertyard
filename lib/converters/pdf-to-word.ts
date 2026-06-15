@@ -34,6 +34,22 @@ interface StPage {
 
 export type StBlockPublic = StBlock
 
+// Exported for testing only
+export function clusterValues(values: number[], tolerance: number): number[][] {
+  if (values.length === 0) return []
+  const sorted = [...values].sort((a, b) => a - b)
+  const clusters: number[][] = [[sorted[0]]]
+  for (let i = 1; i < sorted.length; i++) {
+    const last = clusters[clusters.length - 1]
+    if (sorted[i] - last[last.length - 1] <= tolerance) {
+      last.push(sorted[i])
+    } else {
+      clusters.push([sorted[i]])
+    }
+  }
+  return clusters
+}
+
 // ── Span helpers ──────────────────────────────────────────────────────────────
 
 function spanText(span: StSpan): string {
