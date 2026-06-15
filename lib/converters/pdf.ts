@@ -624,3 +624,97 @@ export async function reorderPdf(
   const baseName = file.name.replace(/\.[^.]+$/, '')
   return new File([bytes as Uint8Array<ArrayBuffer>], `${baseName}-reordered.pdf`, { type: 'application/pdf' })
 }
+
+// ── Redact PDF ────────────────────────────────────────────────────────────────
+
+export interface RedactionRegion {
+  page: number      // 0-based page index
+  x: number         // 0-1 fraction of rendered page width
+  y: number         // 0-1 fraction of rendered page height
+  width: number     // 0-1 fraction
+  height: number    // 0-1 fraction
+  label?: string    // e.g. "SSN", "Email" — for the redaction report (NOT the matched text)
+}
+
+export interface RedactionReport {
+  fileName: string
+  appliedAt: string  // ISO datetime
+  count: number
+  items: { page: number; label?: string }[]  // page is 1-based in the report
+}
+
+export async function redactPdf(
+  file: File,
+  redactions: RedactionRegion[],
+  onProgress?: (pct: number) => void
+): Promise<{ file: File; report: RedactionReport }> {
+  const buffer = await file.arrayBuffer()
+  const pageCount = await getPageCount(buffer.slice(0))
+
+  // Group redactions by page
+  const byPage = new Map<number, RedactionRegion[]>()
+  for (const r of redactions) {
+    if (!byPage.has(r.page)) byPage.set(r.page, [])
+    byPage.get(r.page)!.push(r)
+  }
+
+  const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+  const outDoc = await PDFDocument.create()
+  const renderDpi = 150
+
+  for (let p = 0; p < pageCount; p++) {
+    onProgress?.(Math.round((p / pageCount) * 90))
+    const pageRedactions = byPage.get(p)
+
+    if (!pageRedactions || pageRedactions.length === 0) {
+      // Copy page as-is — text remains selectable, file remains lossless
+      const [copied] = await outDoc.copyPages(srcDoc, [p])
+      outDoc.addPage(copied)
+    } else {
+      // Flatten to raster: render → burn black rects → embed as JPEG image
+      const jpegBuf = await renderPage(buffer.slice(0), p, renderDpi, 95)
+      const srcBlob = new Blob([new Uint8Array(jpegBuf)], { type: 'image/jpeg' })
+      const bmp = await createImageBitmap(srcBlob)
+      const canvas = new OffscreenCanvas(bmp.width, bmp.height)
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(bmp, 0, 0)
+      bmp.close()
+
+      ctx.fillStyle = '#000000'
+      for (const r of pageRedactions) {
+        ctx.fillRect(
+          Math.floor(r.x * canvas.width),
+          Math.floor(r.y * canvas.height),
+          Math.ceil(r.width * canvas.width),
+          Math.ceil(r.height * canvas.height)
+        )
+      }
+
+      const outBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.95 })
+      const outBytes = new Uint8Array(await outBlob.arrayBuffer())
+      const image = await outDoc.embedJpg(outBytes)
+      const page = outDoc.addPage([image.width, image.height])
+      page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+    }
+  }
+
+  onProgress?.(95)
+  const bytes = await outDoc.save({ useObjectStreams: true, addDefaultPage: false })
+  onProgress?.(100)
+
+  const baseName = file.name.replace(/\.[^.]+$/, '')
+  const outputFile = new File(
+    [bytes as Uint8Array<ArrayBuffer>],
+    `${baseName}-redacted.pdf`,
+    { type: 'application/pdf' }
+  )
+
+  const report: RedactionReport = {
+    fileName: file.name,
+    appliedAt: new Date().toISOString(),
+    count: redactions.length,
+    items: redactions.map(r => ({ page: r.page + 1, label: r.label })),
+  }
+
+  return { file: outputFile, report }
+}
