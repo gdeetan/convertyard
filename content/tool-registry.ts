@@ -22,6 +22,7 @@ import { config as mp4ToMp3 } from './tools/mp4-to-mp3'
 import { config as mp3ToMp4 } from './tools/mp3-to-mp4'
 import { config as backgroundRemover } from './tools/background-remover'
 import { config as altTextGenerator } from './tools/alt-text-generator'
+import { config as rotatePdf } from './tools/rotate-pdf'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
@@ -49,6 +50,7 @@ export const tools: ToolConfig[] = [
   mp3ToMp4,
   backgroundRemover,
   altTextGenerator,
+  rotatePdf,
 ]
 
 export const toolBySlug = Object.fromEntries(
