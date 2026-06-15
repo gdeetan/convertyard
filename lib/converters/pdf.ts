@@ -1,5 +1,5 @@
 import { PDFDocument, PDFRawStream, PDFName, PDFNumber, degrees } from 'pdf-lib'
-import { getPageCount, renderPage, renderPagePng, extractText } from './mupdf-client'
+import { getPageCount, renderPage, renderPagePng, extractText, extractStructuredText } from './mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
 import { convertPdfToWord } from './pdf-to-word'
@@ -717,4 +717,93 @@ export async function redactPdf(
   }
 
   return { file: outputFile, report }
+}
+
+// ── PDF to CSV ────────────────────────────────────────────────────────────────
+
+interface StructuredSpan { text?: string; bbox?: number[] }
+interface StructuredLine { spans?: StructuredSpan[] }
+interface StructuredBlock { lines?: StructuredLine[] }
+interface StructuredPage { blocks?: StructuredBlock[] }
+
+export interface CsvPageResult {
+  page: number      // 1-based
+  rows: string[][]  // rows[i][j] = cell text
+  csv: string       // full CSV string for this page
+}
+
+function escapeCsvCell(cell: string): string {
+  if (cell.includes(',') || cell.includes('"') || cell.includes('\n') || cell.includes('\r')) {
+    return `"${cell.replace(/"/g, '""')}"`
+  }
+  return cell
+}
+
+function pageToRows(structuredJson: string): string[][] {
+  let pageData: StructuredPage
+  try { pageData = JSON.parse(structuredJson) } catch { return [] }
+
+  const spans: Array<{ text: string; x: number; y: number }> = []
+  for (const block of pageData.blocks ?? []) {
+    for (const line of block.lines ?? []) {
+      for (const span of line.spans ?? []) {
+        const text = span.text?.trim()
+        if (!text || !span.bbox || span.bbox.length < 4) continue
+        const [x0, y0, , y1] = span.bbox
+        spans.push({ text, x: x0, y: (y0 + y1) / 2 })
+      }
+    }
+  }
+  if (spans.length === 0) return []
+
+  const sorted = [...spans].sort((a, b) => a.y - b.y)
+  const lineHeightEst = sorted.length > 1
+    ? (sorted[sorted.length - 1].y - sorted[0].y) / sorted.length * 2
+    : 12
+  const tolerance = Math.max(lineHeightEst * 0.8, 4)
+
+  const rowGroups: Array<typeof spans> = []
+  let currentRow: typeof spans = []
+  let rowY = sorted[0].y
+
+  for (const span of sorted) {
+    if (span.y - rowY > tolerance) {
+      if (currentRow.length > 0) rowGroups.push(currentRow)
+      currentRow = [span]
+      rowY = span.y
+    } else {
+      currentRow.push(span)
+      rowY = Math.max(rowY, span.y)
+    }
+  }
+  if (currentRow.length > 0) rowGroups.push(currentRow)
+
+  return rowGroups.map(row => row.sort((a, b) => a.x - b.x).map(s => s.text))
+}
+
+export async function pdfToCsv(
+  file: File,
+  pageFrom: number,
+  pageTo: number,
+  onProgress?: (pct: number) => void
+): Promise<CsvPageResult[]> {
+  const buffer = await file.arrayBuffer()
+  const structuredPages = await extractStructuredText(buffer.slice(0))
+  const pageCount = structuredPages.length
+
+  const from = Math.max(1, Math.min(pageCount, pageFrom))
+  const to = Math.max(from, Math.min(pageCount, pageTo))
+  const results: CsvPageResult[] = []
+
+  for (let p = from - 1; p < to; p++) {
+    onProgress?.(Math.round(((p - from + 1) / (to - from + 1)) * 100))
+    const rows = pageToRows(structuredPages[p])
+    const csv = rows.length === 0
+      ? `# No extractable text on page ${p + 1}\n`
+      : rows.map(row => row.map(escapeCsvCell).join(',')).join('\n')
+    results.push({ page: p + 1, rows, csv })
+  }
+
+  onProgress?.(100)
+  return results
 }
