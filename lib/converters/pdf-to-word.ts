@@ -1,4 +1,7 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun } from 'docx'
+import {
+  Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun,
+  Table, TableRow, TableCell, WidthType,
+} from 'docx'
 import { extractStructuredText, getPageCount, renderPage } from './mupdf-client'
 
 // ── mupdf structured-text JSON types ─────────────────────────────────────────
@@ -71,6 +74,103 @@ function isItalic(span: StSpan): boolean {
 
 function isTextBlock(block: StBlock): boolean {
   return block.type === 'text' || block.type === 0
+}
+
+// ── Table detection ──────────────────────────────────────────────────────────
+
+interface DetectedTable {
+  consumedIndices: Set<number>
+  rows: number
+  cols: number
+  table: Table
+}
+
+const COL_TOLERANCE = 10
+const ROW_TOLERANCE = 8
+
+export function detectTables(blocks: StBlock[]): DetectedTable[] {
+  // Work only with text blocks that have bboxes
+  const indexed = blocks
+    .map((b, i) => ({ block: b, index: i }))
+    .filter(({ block }) => isTextBlock(block) && block.bbox != null)
+
+  if (indexed.length < 3) return []
+
+  // Cluster x1 values into column anchors
+  const x1Values = indexed.map(({ block }) => block.bbox![0])
+  const colClusters = clusterValues(x1Values, COL_TOLERANCE)
+
+  // Keep clusters with ≥2 blocks (so lone outliers aren't columns)
+  const colAnchors = colClusters
+    .filter(cluster => cluster.length >= 2)
+    .map(cluster => cluster[Math.floor(cluster.length / 2)])
+
+  if (colAnchors.length < 2) return []
+
+  function assignCol(x1: number): number | null {
+    for (let c = 0; c < colAnchors.length; c++) {
+      if (Math.abs(x1 - colAnchors[c]) <= COL_TOLERANCE) return c
+    }
+    return null
+  }
+
+  // Cluster y1 values into row anchors
+  const y1Values = indexed.map(({ block }) => block.bbox![1])
+  const rowClusters = clusterValues(y1Values, ROW_TOLERANCE)
+  const rowAnchors = rowClusters
+    .filter(cluster => cluster.length >= 2)
+    .map(cluster => cluster[Math.floor(cluster.length / 2)])
+
+  if (rowAnchors.length < 2) return []
+
+  function assignRow(y1: number): number | null {
+    for (let r = 0; r < rowAnchors.length; r++) {
+      if (Math.abs(y1 - rowAnchors[r]) <= ROW_TOLERANCE) return r
+    }
+    return null
+  }
+
+  // Build grid: grid[rowIdx][colIdx] = text
+  const grid: Record<number, Record<number, string>> = {}
+  const consumedIndices = new Set<number>()
+
+  for (const { block, index } of indexed) {
+    const col = assignCol(block.bbox![0])
+    const row = assignRow(block.bbox![1])
+    if (col === null || row === null) continue
+    if (!grid[row]) grid[row] = {}
+    const allSpans = (block.lines ?? []).flatMap(l => l.spans ?? [])
+    const text = allSpans.map(spanText).join('').trim()
+    grid[row][col] = (grid[row][col] ? grid[row][col] + ' ' : '') + text
+    consumedIndices.add(index)
+  }
+
+  const rowCount = Object.keys(grid).length
+  const colCount = colAnchors.length
+
+  // Conservative threshold: 3+ cols OR (2+ cols AND 3+ rows)
+  if (!(colCount >= 3 || (colCount >= 2 && rowCount >= 3))) return []
+  if (rowCount < 2) return []
+
+  const sortedRows = Object.keys(grid).map(Number).sort((a, b) => a - b)
+
+  const tableRows = sortedRows.map(r =>
+    new TableRow({
+      children: colAnchors.map((_, c) =>
+        new TableCell({
+          width: { size: Math.floor(100 / colCount), type: WidthType.PERCENTAGE },
+          children: [new Paragraph({ children: [new TextRun(grid[r]?.[c] ?? '')] })],
+        })
+      ),
+    })
+  )
+
+  const table = new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: tableRows,
+  })
+
+  return [{ consumedIndices, rows: rowCount, cols: colCount, table }]
 }
 
 // ── Font-size analysis ────────────────────────────────────────────────────────

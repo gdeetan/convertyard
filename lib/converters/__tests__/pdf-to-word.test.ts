@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clusterValues, detectHeadingLevel } from '../pdf-to-word'
+import { clusterValues, detectHeadingLevel, detectTables } from '../pdf-to-word'
 
 describe('clusterValues', () => {
   it('groups values within tolerance', () => {
@@ -107,5 +107,86 @@ describe('detectHeadingLevel', () => {
     const text = 'word '.repeat(21).trim()
     const block = makeBlock({ text, size: 24 })
     expect(detectHeadingLevel(block, BODY, PAGE_W)).toBeNull()
+  })
+})
+
+// Build a grid of blocks: colX x-positions, rowY y-positions, each block 80pt wide 14pt tall
+function makeGrid(
+  colX: number[],
+  rowY: number[],
+  texts?: string[][]
+): import('../pdf-to-word').StBlockPublic[] {
+  const blocks: import('../pdf-to-word').StBlockPublic[] = []
+  rowY.forEach((y, r) => {
+    colX.forEach((x, c) => {
+      const text = texts?.[r]?.[c] ?? `r${r}c${c}`
+      blocks.push({
+        type: 'text',
+        bbox: [x, y, x + 80, y + 14],
+        lines: [{
+          bbox: [x, y, x + 80, y + 14],
+          spans: [{
+            text,
+            size: 12,
+            font: { name: 'Arial', weight: 'normal', style: 'normal' },
+          }],
+        }],
+      })
+    })
+  })
+  return blocks
+}
+
+describe('detectTables', () => {
+  it('detects a 3-column 2-row table', () => {
+    const blocks = makeGrid([72, 220, 368], [100, 120])
+    const tables = detectTables(blocks)
+    expect(tables).toHaveLength(1)
+    expect(tables[0].consumedIndices.size).toBe(6)
+  })
+
+  it('detects a 2-column 3-row table', () => {
+    const blocks = makeGrid([72, 300], [100, 120, 140])
+    const tables = detectTables(blocks)
+    expect(tables).toHaveLength(1)
+    expect(tables[0].consumedIndices.size).toBe(6)
+  })
+
+  it('does NOT detect a 2-column 2-row layout (too ambiguous)', () => {
+    const blocks = makeGrid([72, 300], [100, 120])
+    const tables = detectTables(blocks)
+    expect(tables).toHaveLength(0)
+  })
+
+  it('does NOT detect a single column of blocks', () => {
+    const blocks = makeGrid([72], [100, 120, 140, 160])
+    const tables = detectTables(blocks)
+    expect(tables).toHaveLength(0)
+  })
+
+  it('ignores image blocks', () => {
+    const textBlocks = makeGrid([72, 220, 368], [100, 120])
+    const imageBlock: import('../pdf-to-word').StBlockPublic = {
+      type: 'image',
+      bbox: [72, 50, 400, 90],
+      lines: [],
+    }
+    const tables = detectTables([imageBlock, ...textBlocks])
+    expect(tables).toHaveLength(1)
+    expect(tables[0].consumedIndices.has(0)).toBe(false) // image block (index 0) not consumed
+  })
+
+  it('returns correct row and col counts', () => {
+    const texts = [['Alpha', 'Beta', 'Gamma'], ['One', 'Two', 'Three']]
+    const blocks = makeGrid([72, 220, 368], [100, 120], texts)
+    const tables = detectTables(blocks)
+    expect(tables).toHaveLength(1)
+    expect(tables[0].rows).toBe(2)
+    expect(tables[0].cols).toBe(3)
+  })
+
+  it('returns empty array for fewer than 3 blocks total', () => {
+    const blocks = makeGrid([72, 220], [100])
+    expect(detectTables(blocks)).toHaveLength(0)
   })
 })
