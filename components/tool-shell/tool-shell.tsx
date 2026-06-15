@@ -29,6 +29,7 @@ const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
 interface ToolShellProps {
   config: ToolConfig
   embedded?: boolean
+  onResults?: (results: File[]) => void
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -129,7 +130,7 @@ function buildDefaultOptions(config: ToolConfig): ToolOptions {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export function ToolShell({ config, embedded = false }: ToolShellProps) {
+export function ToolShell({ config, embedded = false, onResults }: ToolShellProps) {
   const [state, dispatch] = useReducer(reducer, {
     entries: [],
     phase: 'idle',
@@ -198,7 +199,11 @@ export function ToolShell({ config, embedded = false }: ToolShellProps) {
       }
     }
     dispatch({ type: 'FINISH' })
-  }, [state.entries, config, options])
+    if (onResults) {
+      const successFiles = results.filter((r): r is File => r instanceof File)
+      onResults(successFiles)
+    }
+  }, [state.entries, config, options, onResults])
 
   const { entries, phase, announcement } = state
   const hasFiles = entries.length > 0

@@ -401,18 +401,26 @@ export async function splitPdf(
 
 export async function pdfToText(
   files: File[],
-  _options: ToolOptions,
+  options: ToolOptions,
   onProgress?: (fileIndex: number, pct: number) => void
 ): Promise<ConversionResult[]> {
+  const pageMarkers = options.pageMarkers !== false
+  const pageFrom = typeof options.pageFrom === 'number' ? Math.max(1, options.pageFrom) : 1
+  const pageToOpt = typeof options.pageTo === 'number' ? options.pageTo : 9999
   const results: ConversionResult[] = []
 
   for (let i = 0; i < files.length; i++) {
     try {
       onProgress?.(i, 10)
       const buffer = await files[i].arrayBuffer()
-      const pages = await extractText(buffer)
+      const allPages = await extractText(buffer)
       onProgress?.(i, 80)
-      const text = pages.join('\n\n---\n\n')
+      const selected = allPages.slice(pageFrom - 1, pageToOpt)
+      const text = selected
+        .map((t, idx) =>
+          pageMarkers ? `--- Page ${pageFrom + idx} ---\n\n${t}` : t
+        )
+        .join('\n\n')
       const baseName = files[i].name.replace(/\.[^.]+$/, '')
       results.push(new File([text], `${baseName}.txt`, { type: 'text/plain' }))
       onProgress?.(i, 100)
@@ -530,14 +538,17 @@ export async function imagesToPdf(
 
 export async function pdfToWord(
   files: File[],
-  _options: ToolOptions,
+  options: ToolOptions,
   onProgress?: (fileIndex: number, pct: number) => void
 ): Promise<ConversionResult[]> {
+  const pageFrom = typeof options.pageFrom === 'number' ? Math.max(1, options.pageFrom) : 1
+  const pageTo = typeof options.pageTo === 'number' ? options.pageTo : 9999
+  const includeImages = options.includeImages !== false
   const results: ConversionResult[] = []
 
   for (let i = 0; i < files.length; i++) {
     try {
-      const outFile = await convertPdfToWord(files[i], (pct) => onProgress?.(i, pct))
+      const outFile = await convertPdfToWord(files[i], (pct) => onProgress?.(i, pct), { pageFrom, pageTo, includeImages })
       results.push(outFile)
     } catch (err) {
       results.push(new Error(err instanceof Error ? err.message : 'Conversion failed'))

@@ -11,6 +11,31 @@ export const config: ToolConfig = {
   outputExt: '.txt',
   convertFn: pdfToText,
 
+  options: [
+    {
+      type: 'toggle' as const,
+      name: 'pageMarkers',
+      label: 'Include page markers',
+      default: true,
+      hint: 'Adds "--- Page 1 ---" dividers between pages in the output',
+    },
+    {
+      type: 'number' as const,
+      name: 'pageFrom',
+      label: 'From page',
+      min: 1,
+      default: 1,
+    },
+    {
+      type: 'number' as const,
+      name: 'pageTo',
+      label: 'To page',
+      min: 1,
+      default: 9999,
+      hint: 'Leave at 9999 to extract all pages',
+    },
+  ],
+
   limitationNote: {
     summary: 'When does this work best?',
     body: 'This tool extracts embedded text from the PDF. If your PDF is a scanned document (an image of a page rather than a text document), the output will be empty or minimal. For scanned PDFs, use PDF to Word instead — it includes OCR.',
@@ -39,7 +64,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['pdf-to-word', 'split-pdf', 'compress-pdf'],
+  relatedTools: ['pdf-to-word', 'pdf-to-jpg', 'split-pdf', 'compress-pdf'],
   relatedArticles: [],
 
   meta: {

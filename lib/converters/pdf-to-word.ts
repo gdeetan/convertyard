@@ -151,10 +151,20 @@ function isScanned(pages: StPage[]): boolean {
 
 // ── Public export ─────────────────────────────────────────────────────────────
 
+interface PdfToWordOptions {
+  pageFrom?: number
+  pageTo?: number
+  includeImages?: boolean
+}
+
 export async function convertPdfToWord(
   file: File,
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number) => void,
+  opts: PdfToWordOptions = {}
 ): Promise<File> {
+  const pageFrom = typeof opts.pageFrom === 'number' ? Math.max(1, opts.pageFrom) : 1
+  const pageToOpt = typeof opts.pageTo === 'number' ? opts.pageTo : 9999
+
   const buffer = await file.arrayBuffer()
   onProgress?.(10)
 
@@ -170,17 +180,21 @@ export async function convertPdfToWord(
     pages = []
   }
 
+  // Apply page range
+  pages = pages.slice(pageFrom - 1, pageToOpt)
+
   onProgress?.(30)
 
   if (isScanned(pages)) {
     // OCR path for scanned/image-only PDFs
     const { createWorker } = await import('tesseract.js')
     const worker = await createWorker('eng')
-    const pageCount = await getPageCount(buffer)
+    const totalPages = pages.length
     const ocrTexts: string[] = []
 
-    for (let p = 0; p < pageCount; p++) {
-      const jpegBuffer = await renderPage(buffer, p, 150, 85)
+    for (let p = 0; p < totalPages; p++) {
+      const absolutePage = pageFrom - 1 + p
+      const jpegBuffer = await renderPage(buffer, absolutePage, 150, 85)
       const blob = new Blob([jpegBuffer], { type: 'image/jpeg' })
       const url = URL.createObjectURL(blob)
       try {
@@ -189,7 +203,7 @@ export async function convertPdfToWord(
       } finally {
         URL.revokeObjectURL(url)
       }
-      onProgress?.(Math.round(30 + ((p + 1) / pageCount) * 50))
+      onProgress?.(Math.round(30 + ((p + 1) / totalPages) * 50))
     }
 
     await worker.terminate()

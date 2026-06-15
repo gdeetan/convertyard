@@ -1,6 +1,11 @@
 import { config as mergePdf } from './tools/merge-pdf'
 import { config as compressPdf } from './tools/compress-pdf'
 import { config as pdfToJpg } from './tools/pdf-to-jpg'
+import { config as pdfToPng } from './tools/pdf-to-png'
+import { config as pdfToText } from './tools/pdf-to-text'
+import { config as pdfToWord } from './tools/pdf-to-word'
+import { config as jpgToPdf } from './tools/jpg-to-pdf'
+import { config as splitPdf } from './tools/split-pdf'
 import { config as jpgToWebp } from './tools/jpg-to-webp'
 import { config as heicToJpg } from './tools/heic-to-jpg'
 import { config as pngToWebp } from './tools/png-to-webp'
@@ -23,6 +28,11 @@ export const tools: ToolConfig[] = [
   mergePdf,
   compressPdf,
   pdfToJpg,
+  pdfToPng,
+  pdfToText,
+  pdfToWord,
+  jpgToPdf,
+  splitPdf,
   jpgToWebp,
   heicToJpg,
   pngToWebp,

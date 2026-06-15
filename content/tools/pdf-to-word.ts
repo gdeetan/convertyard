@@ -11,6 +11,31 @@ export const config: ToolConfig = {
   outputExt: '.docx',
   convertFn: pdfToWord,
 
+  options: [
+    {
+      type: 'number' as const,
+      name: 'pageFrom',
+      label: 'From page',
+      min: 1,
+      default: 1,
+    },
+    {
+      type: 'number' as const,
+      name: 'pageTo',
+      label: 'To page',
+      min: 1,
+      default: 9999,
+      hint: 'Leave at 9999 to convert all pages',
+    },
+    {
+      type: 'toggle' as const,
+      name: 'includeImages',
+      label: 'Include page images',
+      default: true,
+      hint: 'Embeds page screenshots for complex layouts. Turn off for faster, text-only output.',
+    },
+  ],
+
   limitationNote: {
     summary: 'What to expect from the output',
     body: 'Text PDFs — documents created digitally in Word, InDesign, or similar tools — extract cleanly with paragraph structure preserved. Complex multi-column layouts and tables may reflow. Scanned PDFs — images of physical documents — are automatically processed with Tesseract OCR. OCR accuracy is high for clean scans but may miss handwriting or low-contrast text. Original formatting (fonts, colors, images) is not preserved — only text content.',
