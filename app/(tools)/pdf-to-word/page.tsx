@@ -43,6 +43,7 @@ export default function PdfToWordPage() {
   const [pageFrom, setPageFrom] = useState(1)
   const [pageTo, setPageTo] = useState(9999)
   const [includeImages, setIncludeImages] = useState(true)
+  const [ocrLanguage, setOcrLanguage] = useState('eng')
 
   const runDetection = useCallback(async (fileList: File[]) => {
     if (fileList.length === 0) return
@@ -87,6 +88,7 @@ export default function PdfToWordPage() {
     setPageFrom(1)
     setPageTo(9999)
     setIncludeImages(true)
+    setOcrLanguage('eng')
   }
 
   const handleConvert = async () => {
@@ -96,7 +98,7 @@ export default function PdfToWordPage() {
     try {
       const rawResults = await pdfToWord(
         files,
-        { includeImages, pageFrom, pageTo },
+        { includeImages, pageFrom, pageTo, ocrLanguage },
         (_idx: number, pct: number) => setProgress(pct)
       )
       const fileResults = rawResults.filter((r): r is File => r instanceof File)
@@ -249,6 +251,29 @@ export default function PdfToWordPage() {
                   Embeds page screenshots for complex layouts. Turn off for faster, text-only output.
                 </p>
               </fieldset>
+
+              {/* OCR language — shown only for scanned PDFs */}
+              {quality === 'scanned' && (
+                <fieldset>
+                  <legend className="mb-1.5 text-xs font-medium text-fg">OCR language</legend>
+                  <select
+                    value={ocrLanguage}
+                    onChange={(e) => setOcrLanguage(e.target.value)}
+                    className={cn(
+                      'w-full rounded-lg border border-border bg-bg px-2 py-1.5 text-sm text-fg',
+                      'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-primary'
+                    )}
+                  >
+                    <option value="eng">English</option>
+                    <option value="spa">Spanish</option>
+                    <option value="fra">French</option>
+                    <option value="deu">German</option>
+                  </select>
+                  <p className="mt-1 text-xs text-fg-subtle">
+                    Select the primary language of the scanned document.
+                  </p>
+                </fieldset>
+              )}
             </div>
 
             {/* Limitation note */}
