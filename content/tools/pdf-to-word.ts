@@ -43,36 +43,44 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Will the Word document look exactly like the PDF?',
+      a: 'Text content and paragraph structure are preserved. Headings, bold, and italic are detected and carried over. Complex elements — multi-column layouts, custom fonts, colors, exact image positioning — will differ because PDFs store layout as absolute coordinates, not as structured content. For documents that started life in Word, the output is usually close. For designed PDFs (brochures, invoices), expect the text but not the layout.',
+    },
+    {
       q: 'Does this work on scanned PDFs?',
-      a: 'Yes. The tool automatically detects whether your PDF contains embedded text or is a scanned image. For scanned PDFs, it runs Tesseract OCR entirely in your browser — no upload required. OCR works best on clean, high-contrast scans. Handwritten text, low-resolution scans, or heavily formatted layouts may produce imperfect results.',
+      a: 'Yes. The tool automatically detects whether your PDF contains embedded text or is a scanned image. For scanned PDFs, it runs Tesseract OCR entirely in your browser — no upload required. OCR works best on clean, high-contrast scans. Handwritten text, low-resolution scans, or heavily formatted layouts may produce imperfect results. You can select the document language to improve accuracy.',
     },
     {
-      q: 'How much of the original formatting is preserved?',
-      a: 'Text content and paragraph structure are preserved. Headings that appear in all-caps are detected and formatted as heading styles. Tables, columns, images, colors, and custom fonts are not preserved — DOCX output is plain, structured text. For complex layout preservation, a desktop tool like Adobe Acrobat or LibreOffice is more appropriate.',
+      q: 'Why is my formatting different in the Word file?',
+      a: 'PDFs store text as absolute positions on a page — not as "this is a paragraph" or "this is a table." The converter uses heuristics (font size, indentation, x/y position) to reconstruct structure, but those heuristics are not perfect. The simpler the original PDF, the better the output will match. Newsletters, resumes, and reports with two or more columns are hardest to preserve.',
     },
     {
-      q: 'Why is PDF to Word free here when Adobe charges for it?',
-      a: 'ConvertYard runs everything in your browser via WebAssembly. There is no server processing cost — your device does all the work. Adobe and most competitors upload your file to their cloud, process it there, and charge for the server time. Because we never touch your file, we have no cost to pass on.',
+      q: 'Are my files uploaded to a server?',
+      a: 'Never. Text extraction and OCR both run entirely in your browser using WebAssembly. Your PDFs never leave your device.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Text extraction and OCR both run entirely in your browser. Your PDFs never leave your device.',
+      q: 'Is there a file size limit?',
+      a: 'No server-side limit because there is no server. Conversion runs in your browser tab, so the practical ceiling is your device memory. Most laptops handle PDFs up to several hundred megabytes without issue. Very large files (500 MB+) may be slow depending on your hardware.',
     },
     {
-      q: 'Can I convert a batch of PDFs at once?',
-      a: 'Yes. Drop multiple PDFs and each produces a separate .docx file. They all download in a ZIP. Note that OCR-mode files take longer to process than text PDFs.',
+      q: 'Can I convert just specific pages?',
+      a: 'Yes. Use the "From page" and "To page" fields to select a page range before converting. Leave "To page" blank to convert from a start page to the end of the document.',
     },
     {
-      q: 'What is the output file format?',
-      a: 'The output is a .docx file compatible with Microsoft Word 2007 and later, Google Docs, LibreOffice Writer, and any software that supports the Open XML format.',
+      q: 'What about password-protected PDFs?',
+      a: 'Password-protected PDFs are not supported — the converter cannot open encrypted files. Remove the password in Adobe Acrobat, Preview (Mac), or a PDF password-removal tool before converting.',
+    },
+    {
+      q: 'Is the Word file editable?',
+      a: 'Yes. The output is a standard .docx file compatible with Microsoft Word 2007 and later, Google Docs, LibreOffice Writer, and any software that supports the Open XML format. All text is fully selectable and editable.',
     },
   ],
 
-  relatedTools: ['pdf-to-text', 'pdf-to-jpg', 'compress-pdf'],
+  relatedTools: ['pdf-to-text', 'merge-pdf', 'compress-pdf', 'split-pdf'],
   relatedArticles: [],
 
   meta: {
     title: 'PDF to Word Converter — ConvertYard',
-    description: 'Convert PDF to editable Word DOCX in your browser. Free OCR for scanned PDFs. Batch convert 1,000 files — no uploads, no account, entirely local.',
+    description: 'Convert PDF to editable Word (DOCX) in your browser. Free OCR for scanned PDFs. No upload, no account, no file size limit. Batch convert multiple PDFs.',
   },
 }
