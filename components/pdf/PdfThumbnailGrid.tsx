@@ -33,6 +33,7 @@ export function PdfThumbnailGrid({
   const observerRef = useRef<IntersectionObserver | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const blobUrlsRef = useRef<string[]>([])
+  const generationRef = useRef(0)
 
   useEffect(() => {
     return () => {
@@ -43,6 +44,7 @@ export function PdfThumbnailGrid({
 
   useEffect(() => {
     let cancelled = false
+    const generation = ++generationRef.current
     setThumbnails([])
     blobUrlsRef.current.forEach(url => URL.revokeObjectURL(url))
     blobUrlsRef.current = []
@@ -56,8 +58,11 @@ export function PdfThumbnailGrid({
       onReady?.(count)
     })()
     return () => { cancelled = true }
-  }, [file]) // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // onReady intentionally omitted — only called once on file load; callers must memoize or use useCallback
+  }, [file])
 
+  // Re-run only when page count changes (file load), not on every thumbnail render
   useEffect(() => {
     if (thumbnails.length === 0 || !containerRef.current) return
 
@@ -76,10 +81,12 @@ export function PdfThumbnailGrid({
           return next
         })
         ;(async () => {
+          const gen = generationRef.current  // capture at dispatch time
           const buffer = bufferRef.current
           if (!buffer) return
           try {
             const jpeg = await renderPage(buffer.slice(0), idx, 72, 80)
+            if (generationRef.current !== gen) return  // file changed, discard
             const src = URL.createObjectURL(new Blob([jpeg], { type: 'image/jpeg' }))
             blobUrlsRef.current.push(src)
             setThumbnails(prev => {
@@ -88,6 +95,7 @@ export function PdfThumbnailGrid({
               return next
             })
           } catch {
+            if (generationRef.current !== gen) return
             setThumbnails(prev => {
               const next = [...prev]
               next[idx] = { src: null, loading: false }
@@ -119,7 +127,7 @@ export function PdfThumbnailGrid({
         <div
           key={i}
           data-page-index={i}
-          className="relative group cursor-pointer"
+          className={`relative group ${onPageClick ? 'cursor-pointer' : ''}`}
           style={{ width: thumbnailWidth }}
           onClick={() => onPageClick?.(i)}
         >
@@ -134,12 +142,12 @@ export function PdfThumbnailGrid({
           ) : (
             <div
               className="w-full border border-gray-200 rounded bg-gray-50 flex items-center justify-center text-xs text-gray-400"
-              style={{ aspectRatio: '0.707', width: thumbnailWidth }}
+              style={{ aspectRatio: '0.707', width: thumbnailWidth, ...getImgStyle?.(i) }}
             >
               {t.loading ? 'Loading…' : ''}
             </div>
           )}
-          <div className="absolute top-1 left-1 text-xs bg-black/50 text-white px-1 rounded leading-tight">
+          <div aria-hidden="true" className="absolute top-1 left-1 text-xs bg-black/50 text-white px-1 rounded leading-tight">
             {i + 1}
           </div>
           {renderPageOverlay?.(i)}
