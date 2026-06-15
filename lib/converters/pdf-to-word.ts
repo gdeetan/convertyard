@@ -1,4 +1,4 @@
-import { Document, Packer, Paragraph, TextRun, HeadingLevel } from 'docx'
+import { Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun } from 'docx'
 import { extractStructuredText, getPageCount, renderPage } from './mupdf-client'
 
 // ── mupdf structured-text JSON types ─────────────────────────────────────────
@@ -135,6 +135,49 @@ function pagesToParagraphs(pages: StPage[], body: number): Paragraph[] {
   return out.length > 0 ? out : [new Paragraph({ children: [new TextRun('')] })]
 }
 
+// ── JPEG dimensions from raw bytes ───────────────────────────────────────────
+
+function jpegDimensions(data: ArrayBuffer): { width: number; height: number } {
+  const view = new DataView(data)
+  let offset = 2 // skip SOI marker
+  while (offset < view.byteLength - 4) {
+    const marker = view.getUint16(offset)
+    const segLen = view.getUint16(offset + 2)
+    // SOF markers: 0xFFC0–0xFFC3, 0xFFC5–0xFFC7, 0xFFC9–0xFFCB, 0xFFCD–0xFFCF
+    if ((marker >= 0xffc0 && marker <= 0xffcf) && marker !== 0xffc4 && marker !== 0xffc8) {
+      const height = view.getUint16(offset + 5)
+      const width = view.getUint16(offset + 7)
+      return { width, height }
+    }
+    offset += 2 + segLen
+  }
+  return { width: 595, height: 842 } // A4 fallback
+}
+
+// ── Page image paragraph ──────────────────────────────────────────────────────
+
+async function pageImageParagraph(
+  buffer: ArrayBuffer,
+  pageIndex: number
+): Promise<Paragraph> {
+  const jpegBuffer = await renderPage(buffer, pageIndex, 96, 85)
+  const { width: rawW, height: rawH } = jpegDimensions(jpegBuffer)
+  // Scale to fit standard Word content width (468px at 96 DPI = 6.5 inch - 1 inch margins)
+  const maxW = 468
+  const scale = Math.min(1, maxW / rawW)
+  const w = Math.round(rawW * scale)
+  const h = Math.round(rawH * scale)
+  return new Paragraph({
+    children: [
+      new ImageRun({
+        type: 'jpg',
+        data: jpegBuffer,
+        transformation: { width: w, height: h },
+      }),
+    ],
+  })
+}
+
 // ── Scanned PDF detection ─────────────────────────────────────────────────────
 
 function isScanned(pages: StPage[]): boolean {
@@ -164,6 +207,7 @@ export async function convertPdfToWord(
 ): Promise<File> {
   const pageFrom = typeof opts.pageFrom === 'number' ? Math.max(1, opts.pageFrom) : 1
   const pageToOpt = typeof opts.pageTo === 'number' ? opts.pageTo : 9999
+  const includeImages = opts.includeImages !== false
 
   const buffer = await file.arrayBuffer()
   onProgress?.(10)
@@ -182,6 +226,7 @@ export async function convertPdfToWord(
 
   // Apply page range
   pages = pages.slice(pageFrom - 1, pageToOpt)
+  const totalPages = pages.length
 
   onProgress?.(30)
 
@@ -189,7 +234,6 @@ export async function convertPdfToWord(
     // OCR path for scanned/image-only PDFs
     const { createWorker } = await import('tesseract.js')
     const worker = await createWorker('eng')
-    const totalPages = pages.length
     const ocrTexts: string[] = []
 
     for (let p = 0; p < totalPages; p++) {
@@ -223,7 +267,36 @@ export async function convertPdfToWord(
   onProgress?.(85)
 
   const body = bodyFontSize(pages)
-  const children = pagesToParagraphs(pages, body)
+  let children: Paragraph[]
+
+  if (includeImages) {
+    // Build page paragraphs interleaved with page screenshots
+    children = []
+    for (let p = 0; p < totalPages; p++) {
+      if (p > 0) {
+        children.push(new Paragraph({ pageBreakBefore: true, children: [] }))
+      }
+      // Embed page screenshot first
+      try {
+        const absolutePage = pageFrom - 1 + p
+        children.push(await pageImageParagraph(buffer, absolutePage))
+      } catch {
+        // continue without image if render fails
+      }
+      // Then text blocks
+      for (const block of pages[p].blocks ?? []) {
+        if (!isTextBlock(block)) continue
+        const para = blockToParagraph(block, body)
+        if (para) children.push(para)
+      }
+    }
+    if (children.length === 0) {
+      children = [new Paragraph({ children: [new TextRun('')] })]
+    }
+  } else {
+    children = pagesToParagraphs(pages, body)
+  }
+
   const doc = new Document({ sections: [{ properties: {}, children }] })
   const blob = await Packer.toBlob(doc)
   const baseName = file.name.replace(/\.[^.]+$/, '')
