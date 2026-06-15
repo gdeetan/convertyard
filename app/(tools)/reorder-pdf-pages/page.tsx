@@ -93,6 +93,8 @@ export default function ReorderPdfPage() {
     }
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
+  // pages in dep array is load-bearing: keyboard handler closes over current pages
+  // for the setFuture/setHistory calls that reference it directly (not via updater)
   }, [pages])
 
   const pushHistory = useCallback((current: PageEntry[]) => {
@@ -101,15 +103,13 @@ export default function ReorderPdfPage() {
   }, [])
 
   const deletePage = useCallback((listIdx: number) => {
-    setPages(prev => {
-      pushHistory(prev)
-      return prev.filter((_, i) => i !== listIdx)
-    })
-  }, [pushHistory])
+    pushHistory(pages)
+    setPages(prev => prev.filter((_, i) => i !== listIdx))
+  }, [pushHistory, pages])
 
   const duplicatePage = useCallback((listIdx: number) => {
+    pushHistory(pages)
     setPages(prev => {
-      pushHistory(prev)
       const entry = prev[listIdx]
       const copy: PageEntry = {
         originalIndex: entry.originalIndex,
@@ -119,7 +119,7 @@ export default function ReorderPdfPage() {
       next.splice(listIdx + 1, 0, copy)
       return next
     })
-  }, [pushHistory])
+  }, [pushHistory, pages])
 
   const handleDragStart = useCallback((listIdx: number) => {
     dragIndexRef.current = listIdx
@@ -132,8 +132,8 @@ export default function ReorderPdfPage() {
       setDragOver(null)
       return
     }
+    pushHistory(pages)
     setPages(prev => {
-      pushHistory(prev)
       const next = [...prev]
       const [moved] = next.splice(from, 1)
       next.splice(targetIdx, 0, moved)
@@ -141,7 +141,7 @@ export default function ReorderPdfPage() {
     })
     dragIndexRef.current = null
     setDragOver(null)
-  }, [pushHistory])
+  }, [pushHistory, pages])
 
   const applyChanges = useCallback(async () => {
     if (!file) return
