@@ -1,4 +1,4 @@
-import { PDFDocument, PDFRawStream, PDFName, PDFNumber, degrees } from 'pdf-lib'
+import { PDFDocument, PDFRawStream, PDFName, PDFNumber, degrees, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
 import { getPageCount, renderPage, renderPagePng, extractText, extractStructuredText } from './mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
@@ -804,4 +804,79 @@ export async function pdfToCsv(
 
   onProgress?.(100)
   return results
+}
+
+// ── Fill PDF Forms ────────────────────────────────────────────────────────────
+
+export interface FormField {
+  name: string
+  type: 'text' | 'checkbox' | 'radio' | 'dropdown'
+  options?: string[]
+  defaultValue?: string | boolean
+}
+
+export async function getPdfFormFields(file: File): Promise<FormField[]> {
+  const buffer = await file.arrayBuffer()
+  const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+  const form = doc.getForm()
+  const rawFields = form.getFields()
+
+  const fields: FormField[] = []
+  for (const field of rawFields) {
+    const name = field.getName()
+    if (!name) continue
+
+    if (field instanceof PDFTextField) {
+      fields.push({ name, type: 'text', defaultValue: field.getText() ?? '' })
+    } else if (field instanceof PDFCheckBox) {
+      fields.push({ name, type: 'checkbox', defaultValue: field.isChecked() })
+    } else if (field instanceof PDFRadioGroup) {
+      const options = field.getOptions()
+      fields.push({ name, type: 'radio', options, defaultValue: field.getSelected() ?? '' })
+    } else if (field instanceof PDFDropdown) {
+      const options = field.getOptions()
+      const selected = field.getSelected()
+      fields.push({ name, type: 'dropdown', options, defaultValue: selected[0] ?? '' })
+    }
+    // Unknown field types are silently skipped
+  }
+
+  return fields
+}
+
+export async function fillPdfForm(
+  file: File,
+  values: Record<string, string | boolean>,
+  flatten: boolean
+): Promise<File> {
+  const buffer = await file.arrayBuffer()
+  const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+  const form = doc.getForm()
+
+  // Build a name→field map to avoid form.getField() throwing on missing names
+  const fieldMap = new Map(form.getFields().map(f => [f.getName(), f]))
+
+  for (const [name, value] of Object.entries(values)) {
+    const field = fieldMap.get(name)
+    if (!field) continue
+    try {
+      if (field instanceof PDFTextField) {
+        field.setText(value as string)
+      } else if (field instanceof PDFCheckBox) {
+        if (value as boolean) field.check(); else field.uncheck()
+      } else if (field instanceof PDFRadioGroup) {
+        if (value) field.select(value as string)
+      } else if (field instanceof PDFDropdown) {
+        if (value) field.select(value as string)
+      }
+    } catch {
+      // Skip fields that fail (e.g., locked or malformed)
+    }
+  }
+
+  if (flatten) form.flatten()
+
+  const bytes = await doc.save({ useObjectStreams: true })
+  const baseName = file.name.replace(/\.[^.]+$/, '')
+  return new File([bytes as Uint8Array<ArrayBuffer>], `${baseName}-filled.pdf`, { type: 'application/pdf' })
 }
