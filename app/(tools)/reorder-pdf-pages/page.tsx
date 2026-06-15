@@ -210,26 +210,22 @@ export default function ReorderPdfPage() {
             <span>&middot;</span>
             <button
               onClick={() => {
-                setHistory(prev => {
-                  if (prev.length === 0) return prev
-                  const last = prev[prev.length - 1]
-                  setFuture(f => [pages, ...f])
-                  setPages(last)
-                  return prev.slice(0, -1)
-                })
+                if (history.length === 0) return
+                const last = history[history.length - 1]
+                setFuture(f => [pages, ...f].slice(0, MAX_HISTORY))
+                setPages(last)
+                setHistory(prev => prev.slice(0, -1))
               }}
               disabled={history.length === 0}
               className="disabled:opacity-40 hover:text-gray-800"
             >&#8634; Undo</button>
             <button
               onClick={() => {
-                setFuture(prev => {
-                  if (prev.length === 0) return prev
-                  const next = prev[0]
-                  setHistory(h => [...h, pages])
-                  setPages(next)
-                  return prev.slice(1)
-                })
+                if (future.length === 0) return
+                const next = future[0]
+                setHistory(h => [...h, pages].slice(-MAX_HISTORY))
+                setPages(next)
+                setFuture(prev => prev.slice(1))
               }}
               disabled={future.length === 0}
               className="disabled:opacity-40 hover:text-gray-800"
