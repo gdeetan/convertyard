@@ -24,16 +24,33 @@ export default function JpgToPdfPage() {
   const [pageSize, setPageSize] = useState<PageSize>('fit-to-image')
   const [outputMode, setOutputMode] = useState<OutputMode>('all-in-one')
   const dragIndex = useRef<number | null>(null)
+  const [thumbUrls, setThumbUrls] = useState<string[]>([])
+
+  const addThumbs = useCallback((added: File[]) => {
+    setThumbUrls(prev => [...prev, ...added.map(f => URL.createObjectURL(f))])
+  }, [])
+
+  const revokeAllThumbs = useCallback((urls: string[]) => {
+    urls.forEach(u => URL.revokeObjectURL(u))
+  }, [])
 
   const handleAdd = useCallback((added: File[]) => {
     setFiles((prev) => [...prev, ...added])
-  }, [])
+    addThumbs(added)
+  }, [addThumbs])
 
   const handleRemove = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index))
+    setThumbUrls((prev) => {
+      const url = prev[index]
+      if (url) URL.revokeObjectURL(url)
+      return prev.filter((_, i) => i !== index)
+    })
   }
 
   const handleReset = () => {
+    revokeAllThumbs(thumbUrls)
+    setThumbUrls([])
     setFiles([])
     setPhase('idle')
     setProgress(0)
@@ -51,6 +68,12 @@ export default function JpgToPdfPage() {
       const [moved] = next.splice(from, 1)
       next.splice(index, 0, moved)
       dragIndex.current = index
+      return next
+    })
+    setThumbUrls((prev) => {
+      const next = [...prev]
+      const [moved] = next.splice(from, 1)
+      next.splice(index, 0, moved)
       return next
     })
   }
@@ -133,7 +156,10 @@ export default function JpgToPdfPage() {
                     )}
                   >
                     <GripVertical className="h-4 w-4 shrink-0 text-fg-subtle" aria-hidden="true" />
-                    <FileImage className="h-4 w-4 shrink-0 text-fg-subtle" aria-hidden="true" />
+                    {thumbUrls[idx]
+                      ? <img src={thumbUrls[idx]} alt="" className="h-8 w-8 shrink-0 rounded object-cover border border-border" />
+                      : <FileImage className="h-4 w-4 shrink-0 text-fg-subtle" aria-hidden="true" />
+                    }
                     <span className="min-w-0 flex-1 truncate text-sm text-fg">{file.name}</span>
                     <span className="shrink-0 text-xs text-fg-subtle">{formatBytes(file.size)}</span>
                     <button

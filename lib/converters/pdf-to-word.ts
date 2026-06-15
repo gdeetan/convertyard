@@ -398,7 +398,7 @@ async function pageImageParagraph(
 
 // ── Scanned PDF detection ─────────────────────────────────────────────────────
 
-function isScanned(pages: StPage[]): boolean {
+export function isScanned(pages: StPage[]): boolean {
   const total = pages
     .flatMap(p => p.blocks ?? [])
     .filter(isTextBlock)
@@ -408,6 +408,29 @@ function isScanned(pages: StPage[]): boolean {
     .join('')
     .replace(/\s/g, '')
   return total.length < 50
+}
+
+export async function detectPdfQuality(
+  file: File
+): Promise<'text' | 'scanned' | 'complex'> {
+  try {
+    const buffer = await file.arrayBuffer()
+    const rawPages = await extractStructuredText(buffer)
+    const pages: StPage[] = rawPages.map(json => {
+      try { return JSON.parse(json) as StPage } catch { return { blocks: [] } }
+    })
+    if (isScanned(pages)) return 'scanned'
+    const xPositions = pages.flatMap(p =>
+      (p.blocks ?? [])
+        .filter(isTextBlock)
+        .map(b => Math.round(b.bbox?.[0] ?? 0))
+    )
+    const distinctX = new Set(xPositions).size
+    if (distinctX > 8 && pages.length > 1) return 'complex'
+    return 'text'
+  } catch {
+    return 'text'
+  }
 }
 
 // ── Public export ─────────────────────────────────────────────────────────────

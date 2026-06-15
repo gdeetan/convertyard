@@ -53,6 +53,10 @@ export const config: ToolConfig = {
       a: '72 DPI is fine for web thumbnails or quick previews. 150 DPI works well for email and presentations — clear and readable without large files. 300 DPI is print-quality, suitable for professional workflows. 600 DPI produces archival-quality images where every fine detail is preserved. No competing free tool offers 600 DPI — most cap at 150–200.',
     },
     {
+      q: 'Why is the PNG file larger than the original PDF?',
+      a: 'PDFs store content as vector instructions and compressed data. Rendering to PNG rasterizes those instructions into pixels — a 300 DPI render of an A4 page produces a 2480×3508 pixel image. The PNG stores every one of those pixels uncompressed (losslessly). A 1MB PDF can easily become a 15MB PNG at 300 DPI. If file size matters, use 150 DPI or choose PDF to JPG instead.',
+    },
+    {
       q: 'What does transparent background do?',
       a: 'When enabled, areas of the PDF with no content — typically the page background — become transparent in the PNG output instead of white. Useful for PDFs containing vector graphics or logos you want to composite onto other images.',
     },
@@ -74,7 +78,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['pdf-to-jpg', 'compress-pdf', 'split-pdf'],
+  relatedTools: ['pdf-to-jpg', 'compress-pdf', 'merge-pdf', 'jpg-to-pdf'],
   relatedArticles: [],
 
   meta: {

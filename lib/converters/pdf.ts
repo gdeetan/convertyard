@@ -379,7 +379,8 @@ export async function splitPdf(
 
         let suffix: string
         if (mode === 'each-page') {
-          suffix = pageCount === 1 ? '' : `-page-${start + 1}`
+          const padLen = String(pageCount).length
+          suffix = pageCount === 1 ? '' : `-page-${String(start + 1).padStart(padLen, '0')}`
         } else if (mode === 'every-n') {
           suffix = chunks.length === 1 ? '' : `-part-${c + 1}`
         } else {
@@ -421,6 +422,14 @@ export async function pdfToText(
           pageMarkers ? `--- Page ${pageFrom + idx} ---\n\n${t}` : t
         )
         .join('\n\n')
+      if (text.replace(/\s/g, '').length < 30) {
+        results.push(new Error(
+          'No text found. This PDF appears to be a scanned document (image-based). ' +
+          'Use the PDF to Word tool instead — it includes free OCR.'
+        ))
+        onProgress?.(i, 100)
+        continue
+      }
       const baseName = files[i].name.replace(/\.[^.]+$/, '')
       results.push(new File([text], `${baseName}.txt`, { type: 'text/plain' }))
       onProgress?.(i, 100)
@@ -434,7 +443,17 @@ export async function pdfToText(
 
 // ── Images to PDF ─────────────────────────────────────────────────────────────
 
-async function embedImagePage(doc: PDFDocument, file: File, pageSize: string): Promise<void> {
+async function embedImagePage(doc: PDFDocument, inputFile: File, pageSize: string, orientation = 'auto'): Promise<void> {
+  let file = inputFile
+
+  // HEIC/HEIF: decode to PNG via heic2any before embedding
+  if (file.type === 'image/heic' || file.type === 'image/heif' || /\.(heic|heif)$/i.test(file.name)) {
+    const heic2any = (await import('heic2any')).default
+    const result = await heic2any({ blob: file, toType: 'image/png' })
+    const blob = Array.isArray(result) ? result[0] : result
+    file = new File([blob as Blob], file.name.replace(/\.(heic|heif)$/i, '.png'), { type: 'image/png' })
+  }
+
   const buffer = await file.arrayBuffer()
   let imgBytes: Uint8Array<ArrayBuffer>
   let embedFn: 'embedJpg' | 'embedPng'
@@ -472,7 +491,17 @@ async function embedImagePage(doc: PDFDocument, file: File, pageSize: string): P
   const page = doc.addPage([pageW, pageH])
 
   if (pageSize !== 'fit-to-image') {
-    const margin = 36 // 0.5 inch
+    // Swap page dimensions based on orientation
+    const isLandscapeImage = width > height
+    const wantLandscape =
+      orientation === 'landscape' ||
+      (orientation === 'auto' && isLandscapeImage)
+    if (wantLandscape && pageH > pageW) {
+      ;[pageW, pageH] = [pageH, pageW]
+    } else if (!wantLandscape && pageW > pageH) {
+      ;[pageW, pageH] = [pageH, pageW]
+    }
+    const margin = 36
     const availW = pageW - 2 * margin
     const availH = pageH - 2 * margin
     const scale = Math.min(availW / width, availH / height)
@@ -496,13 +525,14 @@ export async function imagesToPdf(
 ): Promise<ConversionResult[]> {
   const pageSize = typeof options.pageSize === 'string' ? options.pageSize : 'fit-to-image'
   const outputMode = typeof options.outputMode === 'string' ? options.outputMode : 'all-in-one'
+  const orientation = typeof options.orientation === 'string' ? options.orientation : 'auto'
   const results: ConversionResult[] = []
 
   if (outputMode === 'all-in-one') {
     const doc = await PDFDocument.create()
     for (let i = 0; i < files.length; i++) {
       try {
-        await embedImagePage(doc, files[i], pageSize)
+        await embedImagePage(doc, files[i], pageSize, orientation)
       } catch {
         // skip unreadable images and continue building the PDF
       }
@@ -520,7 +550,7 @@ export async function imagesToPdf(
     for (let i = 0; i < files.length; i++) {
       try {
         const doc = await PDFDocument.create()
-        await embedImagePage(doc, files[i], pageSize)
+        await embedImagePage(doc, files[i], pageSize, orientation)
         const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
         const baseName = files[i].name.replace(/\.[^.]+$/, '')
         results.push(new File([bytes as unknown as Uint8Array<ArrayBuffer>], `${baseName}.pdf`, { type: 'application/pdf' }))

@@ -6,8 +6,8 @@ export const config: ToolConfig = {
   title: 'JPG to PDF Converter',
   subtitle: 'Combine images into a PDF or create one PDF per image. Built for batches.',
   category: 'pdf',
-  accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/gif'],
-  acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.gif'],
+  accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'],
+  acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic', '.heif'],
   outputExt: '.pdf',
   convertFn: imagesToPdf,
 
@@ -42,6 +42,18 @@ export const config: ToolConfig = {
         letter:         'Images are scaled to fit US Letter pages with a 0.5 inch margin.',
       },
     },
+    {
+      type: 'radio' as const,
+      name: 'orientation',
+      label: 'Orientation',
+      choices: [
+        { value: 'auto',      label: 'Auto' },
+        { value: 'portrait',  label: 'Portrait' },
+        { value: 'landscape', label: 'Landscape' },
+      ],
+      default: 'auto',
+      hint: 'Auto matches image orientation. Only applies to A4 and US Letter page sizes.',
+    },
   ],
 
   faq: [
@@ -51,7 +63,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'What image formats are supported?',
-      a: 'JPG, PNG, WebP, and GIF. JPEG images are embedded directly. PNG, WebP, and GIF are converted to PNG before embedding to ensure full compatibility.',
+      a: 'JPG, PNG, WebP, GIF, and HEIC/HEIF (from iPhone/iPad). JPEG images are embedded directly. All other formats are decoded to PNG before embedding to ensure full compatibility.',
     },
     {
       q: 'What does "Fit to image" page size do?',
@@ -71,7 +83,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['merge-pdf', 'compress-pdf', 'split-pdf'],
+  relatedTools: ['pdf-to-jpg', 'pdf-to-png', 'merge-pdf', 'compress-pdf'],
   relatedArticles: [],
 
   meta: {
