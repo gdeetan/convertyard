@@ -1,4 +1,4 @@
-import { PDFDocument, PDFRawStream, PDFName, PDFNumber } from 'pdf-lib'
+import { PDFDocument, PDFRawStream, PDFName, PDFNumber, degrees } from 'pdf-lib'
 import { getPageCount, renderPage, renderPagePng, extractText } from './mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
@@ -587,4 +587,24 @@ export async function pdfToWord(
   }
 
   return results
+}
+
+// ── Rotate PDF ────────────────────────────────────────────────────────────────
+
+export async function rotatePdf(
+  file: File,
+  rotations: Record<number, number>  // pageIndex -> absolute degrees (0|90|180|270)
+): Promise<File> {
+  const buffer = await file.arrayBuffer()
+  const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+  const pages = doc.getPages()
+  for (const [idxStr, deg] of Object.entries(rotations)) {
+    const idx = Number(idxStr)
+    if (idx >= 0 && idx < pages.length) {
+      pages[idx].setRotation(degrees(deg))
+    }
+  }
+  const bytes = await doc.save({ useObjectStreams: true })
+  const baseName = file.name.replace(/\.[^.]+$/, '')
+  return new File([bytes as Uint8Array<ArrayBuffer>], `${baseName}-rotated.pdf`, { type: 'application/pdf' })
 }
