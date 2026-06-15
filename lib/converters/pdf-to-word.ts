@@ -501,17 +501,6 @@ export async function convertPdfToWord(
       } catch {
         // continue without image if render fails
       }
-      // Then text blocks
-      const pageBlocks = pages[p].blocks ?? []
-      const pageWidth = estimatePageWidth(pages[p])
-      const baseMargin = baseLeftMargin(pageBlocks)
-      for (const block of pageBlocks) {
-        if (!isTextBlock(block)) continue
-        const level = detectHeadingLevel(block, body, pageWidth)
-        const listItem = !level && isListItem(block, baseMargin)
-        const para = blockToParagraph(block, body, level, listItem)
-        if (para) children.push(para)
-      }
     }
     if (children.length === 0) {
       children = [new Paragraph({ children: [new TextRun('')] })]
