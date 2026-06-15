@@ -757,10 +757,9 @@ function pageToRows(structuredJson: string): string[][] {
   if (spans.length === 0) return []
 
   const sorted = [...spans].sort((a, b) => a.y - b.y)
-  const lineHeightEst = sorted.length > 1
-    ? (sorted[sorted.length - 1].y - sorted[0].y) / sorted.length * 2
-    : 12
-  const tolerance = Math.max(lineHeightEst * 0.8, 4)
+  const gaps = sorted.slice(1).map((s, i) => s.y - sorted[i].y).filter(g => g > 0)
+  const lineHeightEst = gaps.length ? gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)] : 12
+  const tolerance = Math.max(lineHeightEst * 0.6, 4)
 
   const rowGroups: Array<typeof spans> = []
   let currentRow: typeof spans = []
@@ -773,7 +772,6 @@ function pageToRows(structuredJson: string): string[][] {
       rowY = span.y
     } else {
       currentRow.push(span)
-      rowY = Math.max(rowY, span.y)
     }
   }
   if (currentRow.length > 0) rowGroups.push(currentRow)
@@ -788,7 +786,7 @@ export async function pdfToCsv(
   onProgress?: (pct: number) => void
 ): Promise<CsvPageResult[]> {
   const buffer = await file.arrayBuffer()
-  const structuredPages = await extractStructuredText(buffer.slice(0))
+  const structuredPages = await extractStructuredText(buffer)
   const pageCount = structuredPages.length
 
   const from = Math.max(1, Math.min(pageCount, pageFrom))
@@ -796,12 +794,12 @@ export async function pdfToCsv(
   const results: CsvPageResult[] = []
 
   for (let p = from - 1; p < to; p++) {
-    onProgress?.(Math.round(((p - from + 1) / (to - from + 1)) * 100))
     const rows = pageToRows(structuredPages[p])
     const csv = rows.length === 0
       ? `# No extractable text on page ${p + 1}\n`
       : rows.map(row => row.map(escapeCsvCell).join(',')).join('\n')
     results.push({ page: p + 1, rows, csv })
+    onProgress?.(Math.round(((p + 1 - from) / (to - from + 1)) * 100))
   }
 
   onProgress?.(100)
