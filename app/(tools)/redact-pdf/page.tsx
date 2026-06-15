@@ -1,7 +1,11 @@
 'use client'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { Lock } from 'lucide-react'
 import { redactPdf, type RedactionRegion, type RedactionReport } from '@/lib/converters/pdf'
 import { renderPage, extractStructuredText, extractText, getPageSizes } from '@/lib/converters/mupdf-client'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
+import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
+import { RelatedToolsStrip } from '@/components/tool-shell/related-tools-strip'
 import { config } from '@/content/tools/redact-pdf'
 
 type Phase = 'idle' | 'loading' | 'editing' | 'processing' | 'done'
@@ -272,15 +276,33 @@ export default function RedactPdfPage() {
       const outBuffer = await outFile.arrayBuffer()
       const pages = await extractText(outBuffer.slice(0))
       const allText = pages.join(' ').toLowerCase()
-      // Check custom-text labels (actual keywords) are not in the output
+
+      // Custom-text labels: check the literal keyword string is absent
       const customLabels = redactions
         .filter(r => r.label && !Object.values(PATTERNS).some(p => p.label === r.label))
         .map(r => r.label!.toLowerCase())
-      const leaks = customLabels.filter(s => s.length > 2 && allText.includes(s))
-      if (customLabels.length > 0) {
+      const customLeaks = customLabels.filter(s => s.length > 2 && allText.includes(s))
+
+      // Pattern labels: re-run the regex against the output text
+      const usedPatternLabels = [...new Set(
+        redactions
+          .filter(r => r.label && Object.values(PATTERNS).some(p => p.label === r.label))
+          .map(r => r.label!)
+      )]
+      const patternLeaks = usedPatternLabels.filter(label => {
+        const entry = Object.values(PATTERNS).find(p => p.label === label)
+        if (!entry) return false
+        const re = new RegExp(entry.regex.source, entry.regex.flags)
+        return re.test(allText)
+      })
+
+      const totalLeaks = customLeaks.length + patternLeaks.length
+      const hasAnyCheck = customLabels.length > 0 || usedPatternLabels.length > 0
+
+      if (hasAnyCheck) {
         setVerificationMessage(
-          leaks.length === 0
-            ? 'Verification passed — custom keywords confirmed absent from output'
+          totalLeaks === 0
+            ? 'Verification passed — redacted content confirmed absent from output'
             : 'Verification warning — check output manually'
         )
       } else {
@@ -316,9 +338,21 @@ export default function RedactPdfPage() {
   }, [loadFile])
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-1">{config.title}</h1>
-      <p className="text-gray-500 mb-2">{config.subtitle}</p>
+    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      <div className="mb-8">
+        <Breadcrumb items={[
+          { label: 'Home', href: '/' },
+          { label: 'Tools', href: '/tools' },
+          { label: 'PDF Tools', href: '/pdf' },
+          { label: config.title },
+        ]} />
+        <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">{config.title}</h1>
+        <p className="mt-2 text-base text-fg-muted">{config.subtitle}</p>
+        <div className="mt-3 flex items-center gap-1.5 text-xs text-fg-subtle">
+          <Lock className="h-3 w-3 text-primary" aria-hidden="true" />
+          Files never leave your browser. No uploads. No accounts.
+        </div>
+      </div>
 
       {/* Trust callout */}
       <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-4 py-2 mb-6 flex items-start gap-2">
@@ -334,7 +368,7 @@ export default function RedactPdfPage() {
           onDrop={handleFileDrop}
           onDragOver={(e) => e.preventDefault()}
           onClick={() => inputRef.current?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-xl p-16 text-center cursor-pointer hover:border-blue-400 transition-colors mb-6"
+          className="border-2 border-dashed border-border rounded-xl p-16 text-center cursor-pointer hover:border-primary transition-colors mb-6"
         >
           <input
             ref={inputRef}
@@ -344,11 +378,11 @@ export default function RedactPdfPage() {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) loadFile(f) }}
           />
           {phase === 'loading'
-            ? <p className="text-gray-500">Rendering pages — this may take a moment for large PDFs</p>
+            ? <p className="text-fg-muted">Rendering pages — this may take a moment for large PDFs</p>
             : (
               <>
-                <p className="text-lg font-medium mb-1">Drop a PDF here</p>
-                <p className="text-sm text-gray-400">or click to browse</p>
+                <p className="text-lg font-medium mb-1 text-fg">Drop a PDF here</p>
+                <p className="text-sm text-fg-subtle">or click to browse</p>
               </>
             )
           }
@@ -553,17 +587,18 @@ export default function RedactPdfPage() {
       )}
 
       {/* FAQ */}
-      <section className="mt-12">
-        <h2 className="text-xl font-semibold mb-4">Frequently asked questions</h2>
-        <div className="space-y-4">
-          {config.faq.map((item, i) => (
-            <details key={i} className="border rounded-lg">
-              <summary className="px-4 py-3 cursor-pointer font-medium">{item.q}</summary>
-              <p className="px-4 pb-4 text-gray-600 text-sm">{item.a}</p>
-            </details>
-          ))}
-        </div>
-      </section>
-    </main>
+      {config.faq.length > 0 && (
+        <section className="mt-12">
+          <FAQAccordion items={config.faq} />
+        </section>
+      )}
+
+      {/* Related tools */}
+      {config.relatedTools.length > 0 && (
+        <section className="mt-12">
+          <RelatedToolsStrip slugs={config.relatedTools} />
+        </section>
+      )}
+    </div>
   )
 }

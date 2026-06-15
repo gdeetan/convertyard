@@ -1,8 +1,12 @@
 'use client'
 import { useState, useCallback, useRef } from 'react'
+import { Lock } from 'lucide-react'
 import { zipSync, strToU8 } from 'fflate'
 import { pdfToCsv, type CsvPageResult } from '@/lib/converters/pdf'
 import { getPageCount } from '@/lib/converters/mupdf-client'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
+import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
+import { RelatedToolsStrip } from '@/components/tool-shell/related-tools-strip'
 import { config } from '@/content/tools/pdf-to-csv'
 
 type Phase = 'idle' | 'loading' | 'preview' | 'extracting'
@@ -91,9 +95,21 @@ export default function PdfToCsvPage() {
   const isExtracting = phase === 'extracting'
 
   return (
-    <main className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-1">{config.title}</h1>
-      <p className="text-gray-500 mb-6">{config.subtitle}</p>
+    <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
+      <div className="mb-8">
+        <Breadcrumb items={[
+          { label: 'Home', href: '/' },
+          { label: 'Tools', href: '/tools' },
+          { label: 'PDF Tools', href: '/pdf' },
+          { label: config.title },
+        ]} />
+        <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">{config.title}</h1>
+        <p className="mt-2 text-base text-fg-muted">{config.subtitle}</p>
+        <div className="mt-3 flex items-center gap-1.5 text-xs text-fg-subtle">
+          <Lock className="h-3 w-3 text-primary" aria-hidden="true" />
+          Files never leave your browser. No uploads. No accounts.
+        </div>
+      </div>
 
       {/* Drop zone */}
       {(phase === 'idle' || phase === 'loading') && (
@@ -101,7 +117,7 @@ export default function PdfToCsvPage() {
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
           onClick={() => inputRef.current?.click()}
-          className="border-2 border-dashed border-gray-300 rounded-xl p-16 text-center cursor-pointer hover:border-blue-400 transition-colors mb-6"
+          className="border-2 border-dashed border-border rounded-xl p-16 text-center cursor-pointer hover:border-primary transition-colors mb-6"
         >
           <input
             ref={inputRef}
@@ -111,11 +127,11 @@ export default function PdfToCsvPage() {
             onChange={(e) => { const f = e.target.files?.[0]; if (f) loadFile(f) }}
           />
           {phase === 'loading'
-            ? <p className="text-gray-500">Reading PDF…</p>
+            ? <p className="text-fg-muted">Reading PDF…</p>
             : (
               <>
-                <p className="text-lg font-medium mb-1">Drop a PDF here</p>
-                <p className="text-sm text-gray-400">or click to browse</p>
+                <p className="text-lg font-medium mb-1 text-fg">Drop a PDF here</p>
+                <p className="text-sm text-fg-subtle">or click to browse</p>
               </>
             )
           }
@@ -231,17 +247,18 @@ export default function PdfToCsvPage() {
       )}
 
       {/* FAQ */}
-      <section className="mt-12">
-        <h2 className="text-xl font-semibold mb-4">Frequently asked questions</h2>
-        <div className="space-y-4">
-          {config.faq?.map((item, i) => (
-            <details key={i} className="border rounded-lg">
-              <summary className="px-4 py-3 cursor-pointer font-medium text-sm">{item.q}</summary>
-              <p className="px-4 pb-4 text-gray-600 text-sm">{item.a}</p>
-            </details>
-          ))}
-        </div>
-      </section>
-    </main>
+      {config.faq && config.faq.length > 0 && (
+        <section className="mt-12">
+          <FAQAccordion items={config.faq} />
+        </section>
+      )}
+
+      {/* Related tools */}
+      {config.relatedTools.length > 0 && (
+        <section className="mt-12">
+          <RelatedToolsStrip slugs={config.relatedTools} />
+        </section>
+      )}
+    </div>
   )
 }
