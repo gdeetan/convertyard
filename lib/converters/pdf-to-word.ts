@@ -280,15 +280,40 @@ function estimatePageWidth(page: StPage): number {
   return maxX2 || 612 // US Letter fallback
 }
 
-function pagesToParagraphs(pages: StPage[], body: number): Paragraph[] {
-  const out: Paragraph[] = []
+function pagesToParagraphs(pages: StPage[], body: number): Array<Paragraph | Table> {
+  const out: Array<Paragraph | Table> = []
 
   for (let p = 0; p < pages.length; p++) {
     if (p > 0) {
       out.push(new Paragraph({ pageBreakBefore: true, children: [] }))
     }
+
+    const pageBlocks = pages[p].blocks ?? []
     const pageWidth = estimatePageWidth(pages[p])
-    for (const block of pages[p].blocks ?? []) {
+    const detected = detectTables(pageBlocks)
+
+    // Map: block index → DetectedTable
+    const consumedBy = new Map<number, ReturnType<typeof detectTables>[number]>()
+    for (const dt of detected) {
+      for (const idx of dt.consumedIndices) {
+        consumedBy.set(idx, dt)
+      }
+    }
+
+    const emittedTables = new Set<ReturnType<typeof detectTables>[number]>()
+
+    for (let b = 0; b < pageBlocks.length; b++) {
+      const block = pageBlocks[b]
+      const dt = consumedBy.get(b)
+
+      if (dt) {
+        if (!emittedTables.has(dt)) {
+          out.push(dt.table)
+          emittedTables.add(dt)
+        }
+        continue
+      }
+
       if (!isTextBlock(block)) continue
       const level = detectHeadingLevel(block, body, pageWidth)
       const para = blockToParagraph(block, body, level)
@@ -431,7 +456,7 @@ export async function convertPdfToWord(
   onProgress?.(85)
 
   const body = bodyFontSize(pages)
-  let children: Paragraph[]
+  let children: Array<Paragraph | Table>
 
   if (includeImages) {
     // Build page paragraphs interleaved with page screenshots
