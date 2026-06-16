@@ -63,6 +63,111 @@ export const config: ToolConfig = {
     },
   ],
 
+  advancedOptions: [
+    { type: 'section-header' as const, label: 'Images' },
+    {
+      type: 'toggle' as const,
+      name: 'dpiMode',
+      label: 'Custom DPI',
+      hint: 'Override the automatic DPI choice with a specific target.',
+      default: false,
+    },
+    {
+      type: 'slider' as const,
+      name: 'targetDpi',
+      label: 'Target DPI',
+      hint: '72 = smallest, 300 = near-print. 150 is a good default for screen viewing.',
+      min: 72,
+      max: 300,
+      step: 1,
+      default: 150,
+      dependsOn: { name: 'dpiMode', value: 'true' },
+    },
+    {
+      type: 'slider' as const,
+      name: 'jpegQuality',
+      label: 'JPEG quality',
+      hint: 'Quality for embedded JPEG images. 70 is a good balance; below 50 becomes visibly lossy.',
+      min: 10,
+      max: 95,
+      step: 5,
+      default: 70,
+    },
+    {
+      type: 'toggle' as const,
+      name: 'grayscale',
+      label: 'Convert to grayscale',
+      hint: 'Removes all colour information. Cuts image size ~60%. Text stays crisp.',
+      default: false,
+    },
+    { type: 'section-header' as const, label: 'Fonts' },
+    {
+      type: 'toggle' as const,
+      name: 'subsetFonts',
+      label: 'Subset fonts',
+      hint: 'Keeps only the glyphs used in the document. Safe for all readers.',
+      default: true,
+    },
+    {
+      type: 'toggle' as const,
+      name: 'removeUnusedFonts',
+      label: 'Remove unused fonts',
+      hint: 'Deletes font resources that are embedded but never referenced.',
+      default: false,
+    },
+    { type: 'section-header' as const, label: 'Strip' },
+    {
+      type: 'toggle' as const,
+      name: 'stripMetadata',
+      label: 'Metadata',
+      hint: 'Removes title, author, subject, keywords, producer, and creator fields.',
+      default: true,
+    },
+    {
+      type: 'toggle' as const,
+      name: 'stripAnnotations',
+      label: 'Annotations',
+      hint: 'Removes comments, highlights, and other annotation objects.',
+      default: false,
+    },
+    {
+      type: 'toggle' as const,
+      name: 'stripBookmarks',
+      label: 'Bookmarks',
+      hint: 'Removes the document outline (navigation bookmarks in sidebar).',
+      default: false,
+    },
+    {
+      type: 'toggle' as const,
+      name: 'stripEmbedded',
+      label: 'Embedded files',
+      hint: 'Removes files attached to the PDF (e.g., original Word source). Page content is unaffected.',
+      default: false,
+    },
+    {
+      type: 'toggle' as const,
+      name: 'stripJS',
+      label: 'JavaScript',
+      hint: 'Removes embedded JavaScript actions. Recommended for any PDF received externally.',
+      default: false,
+    },
+    { type: 'section-header' as const, label: 'Structure' },
+    {
+      type: 'toggle' as const,
+      name: 'linearize',
+      label: 'Optimize for web',
+      hint: 'Reorganises internal structure so the first page loads before the rest of the file finishes downloading.',
+      default: false,
+    },
+    {
+      type: 'toggle' as const,
+      name: 'deduplicate',
+      label: 'Deduplicate resources',
+      hint: 'Merges identical resource objects (fonts, images used more than once). Saves space in templated documents.',
+      default: false,
+    },
+  ],
+
   faq: [
     {
       q: 'What gets removed or changed during compression?',
@@ -99,6 +204,30 @@ export const config: ToolConfig = {
     {
       q: 'What if my PDF is already smaller than my target?',
       a: 'We return your original file unchanged. There is no point re-encoding something that is already within your limit — doing so would only degrade quality or strip metadata for no benefit. You will see a message confirming that no compression was needed.',
+    },
+    {
+      q: 'What does DPI mean for PDFs and when should I change it?',
+      a: 'DPI (dots per inch) controls how finely images are rendered inside the PDF. A 300 DPI scan has four times the data of a 150 DPI equivalent image of the same size. If your PDF is mainly images — scanned pages, exported slides — lowering DPI from 300 to 150 typically cuts image data by 75%. Text and vector elements are unaffected by DPI changes.',
+    },
+    {
+      q: 'Will converting to grayscale affect text readability?',
+      a: 'No. Text rendered in black is already grayscale — it will look identical. The grayscale conversion only removes colour data from embedded images. If your PDF contains colour charts, photos, or branded graphics that need to stay in colour, leave this option off.',
+    },
+    {
+      q: 'What is font subsetting and is it safe?',
+      a: 'Font subsetting keeps only the character shapes (glyphs) that are actually used in the document, discarding the rest. A full Arial font includes over 3,000 glyphs; a subsetted version might include only 200. The resulting PDF looks identical and is safe to open in any PDF reader. It is the standard approach used by InDesign, Acrobat, and all major PDF exporters.',
+    },
+    {
+      q: 'What does "Optimize for web" (linearize) do?',
+      a: "Linearization reorganises the PDF's internal byte order so that page 1 can be displayed before the entire file has downloaded. This makes PDFs embedded in web pages feel faster on slow connections. The file size stays the same; only the internal layout changes.",
+    },
+    {
+      q: 'Can I strip embedded files without affecting the PDF content?',
+      a: 'Yes. Embedded files are attachments stored inside the PDF — like an original Word document or a spreadsheet that was attached by the author. Stripping them removes those attachments but leaves all visible page content (text, images, drawings) completely intact.',
+    },
+    {
+      q: 'How does the visual preview work if files never leave my browser?',
+      a: 'The preview is rendered entirely in your browser using MuPDF, a PDF rendering engine compiled to WebAssembly. When you drop a file, the first page is rendered to an image locally. After compression completes, the compressed file is rendered the same way. No data leaves your device at any point — the rendering, comparison, and download all happen on your machine.',
     },
   ],
 
