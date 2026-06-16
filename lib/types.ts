@@ -1,3 +1,5 @@
+import type React from 'react'
+
 export type ToolCategory = 'images' | 'pdf' | 'video-audio' | 'dev' | 'web' | 'ai' | 'image-editing'
 
 export interface FAQItem {
@@ -69,6 +71,11 @@ export interface NumberWithChipsOption extends BaseOption {
   defaultUnit?: string
 }
 
+export interface SectionHeaderOption extends BaseOption {
+  type: 'section-header'
+  default: null
+}
+
 export type ToolOption =
   | SliderOption
   | ToggleOption
@@ -78,6 +85,7 @@ export type ToolOption =
   | ColorPickerOption
   | ImageUploadOption
   | NumberWithChipsOption
+  | SectionHeaderOption
 
 export type ToolOptions = Record<string, unknown>
 
@@ -120,6 +128,13 @@ export interface ToolConfig {
     body: string
   }
   warningFn?: (files: File[]) => string | null
+  previewPanel?: React.ComponentType<{
+    files: File[]
+    results: (File | null)[]
+    options: ToolOptions
+  }>
+  advancedOptions?: ToolOption[]
+  presetBar?: React.ComponentType<{ onApply: (values: ToolOptions) => void }>
   faq: FAQItem[]
   relatedTools: string[]    // tool slugs, 3-5
   relatedArticles: string[] // article slugs, 2-3
