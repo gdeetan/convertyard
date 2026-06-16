@@ -86,6 +86,9 @@ export interface CompressionMeta {
   targetBytes: number
   achievedBytes: number
   reachedTarget: boolean
+  isUnchanged: boolean      // input.size <= targetBytes; returned as-is
+  iterationsUsed: number    // 0–6
+  appliedSettings: string   // human description for UI
   message?: string
 }
 

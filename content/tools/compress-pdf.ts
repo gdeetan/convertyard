@@ -96,6 +96,10 @@ export const config: ToolConfig = {
       q: "What if my file can't reach my target size?",
       a: "If the PDF is already highly compressed — for example, a scanned document whose images are already low-quality JPEG — there may be nothing left to remove. The tool will return the smallest version it could produce and show you what was achieved versus your target. The file will not be broken; it simply cannot get any smaller without discarding content.",
     },
+    {
+      q: 'What if my PDF is already smaller than my target?',
+      a: 'We return your original file unchanged. There is no point re-encoding something that is already within your limit — doing so would only degrade quality or strip metadata for no benefit. You will see a message confirming that no compression was needed.',
+    },
   ],
 
   relatedTools: ['merge-pdf', 'pdf-to-jpg'],

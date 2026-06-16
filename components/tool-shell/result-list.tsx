@@ -183,17 +183,27 @@ function ResultRow({ entry }: { entry: FileEntry }) {
         </span>
         {entry.resultMeta && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-fg-subtle">
-            <span>target: {formatBytes(entry.resultMeta.targetBytes)}</span>
-            {entry.resultMeta.reachedTarget ? (
-              <span className="text-success">Target reached</span>
-            ) : (
-              <span
-                title={entry.resultMeta.message ?? 'Could not reach target size'}
-                className="inline-flex items-center gap-1 text-amber-600 cursor-help"
-              >
-                <AlertTriangle className="h-3 w-3" aria-hidden="true" />
-                Best possible — download to keep
+            {entry.resultMeta.isUnchanged ? (
+              <span className="text-fg-muted">
+                Already {formatBytes(entry.resultMeta.originalBytes)} — smaller than{' '}
+                {formatBytes(entry.resultMeta.targetBytes)} target. No compression needed.
               </span>
+            ) : entry.resultMeta.reachedTarget ? (
+              <>
+                <span>target: {formatBytes(entry.resultMeta.targetBytes)}</span>
+                <span className="text-success">Target reached</span>
+              </>
+            ) : (
+              <>
+                <span>target: {formatBytes(entry.resultMeta.targetBytes)}</span>
+                <span
+                  title={entry.resultMeta.message ?? 'Could not reach target size'}
+                  className="inline-flex items-center gap-1 text-amber-600 cursor-help"
+                >
+                  <AlertTriangle className="h-3 w-3" aria-hidden="true" />
+                  Couldn&apos;t reach target — download best possible
+                </span>
+              </>
             )}
           </div>
         )}

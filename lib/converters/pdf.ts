@@ -133,6 +133,42 @@ async function rasterizeForTarget(
   return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
 }
 
+// Grayscale rasterization — maximum size reduction
+async function rasterizeGrayscaleForTarget(
+  buffer: ArrayBuffer,
+  fileName: string,
+  dpi: number,
+  quality: number
+): Promise<File> {
+  const pageCount = await getPageCount(buffer)
+  const doc = await PDFDocument.create()
+
+  for (let p = 0; p < pageCount; p++) {
+    const jpegBuffer = await renderPage(buffer, p, dpi, quality)
+    const jpegBytes = new Uint8Array(jpegBuffer)
+    const blob = new Blob([jpegBytes as unknown as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })
+    const bmp = await createImageBitmap(blob)
+    const canvas = new OffscreenCanvas(bmp.width, bmp.height)
+    const ctx = canvas.getContext('2d')!
+    ctx.filter = 'grayscale(1)'
+    ctx.drawImage(bmp, 0, 0)
+    bmp.close()
+    const grayBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: quality / 100 })
+    const grayBytes = new Uint8Array(await grayBlob.arrayBuffer())
+    const image = await doc.embedJpg(grayBytes)
+    const page = doc.addPage([image.width, image.height])
+    page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+  }
+
+  const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+  return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
+}
+
+function isValidPdf(bytes: Uint8Array): boolean {
+  const header = new TextDecoder().decode(bytes.slice(0, 8))
+  return header.startsWith('%PDF-1.') || header.startsWith('%PDF-2.')
+}
+
 // ── Target-size compression ───────────────────────────────────────────────────
 
 export async function compressPdfToTargetSize(
@@ -141,78 +177,106 @@ export async function compressPdfToTargetSize(
   onProgress?: (pct: number) => void
 ): Promise<{ file: File; meta: CompressionMeta }> {
   const originalBytes = input.size
-  let bestFile = input
+  // INVARIANT 3: never return a file smaller than 50% of target (that's over-compression)
+  const floor = targetBytes * 0.5
 
-  // Pass 1: structural — strip metadata + optimise object streams
-  onProgress?.(10)
-  let structuralBuffer = await input.arrayBuffer()
-  try {
-    const structural = await compressStructural(structuralBuffer, 'medium', input.name)
-    if (structural.size < bestFile.size) bestFile = structural
-    structuralBuffer = await structural.arrayBuffer()
-  } catch { /* continue */ }
-
-  if (bestFile.size <= targetBytes) {
+  // INVARIANT 1: if input is already within target, return original unchanged
+  if (originalBytes <= targetBytes) {
     onProgress?.(100)
-    return makeTargetResult(input, bestFile, targetBytes, originalBytes)
+    return {
+      file: input,
+      meta: {
+        originalBytes,
+        targetBytes,
+        achievedBytes: originalBytes,
+        reachedTarget: true,
+        isUnchanged: true,
+        iterationsUsed: 0,
+        appliedSettings: 'none — file already within target',
+      },
+    }
   }
 
-  // Passes 2–3: JPEG re-encode at two quality levels.
-  // Both start from structuralBuffer to avoid cumulative generation loss.
-  const jpegQualities = [70, 40]
-  for (let i = 0; i < jpegQualities.length; i++) {
-    onProgress?.(Math.round(20 + (i + 1) * 10))
-    try {
-      const candidate = await recompressImages(structuralBuffer, jpegQualities[i], input.name)
-      if (candidate.size < bestFile.size) bestFile = candidate
-    } catch { /* continue */ }
-    if (bestFile.size <= targetBytes) break
-  }
+  const inputBuffer = await input.arrayBuffer()
 
-  if (bestFile.size <= targetBytes) {
-    onProgress?.(100)
-    return makeTargetResult(input, bestFile, targetBytes, originalBytes)
-  }
-
-  // Passes 4–7: rasterise at decreasing DPI.
-  // Handles non-JPEG images (PNG, CCITT) that JPEG re-encoding cannot touch.
-  const rasterPasses: Array<{ dpi: number; quality: number }> = [
-    { dpi: 150, quality: 80 },
-    { dpi: 120, quality: 75 },
-    { dpi: 96,  quality: 70 },
-    { dpi: 72,  quality: 65 },
+  // INVARIANT 6: monotonically escalating compression steps (1–6)
+  // Each step starts from the original buffer to avoid cumulative quality loss.
+  const steps: Array<{ label: string; produce: () => Promise<File> }> = [
+    { label: 'structural compression',       produce: () => compressStructural(inputBuffer, 'high', input.name) },
+    { label: 'JPEG re-encode quality 80',    produce: () => recompressImages(inputBuffer, 80, input.name) },
+    { label: 'JPEG re-encode quality 70',    produce: () => recompressImages(inputBuffer, 70, input.name) },
+    { label: 'JPEG re-encode quality 60',    produce: () => recompressImages(inputBuffer, 60, input.name) },
+    { label: 'rasterize 72 DPI quality 40',  produce: () => rasterizeForTarget(inputBuffer, input.name, 72, 40) },
+    { label: 'rasterize grayscale 72 DPI',   produce: () => rasterizeGrayscaleForTarget(inputBuffer, input.name, 72, 40) },
   ]
-  for (let i = 0; i < rasterPasses.length; i++) {
-    onProgress?.(Math.round(40 + (i + 1) * 13))
+
+  // prevBest: smallest result still above target (to step back to if we over-compress)
+  let prevBest: File = input
+  let prevBestLabel = 'original'
+  let iterationsUsed = 0
+
+  for (let i = 0; i < steps.length; i++) {
+    onProgress?.(Math.round(10 + ((i + 1) / steps.length) * 85))
+
+    let candidate: File
     try {
-      const { dpi, quality } = rasterPasses[i]
-      const candidate = await rasterizeForTarget(structuralBuffer, input.name, dpi, quality)
-      if (candidate.size < bestFile.size) bestFile = candidate
-    } catch { /* continue */ }
-    if (bestFile.size <= targetBytes) break
+      candidate = await steps[i].produce()
+    } catch {
+      iterationsUsed++
+      continue
+    }
+
+    // INVARIANT 2: discard invalid PDF output
+    const bytes = new Uint8Array(await candidate.arrayBuffer())
+    if (!isValidPdf(bytes)) {
+      iterationsUsed++
+      continue
+    }
+
+    iterationsUsed++
+
+    if (candidate.size < floor) {
+      // INVARIANT 3: over-compressed — step back to previous best and stop
+      break
+    }
+
+    if (candidate.size <= targetBytes) {
+      // Perfect hit: within [floor, target] — INVARIANT 6: stop at first success
+      onProgress?.(100)
+      return {
+        file: candidate,
+        meta: {
+          originalBytes,
+          targetBytes,
+          achievedBytes: candidate.size,
+          reachedTarget: true,
+          isUnchanged: false,
+          iterationsUsed,
+          appliedSettings: steps[i].label,
+        },
+      }
+    }
+
+    // Still above target — track best so far to fall back to if next step over-compresses
+    if (candidate.size < prevBest.size) {
+      prevBest = candidate
+      prevBestLabel = steps[i].label
+    }
   }
 
   onProgress?.(100)
-  return makeTargetResult(input, bestFile, targetBytes, originalBytes)
-}
-
-function makeTargetResult(
-  input: File,
-  bestFile: File,
-  targetBytes: number,
-  originalBytes: number
-): { file: File; meta: CompressionMeta } {
-  const reachedTarget = bestFile.size <= targetBytes
+  // INVARIANT 5: return best result achieved (may still be above target)
   return {
-    file: bestFile,
+    file: prevBest,
     meta: {
       originalBytes,
       targetBytes,
-      achievedBytes: bestFile.size,
-      reachedTarget,
-      message: reachedTarget
-        ? undefined
-        : `Couldn't reach ${formatBytes(targetBytes)} — smallest possible is ${formatBytes(bestFile.size)}`,
+      achievedBytes: prevBest.size,
+      reachedTarget: false,
+      isUnchanged: false,
+      iterationsUsed,
+      appliedSettings: prevBestLabel,
+      message: `Couldn't reach ${formatBytes(targetBytes)} — smallest possible is ${formatBytes(prevBest.size)}`,
     },
   }
 }
