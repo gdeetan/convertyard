@@ -861,8 +861,10 @@ function pageToRows(structuredJson: string): string[][] {
 
   const sorted = [...spans].sort((a, b) => a.y - b.y)
   const gaps = sorted.slice(1).map((s, i) => s.y - sorted[i].y).filter(g => g > 0)
-  const lineHeightEst = gaps.length ? gaps.sort((a, b) => a - b)[Math.floor(gaps.length / 2)] : 12
-  const tolerance = Math.max(lineHeightEst * 0.6, 4)
+  const lineHeightEst = gaps.length ? [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)] : 12
+  // Use 2.5× median gap as row-merge tolerance so wrapped multi-line cells stay in the same row.
+  // Rolling anchor (rowY updates on every span) ensures the check is always against the nearest preceding span.
+  const tolerance = Math.max(lineHeightEst * 2.5, 6)
 
   const rowGroups: Array<typeof spans> = []
   let currentRow: typeof spans = []
@@ -872,14 +874,28 @@ function pageToRows(structuredJson: string): string[][] {
     if (span.y - rowY > tolerance) {
       if (currentRow.length > 0) rowGroups.push(currentRow)
       currentRow = [span]
-      rowY = span.y
     } else {
       currentRow.push(span)
     }
+    rowY = span.y  // rolling anchor: always track the most recent y
   }
   if (currentRow.length > 0) rowGroups.push(currentRow)
 
-  return rowGroups.map(row => row.sort((a, b) => a.x - b.x).map(s => s.text))
+  // Within each row, group spans at the same x-position (±5 px) — these are wrapped lines of
+  // the same cell — and join them with a space.
+  return rowGroups.map(rowSpans => {
+    const byX = rowSpans.sort((a, b) => a.x !== b.x ? a.x - b.x : a.y - b.y)
+    const colGroups: Array<{ x: number; texts: string[] }> = []
+    for (const span of byX) {
+      const last = colGroups[colGroups.length - 1]
+      if (last && Math.abs(span.x - last.x) <= 5) {
+        last.texts.push(span.text)
+      } else {
+        colGroups.push({ x: span.x, texts: [span.text] })
+      }
+    }
+    return colGroups.map(g => g.texts.join(' '))
+  })
 }
 
 export async function pdfToCsv(
