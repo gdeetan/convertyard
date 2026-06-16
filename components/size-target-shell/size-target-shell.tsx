@@ -30,6 +30,7 @@ function buildPrefilledConfig(parentConfig: ToolConfig, config: SizeTargetConfig
     return {
       ...parentConfig,
       options: parentConfig.options?.map(opt => {
+        if (opt.type === 'section-header') return opt
         if (opt.name === 'targetSizeMode') return { ...opt, default: true }
         if (opt.name === 'targetKB') return { ...opt, default: targetKB }
         return opt
@@ -40,6 +41,7 @@ function buildPrefilledConfig(parentConfig: ToolConfig, config: SizeTargetConfig
   return {
     ...parentConfig,
     options: parentConfig.options?.map(opt => {
+      if (opt.type === 'section-header') return opt
       if (opt.name === 'maxSizeKb') return { ...opt, default: targetKB }
       return opt
     }) as ToolOption[],

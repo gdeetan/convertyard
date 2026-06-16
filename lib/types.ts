@@ -71,9 +71,9 @@ export interface NumberWithChipsOption extends BaseOption {
   defaultUnit?: string
 }
 
-export interface SectionHeaderOption extends BaseOption {
+export interface SectionHeaderOption {
   type: 'section-header'
-  default: null
+  label: string
 }
 
 export type ToolOption =

@@ -123,6 +123,7 @@ function reducer(state: State, action: Action): State {
 function buildDefaultOptions(config: ToolConfig): ToolOptions {
   const opts: ToolOptions = {}
   for (const opt of config.options ?? []) {
+    if (opt.type === 'section-header') continue
     opts[opt.name] = opt.default
   }
   return opts

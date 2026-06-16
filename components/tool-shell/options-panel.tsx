@@ -3,7 +3,13 @@
 import { useState } from 'react'
 import { HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
-import type { ToolOption, ToolOptions, NumberWithChipsOption, RadioOption } from '@/lib/types'
+import type { ToolOption, ToolOptions, NumberWithChipsOption, RadioOption, SectionHeaderOption } from '@/lib/types'
+
+type RenderableOption = Exclude<ToolOption, SectionHeaderOption>
+
+function isRenderableOption(opt: ToolOption): opt is RenderableOption {
+  return opt.type !== 'section-header'
+}
 
 interface OptionsPanelProps {
   options: ToolOption[]
@@ -25,6 +31,7 @@ export function OptionsPanel({ options, values, onChange, disabled = false }: Op
       </legend>
 
       {options
+        .filter(isRenderableOption)
         .filter((opt) => {
           if (!opt.dependsOn) return true
           return String(values[opt.dependsOn.name]) === opt.dependsOn.value
@@ -41,7 +48,7 @@ function OptionRow({
   value,
   onChange,
 }: {
-  opt: ToolOption
+  opt: RenderableOption
   value: unknown
   onChange: (name: string, value: unknown) => void
 }) {
