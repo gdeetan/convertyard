@@ -100,21 +100,6 @@ export const config: ToolConfig = {
       hint: 'Removes all colour information. Cuts image size ~60%. Text stays crisp.',
       default: false,
     },
-    { type: 'section-header' as const, label: 'Fonts' },
-    {
-      type: 'toggle' as const,
-      name: 'subsetFonts',
-      label: 'Subset fonts',
-      hint: 'Keeps only the glyphs used in the document. Safe for all readers.',
-      default: true,
-    },
-    {
-      type: 'toggle' as const,
-      name: 'removeUnusedFonts',
-      label: 'Remove unused fonts',
-      hint: 'Deletes font resources that are embedded but never referenced.',
-      default: false,
-    },
     { type: 'section-header' as const, label: 'Strip' },
     {
       type: 'toggle' as const,
@@ -149,21 +134,6 @@ export const config: ToolConfig = {
       name: 'stripJS',
       label: 'JavaScript',
       hint: 'Removes embedded JavaScript actions. Recommended for any PDF received externally.',
-      default: false,
-    },
-    { type: 'section-header' as const, label: 'Structure' },
-    {
-      type: 'toggle' as const,
-      name: 'linearize',
-      label: 'Optimize for web',
-      hint: 'Reorganises internal structure so the first page loads before the rest of the file finishes downloading.',
-      default: false,
-    },
-    {
-      type: 'toggle' as const,
-      name: 'deduplicate',
-      label: 'Deduplicate resources',
-      hint: 'Merges identical resource objects (fonts, images used more than once). Saves space in templated documents.',
       default: false,
     },
   ],
@@ -212,14 +182,6 @@ export const config: ToolConfig = {
     {
       q: 'Will converting to grayscale affect text readability?',
       a: 'No. Text rendered in black is already grayscale — it will look identical. The grayscale conversion only removes colour data from embedded images. If your PDF contains colour charts, photos, or branded graphics that need to stay in colour, leave this option off.',
-    },
-    {
-      q: 'What is font subsetting and is it safe?',
-      a: 'Font subsetting keeps only the character shapes (glyphs) that are actually used in the document, discarding the rest. A full Arial font includes over 3,000 glyphs; a subsetted version might include only 200. The resulting PDF looks identical and is safe to open in any PDF reader. It is the standard approach used by InDesign, Acrobat, and all major PDF exporters.',
-    },
-    {
-      q: 'What does "Optimize for web" (linearize) do?',
-      a: "Linearization reorganises the PDF's internal byte order so that page 1 can be displayed before the entire file has downloaded. This makes PDFs embedded in web pages feel faster on slow connections. The file size stays the same; only the internal layout changes.",
     },
     {
       q: 'Can I strip embedded files without affecting the PDF content?',

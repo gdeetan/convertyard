@@ -40,6 +40,7 @@ async function compressStructural(
   level: 'low' | 'medium' | 'high',
   fileName: string,
   advanced?: {
+    stripMetadata?: boolean
     stripAnnotations?: boolean
     stripBookmarks?: boolean
     stripEmbedded?: boolean
@@ -47,7 +48,7 @@ async function compressStructural(
   }
 ): Promise<File> {
   const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
-  if (level === 'medium' || level === 'high') {
+  if ((level === 'medium' || level === 'high') && advanced?.stripMetadata !== false) {
     doc.setTitle('')
     doc.setAuthor('')
     doc.setSubject('')
@@ -62,6 +63,7 @@ async function compressStructural(
 
   if (advanced?.stripJS) {
     doc.catalog.delete(PDFName.of('AA'))
+    doc.catalog.delete(PDFName.of('OpenAction'))
     const names = doc.catalog.lookup(PDFName.of('Names'))
     if (names instanceof PDFDict) {
       names.delete(PDFName.of('JavaScript'))
@@ -362,10 +364,11 @@ export async function compressPDF(
         results.push(result)
       } else {
         const level = (options.level as 'low' | 'medium' | 'high' | 'aggressive') ?? 'medium'
-        const targetDpi = typeof options.targetDpi === 'number' ? options.targetDpi : 96
-        const jpegQuality = typeof options.jpegQuality === 'number' ? options.jpegQuality : 85
+        const targetDpi = typeof options.targetDpi === 'number' ? options.targetDpi : 150
+        const jpegQuality = typeof options.jpegQuality === 'number' ? options.jpegQuality : 70
         const grayscale = options.grayscale === true
         const advancedStrip = {
+          stripMetadata: options.stripMetadata !== false,
           stripAnnotations: options.stripAnnotations === true,
           stripBookmarks: options.stripBookmarks === true,
           stripEmbedded: options.stripEmbedded === true,
