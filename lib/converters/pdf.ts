@@ -1,4 +1,4 @@
-import { PDFDocument, PDFRawStream, PDFName, PDFNumber, degrees, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
+import { PDFDocument, PDFRawStream, PDFName, PDFNumber, PDFDict, degrees, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
 import { getPageCount, renderPage, renderPagePng, extractText, extractStructuredText } from './mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
@@ -38,7 +38,13 @@ export async function mergePDFs(
 async function compressStructural(
   buffer: ArrayBuffer,
   level: 'low' | 'medium' | 'high',
-  fileName: string
+  fileName: string,
+  advanced?: {
+    stripAnnotations?: boolean
+    stripBookmarks?: boolean
+    stripEmbedded?: boolean
+    stripJS?: boolean
+  }
 ): Promise<File> {
   const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
   if (level === 'medium' || level === 'high') {
@@ -49,6 +55,32 @@ async function compressStructural(
     doc.setProducer('')
     doc.setCreator('')
   }
+
+  if (advanced?.stripBookmarks) {
+    doc.catalog.delete(PDFName.of('Outlines'))
+  }
+
+  if (advanced?.stripJS) {
+    doc.catalog.delete(PDFName.of('AA'))
+    const names = doc.catalog.lookup(PDFName.of('Names'))
+    if (names instanceof PDFDict) {
+      names.delete(PDFName.of('JavaScript'))
+    }
+  }
+
+  if (advanced?.stripAnnotations) {
+    for (const page of doc.getPages()) {
+      page.node.delete(PDFName.of('Annots'))
+    }
+  }
+
+  if (advanced?.stripEmbedded) {
+    const names = doc.catalog.lookup(PDFName.of('Names'))
+    if (names instanceof PDFDict) {
+      names.delete(PDFName.of('EmbeddedFiles'))
+    }
+  }
+
   const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
   return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
 }
@@ -330,15 +362,27 @@ export async function compressPDF(
         results.push(result)
       } else {
         const level = (options.level as 'low' | 'medium' | 'high' | 'aggressive') ?? 'medium'
+        const targetDpi = typeof options.targetDpi === 'number' ? options.targetDpi : 96
+        const jpegQuality = typeof options.jpegQuality === 'number' ? options.jpegQuality : 85
+        const grayscale = options.grayscale === true
+        const advancedStrip = {
+          stripAnnotations: options.stripAnnotations === true,
+          stripBookmarks: options.stripBookmarks === true,
+          stripEmbedded: options.stripEmbedded === true,
+          stripJS: options.stripJS === true,
+        }
         if (level === 'aggressive') {
           onProgress?.(i, 10)
-          const file = await rasterizePdf(files[i], 96, files[i].name)
+          const buffer = await files[i].arrayBuffer()
+          const file = grayscale
+            ? await rasterizeGrayscaleForTarget(buffer, files[i].name, targetDpi, jpegQuality)
+            : await rasterizeForTarget(buffer, files[i].name, targetDpi, jpegQuality)
           onProgress?.(i, 100)
           results.push(file)
         } else {
           onProgress?.(i, 10)
           const buffer = await files[i].arrayBuffer()
-          const file = await compressStructural(buffer, level, files[i].name)
+          const file = await compressStructural(buffer, level, files[i].name, advancedStrip)
           onProgress?.(i, 100)
           results.push(file)
         }
