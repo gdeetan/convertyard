@@ -199,15 +199,18 @@ export async function compressPdfToTargetSize(
 
   const inputBuffer = await input.arrayBuffer()
 
-  // INVARIANT 6: monotonically escalating compression steps (1–6)
-  // Each step starts from the original buffer to avoid cumulative quality loss.
+  // INVARIANT 6: monotonically escalating compression steps (1–6).
+  // Steps 1–2 are lossless/JPEG-only (preserve text selectability).
+  // Steps 3–6 rasterize at decreasing DPI to guarantee meaningful size reduction
+  // regardless of PDF content type (text, vector, scanned images).
+  // Graduated DPI steps prevent jumping past the target into the over-compression floor.
   const steps: Array<{ label: string; produce: () => Promise<File> }> = [
-    { label: 'structural compression',       produce: () => compressStructural(inputBuffer, 'high', input.name) },
-    { label: 'JPEG re-encode quality 80',    produce: () => recompressImages(inputBuffer, 80, input.name) },
-    { label: 'JPEG re-encode quality 70',    produce: () => recompressImages(inputBuffer, 70, input.name) },
-    { label: 'JPEG re-encode quality 60',    produce: () => recompressImages(inputBuffer, 60, input.name) },
-    { label: 'rasterize 72 DPI quality 40',  produce: () => rasterizeForTarget(inputBuffer, input.name, 72, 40) },
-    { label: 'rasterize grayscale 72 DPI',   produce: () => rasterizeGrayscaleForTarget(inputBuffer, input.name, 72, 40) },
+    { label: 'structural compression',        produce: () => compressStructural(inputBuffer, 'high', input.name) },
+    { label: 'JPEG re-encode quality 60',     produce: () => recompressImages(inputBuffer, 60, input.name) },
+    { label: 'rasterize 200 DPI quality 80',  produce: () => rasterizeForTarget(inputBuffer, input.name, 200, 80) },
+    { label: 'rasterize 150 DPI quality 75',  produce: () => rasterizeForTarget(inputBuffer, input.name, 150, 75) },
+    { label: 'rasterize 100 DPI quality 65',  produce: () => rasterizeForTarget(inputBuffer, input.name, 100, 65) },
+    { label: 'rasterize 72 DPI quality 50',   produce: () => rasterizeForTarget(inputBuffer, input.name, 72, 50) },
   ]
 
   // prevBest: smallest result still above target (to step back to if we over-compress)
@@ -235,29 +238,50 @@ export async function compressPdfToTargetSize(
 
     iterationsUsed++
 
-    if (candidate.size < floor) {
-      // INVARIANT 3: over-compressed — step back to previous best and stop
+    if (candidate.size <= targetBytes) {
+      if (candidate.size >= floor) {
+        // Perfect hit: within [floor, target] — stop at first success (INVARIANT 6)
+        onProgress?.(100)
+        return {
+          file: candidate,
+          meta: {
+            originalBytes,
+            targetBytes,
+            achievedBytes: candidate.size,
+            reachedTarget: true,
+            isUnchanged: false,
+            iterationsUsed,
+            appliedSettings: steps[i].label,
+          },
+        }
+      }
+      // Below floor (over-compressed relative to target). INVARIANT 3: step back
+      // to previous best. If the previous best is closer to target than this
+      // over-compressed result, prefer it; otherwise keep the smaller file
+      // (better too-small than never reaching the target at all).
+      if (prevBest.size > targetBytes) {
+        // Nothing has hit the target yet — the over-compressed result is the
+        // smallest we can do. Return it rather than something still above target.
+        onProgress?.(100)
+        return {
+          file: candidate,
+          meta: {
+            originalBytes,
+            targetBytes,
+            achievedBytes: candidate.size,
+            reachedTarget: false,
+            isUnchanged: false,
+            iterationsUsed,
+            appliedSettings: steps[i].label,
+            message: `Couldn't reach ${formatBytes(targetBytes)} — smallest possible is ${formatBytes(candidate.size)}`,
+          },
+        }
+      }
+      // A previous step already beat the target — step back to that
       break
     }
 
-    if (candidate.size <= targetBytes) {
-      // Perfect hit: within [floor, target] — INVARIANT 6: stop at first success
-      onProgress?.(100)
-      return {
-        file: candidate,
-        meta: {
-          originalBytes,
-          targetBytes,
-          achievedBytes: candidate.size,
-          reachedTarget: true,
-          isUnchanged: false,
-          iterationsUsed,
-          appliedSettings: steps[i].label,
-        },
-      }
-    }
-
-    // Still above target — track best so far to fall back to if next step over-compresses
+    // Still above target — track best so far
     if (candidate.size < prevBest.size) {
       prevBest = candidate
       prevBestLabel = steps[i].label
@@ -265,18 +289,20 @@ export async function compressPdfToTargetSize(
   }
 
   onProgress?.(100)
-  // INVARIANT 5: return best result achieved (may still be above target)
+  // INVARIANT 5: return best result achieved
   return {
     file: prevBest,
     meta: {
       originalBytes,
       targetBytes,
       achievedBytes: prevBest.size,
-      reachedTarget: false,
+      reachedTarget: prevBest.size <= targetBytes,
       isUnchanged: false,
       iterationsUsed,
       appliedSettings: prevBestLabel,
-      message: `Couldn't reach ${formatBytes(targetBytes)} — smallest possible is ${formatBytes(prevBest.size)}`,
+      message: prevBest.size <= targetBytes
+        ? undefined
+        : `Couldn't reach ${formatBytes(targetBytes)} — smallest possible is ${formatBytes(prevBest.size)}`,
     },
   }
 }
