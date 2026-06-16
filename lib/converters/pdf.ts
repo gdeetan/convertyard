@@ -812,8 +812,15 @@ export async function redactPdf(
 
 // ── PDF to CSV ────────────────────────────────────────────────────────────────
 
+interface StructuredLineBbox { x: number; y: number; w: number; h: number; flags?: number }
 interface StructuredSpan { text?: string; bbox?: number[] }
-interface StructuredLine { spans?: StructuredSpan[] }
+interface StructuredLine {
+  spans?: StructuredSpan[]
+  text?: string
+  x?: number
+  y?: number
+  bbox?: StructuredLineBbox | number[]
+}
 interface StructuredBlock { lines?: StructuredLine[] }
 interface StructuredPage { blocks?: StructuredBlock[] }
 
@@ -837,6 +844,11 @@ function pageToRows(structuredJson: string): string[][] {
   const spans: Array<{ text: string; x: number; y: number }> = []
   for (const block of pageData.blocks ?? []) {
     for (const line of block.lines ?? []) {
+      const lineText = typeof line.text === 'string' ? line.text.trim() : ''
+      if (lineText && typeof line.x === 'number' && typeof line.y === 'number') {
+        spans.push({ text: lineText, x: line.x, y: line.y })
+        continue
+      }
       for (const span of line.spans ?? []) {
         const text = span.text?.trim()
         if (!text || !span.bbox || span.bbox.length < 4) continue
