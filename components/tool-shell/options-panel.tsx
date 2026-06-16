@@ -31,14 +31,31 @@ export function OptionsPanel({ options, values, onChange, disabled = false }: Op
       </legend>
 
       {options
-        .filter(isRenderableOption)
         .filter((opt) => {
+          if (opt.type === 'section-header') return true
           if (!opt.dependsOn) return true
           return String(values[opt.dependsOn.name]) === opt.dependsOn.value
         })
-        .map((opt) => (
-          <OptionRow key={opt.name} opt={opt} value={values[opt.name]} onChange={onChange} />
-        ))}
+        .map((opt) => {
+          if (opt.type === 'section-header') {
+            return (
+              <h4
+                key={`section-${opt.label}`}
+                className="border-t border-border pt-3 text-xs font-semibold uppercase tracking-wider text-fg-subtle first:border-t-0 first:pt-0"
+              >
+                {opt.label}
+              </h4>
+            )
+          }
+          return (
+            <OptionRow
+              key={opt.name}
+              opt={opt as RenderableOption}
+              value={values[opt.name]}
+              onChange={onChange}
+            />
+          )
+        })}
     </fieldset>
   )
 }
