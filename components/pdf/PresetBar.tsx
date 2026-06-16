@@ -5,34 +5,29 @@ import type { ToolOptions } from '@/lib/types'
 
 const PRESETS: Record<string, ToolOptions> = {
   Email: {
-    dpiMode: 'custom', targetDpi: 96, jpegQuality: 55, grayscale: false,
-    subsetFonts: true, removeUnusedFonts: false,
+    dpiMode: true, targetDpi: 96, jpegQuality: 55, grayscale: false,
     stripMetadata: true, stripAnnotations: false, stripBookmarks: false,
-    stripEmbedded: false, stripJS: false, linearize: false, deduplicate: false,
+    stripEmbedded: false, stripJS: false,
   },
   Web: {
-    dpiMode: 'custom', targetDpi: 120, jpegQuality: 65, grayscale: false,
-    subsetFonts: true, removeUnusedFonts: false,
+    dpiMode: true, targetDpi: 120, jpegQuality: 65, grayscale: false,
     stripMetadata: true, stripAnnotations: false, stripBookmarks: false,
-    stripEmbedded: false, stripJS: false, linearize: true, deduplicate: false,
+    stripEmbedded: false, stripJS: false,
   },
   Print: {
-    dpiMode: 'custom', targetDpi: 200, jpegQuality: 80, grayscale: false,
-    subsetFonts: true, removeUnusedFonts: false,
+    dpiMode: true, targetDpi: 200, jpegQuality: 80, grayscale: false,
     stripMetadata: false, stripAnnotations: false, stripBookmarks: false,
-    stripEmbedded: false, stripJS: false, linearize: false, deduplicate: false,
+    stripEmbedded: false, stripJS: false,
   },
   Archive: {
-    dpiMode: 'auto', targetDpi: 150, jpegQuality: 70, grayscale: false,
-    subsetFonts: false, removeUnusedFonts: false,
+    dpiMode: false, targetDpi: 150, jpegQuality: 70, grayscale: false,
     stripMetadata: false, stripAnnotations: false, stripBookmarks: false,
-    stripEmbedded: false, stripJS: false, linearize: false, deduplicate: false,
+    stripEmbedded: false, stripJS: false,
   },
   Maximum: {
-    dpiMode: 'custom', targetDpi: 72, jpegQuality: 40, grayscale: true,
-    subsetFonts: true, removeUnusedFonts: true,
+    dpiMode: true, targetDpi: 72, jpegQuality: 40, grayscale: true,
     stripMetadata: true, stripAnnotations: true, stripBookmarks: true,
-    stripEmbedded: true, stripJS: true, linearize: false, deduplicate: true,
+    stripEmbedded: true, stripJS: true,
   },
 }
 
