@@ -126,6 +126,11 @@ function buildDefaultOptions(config: ToolConfig): ToolOptions {
     if (opt.type === 'section-header') continue
     opts[opt.name] = opt.default
   }
+  for (const opt of config.advancedOptions ?? []) {
+    if (opt.type !== 'section-header') {
+      opts[opt.name] = opt.default
+    }
+  }
   return opts
 }
 
@@ -139,6 +144,12 @@ export function ToolShell({ config, embedded = false, onResults }: ToolShellProp
   })
   const [options, setOptions] = useState<ToolOptions>(() => buildDefaultOptions(config))
   const [fileWarning, setFileWarning] = useState<string | null>(null)
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+
+  const handlePresetApply = useCallback((values: ToolOptions) => {
+    setOptions(prev => ({ ...prev, ...values }))
+    setAdvancedOpen(true)
+  }, [])
 
   // Batch progress updates via RAF to avoid flooding React
   const pendingProgress = useRef<Array<[number, number]>>([])
@@ -269,6 +280,14 @@ export function ToolShell({ config, embedded = false, onResults }: ToolShellProp
               totalBytes={totalBytes}
             />
 
+            {config.previewPanel && (
+              <config.previewPanel
+                files={entries.map(e => e.file)}
+                results={[]}
+                options={options}
+              />
+            )}
+
             {fileWarning && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
                 {fileWarning}
@@ -281,6 +300,33 @@ export function ToolShell({ config, embedded = false, onResults }: ToolShellProp
                 values={options}
                 onChange={handleOptionChange}
               />
+            )}
+
+            {(config.presetBar || (config.advancedOptions && config.advancedOptions.length > 0)) && (
+              <div className="space-y-2">
+                {config.presetBar && (
+                  <config.presetBar onApply={handlePresetApply} />
+                )}
+                {config.advancedOptions && config.advancedOptions.length > 0 && (
+                  <details
+                    open={advancedOpen}
+                    onToggle={(e) => setAdvancedOpen(e.currentTarget.open)}
+                    className="rounded-lg border border-border"
+                  >
+                    <summary className="flex cursor-pointer select-none items-center gap-1 px-4 py-3 text-sm font-medium text-fg hover:text-fg transition-colors list-none">
+                      <span className="mr-1 text-fg-subtle">{advancedOpen ? '▾' : '▸'}</span>
+                      Advanced settings
+                    </summary>
+                    <div className="border-t border-border px-4 pb-4 pt-4">
+                      <OptionsPanel
+                        options={config.advancedOptions}
+                        values={options}
+                        onChange={handleOptionChange}
+                      />
+                    </div>
+                  </details>
+                )}
+              </div>
             )}
 
             <div className="flex items-center justify-between gap-3">
@@ -313,12 +359,28 @@ export function ToolShell({ config, embedded = false, onResults }: ToolShellProp
 
         {/* Converting */}
         {phase === 'converting' && (
-          <ProgressList entries={entries} announcement={announcement} />
+          <div className="space-y-4">
+            {config.previewPanel && (
+              <config.previewPanel
+                files={entries.map(e => e.file)}
+                results={[]}
+                options={options}
+              />
+            )}
+            <ProgressList entries={entries} announcement={announcement} />
+          </div>
         )}
 
         {/* Done */}
         {phase === 'done' && (
           <div className="space-y-6">
+            {config.previewPanel && (
+              <config.previewPanel
+                files={entries.map(e => e.file)}
+                results={entries.map(e => e.result ?? null)}
+                options={options}
+              />
+            )}
             <ResultList entries={entries} zipName={zipName} />
             <div className="border-t border-border pt-4">
               <button
