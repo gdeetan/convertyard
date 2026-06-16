@@ -116,7 +116,10 @@ export default function FillPdfFormPage() {
           ) : (
             <div className="space-y-5 mb-6 max-h-[600px] overflow-y-auto pr-1">
               {fields.map((field) => {
-                const label = field.name.length > 60 ? field.name.slice(0, 60) + '…' : field.name
+                // pdf-lib sometimes returns "undefined.FieldName" for fields whose
+                // AcroForm parent lacks a /T entry — strip those segments for display
+                const cleanName = field.name.split('.').filter(s => s && s !== 'undefined').join('.') || field.name
+                const label = cleanName.length > 60 ? cleanName.slice(0, 60) + '…' : cleanName
                 return (
                   <div key={field.name} className="flex flex-col gap-1.5">
                     <label className="text-sm font-medium text-gray-700" title={field.name}>

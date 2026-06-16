@@ -915,7 +915,10 @@ export async function getPdfFormFields(file: File): Promise<FormField[]> {
   const fields: FormField[] = []
   for (const field of rawFields) {
     const name = field.getName()
-    if (!name) continue
+    // pdf-lib bug: when AcroForm parent nodes lack a /T entry, getName() returns
+    // strings like "undefined.FieldName" via JS string coercion. Skip fields
+    // where every segment is "undefined" — they have no usable identity.
+    if (!name || name.split('.').every(s => !s || s === 'undefined')) continue
 
     if (field instanceof PDFTextField) {
       fields.push({ name, type: 'text', defaultValue: field.getText() ?? '' })
