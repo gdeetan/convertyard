@@ -28,7 +28,6 @@ export function CompressPdfPreviewPanel({
       <CompressionPreview
         files={files}
         results={results}
-        options={options}
         selectedIndex={safeIndex}
         onSelectIndex={setSelectedIndex}
       />

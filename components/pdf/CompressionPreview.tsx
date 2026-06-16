@@ -5,12 +5,10 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { ComparisonSlider } from '@/components/ui/ComparisonSlider'
 import { renderPagePng } from '@/lib/converters/mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
-import type { ToolOptions } from '@/lib/types'
 
 interface CompressionPreviewProps {
   files: File[]
   results: (File | null)[]
-  options: ToolOptions
   selectedIndex: number
   onSelectIndex: (i: number) => void
 }

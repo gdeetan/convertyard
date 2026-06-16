@@ -17,12 +17,14 @@ export function PdfAnalyzerPanel({ file, options }: PdfAnalyzerPanelProps) {
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     setLoading(true)
     setAnalysis(null)
     analyzePdf(file)
-      .then(setAnalysis)
+      .then(result => { if (!cancelled) setAnalysis(result) })
       .catch(() => {})
-      .finally(() => setLoading(false))
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [file])
 
   if (loading) {
