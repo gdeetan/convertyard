@@ -33,6 +33,11 @@ export function ComparisonSlider({ left, right, className }: ComparisonSliderPro
 
   const onPointerUp = useCallback(() => { dragging.current = false }, [])
 
+  const onKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowLeft') setPosition(p => Math.max(0.05, p - 0.05))
+    if (e.key === 'ArrowRight') setPosition(p => Math.min(0.95, p + 0.05))
+  }, [])
+
   return (
     <div
       ref={containerRef}
@@ -67,10 +72,7 @@ export function ComparisonSlider({ left, right, className }: ComparisonSliderPro
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onKeyDown={(e) => {
-          if (e.key === 'ArrowLeft') setPosition(p => Math.max(0.05, p - 0.05))
-          if (e.key === 'ArrowRight') setPosition(p => Math.min(0.95, p + 0.05))
-        }}
+        onKeyDown={onKeyDown}
       >
         <div className="h-full w-0.5 bg-white/80 shadow-sm" />
         <div className="absolute flex h-7 w-7 items-center justify-center rounded-full bg-white shadow-md text-xs font-bold text-fg">

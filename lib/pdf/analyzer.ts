@@ -20,13 +20,11 @@ export interface PdfAnalysis {
   hasEmbeddedFiles: boolean
 }
 
-// Exported for testing.
 // Subsetted fonts in PDFs have a 6-char uppercase prefix + "+" e.g. "ABCDEF+Arial"
 export function isSubsettedFont(name: string): boolean {
   return /^[A-Z]{6}\+/.test(name)
 }
 
-// Exported for testing.
 // Estimates avg DPI from image byte count vs page size.
 // Uses JPEG rule of thumb: ~3 bytes/pixel
 export function estimateAvgDpi(
@@ -89,14 +87,15 @@ export async function analyzePdf(file: File): Promise<PdfAnalysis> {
     pageSizes.length
       ? pageSizes.reduce((s, p) => s + p.width, 0) / pageSizes.length
       : 595
+  const avgDpi = estimateAvgDpi(imageCount, estimatedImageBytes, avgPageWidthPt)
 
   return {
     pageCount: pageSizes.length,
     images: {
       count: imageCount,
       totalEstimatedBytes: estimatedImageBytes,
-      avgDpi: estimateAvgDpi(imageCount, estimatedImageBytes, avgPageWidthPt),
-      highDpiCount: estimateAvgDpi(imageCount, estimatedImageBytes, avgPageWidthPt) > 150 ? imageCount : 0,
+      avgDpi,
+      highDpiCount: avgDpi > 150 ? imageCount : 0,
     },
     fonts: {
       count: fontNames.size,
