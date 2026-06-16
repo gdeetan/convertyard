@@ -262,7 +262,8 @@ export async function compressPdfToTargetSize(
       // (better too-small than never reaching the target at all).
       if (prevBest.size > targetBytes) {
         // Nothing has hit the target yet — the over-compressed result is the
-        // smallest we can do. Return it rather than something still above target.
+        // smallest we can do. The file IS below the target, so reachedTarget=true;
+        // we just couldn't stay within the preferred floor.
         onProgress?.(100)
         return {
           file: candidate,
@@ -270,11 +271,10 @@ export async function compressPdfToTargetSize(
             originalBytes,
             targetBytes,
             achievedBytes: candidate.size,
-            reachedTarget: false,
+            reachedTarget: true,
             isUnchanged: false,
             iterationsUsed,
             appliedSettings: steps[i].label,
-            message: `Couldn't reach ${formatBytes(targetBytes)} — smallest possible is ${formatBytes(candidate.size)}`,
           },
         }
       }
