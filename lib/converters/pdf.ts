@@ -205,12 +205,13 @@ export async function compressPdfToTargetSize(
   // regardless of PDF content type (text, vector, scanned images).
   // Graduated DPI steps prevent jumping past the target into the over-compression floor.
   const steps: Array<{ label: string; produce: () => Promise<File> }> = [
-    { label: 'structural compression',        produce: () => compressStructural(inputBuffer, 'high', input.name) },
-    { label: 'JPEG re-encode quality 60',     produce: () => recompressImages(inputBuffer, 60, input.name) },
-    { label: 'rasterize 200 DPI quality 80',  produce: () => rasterizeForTarget(inputBuffer, input.name, 200, 80) },
-    { label: 'rasterize 150 DPI quality 75',  produce: () => rasterizeForTarget(inputBuffer, input.name, 150, 75) },
-    { label: 'rasterize 100 DPI quality 65',  produce: () => rasterizeForTarget(inputBuffer, input.name, 100, 65) },
-    { label: 'rasterize 72 DPI quality 50',   produce: () => rasterizeForTarget(inputBuffer, input.name, 72, 50) },
+    { label: 'structural compression',           produce: () => compressStructural(inputBuffer, 'high', input.name) },
+    { label: 'JPEG re-encode quality 60',        produce: () => recompressImages(inputBuffer, 60, input.name) },
+    { label: 'rasterize 200 DPI quality 80',     produce: () => rasterizeForTarget(inputBuffer, input.name, 200, 80) },
+    { label: 'rasterize 150 DPI quality 75',     produce: () => rasterizeForTarget(inputBuffer, input.name, 150, 75) },
+    { label: 'rasterize 100 DPI quality 65',     produce: () => rasterizeForTarget(inputBuffer, input.name, 100, 65) },
+    { label: 'rasterize 72 DPI quality 40',      produce: () => rasterizeForTarget(inputBuffer, input.name, 72, 40) },
+    { label: 'rasterize grayscale 72 DPI q 35',  produce: () => rasterizeGrayscaleForTarget(inputBuffer, input.name, 72, 35) },
   ]
 
   // prevBest: smallest result still above target (to step back to if we over-compress)
