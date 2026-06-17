@@ -4,52 +4,88 @@ import type { PdfAnalysis } from '../analyzer'
 
 const baseAnalysis: PdfAnalysis = {
   pageCount: 5,
-  images: { count: 10, totalEstimatedBytes: 5_000_000, avgDpi: 300, highDpiCount: 10 },
-  fonts: { count: 4, unsubsettedCount: 2, estimatedBytes: 120_000 },
+  fileSize: 10_000_000,
+  pdfVersion: '1.7',
+  isLinearized: false,
+  images: {
+    count: 10,
+    totalEstimatedBytes: 5_000_000,
+    avgDpi: 300,
+    highDpiCount: 10,
+    byColorSpace: { color: 8, grayscale: 2, monochrome: 0 },
+  },
+  fonts: {
+    count: 4,
+    unsubsettedCount: 2,
+    estimatedBytes: 120_000,
+    fontsList: [
+      { name: 'Arial', isSubset: false },
+      { name: 'ABCDEF+Times', isSubset: true },
+    ],
+  },
   hasMetadata: true,
   hasAnnotations: false,
+  annotationCount: 0,
   hasBookmarks: false,
   hasJS: false,
   hasEmbeddedFiles: false,
+  formFieldCount: 0,
 }
 
 describe('estimateSavings', () => {
-  it('returns estimates sorted by estimatedBytes descending', () => {
-    const results = estimateSavings(baseAnalysis, { stripMetadata: true })
-    const bytes = results.map(r => r.estimatedBytes)
-    expect(bytes).toEqual([...bytes].sort((a, b) => b - a))
+  it('total estimated savings does not exceed fileSize', () => {
+    const result = estimateSavings(baseAnalysis, {})
+    expect(result.estimatedSavingsBytes).toBeLessThanOrEqual(baseAnalysis.fileSize)
   })
 
-  it('marks downsample as enabled when image avgDpi > 150', () => {
-    const results = estimateSavings(baseAnalysis, {})
-    const downsample = results.find(r => r.technique.includes('Downsample'))
-    expect(downsample).toBeDefined()
-    expect(downsample!.enabled).toBe(true)
+  it('estimatedFinalSize + estimatedSavingsBytes equals fileSize', () => {
+    const result = estimateSavings(baseAnalysis, {})
+    expect(result.estimatedFinalSize + result.estimatedSavingsBytes).toBe(baseAnalysis.fileSize)
   })
 
-  it('marks metadata strip as disabled when stripMetadata is false', () => {
-    const results = estimateSavings(baseAnalysis, { stripMetadata: false })
-    const meta = results.find(r => r.technique.includes('metadata'))
-    expect(meta).toBeDefined()
-    expect(meta!.enabled).toBe(false)
+  it('imageDownsampling savings > 0 when avgDpi > 150', () => {
+    const result = estimateSavings(baseAnalysis, {})
+    expect(result.perTechnique.imageDownsampling.savingsBytes).toBeGreaterThan(0)
   })
 
-  it('includes grayscale estimate only when grayscale option is true', () => {
-    const without = estimateSavings(baseAnalysis, { grayscale: false })
-    const with_ = estimateSavings(baseAnalysis, { grayscale: true })
-    expect(without.find(r => r.technique.includes('grayscale'))).toBeUndefined()
-    expect(with_.find(r => r.technique.includes('grayscale'))).toBeDefined()
-  })
-
-  it('returns empty array for text-only PDF with no extras', () => {
-    const textOnly: PdfAnalysis = {
+  it('imageDownsampling savings is 0 when avgDpi <= 150', () => {
+    const lowDpi = {
       ...baseAnalysis,
-      images: { count: 0, totalEstimatedBytes: 0, avgDpi: 0, highDpiCount: 0 },
-      fonts: { count: 2, unsubsettedCount: 0, estimatedBytes: 0 },
-      hasMetadata: false,
-      hasAnnotations: false,
+      images: { ...baseAnalysis.images, avgDpi: 72, highDpiCount: 0 },
     }
-    const results = estimateSavings(textOnly, {})
-    expect(results.length).toBe(0)
+    const result = estimateSavings(lowDpi, {})
+    expect(result.perTechnique.imageDownsampling.savingsBytes).toBe(0)
+  })
+
+  it('grayscaleConversion savings > 0 when grayscale is true', () => {
+    const result = estimateSavings(baseAnalysis, { grayscale: true })
+    expect(result.perTechnique.grayscaleConversion.savingsBytes).toBeGreaterThan(0)
+  })
+
+  it('grayscaleConversion savings is 0 when grayscale is false', () => {
+    const result = estimateSavings(baseAnalysis, { grayscale: false })
+    expect(result.perTechnique.grayscaleConversion.savingsBytes).toBe(0)
+  })
+
+  it('fontSubsetting savings > 0 when unsubsetted fonts exist', () => {
+    const result = estimateSavings(baseAnalysis, { subsetFonts: true })
+    expect(result.perTechnique.fontSubsetting.savingsBytes).toBeGreaterThan(0)
+  })
+
+  it('fontSubsetting savings is 0 when all fonts are subsetted', () => {
+    const allSubset = { ...baseAnalysis, fonts: { ...baseAnalysis.fonts, unsubsettedCount: 0 } }
+    const result = estimateSavings(allSubset, { subsetFonts: true })
+    expect(result.perTechnique.fontSubsetting.savingsBytes).toBe(0)
+  })
+
+  it('estimatedSavingsPercent is 0 for fileSize 0', () => {
+    const zeroSize = { ...baseAnalysis, fileSize: 0, images: { ...baseAnalysis.images, count: 0, totalEstimatedBytes: 0 } }
+    const result = estimateSavings(zeroSize, {})
+    expect(result.estimatedSavingsPercent).toBe(0)
+  })
+
+  it('contentStreamOptimization savings is always > 0 for non-zero files', () => {
+    const result = estimateSavings(baseAnalysis, {})
+    expect(result.perTechnique.contentStreamOptimization.savingsBytes).toBeGreaterThan(0)
   })
 })

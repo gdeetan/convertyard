@@ -1,7 +1,7 @@
 import { Check, X, Minus } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 
-type CellValue = 'yes' | 'no' | 'pro' | 'limited'
+type CellValue = 'yes' | 'no' | 'pro' | 'limited' | 'never' | 'always'
 
 interface Row {
   feature: string
@@ -13,15 +13,19 @@ interface Row {
 }
 
 const rows: Row[] = [
-  { feature: 'Target file size (KB-level)',         convertyard: 'yes',     adobeFree: 'no',      adobePro: 'yes',  ilovepdf: 'no',      smallpdf: 'no'      },
-  { feature: 'Visual before/after preview',         convertyard: 'yes',     adobeFree: 'no',      adobePro: 'pro',  ilovepdf: 'no',      smallpdf: 'no'      },
-  { feature: "File analyzer (what's bloating it)",  convertyard: 'yes',     adobeFree: 'no',      adobePro: 'no',   ilovepdf: 'no',      smallpdf: 'no'      },
-  { feature: 'Custom DPI control',                  convertyard: 'yes',     adobeFree: 'no',      adobePro: 'yes',  ilovepdf: 'no',      smallpdf: 'no'      },
-  { feature: 'Font subsetting',                     convertyard: 'yes',     adobeFree: 'no',      adobePro: 'yes',  ilovepdf: 'no',      smallpdf: 'no'      },
-  { feature: 'Content stripping (metadata, JS)',    convertyard: 'yes',     adobeFree: 'limited', adobePro: 'yes',  ilovepdf: 'limited', smallpdf: 'limited' },
-  { feature: 'Batch (1,000+ files)',                convertyard: 'yes',     adobeFree: 'no',      adobePro: 'yes',  ilovepdf: 'limited', smallpdf: 'limited' },
-  { feature: 'Files stay in your browser',          convertyard: 'yes',     adobeFree: 'no',      adobePro: 'no',   ilovepdf: 'no',      smallpdf: 'no'      },
-  { feature: 'Free, no account required',           convertyard: 'yes',     adobeFree: 'limited', adobePro: 'no',   ilovepdf: 'limited', smallpdf: 'limited' },
+  { feature: 'Exact KB / MB target size',             convertyard: 'yes',   adobeFree: 'no',      adobePro: 'no',      ilovepdf: 'no',      smallpdf: 'no'      },
+  { feature: 'Visual before/after preview',            convertyard: 'yes',   adobeFree: 'no',      adobePro: 'no',      ilovepdf: 'no',      smallpdf: 'no'      },
+  { feature: "File analyzer (what's bloating it)",     convertyard: 'yes',   adobeFree: 'no',      adobePro: 'no',      ilovepdf: 'no',      smallpdf: 'no'      },
+  { feature: 'Custom DPI control',                     convertyard: 'yes',   adobeFree: 'no',      adobePro: 'yes',     ilovepdf: 'no',      smallpdf: 'no'      },
+  { feature: 'Per-image-type quality',                 convertyard: 'yes',   adobeFree: 'no',      adobePro: 'yes',     ilovepdf: 'no',      smallpdf: 'no'      },
+  { feature: 'Grayscale conversion',                   convertyard: 'yes',   adobeFree: 'no',      adobePro: 'yes',     ilovepdf: 'no',      smallpdf: 'no'      },
+  { feature: 'Font subsetting',                        convertyard: 'yes',   adobeFree: 'no',      adobePro: 'yes',     ilovepdf: 'no',      smallpdf: 'no'      },
+  { feature: 'Strip annotations / forms / embeds',     convertyard: 'yes',   adobeFree: 'no',      adobePro: 'yes',     ilovepdf: 'no',      smallpdf: 'no'      },
+  { feature: 'Linearize for fast web view',            convertyard: 'yes',   adobeFree: 'no',      adobePro: 'yes',     ilovepdf: 'no',      smallpdf: 'no'      },
+  { feature: 'Batch 1,000+ files',                     convertyard: 'yes',   adobeFree: 'no',      adobePro: 'no',      ilovepdf: 'limited', smallpdf: 'no'      },
+  { feature: 'Files uploaded to server',               convertyard: 'never', adobeFree: 'always',  adobePro: 'always',  ilovepdf: 'always',  smallpdf: 'always'  },
+  { feature: 'Works offline after first load',         convertyard: 'yes',   adobeFree: 'no',      adobePro: 'no',      ilovepdf: 'no',      smallpdf: 'no'      },
+  { feature: 'Free, no account required',              convertyard: 'yes',   adobeFree: 'limited', adobePro: 'no',      ilovepdf: 'limited', smallpdf: 'limited' },
 ]
 
 function Cell({ value, highlight }: { value: CellValue; highlight?: boolean }) {
@@ -39,6 +43,16 @@ function Cell({ value, highlight }: { value: CellValue; highlight?: boolean }) {
   if (value === 'pro') return (
     <div className={cn(base, 'text-xs font-medium text-fg-muted', highlight && 'bg-primary/5')}>
       Pro only
+    </div>
+  )
+  if (value === 'never') return (
+    <div className={cn(base, 'text-xs font-semibold text-green-600 dark:text-green-400', highlight && 'bg-primary/5')}>
+      Never
+    </div>
+  )
+  if (value === 'always') return (
+    <div className={cn(base, 'text-xs font-medium text-fg-muted', highlight && 'bg-primary/5')}>
+      Always
     </div>
   )
   return (
