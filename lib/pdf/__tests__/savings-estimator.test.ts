@@ -4,13 +4,32 @@ import type { PdfAnalysis } from '../analyzer'
 
 const baseAnalysis: PdfAnalysis = {
   pageCount: 5,
-  images: { count: 10, totalEstimatedBytes: 5_000_000, avgDpi: 300, highDpiCount: 10 },
-  fonts: { count: 4, unsubsettedCount: 2, estimatedBytes: 120_000 },
+  fileSize: 6_000_000,
+  pdfVersion: '1.7',
+  isLinearized: false,
+  images: {
+    count: 10,
+    totalEstimatedBytes: 5_000_000,
+    avgDpi: 300,
+    highDpiCount: 10,
+    byColorSpace: { color: 8, grayscale: 2, monochrome: 0 },
+  },
+  fonts: {
+    count: 4,
+    unsubsettedCount: 2,
+    estimatedBytes: 120_000,
+    fontsList: [
+      { name: 'Arial', isSubset: false },
+      { name: 'ABCDEF+TimesNewRoman', isSubset: true },
+    ],
+  },
   hasMetadata: true,
   hasAnnotations: false,
+  annotationCount: 0,
   hasBookmarks: false,
   hasJS: false,
   hasEmbeddedFiles: false,
+  formFieldCount: 0,
 }
 
 describe('estimateSavings', () => {
@@ -44,8 +63,8 @@ describe('estimateSavings', () => {
   it('returns empty array for text-only PDF with no extras', () => {
     const textOnly: PdfAnalysis = {
       ...baseAnalysis,
-      images: { count: 0, totalEstimatedBytes: 0, avgDpi: 0, highDpiCount: 0 },
-      fonts: { count: 2, unsubsettedCount: 0, estimatedBytes: 0 },
+      images: { count: 0, totalEstimatedBytes: 0, avgDpi: 0, highDpiCount: 0, byColorSpace: { color: 0, grayscale: 0, monochrome: 0 } },
+      fonts: { count: 2, unsubsettedCount: 0, estimatedBytes: 0, fontsList: [] },
       hasMetadata: false,
       hasAnnotations: false,
     }
