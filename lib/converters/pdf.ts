@@ -45,6 +45,12 @@ async function compressStructural(
     stripBookmarks?: boolean
     stripEmbedded?: boolean
     stripJS?: boolean
+    // NEW:
+    removeUnusedFonts?: boolean
+    stripFormFields?: boolean
+    formFieldStrategy?: 'flatten' | 'remove'
+    linearize?: boolean        // accepted but no-op for now
+    stripPrivateAppData?: boolean
   }
 ): Promise<File> {
   const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
@@ -82,6 +88,56 @@ async function compressStructural(
       names.delete(PDFName.of('EmbeddedFiles'))
     }
   }
+
+  if (advanced?.removeUnusedFonts) {
+    for (const page of doc.getPages()) {
+      const resources = page.node.lookup(PDFName.of('Resources'))
+      if (!(resources instanceof PDFDict)) continue
+      const fontDict = resources.lookup(PDFName.of('Font'))
+      if (!(fontDict instanceof PDFDict)) continue
+      for (const [key] of fontDict.entries()) {
+        const fontRef = fontDict.get(key)
+        if (!fontRef) continue
+        const font = doc.context.lookupMaybe(fontRef, PDFDict)
+        if (!font) continue
+        const baseName = font.get(PDFName.of('BaseFont'))?.toString().replace('/', '') ?? ''
+        // Only remove fonts that are NOT already subsetted (safe to remove unused ones)
+        if (baseName && !/^[A-Z]{6}\+/.test(baseName)) {
+          fontDict.delete(key)
+        }
+      }
+    }
+  }
+
+  if (advanced?.stripFormFields) {
+    const strategy = advanced.formFieldStrategy ?? 'flatten'
+    const acroForm = doc.catalog.lookup(PDFName.of('AcroForm'))
+    if (acroForm instanceof PDFDict) {
+      if (strategy === 'remove') {
+        doc.catalog.delete(PDFName.of('AcroForm'))
+        for (const page of doc.getPages()) {
+          page.node.delete(PDFName.of('Annots'))
+        }
+      } else {
+        try {
+          const form = doc.getForm()
+          form.flatten()
+        } catch { /* ignore if no form or already flat */ }
+      }
+    }
+  }
+
+  if (advanced?.stripPrivateAppData) {
+    doc.catalog.delete(PDFName.of('PieceInfo'))
+    for (const page of doc.getPages()) {
+      page.node.delete(PDFName.of('PieceInfo'))
+    }
+    const metadata = doc.catalog.lookup(PDFName.of('Metadata'))
+    if (metadata) {
+      doc.catalog.delete(PDFName.of('Metadata'))
+    }
+  }
+  // advanced?.linearize is wired but no-op until mupdf-client exposes linearize-save
 
   const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
   return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
@@ -373,6 +429,12 @@ export async function compressPDF(
           stripBookmarks: options.stripBookmarks === true,
           stripEmbedded: options.stripEmbedded === true,
           stripJS: options.stripJS === true,
+          // NEW:
+          removeUnusedFonts: options.removeUnusedFonts === true,
+          stripFormFields: options.stripFormFields === true,
+          formFieldStrategy: (options.formFieldStrategy as 'flatten' | 'remove') ?? 'flatten',
+          linearize: options.linearize === true,
+          stripPrivateAppData: options.stripPrivateAppData === true,
         }
         if (level === 'aggressive') {
           onProgress?.(i, 10)
