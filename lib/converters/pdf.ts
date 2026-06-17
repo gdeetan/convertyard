@@ -95,17 +95,17 @@ async function compressStructural(
       if (!(resources instanceof PDFDict)) continue
       const fontDict = resources.lookup(PDFName.of('Font'))
       if (!(fontDict instanceof PDFDict)) continue
+      const toDelete: PDFName[] = []
       for (const [key] of fontDict.entries()) {
         const fontRef = fontDict.get(key)
         if (!fontRef) continue
         const font = doc.context.lookupMaybe(fontRef, PDFDict)
         if (!font) continue
-        const baseName = font.get(PDFName.of('BaseFont'))?.toString().replace('/', '') ?? ''
-        // Only remove fonts that are NOT already subsetted (safe to remove unused ones)
-        if (baseName && !/^[A-Z]{6}\+/.test(baseName)) {
-          fontDict.delete(key)
-        }
+        const baseFont = font.get(PDFName.of('BaseFont'))?.toString().replace('/', '') ?? ''
+        // Remove non-subsetted fonts (no 6-uppercase-char prefix); subsetted fonts are kept
+        if (baseFont && !/^[A-Z]{6}\+/.test(baseFont)) toDelete.push(key)
       }
+      for (const key of toDelete) fontDict.delete(key)
     }
   }
 
