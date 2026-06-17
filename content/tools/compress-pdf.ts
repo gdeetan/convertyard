@@ -141,7 +141,7 @@ export const config: ToolConfig = {
       type: 'toggle' as const,
       name: 'subsetFonts',
       label: 'Subset embedded fonts',
-      hint: 'Keep only the characters actually used in the document — reduces font file size significantly.',
+      hint: 'Improves savings estimate for documents with unsubsetted fonts. Full glyph-level subsetting requires a native PDF tool.',
       default: true,
     },
     {

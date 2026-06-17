@@ -43,10 +43,13 @@ export function CompressionPreview({
   }, [currentFile])
 
   useEffect(() => {
-    if (!currentFile || currentFile === prevFileRef.current) return
-    prevFileRef.current = currentFile
-    prevResultRef.current = null
-    setCompressedUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null })
+    if (!currentFile) return
+    const fileChanged = currentFile !== prevFileRef.current
+    if (fileChanged) {
+      prevFileRef.current = currentFile
+      prevResultRef.current = null
+      setCompressedUrl(prev => { if (prev) URL.revokeObjectURL(prev); return null })
+    }
     setRenderState('rendering-original')
 
     let cancelled = false
@@ -57,7 +60,7 @@ export function CompressionPreview({
         if (cancelled) return
         const blob = new Blob([pngBuffer], { type: 'image/png' })
         setOriginalUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
-        setRenderState('ready-original')
+        setRenderState(currentResult || prevResultRef.current ? 'ready-both' : 'ready-original')
       } catch {
         if (!cancelled) setRenderState('idle')
       }
@@ -67,7 +70,7 @@ export function CompressionPreview({
   }, [currentFile, selectedPage])
 
   useEffect(() => {
-    if (!currentResult || currentResult === prevResultRef.current) return
+    if (!currentResult) return
     prevResultRef.current = currentResult
     setRenderState('rendering-compressed')
 
@@ -145,7 +148,7 @@ export function CompressionPreview({
 
       <div
         className="overflow-hidden rounded-lg border border-border bg-bg-muted"
-        style={{ aspectRatio: '4/3', maxHeight: '320px' }}
+        style={{ aspectRatio: '3/4', maxHeight: '480px' }}
       >
         {renderState === 'idle' || renderState === 'rendering-original' ? (
           <div className="flex h-full items-center justify-center text-sm text-fg-subtle">

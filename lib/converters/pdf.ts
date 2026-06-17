@@ -447,7 +447,17 @@ export async function compressPDF(
         } else {
           onProgress?.(i, 10)
           const buffer = await files[i].arrayBuffer()
-          const file = await compressStructural(buffer, level, files[i].name, advancedStrip)
+          let file = await compressStructural(buffer, level, files[i].name, advancedStrip)
+          onProgress?.(i, 50)
+
+          if (grayscale) {
+            const structBuf = await file.arrayBuffer()
+            file = await rasterizeGrayscaleForTarget(structBuf, files[i].name, targetDpi, jpegQuality)
+          } else if (jpegQuality < 80) {
+            const structBuf = await file.arrayBuffer()
+            file = await recompressImages(structBuf, jpegQuality, files[i].name)
+          }
+
           onProgress?.(i, 100)
           results.push(file)
         }
