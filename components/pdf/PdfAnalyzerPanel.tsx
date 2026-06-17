@@ -38,15 +38,23 @@ export function PdfAnalyzerPanel({ file, options }: PdfAnalyzerPanelProps) {
   if (!analysis) return null
 
   const savings = estimateSavings(analysis, options)
-  const topSavings = savings.filter(s => s.estimatedBytes > 0).slice(0, 3)
-  const totalPotential = savings.reduce((s, e) => s + e.estimatedBytes, 0)
+  const techniques = Object.entries(savings.perTechnique)
+  const topSavings = techniques
+    .filter(([, t]) => t.savingsBytes > 0)
+    .sort(([, a], [, b]) => b.savingsBytes - a.savingsBytes)
+    .slice(0, 3)
+
+  const { color, grayscale, monochrome } = analysis.images.byColorSpace
 
   const tags = [
     analysis.hasMetadata && 'metadata',
-    analysis.hasAnnotations && 'annotations',
+    analysis.hasAnnotations &&
+      `${analysis.annotationCount > 0 ? analysis.annotationCount + ' ' : ''}annotation${analysis.annotationCount !== 1 ? 's' : ''}`,
     analysis.hasBookmarks && 'bookmarks',
     analysis.hasJS && 'JavaScript',
     analysis.hasEmbeddedFiles && 'embedded files',
+    analysis.formFieldCount > 0 &&
+      `${analysis.formFieldCount} form field${analysis.formFieldCount !== 1 ? 's' : ''}`,
   ].filter(Boolean) as string[]
 
   return (
@@ -54,21 +62,34 @@ export function PdfAnalyzerPanel({ file, options }: PdfAnalyzerPanelProps) {
       <div className="flex items-center gap-2 text-sm font-semibold text-fg">
         <Search className="h-4 w-4 text-primary" aria-hidden="true" />
         File analysis
+        {analysis.pdfVersion && (
+          <span className="ml-auto text-xs font-normal text-fg-muted">PDF {analysis.pdfVersion}</span>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-fg-muted sm:grid-cols-4">
         <div>
           <span className="font-medium text-fg">{analysis.images.count}</span> images
+          {(color > 0 || grayscale > 0 || monochrome > 0) && (
+            <span className="block text-fg-subtle">
+              {[
+                color > 0 && `${color} color`,
+                grayscale > 0 && `${grayscale} gray`,
+                monochrome > 0 && `${monochrome} mono`,
+              ].filter(Boolean).join(', ')}
+            </span>
+          )}
         </div>
         <div>
-          <span className="font-medium text-fg">{formatBytes(analysis.images.totalEstimatedBytes)}</span> image data
+          <span className="font-medium text-fg">{formatBytes(analysis.images.totalEstimatedBytes)}</span>{' '}
+          image data
         </div>
         <div>
           <span className="font-medium text-fg">{analysis.images.avgDpi || '—'}</span> avg DPI
         </div>
         <div>
-          <span className="font-medium text-fg">{analysis.fonts.count}</span> font
-          {analysis.fonts.count !== 1 ? 's' : ''}
+          <span className="font-medium text-fg">{analysis.fonts.count}</span>{' '}
+          font{analysis.fonts.count !== 1 ? 's' : ''}
           {analysis.fonts.unsubsettedCount > 0 && (
             <span className="text-amber-600 dark:text-amber-400">
               {' '}({analysis.fonts.unsubsettedCount} not subsetted)
@@ -95,15 +116,15 @@ export function PdfAnalyzerPanel({ file, options }: PdfAnalyzerPanelProps) {
           <p className="text-xs font-semibold uppercase tracking-wider text-fg-muted">
             Biggest opportunities{' '}
             <span className="font-normal normal-case text-fg">
-              ~{formatBytes(totalPotential)} potential
+              ~{formatBytes(savings.estimatedSavingsBytes)} potential ({savings.estimatedSavingsPercent}%)
             </span>
           </p>
-          {topSavings.map(s => (
-            <div key={s.technique} className="flex items-center justify-between text-xs">
-              <span className={s.enabled ? 'text-fg' : 'text-fg-muted line-through'}>
-                {s.technique}
+          {topSavings.map(([key, t]) => (
+            <div key={key} className="flex items-center justify-between text-xs">
+              <span className="text-fg">{t.explanation}</span>
+              <span className="tabular-nums text-fg-muted ml-4 shrink-0">
+                ~{formatBytes(t.savingsBytes)}
               </span>
-              <span className="tabular-nums text-fg-muted">~{formatBytes(s.estimatedBytes)}</span>
             </div>
           ))}
         </div>
