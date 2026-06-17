@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react'
 import { ComparisonSlider } from '@/components/ui/ComparisonSlider'
 import { renderPagePng, getPageCount } from '@/lib/converters/mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
@@ -15,6 +15,66 @@ interface CompressionPreviewProps {
 }
 
 type RenderState = 'idle' | 'rendering-original' | 'ready-original' | 'rendering-compressed' | 'ready-both'
+type ZoomLevel = 1 | 2 | 3
+
+const ZOOM_DPI: Record<ZoomLevel, number> = { 1: 96, 2: 192, 3: 288 }
+const CONTAINER_HEIGHT: Record<ZoomLevel, string> = {
+  1: 'h-[420px]',
+  2: 'h-[680px]',
+  3: 'h-[900px]',
+}
+
+function PagePicker({
+  current,
+  total,
+  onSelect,
+}: {
+  current: number
+  total: number
+  onSelect: (p: number) => void
+}) {
+  const btn = (i: number) => (
+    <button
+      key={i}
+      type="button"
+      onClick={() => onSelect(i)}
+      className={cn(
+        'min-w-[1.75rem] rounded px-1.5 py-0.5 transition-colors tabular-nums',
+        current === i
+          ? 'bg-primary/10 text-primary font-medium'
+          : 'hover:text-fg'
+      )}
+    >
+      {i + 1}
+    </button>
+  )
+
+  if (total <= 10) {
+    return <>{Array.from({ length: total }, (_, i) => btn(i))}</>
+  }
+
+  // Windowed: always show first, last, and ±2 around current
+  const visible = new Set(
+    [0, total - 1, current - 2, current - 1, current, current + 1, current + 2].filter(
+      p => p >= 0 && p < total
+    )
+  )
+  const sorted = [...visible].sort((a, b) => a - b)
+  const nodes: React.ReactNode[] = []
+  let prev = -1
+  for (const p of sorted) {
+    if (prev !== -1 && p > prev + 1) {
+      nodes.push(
+        <span key={`gap-${p}`} className="px-0.5 text-fg-subtle select-none">
+          …
+        </span>
+      )
+    }
+    nodes.push(btn(p))
+    prev = p
+  }
+  return <>{nodes}</>
+}
 
 export function CompressionPreview({
   files,
@@ -29,9 +89,11 @@ export function CompressionPreview({
   const prevResultRef = useRef<File | null>(null)
   const [selectedPage, setSelectedPage] = useState(0)
   const [pageCount, setPageCount] = useState(1)
+  const [zoom, setZoom] = useState<ZoomLevel>(1)
 
   const currentFile = files[selectedIndex]
   const currentResult = results[selectedIndex] ?? null
+  const renderDpi = ZOOM_DPI[zoom]
 
   useEffect(() => {
     if (!currentFile) return
@@ -40,6 +102,11 @@ export function CompressionPreview({
       getPageCount(buf).then(n => { if (!cancelled) setPageCount(n) }).catch(() => {})
     )
     return () => { cancelled = true }
+  }, [currentFile])
+
+  // Reset page when file changes
+  useEffect(() => {
+    setSelectedPage(0)
   }, [currentFile])
 
   useEffect(() => {
@@ -56,7 +123,7 @@ export function CompressionPreview({
     ;(async () => {
       try {
         const buffer = await currentFile.arrayBuffer()
-        const pngBuffer = await renderPagePng(buffer, selectedPage, 96)
+        const pngBuffer = await renderPagePng(buffer, selectedPage, renderDpi)
         if (cancelled) return
         const blob = new Blob([pngBuffer], { type: 'image/png' })
         setOriginalUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
@@ -67,7 +134,7 @@ export function CompressionPreview({
     })()
 
     return () => { cancelled = true }
-  }, [currentFile, selectedPage])
+  }, [currentFile, selectedPage, renderDpi])
 
   useEffect(() => {
     if (!currentResult) return
@@ -78,7 +145,7 @@ export function CompressionPreview({
     ;(async () => {
       try {
         const buffer = await currentResult.arrayBuffer()
-        const pngBuffer = await renderPagePng(buffer, selectedPage, 96)
+        const pngBuffer = await renderPagePng(buffer, selectedPage, renderDpi)
         if (cancelled) return
         const blob = new Blob([pngBuffer], { type: 'image/png' })
         setCompressedUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
@@ -89,7 +156,7 @@ export function CompressionPreview({
     })()
 
     return () => { cancelled = true }
-  }, [currentResult, selectedPage])
+  }, [currentResult, selectedPage, renderDpi])
 
   if (!currentFile) return null
 
@@ -98,6 +165,7 @@ export function CompressionPreview({
 
   return (
     <div className="space-y-2">
+      {/* File navigator */}
       {files.length > 1 && (
         <div className="flex items-center justify-center gap-2 text-sm text-fg-muted">
           <button
@@ -124,44 +192,64 @@ export function CompressionPreview({
         </div>
       )}
 
-      {pageCount > 1 && (
-        <div className="flex items-center justify-center gap-1 text-xs text-fg-muted">
-          <span className="mr-1">Page:</span>
-          {Array.from({ length: Math.min(3, pageCount) }, (_, i) => (
-            <button
-              key={i}
-              type="button"
-              onClick={() => setSelectedPage(i)}
-              className={cn(
-                'rounded px-2 py-0.5 transition-colors',
-                selectedPage === i
-                  ? 'bg-primary/10 text-primary font-medium'
-                  : 'hover:text-fg'
-              )}
-            >
-              {i + 1}
-            </button>
-          ))}
-          {pageCount > 3 && <span className="text-fg-subtle">…</span>}
+      {/* Page selector + zoom controls */}
+      <div className="flex items-center justify-between gap-2 text-xs text-fg-muted">
+        <div className="flex items-center gap-1 flex-wrap">
+          {pageCount > 1 && (
+            <>
+              <span className="mr-1 shrink-0">Page:</span>
+              <PagePicker
+                current={selectedPage}
+                total={pageCount}
+                onSelect={p => setSelectedPage(p)}
+              />
+            </>
+          )}
         </div>
-      )}
 
+        <div className="flex items-center gap-1 shrink-0">
+          <button
+            type="button"
+            aria-label="Zoom out"
+            onClick={() => setZoom(z => Math.max(1, z - 1) as ZoomLevel)}
+            disabled={zoom === 1}
+            className="rounded p-1 hover:bg-bg-muted transition-colors disabled:opacity-30"
+          >
+            <ZoomOut className="h-3.5 w-3.5" />
+          </button>
+          <span className="tabular-nums w-6 text-center">{zoom}×</span>
+          <button
+            type="button"
+            aria-label="Zoom in"
+            onClick={() => setZoom(z => Math.min(3, z + 1) as ZoomLevel)}
+            disabled={zoom === 3}
+            className="rounded p-1 hover:bg-bg-muted transition-colors disabled:opacity-30"
+          >
+            <ZoomIn className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Preview container */}
       <div
-        className="overflow-hidden rounded-lg border border-border bg-bg-muted h-[420px]"
+        className={cn(
+          'overflow-auto rounded-lg border border-border bg-bg-muted transition-[height] duration-200',
+          CONTAINER_HEIGHT[zoom]
+        )}
       >
         {renderState === 'idle' || renderState === 'rendering-original' ? (
           <div className="flex h-full items-center justify-center text-sm text-fg-subtle">
             {renderState === 'rendering-original' ? 'Loading preview…' : ''}
           </div>
         ) : (
-          <>
+          <div className="h-full">
             {/* Desktop: side-by-side slider */}
             <div className="hidden h-full md:block">
               <ComparisonSlider
                 left={
                   <div className="relative h-full bg-bg-muted">
                     {originalUrl && (
-                      <img src={originalUrl} alt="Original PDF page 1" className="h-full w-full object-contain" />
+                      <img src={originalUrl} alt={`Original PDF page ${selectedPage + 1}`} className="h-full w-full object-contain" />
                     )}
                     <span className="absolute bottom-2 left-2 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
                       {originalLabel}
@@ -171,7 +259,7 @@ export function CompressionPreview({
                 right={
                   <div className="relative h-full bg-bg-muted">
                     {compressedUrl ? (
-                      <img src={compressedUrl} alt="Compressed PDF page 1" className="h-full w-full object-contain" />
+                      <img src={compressedUrl} alt={`Compressed PDF page ${selectedPage + 1}`} className="h-full w-full object-contain" />
                     ) : (
                       <div className="flex h-full items-center justify-center text-xs text-fg-subtle">
                         {renderState === 'rendering-compressed' ? 'Rendering…' : 'Compress to preview'}
@@ -189,7 +277,7 @@ export function CompressionPreview({
             <div className="flex h-full flex-col divide-y divide-border md:hidden">
               <div className="relative flex-1 bg-bg-muted">
                 {originalUrl && (
-                  <img src={originalUrl} alt="Original PDF page 1" className="h-full w-full object-contain" />
+                  <img src={originalUrl} alt={`Original PDF page ${selectedPage + 1}`} className="h-full w-full object-contain" />
                 )}
                 <span className="absolute bottom-2 left-2 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
                   {originalLabel}
@@ -197,7 +285,7 @@ export function CompressionPreview({
               </div>
               <div className="relative flex-1 bg-bg-muted">
                 {compressedUrl ? (
-                  <img src={compressedUrl} alt="Compressed PDF page 1" className="h-full w-full object-contain" />
+                  <img src={compressedUrl} alt={`Compressed PDF page ${selectedPage + 1}`} className="h-full w-full object-contain" />
                 ) : (
                   <div className="flex h-full items-center justify-center text-xs text-fg-subtle">
                     Compress to preview
@@ -208,7 +296,7 @@ export function CompressionPreview({
                 </span>
               </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
