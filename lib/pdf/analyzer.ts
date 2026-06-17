@@ -98,11 +98,12 @@ export async function analyzePdf(file: File): Promise<PdfAnalysis> {
 
   const imageCount = (text.match(/\/Subtype\s*\/Image/g) ?? []).length
   const hasMetadata =
-    /\/Title\s*\(/.test(text) ||
-    /\/Author\s*\(/.test(text) ||
-    /\/Subject\s*\(/.test(text)
+    /\/Title\s*[\(<]/.test(text) ||
+    /\/Author\s*[\(<]/.test(text) ||
+    /\/Subject\s*[\(<]/.test(text) ||
+    /\/Metadata\s+\d+\s+\d+\s+R/.test(text)
   const hasAnnotations =
-    /\/Annots\s*\[/.test(text) || /\/Annots\s+\d/.test(text)
+    /\/Annots\s*\[/.test(text) || /\/Annots\s+\d+\s+\d+\s+R/.test(text)
   const hasBookmarks = /\/Outlines\b/.test(text)
   const hasJS = /\/JS\b/.test(text) || /\/JavaScript\b/.test(text)
   const hasEmbeddedFiles = /\/EmbeddedFile\b/.test(text)
