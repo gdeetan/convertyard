@@ -1,99 +1,110 @@
 import type { PdfAnalysis } from './analyzer'
 import type { ToolOptions } from '@/lib/types'
 
-export interface SavingsEstimate {
-  technique: string
-  estimatedBytes: number
-  enabled: boolean
+export interface TechniqueSavings {
+  savingsBytes: number
+  explanation: string
 }
 
-export function estimateSavings(
-  analysis: PdfAnalysis,
-  options: ToolOptions
-): SavingsEstimate[] {
-  const estimates: SavingsEstimate[] = []
-  const { images, fonts } = analysis
+export interface SavingsEstimate {
+  estimatedFinalSize: number
+  estimatedSavingsBytes: number
+  estimatedSavingsPercent: number
+  perTechnique: {
+    imageDownsampling: TechniqueSavings
+    imageQualityReduction: TechniqueSavings
+    grayscaleConversion: TechniqueSavings
+    fontSubsetting: TechniqueSavings
+    stripMetadata: TechniqueSavings
+    stripAnnotations: TechniqueSavings
+    stripEmbeddedFiles: TechniqueSavings
+    contentStreamOptimization: TechniqueSavings
+  }
+}
 
+export function estimateSavings(analysis: PdfAnalysis, options: ToolOptions): SavingsEstimate {
+  const { images, fonts, fileSize } = analysis
   const jpegQuality = typeof options.jpegQuality === 'number' ? options.jpegQuality : 70
   const grayscale = options.grayscale === true
-  const dpiMode = options.dpiMode ?? 'auto'
+  const dpiEnabled = options.dpiMode === true
   const targetDpi = typeof options.targetDpi === 'number' ? options.targetDpi : 150
   const subsetFonts = options.subsetFonts !== false
-  const stripMetadata = options.stripMetadata !== false
-  const stripAnnotations = options.stripAnnotations === true
-  const stripBookmarks = options.stripBookmarks === true
-  const stripEmbedded = options.stripEmbedded === true
+  const stripMetadataEnabled = options.stripMetadata !== false
+  const stripAnnotationsEnabled = options.stripAnnotations === true
+  const stripEmbeddedEnabled = options.stripEmbedded === true
 
-  if (images.count > 0 && images.avgDpi > 150) {
-    const savingsRatio =
-      dpiMode === 'custom' && targetDpi < images.avgDpi
-        ? 1 - Math.pow(targetDpi / images.avgDpi, 2)
-        : 0.75
-    estimates.push({
-      technique:
-        dpiMode === 'custom'
-          ? `Downsample images to ${targetDpi} DPI`
-          : 'Downsample images to 150 DPI',
-      estimatedBytes: Math.round(images.totalEstimatedBytes * savingsRatio),
-      enabled: images.highDpiCount > 0,
-    })
+  const imageDownsamplingBytes =
+    images.count > 0 && images.avgDpi > 150
+      ? Math.round(images.totalEstimatedBytes * (dpiEnabled && targetDpi < images.avgDpi ? 1 - Math.pow(targetDpi / images.avgDpi, 2) : 0.75))
+      : 0
+
+  const imageQualityBytes =
+    images.count > 0 && jpegQuality < 80
+      ? Math.round(images.totalEstimatedBytes * ((80 - jpegQuality) / 80) * 0.3)
+      : 0
+
+  const grayscaleBytes =
+    grayscale && images.count > 0
+      ? Math.round(images.totalEstimatedBytes * 0.6)
+      : 0
+
+  const fontSubsettingBytes =
+    fonts.unsubsettedCount > 0 && subsetFonts
+      ? Math.round(fonts.estimatedBytes * 0.4)
+      : 0
+
+  const stripMetadataBytes = analysis.hasMetadata && stripMetadataEnabled ? 50 * 1024 : 0
+  const stripAnnotationsBytes = analysis.hasAnnotations && stripAnnotationsEnabled ? 50 * 1024 : 0
+  const stripEmbeddedBytes = analysis.hasEmbeddedFiles && stripEmbeddedEnabled ? 100 * 1024 : 0
+  const contentStreamBytes = Math.round(fileSize * 0.05)
+
+  const totalSavings = Math.min(
+    fileSize,
+    imageDownsamplingBytes + imageQualityBytes + grayscaleBytes + fontSubsettingBytes +
+    stripMetadataBytes + stripAnnotationsBytes + stripEmbeddedBytes + contentStreamBytes
+  )
+
+  return {
+    estimatedFinalSize: Math.max(0, fileSize - totalSavings),
+    estimatedSavingsBytes: totalSavings,
+    estimatedSavingsPercent: fileSize > 0 ? Math.round((totalSavings / fileSize) * 100) : 0,
+    perTechnique: {
+      imageDownsampling: {
+        savingsBytes: imageDownsamplingBytes,
+        explanation: images.avgDpi > 150
+          ? `Downsample ${images.count} image(s) from ~${images.avgDpi} DPI to ${dpiEnabled ? targetDpi : 150} DPI`
+          : 'Images already at target DPI',
+      },
+      imageQualityReduction: {
+        savingsBytes: imageQualityBytes,
+        explanation: `Re-encode JPEG images at quality ${jpegQuality}`,
+      },
+      grayscaleConversion: {
+        savingsBytes: grayscaleBytes,
+        explanation: `Convert ${images.byColorSpace?.color ?? images.count} color images to grayscale (~60% reduction)`,
+      },
+      fontSubsetting: {
+        savingsBytes: fontSubsettingBytes,
+        explanation: fonts.unsubsettedCount > 0
+          ? `Subset ${fonts.unsubsettedCount} embedded font(s) — remove unused glyphs`
+          : 'All fonts already subsetted',
+      },
+      stripMetadata: {
+        savingsBytes: stripMetadataBytes,
+        explanation: 'Remove title, author, dates, producer fields',
+      },
+      stripAnnotations: {
+        savingsBytes: stripAnnotationsBytes,
+        explanation: `Remove ${analysis.annotationCount || 'all'} annotation(s)`,
+      },
+      stripEmbeddedFiles: {
+        savingsBytes: stripEmbeddedBytes,
+        explanation: 'Remove file attachments embedded in the PDF',
+      },
+      contentStreamOptimization: {
+        savingsBytes: contentStreamBytes,
+        explanation: 'Rewrite content streams using object compression (~5%)',
+      },
+    },
   }
-
-  if (images.count > 0 && jpegQuality < 80) {
-    estimates.push({
-      technique: `Re-encode images at quality ${jpegQuality}`,
-      estimatedBytes: Math.round(images.totalEstimatedBytes * ((80 - jpegQuality) / 80) * 0.3),
-      enabled: true,
-    })
-  }
-
-  if (grayscale && images.count > 0) {
-    estimates.push({
-      technique: 'Convert to grayscale',
-      estimatedBytes: Math.round(images.totalEstimatedBytes * 0.6),
-      enabled: true,
-    })
-  }
-
-  if (fonts.unsubsettedCount > 0) {
-    estimates.push({
-      technique: `Subset ${fonts.unsubsettedCount} font${fonts.unsubsettedCount > 1 ? 's' : ''}`,
-      estimatedBytes: Math.round(fonts.estimatedBytes * 0.4),
-      enabled: subsetFonts,
-    })
-  }
-
-  if (analysis.hasMetadata) {
-    estimates.push({
-      technique: 'Strip document metadata',
-      estimatedBytes: 50 * 1024,
-      enabled: stripMetadata,
-    })
-  }
-
-  if (analysis.hasAnnotations) {
-    estimates.push({
-      technique: 'Remove annotations',
-      estimatedBytes: 50 * 1024,
-      enabled: stripAnnotations,
-    })
-  }
-
-  if (analysis.hasBookmarks) {
-    estimates.push({
-      technique: 'Remove bookmarks',
-      estimatedBytes: 20 * 1024,
-      enabled: stripBookmarks,
-    })
-  }
-
-  if (analysis.hasEmbeddedFiles) {
-    estimates.push({
-      technique: 'Remove embedded files',
-      estimatedBytes: 100 * 1024,
-      enabled: stripEmbedded,
-    })
-  }
-
-  return estimates.sort((a, b) => b.estimatedBytes - a.estimatedBytes)
 }
