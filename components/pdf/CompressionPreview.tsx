@@ -3,8 +3,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { ComparisonSlider } from '@/components/ui/ComparisonSlider'
-import { renderPagePng } from '@/lib/converters/mupdf-client'
+import { renderPagePng, getPageCount } from '@/lib/converters/mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
+import { cn } from '@/lib/utils/cn'
 
 interface CompressionPreviewProps {
   files: File[]
@@ -26,9 +27,20 @@ export function CompressionPreview({
   const [compressedUrl, setCompressedUrl] = useState<string | null>(null)
   const prevFileRef = useRef<File | null>(null)
   const prevResultRef = useRef<File | null>(null)
+  const [selectedPage, setSelectedPage] = useState(0)
+  const [pageCount, setPageCount] = useState(1)
 
   const currentFile = files[selectedIndex]
   const currentResult = results[selectedIndex] ?? null
+
+  useEffect(() => {
+    if (!currentFile) return
+    let cancelled = false
+    currentFile.arrayBuffer().then(buf =>
+      getPageCount(buf).then(n => { if (!cancelled) setPageCount(n) }).catch(() => {})
+    )
+    return () => { cancelled = true }
+  }, [currentFile])
 
   useEffect(() => {
     if (!currentFile || currentFile === prevFileRef.current) return
@@ -41,7 +53,7 @@ export function CompressionPreview({
     ;(async () => {
       try {
         const buffer = await currentFile.arrayBuffer()
-        const pngBuffer = await renderPagePng(buffer, 0, 96)
+        const pngBuffer = await renderPagePng(buffer, selectedPage, 96)
         if (cancelled) return
         const blob = new Blob([pngBuffer], { type: 'image/png' })
         setOriginalUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
@@ -52,7 +64,7 @@ export function CompressionPreview({
     })()
 
     return () => { cancelled = true }
-  }, [currentFile])
+  }, [currentFile, selectedPage])
 
   useEffect(() => {
     if (!currentResult || currentResult === prevResultRef.current) return
@@ -63,7 +75,7 @@ export function CompressionPreview({
     ;(async () => {
       try {
         const buffer = await currentResult.arrayBuffer()
-        const pngBuffer = await renderPagePng(buffer, 0, 96)
+        const pngBuffer = await renderPagePng(buffer, selectedPage, 96)
         if (cancelled) return
         const blob = new Blob([pngBuffer], { type: 'image/png' })
         setCompressedUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
@@ -74,7 +86,7 @@ export function CompressionPreview({
     })()
 
     return () => { cancelled = true }
-  }, [currentResult])
+  }, [currentResult, selectedPage])
 
   if (!currentFile) return null
 
@@ -106,6 +118,28 @@ export function CompressionPreview({
           >
             <ChevronRight className="h-4 w-4" />
           </button>
+        </div>
+      )}
+
+      {pageCount > 1 && (
+        <div className="flex items-center justify-center gap-1 text-xs text-fg-muted">
+          <span className="mr-1">Page:</span>
+          {Array.from({ length: Math.min(3, pageCount) }, (_, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setSelectedPage(i)}
+              className={cn(
+                'rounded px-2 py-0.5 transition-colors',
+                selectedPage === i
+                  ? 'bg-primary/10 text-primary font-medium'
+                  : 'hover:text-fg'
+              )}
+            >
+              {i + 1}
+            </button>
+          ))}
+          {pageCount > 3 && <span className="text-fg-subtle">…</span>}
         </div>
       )}
 
