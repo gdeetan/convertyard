@@ -27,6 +27,14 @@ import { config as reorderPdfPages } from './tools/reorder-pdf-pages'
 import { config as redactPdf } from './tools/redact-pdf'
 import { config as pdfToCsv } from './tools/pdf-to-csv'
 import { config as fillPdfForm } from './tools/fill-pdf-form'
+import { config as wordToPdf } from './tools/word-to-pdf'
+import { config as excelToPdf } from './tools/excel-to-pdf'
+import { config as pdfToExcel } from './tools/pdf-to-excel'
+import { config as pngToPdf } from './tools/png-to-pdf'
+import { config as unlockPdf } from './tools/unlock-pdf'
+import { config as protectPdf } from './tools/protect-pdf'
+import { config as watermarkPdf } from './tools/watermark-pdf'
+import { config as pdfToPowerpoint } from './tools/pdf-to-powerpoint'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
@@ -59,6 +67,14 @@ export const tools: ToolConfig[] = [
   redactPdf,
   pdfToCsv,
   fillPdfForm,
+  wordToPdf,
+  excelToPdf,
+  pdfToExcel,
+  pngToPdf,
+  unlockPdf,
+  protectPdf,
+  watermarkPdf,
+  pdfToPowerpoint,
 ]
 
 export const toolBySlug = Object.fromEntries(

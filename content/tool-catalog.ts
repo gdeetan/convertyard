@@ -27,7 +27,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'compress-image',     title: 'Image Compressor',   description: 'Batch compress any image format.', category: 'image-editing', status: 'live' },
   { slug: 'image-resizer',      title: 'Image Resizer',      description: 'Resize to exact pixels or percent — batch.', category: 'image-editing', status: 'live' },
 
-  // PDF — 3 live, 2 coming soon
+  // PDF — 21 live
   { slug: 'merge-pdf',    title: 'Merge PDF',    description: 'Combine multiple PDFs into one.', category: 'pdf', status: 'live' },
   { slug: 'compress-pdf', title: 'Compress PDF', description: 'Shrink PDFs without destroying quality.', category: 'pdf', status: 'live' },
   { slug: 'pdf-to-jpg',   title: 'PDF to JPG',   description: 'Every page becomes a high-res JPG.', category: 'pdf', status: 'live' },
@@ -41,6 +41,14 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'redact-pdf',        title: 'Redact PDF',        description: 'True redaction — content removed, not hidden.', category: 'pdf', status: 'live', badge: 'Privacy' },
   { slug: 'pdf-to-csv',    title: 'PDF to CSV',    description: 'Extract tables from any PDF as CSV files.', category: 'pdf', status: 'live' },
   { slug: 'fill-pdf-form', title: 'Fill PDF Form',  description: 'Fill AcroForm fields in your browser, then flatten.', category: 'pdf', status: 'live' },
+  { slug: 'word-to-pdf',       title: 'Word to PDF',        description: 'Convert DOCX to PDF in your browser — no upload.',    category: 'pdf', status: 'live' },
+  { slug: 'excel-to-pdf',      title: 'Excel to PDF',       description: 'Spreadsheets to PDF, multi-sheet, fit to page.',       category: 'pdf', status: 'live' },
+  { slug: 'pdf-to-excel',      title: 'PDF to Excel',       description: 'Extract tables from PDFs into .xlsx spreadsheets.',    category: 'pdf', status: 'live' },
+  { slug: 'png-to-pdf',        title: 'PNG to PDF',         description: 'Combine PNG images into a PDF. Drag to reorder.',      category: 'pdf', status: 'live' },
+  { slug: 'unlock-pdf',        title: 'Unlock PDF',         description: 'Remove password protection. Your password stays local.', category: 'pdf', status: 'live', badge: 'Privacy' },
+  { slug: 'protect-pdf',       title: 'Protect PDF',        description: 'Add AES password encryption and permission controls.',  category: 'pdf', status: 'live', badge: 'Privacy' },
+  { slug: 'watermark-pdf',     title: 'Watermark PDF',      description: 'Add text or image watermarks with live preview.',      category: 'pdf', status: 'live' },
+  { slug: 'pdf-to-powerpoint', title: 'PDF to PowerPoint',  description: 'Each PDF page becomes a slide in a .pptx file.',      category: 'pdf', status: 'live' },
 
   // Video & Audio — all coming soon
   { slug: 'mp4-to-mp3',       title: 'MP4 to MP3',       description: 'Strip audio from video in seconds.', category: 'video-audio', status: 'live' },

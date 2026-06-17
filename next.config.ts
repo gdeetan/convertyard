@@ -31,7 +31,7 @@ const nextConfig: NextConfig = {
       },
     ]
   },
-  webpack(config, { webpack }) {
+  webpack(config, { webpack, isServer }) {
     // wasm-vips is an Emscripten ES module that uses import.meta.
     // Without this, webpack can't parse vips-es6.js in the main bundle context.
     config.module.rules.push({
@@ -43,6 +43,28 @@ const nextConfig: NextConfig = {
     config.plugins.push(new webpack.DefinePlugin({
       __HF_TOKEN__: JSON.stringify(process.env.HF_TOKEN ?? ''),
     }))
+    // pptxgenjs's ES module build references node:fs/node:https.
+    // Redirect to the self-contained browser bundle which excludes Node built-ins.
+    if (!isServer) {
+      // Use path.join to bypass the exports map restriction on subpath access
+      config.resolve.alias['pptxgenjs'] =
+        require('path').join(__dirname, 'node_modules/pptxgenjs/dist/pptxgen.bundle.js')
+      // pptxgen.bundle.js references node:fs and node:https for its Node.js file-write
+      // and remote-image-fetch code paths. In the browser those paths are never executed.
+      // Strip the node: prefix so webpack's normal fallback (false) suppresses them.
+      config.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(/^node:/, (resource: { request: string }) => {
+          resource.request = resource.request.replace(/^node:/, '')
+        })
+      )
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        https: false,
+        os: false,
+        path: false,
+      }
+    }
     return config
   },
 }

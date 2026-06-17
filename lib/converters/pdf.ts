@@ -1,4 +1,4 @@
-import { PDFDocument, PDFRawStream, PDFName, PDFNumber, PDFDict, degrees, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
+import { PDFDocument, PDFRawStream, PDFName, PDFNumber, PDFDict, degrees, rgb, StandardFonts, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
 import { getPageCount, renderPage, renderPagePng, extractText, extractStructuredText } from './mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
@@ -1120,4 +1120,250 @@ export async function fillPdfForm(
   const bytes = await doc.save({ useObjectStreams: true })
   const baseName = file.name.replace(/\.[^.]+$/, '')
   return new File([bytes as Uint8Array<ArrayBuffer>], `${baseName}-filled.pdf`, { type: 'application/pdf' })
+}
+
+// ── PDF → Excel ───────────────────────────────────────────────────────────────
+
+export async function pdfToExcel(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const XLSX = await import('xlsx')
+  const results: ConversionResult[] = []
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    onProgress?.(i, 0)
+
+    try {
+      const buffer = await file.arrayBuffer()
+      onProgress?.(i, 10)
+
+      const structuredPages = await extractStructuredText(buffer)
+      onProgress?.(i, 50)
+
+      const wb = XLSX.utils.book_new()
+      const combineSheets = !!(options.combineSheets)
+
+      if (combineSheets) {
+        const allRows: string[][] = []
+        for (let p = 0; p < structuredPages.length; p++) {
+          const rows = pageToRows(structuredPages[p])
+          if (rows.length > 0) {
+            if (allRows.length > 0) allRows.push([])
+            allRows.push(...rows)
+          }
+          onProgress?.(i, Math.round(50 + (40 * (p + 1)) / structuredPages.length))
+        }
+        const ws = XLSX.utils.aoa_to_sheet(allRows)
+        XLSX.utils.book_append_sheet(wb, ws, 'All Pages')
+      } else {
+        for (let p = 0; p < structuredPages.length; p++) {
+          const rows = pageToRows(structuredPages[p])
+          const sheetRows = rows.length > 0 ? rows : [['(no extractable text)']]
+          const ws = XLSX.utils.aoa_to_sheet(sheetRows)
+          XLSX.utils.book_append_sheet(wb, ws, `Page ${p + 1}`)
+          onProgress?.(i, Math.round(50 + (40 * (p + 1)) / structuredPages.length))
+        }
+      }
+
+      const xlsxBuffer: ArrayBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+      const outName = file.name.replace(/\.pdf$/i, '') + '.xlsx'
+      results.push(new File([xlsxBuffer], outName, {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(err instanceof Error ? err : new Error(String(err)))
+    }
+  }
+
+  return results
+}
+
+// ── Watermark PDF ─────────────────────────────────────────────────────────────
+
+function resolveWatermarkPosition(
+  position: string,
+  pw: number,
+  ph: number,
+  itemW: number,
+  itemH: number
+): [number, number] {
+  const col = position.includes('left') ? 0 : position.includes('right') ? 2 : 1
+  const row = position.includes('bottom') ? 0 : position.includes('top') ? 2 : 1
+  const x = col === 0 ? pw * 0.05 : col === 2 ? pw * 0.95 - itemW : pw / 2 - itemW / 2
+  const y = row === 0 ? ph * 0.05 : row === 2 ? ph * 0.95 - itemH : ph / 2 - itemH / 2
+  return [x, y]
+}
+
+export async function watermarkPdf(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    onProgress?.(i, 0)
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const doc = await PDFDocument.load(buffer)
+      const pages = doc.getPages()
+
+      const wmType = (options.watermarkType as string) ?? 'text'
+      const applyTo = (options.applyTo as string) ?? 'all'
+      const position = (options.position as string) ?? 'center'
+      const opacity = Math.min(1, Math.max(0, ((options.opacity as number) ?? 30) / 100))
+      const rotation = (options.rotation as number) ?? 45
+
+      const targetIndices = applyTo === 'first' ? [0] : pages.map((_, idx) => idx)
+
+      if (wmType === 'text') {
+        const text = (options.watermarkText as string) ?? 'CONFIDENTIAL'
+        const sizeKey = (options.fontSize as string) ?? 'medium'
+        const fontSize = sizeKey === 'small' ? 24 : sizeKey === 'large' ? 72 : 48
+
+        const hexColor = (options.textColor as string) ?? '#cc0000'
+        const r = parseInt(hexColor.slice(1, 3), 16) / 255
+        const g = parseInt(hexColor.slice(3, 5), 16) / 255
+        const b = parseInt(hexColor.slice(5, 7), 16) / 255
+
+        const font = await doc.embedFont(StandardFonts.Helvetica)
+        const textWidth = font.widthOfTextAtSize(text, fontSize)
+
+        for (const idx of targetIndices) {
+          const page = pages[idx]
+          const { width: pw, height: ph } = page.getSize()
+          const [tx, ty] = resolveWatermarkPosition(position, pw, ph, textWidth, fontSize)
+          page.drawText(text, {
+            x: tx,
+            y: ty,
+            size: fontSize,
+            font,
+            color: rgb(r, g, b),
+            opacity,
+            rotate: degrees(rotation),
+          })
+        }
+      } else {
+        const imageFile = options.watermarkImage as File | null
+        if (!imageFile) {
+          results.push(new Error('No watermark image provided.'))
+          continue
+        }
+
+        const imgBuffer = await imageFile.arrayBuffer()
+        const isPng = imageFile.type === 'image/png' || imageFile.name.toLowerCase().endsWith('.png')
+        const embedded = isPng
+          ? await doc.embedPng(imgBuffer)
+          : await doc.embedJpg(imgBuffer)
+
+        const imgSizePct = Math.min(100, Math.max(5, (options.imageSizePct as number) ?? 30)) / 100
+
+        for (const idx of targetIndices) {
+          const page = pages[idx]
+          const { width: pw, height: ph } = page.getSize()
+          const imgW = pw * imgSizePct
+          const imgH = (embedded.height / embedded.width) * imgW
+          const [ix, iy] = resolveWatermarkPosition(position, pw, ph, imgW, imgH)
+          page.drawImage(embedded, {
+            x: ix,
+            y: iy,
+            width: imgW,
+            height: imgH,
+            opacity,
+            rotate: degrees(rotation),
+          })
+        }
+      }
+
+      onProgress?.(i, 90)
+      const pdfBytes = await doc.save()
+      const outName = file.name.replace(/\.pdf$/i, '') + '-watermarked.pdf'
+      results.push(new File([pdfBytes as unknown as BlobPart], outName, { type: 'application/pdf' }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(err instanceof Error ? err : new Error(String(err)))
+    }
+  }
+
+  return results
+}
+
+// ── PDF → PowerPoint ──────────────────────────────────────────────────────────
+
+export async function pdfToPptx(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const PptxGenJS = (await import('pptxgenjs')).default
+  const results: ConversionResult[] = []
+
+  const dpiMap: Record<string, number> = { '72': 72, '150': 150, '300': 300 }
+  const dpi = dpiMap[(options.dpi as string) ?? '150'] ?? 150
+  const slideSize = (options.slideSize as string) ?? '16:9'
+
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i]
+    onProgress?.(i, 0)
+
+    try {
+      const buffer = await file.arrayBuffer()
+      const pageCount = await getPageCount(buffer)
+      onProgress?.(i, 5)
+
+      const prs = new PptxGenJS()
+      if (slideSize === '4:3') {
+        (prs as any).layout = 'LAYOUT_4x3'
+      } else {
+        (prs as any).layout = 'LAYOUT_16x9'
+      }
+
+      for (let p = 0; p < pageCount; p++) {
+        const jpegBuffer = await renderPage(buffer, p, dpi, 85)
+        const jpegBytes = new Uint8Array(jpegBuffer)
+        const jpegBlob = new Blob([jpegBytes], { type: 'image/jpeg' })
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.readAsDataURL(jpegBlob)
+        })
+
+        const slide = prs.addSlide()
+        slide.addImage({
+          data: dataUrl,
+          x: 0,
+          y: 0,
+          w: '100%',
+          h: '100%',
+        })
+
+        onProgress?.(i, Math.round(5 + (90 * (p + 1)) / pageCount))
+      }
+
+      const base64 = (await prs.write({ outputType: 'base64' })) as string
+      const binary = atob(base64)
+      const bytes = new Uint8Array(binary.length)
+      for (let b = 0; b < binary.length; b++) {
+        bytes[b] = binary.charCodeAt(b)
+      }
+
+      const outName = file.name.replace(/\.pdf$/i, '') + '.pptx'
+      results.push(
+        new File([bytes.buffer as ArrayBuffer], outName, {
+          type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        })
+      )
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(err instanceof Error ? err : new Error(String(err)))
+    }
+  }
+
+  return results
 }

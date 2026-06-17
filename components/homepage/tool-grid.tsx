@@ -29,6 +29,11 @@ const POPULAR_SLUGS = new Set([
   'image-resizer',
   'alt-text-generator',
   'heic-to-png',
+  'word-to-pdf',
+  'unlock-pdf',
+  'protect-pdf',
+  'watermark-pdf',
+  'pdf-to-powerpoint',
 ])
 
 type Category = 'all' | 'images' | 'image-editing' | 'pdf' | 'video-audio' | 'dev' | 'web-tools' | 'ai'
