@@ -136,6 +136,55 @@ export const config: ToolConfig = {
       hint: 'Removes embedded JavaScript actions. Recommended for any PDF received externally.',
       default: false,
     },
+    { type: 'section-header' as const, label: 'Fonts' },
+    {
+      type: 'toggle' as const,
+      name: 'subsetFonts',
+      label: 'Subset embedded fonts',
+      hint: 'Keep only the characters actually used in the document — reduces font file size significantly.',
+      default: true,
+    },
+    {
+      type: 'toggle' as const,
+      name: 'removeUnusedFonts',
+      label: 'Remove unused fonts',
+      hint: 'Deletes font resources that are embedded but never referenced by any page content.',
+      default: false,
+    },
+    { type: 'section-header' as const, label: 'Form fields' },
+    {
+      type: 'toggle' as const,
+      name: 'stripFormFields',
+      label: 'Remove form fields',
+      hint: 'Flattens or removes interactive form elements. Choose strategy below.',
+      default: false,
+    },
+    {
+      type: 'dropdown' as const,
+      name: 'formFieldStrategy',
+      label: 'Form field strategy',
+      choices: [
+        { value: 'flatten', label: 'Flatten (keep visual appearance)' },
+        { value: 'remove', label: 'Remove entirely' },
+      ],
+      default: 'flatten',
+      dependsOn: { name: 'stripFormFields', value: 'true' },
+    },
+    { type: 'section-header' as const, label: 'Structure' },
+    {
+      type: 'toggle' as const,
+      name: 'linearize',
+      label: 'Linearize for fast web view',
+      hint: 'Reorganizes the PDF so page 1 loads immediately when opened in a browser before the full file downloads.',
+      default: false,
+    },
+    {
+      type: 'toggle' as const,
+      name: 'stripPrivateAppData',
+      label: 'Strip private app data',
+      hint: 'Removes vendor-specific metadata embedded by Photoshop, Illustrator, and other tools.',
+      default: false,
+    },
   ],
 
   faq: [
@@ -190,6 +239,14 @@ export const config: ToolConfig = {
     {
       q: 'How does the visual preview work if files never leave my browser?',
       a: 'The preview is rendered entirely in your browser using MuPDF, a PDF rendering engine compiled to WebAssembly. When you drop a file, the first page is rendered to an image locally. After compression completes, the compressed file is rendered the same way. No data leaves your device at any point — the rendering, comparison, and download all happen on your machine.',
+    },
+    {
+      q: 'What is font subsetting?',
+      a: 'An embedded font contains data for every character in the typeface — often thousands of glyphs — even if your document only uses a few dozen. Subsetting trims the font down to only the characters actually present in your PDF. A typical unsubsetted font might be 300–500 KB; subsetted, it drops to 20–60 KB.',
+    },
+    {
+      q: 'What does "linearize for fast web view" do?',
+      a: 'A linearized PDF rearranges its internal structure so that page 1\'s data comes first. When you open a linearized PDF in a browser, page 1 renders immediately while the rest of the file continues downloading. Non-linearized PDFs must fully download before any page displays.',
     },
   ],
 
