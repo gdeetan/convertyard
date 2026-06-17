@@ -147,8 +147,7 @@ export function CompressionPreview({
       )}
 
       <div
-        className="overflow-hidden rounded-lg border border-border bg-bg-muted"
-        style={{ aspectRatio: '3/4', maxHeight: '480px' }}
+        className="overflow-hidden rounded-lg border border-border bg-bg-muted h-[420px]"
       >
         {renderState === 'idle' || renderState === 'rendering-original' ? (
           <div className="flex h-full items-center justify-center text-sm text-fg-subtle">
