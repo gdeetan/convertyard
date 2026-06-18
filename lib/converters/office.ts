@@ -328,43 +328,35 @@ export async function excelToPdf(
 
         if (data.length === 0) continue
 
-        // Determine column count from both data and sheet ref so blank trailing columns are included
-        const refRange = ws['!ref'] ? XLSX.utils.decode_range(ws['!ref']) : null
-        const refNumCols = refRange ? (refRange.e.c - refRange.s.c + 1) : 0
-        const numCols = Math.max(data.reduce((max, row) => Math.max(max, row.length), 0), refNumCols)
+        const numCols = data.reduce((max, row) => Math.max(max, row.length), 0)
         if (numCols === 0) continue
 
-        // Build per-column widths. Prefer Excel's stored column widths (!cols); fall back to
-        // content-measured auto-fit so proportions match the source file even when !cols is absent.
-        const excelCols: Array<{ wch?: number; wpx?: number; hidden?: boolean } | null | undefined> = ws['!cols'] ?? []
-        const hasExcelWidths = excelCols.some(c => c && (c.wch ?? c.wpx))
+        // Measure max content width per column (single pass) so column widths are
+        // proportional to the widest text in each column, not just divided equally.
+        const rawWidths = Array.from({ length: numCols }, (_, ci) => {
+          let maxW = cellPad * 2 + 8 // absolute minimum
+          for (const row of data) {
+            const text = String(row[ci] ?? '').replace(/[\r\n\t]+/g, ' ').trim()
+            if (!text) continue
+            const w = regularFont.widthOfTextAtSize(text, fontSize) + cellPad * 2
+            if (w > maxW) maxW = w
+          }
+          // Also measure header text (bold)
+          const headerText = String(data[0]?.[ci] ?? '').replace(/[\r\n\t]+/g, ' ').trim()
+          if (headerText) {
+            const hw = boldFont.widthOfTextAtSize(headerText, fontSize) + cellPad * 2
+            if (hw > maxW) maxW = hw
+          }
+          return maxW
+        })
 
-        let rawColWidths: number[]
-        if (hasExcelWidths) {
-          // Use Excel's character-width values (wch). Fallback: pixel width ÷ 7 ≈ chars.
-          rawColWidths = Array.from({ length: numCols }, (_, ci) => {
-            const col = excelCols[ci]
-            if (!col || col.hidden) return 8.43
-            return col.wch ?? (col.wpx ? col.wpx / 7 : 8.43)
-          })
-        } else {
-          // Content-based auto-fit: measure the widest text in each column
-          rawColWidths = Array.from({ length: numCols }, (_, ci) => {
-            let maxPt = cellPad * 2 + 10 // minimum
-            for (let ri = 0; ri < data.length; ri++) {
-              const text = String(data[ri]?.[ci] ?? '').replace(/[\r\n\t]+/g, ' ').trim()
-              if (!text) continue
-              const font = ri === 0 ? boldFont : regularFont
-              const measured = font.widthOfTextAtSize(text, fontSize) + cellPad * 2
-              if (measured > maxPt) maxPt = measured
-            }
-            return Math.min(maxPt, 200) // cap per-column at 200pt before scaling
-          })
-        }
-
-        // Scale proportionally to fill contentWidth exactly
-        const totalRaw = rawColWidths.reduce((s, w) => s + w, 0)
-        const colWidths = rawColWidths.map(w => (w / totalRaw) * contentWidth)
+        // Scale all columns proportionally so they fill exactly contentWidth.
+        // Cap any single column at 40% of contentWidth to prevent one wide column
+        // from squashing everything else.
+        const cap = contentWidth * 0.4
+        const capped = rawWidths.map(w => Math.min(w, cap))
+        const totalCapped = capped.reduce((s, w) => s + w, 0)
+        const colWidths = capped.map(w => (w / totalCapped) * contentWidth)
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const drawRow = (pg: any, row: string[], rowY: number, isHeader: boolean) => {
@@ -377,7 +369,7 @@ export async function excelToPdf(
             pg.drawRectangle({ x: cellX, y: rowY, width: cw, height: cellH, borderColor: rgb(0.75, 0.75, 0.75), borderWidth: 0.5 })
             const cellText = String(row[ci] ?? '').replace(/[\r\n\t]+/g, ' ').trim()
             const font = isHeader ? boldFont : regularFont
-            const truncated = truncateText(cellText, font, fontSize, cw - cellPad * 2)
+            const truncated = truncateText(cellText, font, fontSize, Math.max(cw - cellPad * 2, 1))
             pg.drawText(truncated, { x: cellX + cellPad, y: rowY + (cellH - fontSize) / 2, font, size: fontSize, color: rgb(0, 0, 0) })
             cellX += cw
           }
