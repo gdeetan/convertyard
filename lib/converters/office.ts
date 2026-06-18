@@ -341,7 +341,7 @@ export async function excelToPdf(
               pg.drawRectangle({ x: cellX, y: rowY, width: colW, height: cellH, color: rgb(0.9, 0.9, 0.9) })
             }
             pg.drawRectangle({ x: cellX, y: rowY, width: colW, height: cellH, borderColor: rgb(0.75, 0.75, 0.75), borderWidth: 0.5 })
-            const cellText = String(row[ci] ?? '').trim()
+            const cellText = String(row[ci] ?? '').replace(/[\r\n\t]+/g, ' ').trim()
             const font = isHeader ? boldFont : regularFont
             const truncated = truncateText(cellText, font, fontSize, colW - cellPad * 2)
             pg.drawText(truncated, { x: cellX + cellPad, y: rowY + (cellH - fontSize) / 2, font, size: fontSize, color: rgb(0, 0, 0) })
