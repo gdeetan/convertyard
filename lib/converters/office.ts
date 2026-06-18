@@ -300,6 +300,9 @@ export async function excelToPdf(
       const fontSize = 7.5
       const cellPad = 3
 
+      const headerFontSize = 11
+      const headerLineH = headerFontSize * 1.4
+
       for (let si = 0; si < workbook.SheetNames.length; si++) {
         const sheetName = workbook.SheetNames[si]
         const ws = workbook.Sheets[sheetName]
@@ -310,12 +313,10 @@ export async function excelToPdf(
         }) as string[][]
 
         // Add a new page for each sheet
-        const page = pdfDoc.addPage([pageW, pageH])
+        // eslint-disable-next-line prefer-const
+        let page = pdfDoc.addPage([pageW, pageH])
         let y = pageH - margin
 
-        // Sheet name header
-        const headerFontSize = 11
-        const headerLineH = headerFontSize * 1.4
         page.drawText(sheetName, {
           x: margin,
           y,
@@ -332,52 +333,34 @@ export async function excelToPdf(
 
         const colW = Math.min(contentWidth / numCols, 140)
 
-        for (let ri = 0; ri < data.length; ri++) {
-          // Stop if no room for this row
-          if (y - cellH < margin) break
-
-          const isHeader = ri === 0
-          const row = data[ri]
-
-          y -= cellH
-
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const drawRow = (pg: any, row: string[], rowY: number, isHeader: boolean) => {
           for (let ci = 0; ci < numCols; ci++) {
             const cellX = margin + ci * colW
-            const cellY = y
-
-            // Background for header row
             if (isHeader) {
-              page.drawRectangle({
-                x: cellX,
-                y: cellY,
-                width: colW,
-                height: cellH,
-                color: rgb(0.9, 0.9, 0.9),
-              })
+              pg.drawRectangle({ x: cellX, y: rowY, width: colW, height: cellH, color: rgb(0.9, 0.9, 0.9) })
             }
-
-            // Border
-            page.drawRectangle({
-              x: cellX,
-              y: cellY,
-              width: colW,
-              height: cellH,
-              borderColor: rgb(0.75, 0.75, 0.75),
-              borderWidth: 0.5,
-            })
-
-            // Text
+            pg.drawRectangle({ x: cellX, y: rowY, width: colW, height: cellH, borderColor: rgb(0.75, 0.75, 0.75), borderWidth: 0.5 })
             const cellText = String(row[ci] ?? '').trim()
             const font = isHeader ? boldFont : regularFont
             const truncated = truncateText(cellText, font, fontSize, colW - cellPad * 2)
-            page.drawText(truncated, {
-              x: cellX + cellPad,
-              y: cellY + (cellH - fontSize) / 2,
-              font,
-              size: fontSize,
-              color: rgb(0, 0, 0),
-            })
+            pg.drawText(truncated, { x: cellX + cellPad, y: rowY + (cellH - fontSize) / 2, font, size: fontSize, color: rgb(0, 0, 0) })
           }
+        }
+
+        for (let ri = 0; ri < data.length; ri++) {
+          if (y - cellH < margin) {
+            // Overflow to a new page — repeat the sheet name and header row for context
+            page = pdfDoc.addPage([pageW, pageH])
+            y = pageH - margin
+            page.drawText(sheetName, { x: margin, y, font: boldFont, size: headerFontSize, color: rgb(0, 0, 0) })
+            y -= headerLineH + 4
+            y -= cellH
+            drawRow(page, data[0], y, true)
+            if (ri === 0) continue
+          }
+          y -= cellH
+          drawRow(page, data[ri], y, ri === 0)
         }
 
         onProgress?.(i, 20 + Math.round(((si + 1) / workbook.SheetNames.length) * 70))
