@@ -467,10 +467,28 @@ export async function excelToPdf(
         })
         y -= headerLineH + 4
 
-        if (data.length === 0) continue
+        if (data.length === 0) {
+          page.drawText('(No data in this sheet)', {
+            x: margin,
+            y: y - 4,
+            font: regularFont,
+            size: 9,
+            color: rgb(0.5, 0.5, 0.5),
+          })
+          continue
+        }
 
         const numCols = data.reduce((max, row) => Math.max(max, row.length), 0)
-        if (numCols === 0) continue
+        if (numCols === 0) {
+          page.drawText('(No data in this sheet)', {
+            x: margin,
+            y: y - 4,
+            font: regularFont,
+            size: 9,
+            color: rgb(0.5, 0.5, 0.5),
+          })
+          continue
+        }
 
         // Measure max content width per column (single pass) so column widths are
         // proportional to the widest text in each column, not just divided equally.
@@ -518,10 +536,10 @@ export async function excelToPdf(
 
         for (let ri = 0; ri < data.length; ri++) {
           if (y - cellH < margin) {
-            // Overflow to a new page — repeat the sheet name and header row for context
+            // Overflow to a new page — repeat the sheet name (marked continued) and header row for context
             page = pdfDoc.addPage([pageW, pageH])
             y = pageH - margin
-            page.drawText(sheetName, { x: margin, y, font: boldFont, size: headerFontSize, color: rgb(0, 0, 0) })
+            page.drawText(`${sheetName} (continued)`, { x: margin, y, font: boldFont, size: headerFontSize, color: rgb(0, 0, 0) })
             y -= headerLineH + 4
             y -= cellH
             drawRow(page, data[0], y, true)
