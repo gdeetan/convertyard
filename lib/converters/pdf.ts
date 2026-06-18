@@ -960,57 +960,61 @@ function pageToRows(structuredJson: string): string[][] {
   let pageData: StructuredPage
   try { pageData = JSON.parse(structuredJson) } catch { return [] }
 
-  const spans: Array<{ text: string; x: number; y: number }> = []
+  const items: Array<{ text: string; x: number; y: number }> = []
   for (const block of pageData.blocks ?? []) {
     for (const line of block.lines ?? []) {
+      // MuPDF 1.27.x puts text, x, y directly on the line object
       const lineText = typeof line.text === 'string' ? line.text.trim() : ''
       if (lineText && typeof line.x === 'number' && typeof line.y === 'number') {
-        spans.push({ text: lineText, x: line.x, y: line.y })
+        items.push({ text: lineText, x: line.x, y: line.y })
         continue
       }
+      // Fallback for older formats that use span objects
       for (const span of line.spans ?? []) {
         const text = span.text?.trim()
         if (!text || !span.bbox || span.bbox.length < 4) continue
         const [x0, y0, , y1] = span.bbox
-        spans.push({ text, x: x0, y: (y0 + y1) / 2 })
+        items.push({ text, x: x0, y: (y0 + y1) / 2 })
       }
     }
   }
-  if (spans.length === 0) return []
+  if (items.length === 0) return []
 
-  const sorted = [...spans].sort((a, b) => a.y - b.y)
-  const gaps = sorted.slice(1).map((s, i) => s.y - sorted[i].y).filter(g => g > 0)
-  const lineHeightEst = gaps.length ? [...gaps].sort((a, b) => a - b)[Math.floor(gaps.length / 2)] : 12
-  // Use 2.5× median gap as row-merge tolerance so wrapped multi-line cells stay in the same row.
-  // Rolling anchor (rowY updates on every span) ensures the check is always against the nearest preceding span.
-  const tolerance = Math.max(lineHeightEst * 2.5, 6)
+  // Sort top-to-bottom, then left-to-right
+  items.sort((a, b) => a.y !== b.y ? a.y - b.y : a.x - b.x)
 
-  const rowGroups: Array<typeof spans> = []
-  let currentRow: typeof spans = []
-  let rowY = sorted[0].y
+  // MuPDF already segments visual lines correctly: all items on the same visual row share
+  // the same y value (or within 3pt for floating-point noise). Use a tight tolerance so
+  // distinct rows are never collapsed — the old 2.5× median-gap approach merged all rows
+  // into one whenever within-row y-variation was zero (every gap was an inter-row gap,
+  // making tolerance > inter-row gap).
+  const ROW_TOL = 3
+  const rowGroups: Array<typeof items> = []
+  let currentRow: typeof items = [items[0]]
+  let rowAnchorY = items[0].y
 
-  for (const span of sorted) {
-    if (span.y - rowY > tolerance) {
-      if (currentRow.length > 0) rowGroups.push(currentRow)
-      currentRow = [span]
+  for (let i = 1; i < items.length; i++) {
+    const item = items[i]
+    if (item.y - rowAnchorY > ROW_TOL) {
+      rowGroups.push(currentRow)
+      currentRow = [item]
+      rowAnchorY = item.y
     } else {
-      currentRow.push(span)
+      currentRow.push(item)
     }
-    rowY = span.y  // rolling anchor: always track the most recent y
   }
-  if (currentRow.length > 0) rowGroups.push(currentRow)
+  rowGroups.push(currentRow)
 
-  // Within each row, group spans at the same x-position (±5 px) — these are wrapped lines of
-  // the same cell — and join them with a space.
-  return rowGroups.map(rowSpans => {
-    const byX = rowSpans.sort((a, b) => a.x !== b.x ? a.x - b.x : a.y - b.y)
+  // Within each row, group items at the same x-position (±5 pt = same column)
+  return rowGroups.map(rowItems => {
+    rowItems.sort((a, b) => a.x - b.x)
     const colGroups: Array<{ x: number; texts: string[] }> = []
-    for (const span of byX) {
+    for (const item of rowItems) {
       const last = colGroups[colGroups.length - 1]
-      if (last && Math.abs(span.x - last.x) <= 5) {
-        last.texts.push(span.text)
+      if (last && Math.abs(item.x - last.x) <= 5) {
+        last.texts.push(item.text)
       } else {
-        colGroups.push({ x: span.x, texts: [span.text] })
+        colGroups.push({ x: item.x, texts: [item.text] })
       }
     }
     return colGroups.map(g => g.texts.join(' '))
