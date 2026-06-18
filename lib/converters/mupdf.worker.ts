@@ -133,21 +133,29 @@ self.onmessage = async (e: MessageEvent) => {
 
     if (type === 'unlock-pdf') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const doc: any = mupdf.Document.openDocument(fileBuffer, 'application/pdf')
-      if (doc.needsPassword()) {
-        const result: number = doc.authenticatePassword(password ?? '')
+      const src: any = mupdf.Document.openDocument(fileBuffer, 'application/pdf')
+      if (src.needsPassword()) {
+        const result: number = src.authenticatePassword(password ?? '')
         if (result === 0) {
-          doc.destroy()
+          src.destroy()
           throw new Error('IncorrectPassword')
         }
       }
+      // Create a fresh unencrypted PDF and graft all pages into it
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const buf: any = doc.saveToBuffer('garbage=compact,compress=yes')
+      const out: any = new mupdf.PDFDocument()
+      const pageCount: number = src.countPages()
+      for (let i = 0; i < pageCount; i++) {
+        out.graftPage(-1, src, i)
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const buf: any = out.saveToBuffer('garbage=compact,compress=yes')
       const u8: Uint8Array = buf.asUint8Array()
-      const out = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength)
+      const outBuf = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength)
       buf.destroy()
-      doc.destroy()
-      self.postMessage({ id, type: 'result', data: out }, [out])
+      out.destroy()
+      src.destroy()
+      self.postMessage({ id, type: 'result', data: outBuf }, [outBuf])
       return
     }
 
