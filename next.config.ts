@@ -46,12 +46,16 @@ const nextConfig: NextConfig = {
     // pptxgenjs's ES module build references node:fs/node:https.
     // Redirect to the self-contained browser bundle which excludes Node built-ins.
     if (!isServer) {
-      // Use path.join to bypass the exports map restriction on subpath access
+      // pptxgen.bundle.js is two concatenated IIFEs: JSZip's IIFE sets module.exports=JSZip,
+      // then PptxGenJS's IIFE runs but never reassigns module.exports — so importing the
+      // bundle gives you JSZip, not PptxGenJS. Use pptxgen.cjs.js instead: it does
+      // require('jszip') and ends with module.exports=PptxGenJS correctly.
+      // Use path.join to bypass the exports map restriction on subpath access.
       config.resolve.alias['pptxgenjs'] =
-        require('path').join(__dirname, 'node_modules/pptxgenjs/dist/pptxgen.bundle.js')
-      // pptxgen.bundle.js references node:fs and node:https for its Node.js file-write
-      // and remote-image-fetch code paths. In the browser those paths are never executed.
-      // Strip the node: prefix so webpack's normal fallback (false) suppresses them.
+        require('path').join(__dirname, 'node_modules/pptxgenjs/dist/pptxgen.cjs.js')
+      // pptxgen.cjs.js has dynamic import('node:fs') / import('node:https') inside
+      // Node.js-only code paths that are never reached in the browser. Strip the node:
+      // prefix so webpack's fallback (false) suppresses them without compile errors.
       config.plugins.push(
         new webpack.NormalModuleReplacementPlugin(/^node:/, (resource: { request: string }) => {
           resource.request = resource.request.replace(/^node:/, '')
@@ -64,11 +68,6 @@ const nextConfig: NextConfig = {
         os: false,
         path: false,
       }
-      // pptxgen.bundle.js is a UMD file that sets window.JSZip as a side-effect,
-      // then references JSZip as a bare global. Webpack's module scope doesn't
-      // hoist window properties, so JSZip is never found. ProvidePlugin injects
-      // the real jszip module wherever JSZip is used as a bare identifier.
-      config.plugins.push(new webpack.ProvidePlugin({ JSZip: 'jszip' }))
     }
     return config
   },
