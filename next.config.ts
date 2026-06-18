@@ -64,6 +64,11 @@ const nextConfig: NextConfig = {
         os: false,
         path: false,
       }
+      // pptxgen.bundle.js is a UMD file that sets window.JSZip as a side-effect,
+      // then references JSZip as a bare global. Webpack's module scope doesn't
+      // hoist window properties, so JSZip is never found. ProvidePlugin injects
+      // the real jszip module wherever JSZip is used as a bare identifier.
+      config.plugins.push(new webpack.ProvidePlugin({ JSZip: 'jszip' }))
     }
     return config
   },
