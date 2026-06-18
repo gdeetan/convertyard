@@ -1005,9 +1005,19 @@ function pageToRows(structuredJson: string): string[][] {
   }
   rowGroups.push(currentRow)
 
-  // Within each row, group items at the same x-position (±5 pt = same column)
+  // Build canonical column positions from ALL rows so blank columns are preserved.
+  // Items are considered the same column if within COL_TOL points horizontally.
+  const COL_TOL = 10
+  const allXs = rowGroups.flatMap(rowItems => rowItems.map(item => item.x)).sort((a, b) => a - b)
+  const canonicalCols: number[] = []
+  for (const x of allXs) {
+    const anchor = canonicalCols[canonicalCols.length - 1]
+    if (anchor === undefined || x - anchor > COL_TOL) canonicalCols.push(x)
+  }
+
   return rowGroups.map(rowItems => {
     rowItems.sort((a, b) => a.x - b.x)
+    // Group within-row items that share an x position (sub-tolerance ±5 pt)
     const colGroups: Array<{ x: number; texts: string[] }> = []
     for (const item of rowItems) {
       const last = colGroups[colGroups.length - 1]
@@ -1017,7 +1027,13 @@ function pageToRows(structuredJson: string): string[][] {
         colGroups.push({ x: item.x, texts: [item.text] })
       }
     }
-    return colGroups.map(g => g.texts.join(' '))
+    // Map each group to its canonical column index, leaving gaps as empty strings
+    const cells: string[] = new Array(canonicalCols.length).fill('')
+    for (const cg of colGroups) {
+      const idx = canonicalCols.findIndex(cx => Math.abs(cg.x - cx) <= COL_TOL)
+      if (idx >= 0) cells[idx] = cg.texts.join(' ')
+    }
+    return cells
   })
 }
 
