@@ -86,6 +86,12 @@ export async function getPageSizes(fileBuffer: ArrayBuffer): Promise<{ width: nu
 
 // Returns one JSON string per page from mupdf's structured text API.
 // Each JSON string contains block/line/span data with font name, size, bold/italic flags.
+export async function unlockPdf(fileBuffer: ArrayBuffer, password: string): Promise<ArrayBuffer> {
+  const clone = fileBuffer.slice(0)
+  const res = await send<{ data: ArrayBuffer }>('unlock-pdf', { fileBuffer: clone, password }, [clone])
+  return res.data
+}
+
 export async function extractStructuredText(fileBuffer: ArrayBuffer): Promise<string[]> {
   const clone = fileBuffer.slice(0)
   const res = await send<{ data: ArrayBuffer }>('extract-structured-text', { fileBuffer: clone }, [clone])

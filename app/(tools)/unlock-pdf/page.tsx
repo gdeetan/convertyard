@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { Lock, Unlock, Download, RefreshCcw, AlertCircle, CheckCircle2, Eye, EyeOff } from 'lucide-react'
-import { PDFDocument } from 'pdf-lib'
+import { unlockPdf } from '@/lib/converters/mupdf-client'
 import { Dropzone } from '@/components/tool-shell/dropzone'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
@@ -41,25 +41,20 @@ export default function UnlockPdfPage() {
       entries.map(async (entry) => {
         try {
           const buffer = await entry.file.arrayBuffer()
-          const doc = await PDFDocument.load(buffer, {
-            password: entry.password || undefined,
-            ignoreEncryption: false,
-          } as Parameters<typeof PDFDocument.load>[1])
-          const bytes = await doc.save()
+          const outBuffer = await unlockPdf(buffer, entry.password)
           const outName = entry.file.name.replace(/\.pdf$/i, '') + '-unlocked.pdf'
           return {
             ...entry,
             status: 'done' as const,
-            result: new File([bytes.buffer as ArrayBuffer], outName, { type: 'application/pdf' }),
+            result: new File([outBuffer], outName, { type: 'application/pdf' }),
           }
         } catch (err) {
           const msg = err instanceof Error ? err.message : 'Decryption failed'
+          const isWrongPassword = msg === 'IncorrectPassword'
           return {
             ...entry,
             status: 'error' as const,
-            error: msg.toLowerCase().includes('password') || msg.toLowerCase().includes('encrypt')
-              ? 'Incorrect password or file is not encrypted.'
-              : msg,
+            error: isWrongPassword ? 'Incorrect password.' : msg,
           }
         }
       })

@@ -26,14 +26,15 @@ function getMupdf(): Promise<any> {
 }
 
 self.onmessage = async (e: MessageEvent) => {
-  const { id, type, fileBuffer, pageIndex, dpi, quality, transparent } = e.data as {
+  const { id, type, fileBuffer, pageIndex, dpi, quality, transparent, password } = e.data as {
     id: string
-    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text' | 'page-sizes'
+    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text' | 'page-sizes' | 'unlock-pdf'
     fileBuffer: ArrayBuffer
     pageIndex?: number
     dpi?: number
     quality?: number
     transparent?: boolean
+    password?: string
   }
 
   try {
@@ -127,6 +128,26 @@ self.onmessage = async (e: MessageEvent) => {
       const encoded = new TextEncoder().encode(JSON.stringify(sizes))
       const buf = encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength)
       self.postMessage({ id, type: 'result', data: buf }, [buf])
+      return
+    }
+
+    if (type === 'unlock-pdf') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc: any = mupdf.Document.openDocument(fileBuffer, 'application/pdf')
+      if (doc.needsPassword()) {
+        const result: number = doc.authenticatePassword(password ?? '')
+        if (result === 0) {
+          doc.destroy()
+          throw new Error('IncorrectPassword')
+        }
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const buf: any = doc.saveToBuffer('garbage=compact,compress=yes')
+      const u8: Uint8Array = buf.asUint8Array()
+      const out = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength)
+      buf.destroy()
+      doc.destroy()
+      self.postMessage({ id, type: 'result', data: out }, [out])
       return
     }
 
