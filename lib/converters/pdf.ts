@@ -1344,6 +1344,10 @@ export async function pdfToPptx(
         (prs as any).layout = 'LAYOUT_16x9'
       }
 
+      // Slide dimensions in inches
+      const slideW = 10
+      const slideH = slideSize === '4:3' ? 7.5 : 5.625
+
       for (let p = 0; p < pageCount; p++) {
         const jpegBuffer = await renderPage(buffer, p, dpi, 85)
         const jpegBytes = new Uint8Array(jpegBuffer)
@@ -1354,13 +1358,36 @@ export async function pdfToPptx(
           reader.readAsDataURL(jpegBlob)
         })
 
+        // Read rendered image dimensions to compute contain-fit (letterbox)
+        const { imgW, imgH } = await new Promise<{ imgW: number; imgH: number }>((resolve) => {
+          const img = new window.Image()
+          img.onload = () => resolve({ imgW: img.naturalWidth, imgH: img.naturalHeight })
+          img.src = dataUrl
+        })
+
+        const imgAspect = imgW / imgH
+        const slideAspect = slideW / slideH
+        let fitW: number, fitH: number, fitX: number, fitY: number
+        if (imgAspect > slideAspect) {
+          fitW = slideW
+          fitH = slideW / imgAspect
+          fitX = 0
+          fitY = (slideH - fitH) / 2
+        } else {
+          fitH = slideH
+          fitW = slideH * imgAspect
+          fitX = (slideW - fitW) / 2
+          fitY = 0
+        }
+
         const slide = prs.addSlide()
+        slide.background = { color: 'FFFFFF' }
         slide.addImage({
           data: dataUrl,
-          x: 0,
-          y: 0,
-          w: '100%',
-          h: '100%',
+          x: fitX,
+          y: fitY,
+          w: fitW,
+          h: fitH,
         })
 
         onProgress?.(i, Math.round(5 + (90 * (p + 1)) / pageCount))
