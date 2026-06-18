@@ -26,15 +26,17 @@ function getMupdf(): Promise<any> {
 }
 
 self.onmessage = async (e: MessageEvent) => {
-  const { id, type, fileBuffer, pageIndex, dpi, quality, transparent, password } = e.data as {
+  const { id, type, fileBuffer, pageIndex, dpi, quality, transparent, password, userPassword, ownerPassword } = e.data as {
     id: string
-    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text' | 'page-sizes' | 'unlock-pdf'
+    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text' | 'page-sizes' | 'unlock-pdf' | 'protect-pdf'
     fileBuffer: ArrayBuffer
     pageIndex?: number
     dpi?: number
     quality?: number
     transparent?: boolean
     password?: string
+    userPassword?: string
+    ownerPassword?: string
   }
 
   try {
@@ -154,6 +156,32 @@ self.onmessage = async (e: MessageEvent) => {
       const outBuf = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength)
       buf.destroy()
       out.destroy()
+      src.destroy()
+      self.postMessage({ id, type: 'result', data: outBuf }, [outBuf])
+      return
+    }
+
+    if (type === 'protect-pdf') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const src: any = mupdf.Document.openDocument(fileBuffer, 'application/pdf')
+      if (src.needsPassword()) {
+        src.authenticatePassword('')
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pdfDoc: any = src.asPDF()
+      if (!pdfDoc) throw new Error('Not a valid PDF')
+      const opts: Record<string, string> = {
+        encrypt: 'aes-256',
+        'user-password': userPassword ?? '',
+        'owner-password': ownerPassword || userPassword || '',
+        garbage: 'compact',
+        compress: 'yes',
+      }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const buf: any = pdfDoc.saveToBuffer(opts)
+      const u8: Uint8Array = buf.asUint8Array()
+      const outBuf = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength)
+      buf.destroy()
       src.destroy()
       self.postMessage({ id, type: 'result', data: outBuf }, [outBuf])
       return

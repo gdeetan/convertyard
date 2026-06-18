@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { Lock, Shield, Download, RefreshCcw, Eye, EyeOff, CheckCircle2 } from 'lucide-react'
-import { PDFDocument } from 'pdf-lib'
+import { protectPdf } from '@/lib/converters/mupdf-client'
 import { Dropzone } from '@/components/tool-shell/dropzone'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
@@ -30,11 +30,9 @@ export default function ProtectPdfPage() {
   const [ownerPw, setOwnerPw] = useState('')
   const [showUserPw, setShowUserPw] = useState(false)
   const [showOwnerPw, setShowOwnerPw] = useState(false)
-  const [allowPrinting, setAllowPrinting] = useState(true)
-  const [allowCopying, setAllowCopying] = useState(false)
-  const [allowEditing, setAllowEditing] = useState(false)
   const [phase, setPhase] = useState<'idle' | 'processing' | 'done'>('idle')
   const [results, setResults] = useState<Result[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   const handleAdd = useCallback((added: File[]) => {
     setFiles((prev) => [...prev, ...added])
@@ -43,35 +41,25 @@ export default function ProtectPdfPage() {
   const handleProtect = async () => {
     if (!userPw || files.length === 0) return
     setPhase('processing')
+    setError(null)
 
-    const out: Result[] = []
-    for (const file of files) {
-      const buffer = await file.arrayBuffer()
-      const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
-
-      const encrypted = await doc.save({
-        userPassword: userPw,
-        ownerPassword: ownerPw || userPw,
-        permissions: {
-          printing: allowPrinting ? 'highResolution' : 'none',
-          copying: allowCopying,
-          modifying: allowEditing,
-          annotating: false,
-          fillingForms: true,
-          contentAccessibility: true,
-          documentAssembly: false,
-        },
-      } as Parameters<typeof doc.save>[0])
-
-      const outName = file.name.replace(/\.pdf$/i, '') + '-protected.pdf'
-      out.push({
-        name: outName,
-        file: new File([encrypted.buffer as ArrayBuffer], outName, { type: 'application/pdf' }),
-      })
+    try {
+      const out: Result[] = []
+      for (const file of files) {
+        const buffer = await file.arrayBuffer()
+        const encrypted = await protectPdf(buffer, userPw, ownerPw || userPw)
+        const outName = file.name.replace(/\.pdf$/i, '') + '-protected.pdf'
+        out.push({
+          name: outName,
+          file: new File([encrypted], outName, { type: 'application/pdf' }),
+        })
+      }
+      setResults(out)
+      setPhase('done')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to protect PDF')
+      setPhase('idle')
     }
-
-    setResults(out)
-    setPhase('done')
   }
 
   const handleReset = () => {
@@ -80,16 +68,11 @@ export default function ProtectPdfPage() {
     setOwnerPw('')
     setResults([])
     setPhase('idle')
+    setError(null)
   }
 
   const strength = passwordStrength(userPw)
   const totalBytes = files.reduce((s, f) => s + f.size, 0)
-
-  const permissionToggles = [
-    { label: 'Allow printing', state: allowPrinting, set: setAllowPrinting },
-    { label: 'Allow copying text', state: allowCopying, set: setAllowCopying },
-    { label: 'Allow editing', state: allowEditing, set: setAllowEditing },
-  ]
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -190,22 +173,9 @@ export default function ProtectPdfPage() {
               </div>
             </div>
 
-            <fieldset>
-              <legend className="text-sm font-medium text-fg mb-2">Permissions</legend>
-              <div className="space-y-2">
-                {permissionToggles.map(({ label, state, set }) => (
-                  <label key={label} className="flex items-center gap-2.5 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={state}
-                      onChange={(e) => set(e.target.checked)}
-                      className="h-4 w-4 rounded border-border"
-                    />
-                    <span className="text-sm text-fg">{label}</span>
-                  </label>
-                ))}
-              </div>
-            </fieldset>
+            {error && (
+              <p className="text-sm text-error">{error}</p>
+            )}
 
             <div className="flex justify-end">
               <button

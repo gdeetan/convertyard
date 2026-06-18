@@ -92,6 +92,20 @@ export async function unlockPdf(fileBuffer: ArrayBuffer, password: string): Prom
   return res.data
 }
 
+export async function protectPdf(
+  fileBuffer: ArrayBuffer,
+  userPassword: string,
+  ownerPassword: string
+): Promise<ArrayBuffer> {
+  const clone = fileBuffer.slice(0)
+  const res = await send<{ data: ArrayBuffer }>(
+    'protect-pdf',
+    { fileBuffer: clone, userPassword, ownerPassword },
+    [clone]
+  )
+  return res.data
+}
+
 export async function extractStructuredText(fileBuffer: ArrayBuffer): Promise<string[]> {
   const clone = fileBuffer.slice(0)
   const res = await send<{ data: ArrayBuffer }>('extract-structured-text', { fileBuffer: clone }, [clone])
