@@ -267,6 +267,146 @@ export async function wordToPdf(
   return results
 }
 
+// ── Packed-row unpacker ───────────────────────────────────────────────────────
+// Some Excel files (e.g., pasted from web tables) store an entire column's data
+// as a single space-separated string in one cell. Detect this pattern and
+// reconstruct the intended 2-D table before rendering.
+
+const NUMERIC_VALUE_RE = /^[\d.]+%?$|^\$[\d,]+\+*$/
+
+const TEXT_SUFFIX_WORDS = new Set([
+  'pro', 'max', 'pure', 'station', 'vac', 'auto', 'empty', 'iq', 'ai',
+  'smart', 'ultra', 'maxv', 'aivi', 'plus', 'series', 'edition', 'robot',
+])
+
+function isStrongNameStart(tok: string): boolean {
+  return (
+    /^[A-Z]/.test(tok) &&       // starts with uppercase
+    !/^[A-Z]\d/.test(tok) &&    // not a model code like T8, S9+, L10
+    !TEXT_SUFFIX_WORDS.has(tok.toLowerCase())
+  )
+}
+
+function buildTextGroups(
+  tokens: string[],
+  boundaryFn: (tok: string, prevWasStart: boolean) => boolean
+): { groups: string[][]; headerToks: string[] } {
+  const groups: string[][] = []
+  const headerToks: string[] = []
+  let current: string[] | null = null
+  let prevWasStart = false
+
+  for (const tok of tokens) {
+    const isBoundary = boundaryFn(tok, prevWasStart)
+    if (isBoundary) {
+      if (current !== null) groups.push(current)
+      current = [tok]
+      prevWasStart = true
+    } else {
+      if (current === null) headerToks.push(tok)
+      else current.push(tok)
+      prevWasStart = false
+    }
+  }
+  if (current !== null) groups.push(current)
+  return { groups, headerToks }
+}
+
+function tryUnpackTextTokens(
+  tokens: string[],
+  numDataRows: number
+): { header: string; values: string[] } | null {
+  // Pass 1: strong uppercase-start tokens that aren't model codes or generic words
+  let { groups, headerToks } = buildTextGroups(tokens, (tok) => isStrongNameStart(tok))
+  if (groups.length === numDataRows) {
+    return { header: headerToks.join(' '), values: groups.map(g => g.join(' ')) }
+  }
+
+  // Collect brand names discovered in pass 1 for case-insensitive matching
+  const knownBrands = new Set(groups.map(g => g[0].toLowerCase()))
+  ;({ groups, headerToks } = buildTextGroups(tokens, (tok) =>
+    isStrongNameStart(tok) || knownBrands.has(tok.toLowerCase())
+  ))
+  if (groups.length === numDataRows) {
+    return { header: headerToks.join(' '), values: groups.map(g => g.join(' ')) }
+  }
+
+  // Pass 3: also treat digit-only tokens as boundaries IF they don't immediately
+  // follow a group start (digit-after-start = model number, not a new brand)
+  ;({ groups, headerToks } = buildTextGroups(tokens, (tok, prevWasStart) =>
+    isStrongNameStart(tok) ||
+    knownBrands.has(tok.toLowerCase()) ||
+    (/^\d+$/.test(tok) && !prevWasStart)
+  ))
+  if (groups.length === numDataRows) {
+    return { header: headerToks.join(' '), values: groups.map(g => g.join(' ')) }
+  }
+
+  return null
+}
+
+function unpackPackedSheet(data: string[][]): string[][] {
+  if (data.length !== 1 || data[0].length < 2) return data
+
+  const row = data[0]
+  const numCols = row.length
+
+  type ColInfo = { header: string; values: string[]; isNumeric: boolean } | null
+  const parsed: ColInfo[] = []
+
+  for (let ci = 0; ci < numCols; ci++) {
+    const text = String(row[ci] ?? '').replace(/[\r\n\t]+/g, ' ').trim()
+    if (!text) { parsed.push(null); continue }
+
+    const tokens = text.split(/\s+/).filter(t => t.length > 0)
+    if (tokens.length < 2) { parsed.push(null); continue }
+
+    const firstNumIdx = tokens.findIndex(t => NUMERIC_VALUE_RE.test(t))
+    if (firstNumIdx > 0) {
+      const valTokens = tokens.slice(firstNumIdx)
+      const numericRatio = valTokens.filter(t => NUMERIC_VALUE_RE.test(t)).length / valTokens.length
+      if (numericRatio >= 0.8) {
+        parsed.push({ header: tokens.slice(0, firstNumIdx).join(' '), values: valTokens, isNumeric: true })
+        continue
+      }
+    }
+    parsed.push({ header: '', values: tokens, isNumeric: false })
+  }
+
+  const numericCols = parsed.filter((p): p is NonNullable<ColInfo> => p?.isNumeric === true)
+  if (numericCols.length < 1) return data
+
+  const valueCounts = numericCols.map(p => p.values.length)
+  const numDataRows = Math.max(...valueCounts)
+  const minCount = Math.min(...valueCounts)
+  if (numDataRows < 2 || numDataRows - minCount > 3) return data
+
+  // Unpack text columns using the target row count
+  for (let ci = 0; ci < numCols; ci++) {
+    const p = parsed[ci]
+    if (!p || p.isNumeric) continue
+
+    const unpacked = tryUnpackTextTokens(p.values, numDataRows)
+    if (unpacked) {
+      parsed[ci] = { header: unpacked.header, values: unpacked.values, isNumeric: false }
+    } else {
+      // Couldn't reconstruct — use the first word as header and blank out data rows
+      parsed[ci] = {
+        header: String(row[ci] ?? '').split(/\s+/)[0] ?? '',
+        values: Array(numDataRows).fill(''),
+        isNumeric: false,
+      }
+    }
+  }
+
+  const headers = parsed.map((p, ci) => p?.header ?? String(row[ci] ?? '').split(/\s+/)[0] ?? '')
+  const reconstructed: string[][] = [headers]
+  for (let ri = 0; ri < numDataRows; ri++) {
+    reconstructed.push(parsed.map(p => (!p ? '' : p.values[ri] ?? '')))
+  }
+  return reconstructed
+}
+
 // ── excelToPdf ────────────────────────────────────────────────────────────────
 
 export async function excelToPdf(
@@ -306,11 +446,12 @@ export async function excelToPdf(
       for (let si = 0; si < workbook.SheetNames.length; si++) {
         const sheetName = workbook.SheetNames[si]
         const ws = workbook.Sheets[sheetName]
-        const data: string[][] = XLSX.utils.sheet_to_json(ws, {
+        const rawData: string[][] = XLSX.utils.sheet_to_json(ws, {
           header: 1,
           defval: '',
           raw: false,
         }) as string[][]
+        const data = unpackPackedSheet(rawData)
 
         // Add a new page for each sheet
         // eslint-disable-next-line prefer-const
