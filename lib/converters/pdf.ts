@@ -1193,12 +1193,28 @@ function resolveWatermarkPosition(
   pw: number,
   ph: number,
   itemW: number,
-  itemH: number
+  itemH: number,
+  rotationDeg = 0
 ): [number, number] {
+  const rotRad = rotationDeg * (Math.PI / 180)
   const col = position.includes('left') ? 0 : position.includes('right') ? 2 : 1
   const row = position.includes('bottom') ? 0 : position.includes('top') ? 2 : 1
-  const x = col === 0 ? pw * 0.05 : col === 2 ? pw * 0.95 - itemW : pw / 2 - itemW / 2
-  const y = row === 0 ? ph * 0.05 : row === 2 ? ph * 0.95 - itemH : ph / 2 - itemH / 2
+
+  // Visual center of where the watermark should appear
+  const cx =
+    col === 0 ? pw * 0.1 + itemW / 2 :
+    col === 2 ? pw * 0.9 - itemW / 2 :
+    pw / 2
+  const cy =
+    row === 0 ? ph * 0.1 + itemH / 2 :
+    row === 2 ? ph * 0.9 - itemH / 2 :
+    ph / 2
+
+  // Back-compute the drawing origin so that the item center lands at (cx, cy)
+  // after rotating around the origin by rotRad (CCW in PDF coordinate space)
+  const x = cx - (itemW / 2) * Math.cos(rotRad) + (itemH / 2) * Math.sin(rotRad)
+  const y = cy - (itemW / 2) * Math.sin(rotRad) - (itemH / 2) * Math.cos(rotRad)
+
   return [x, y]
 }
 
@@ -1215,7 +1231,7 @@ export async function watermarkPdf(
 
     try {
       const buffer = await file.arrayBuffer()
-      const doc = await PDFDocument.load(buffer)
+      const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
       const pages = doc.getPages()
 
       const wmType = (options.watermarkType as string) ?? 'text'
@@ -1242,7 +1258,7 @@ export async function watermarkPdf(
         for (const idx of targetIndices) {
           const page = pages[idx]
           const { width: pw, height: ph } = page.getSize()
-          const [tx, ty] = resolveWatermarkPosition(position, pw, ph, textWidth, fontSize)
+          const [tx, ty] = resolveWatermarkPosition(position, pw, ph, textWidth, fontSize, rotation)
           page.drawText(text, {
             x: tx,
             y: ty,
@@ -1273,7 +1289,7 @@ export async function watermarkPdf(
           const { width: pw, height: ph } = page.getSize()
           const imgW = pw * imgSizePct
           const imgH = (embedded.height / embedded.width) * imgW
-          const [ix, iy] = resolveWatermarkPosition(position, pw, ph, imgW, imgH)
+          const [ix, iy] = resolveWatermarkPosition(position, pw, ph, imgW, imgH, rotation)
           page.drawImage(embedded, {
             x: ix,
             y: iy,
