@@ -136,7 +136,7 @@ function ResultRow({ entry }: { entry: FileEntry }) {
   const { file, status, result, error } = entry
   const isDone = status === 'done' && result
   const isError = status === 'error'
-  const saved = isDone ? file.size - result!.size : 0
+  const saved = isDone && result ? file.size - result.size : 0
   const savedPct = isDone && file.size > 0 ? Math.round((saved / file.size) * 100) : 0
 
   return (
@@ -167,7 +167,7 @@ function ResultRow({ entry }: { entry: FileEntry }) {
         <span className="text-xs text-fg-muted">
           {isError ? (
             <span className="text-error">{error}</span>
-          ) : (
+          ) : isDone ? (
             <>
               {formatBytes(file.size)}
               {' → '}
@@ -179,7 +179,7 @@ function ResultRow({ entry }: { entry: FileEntry }) {
                 <span className="ml-1 text-fg-subtle">+{Math.abs(savedPct)}%</span>
               )}
             </>
-          )}
+          ) : null}
         </span>
         {entry.resultMeta && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-fg-subtle">
