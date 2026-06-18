@@ -526,9 +526,18 @@ export async function pdfToPng(
       const startIdx = pageFrom - 1
       const endIdx = Math.min(pageToOpt - 1, pageCount - 1)
 
+      if (startIdx > endIdx) {
+        const reason = startIdx >= pageCount
+          ? `"From page" (${pageFrom}) is beyond this PDF's page count (${pageCount}).`
+          : `"From page" (${pageFrom}) must be ≤ "To page" (${pageToOpt}).`
+        results.push(new Error(reason))
+        onProgress?.(i, 100)
+        continue
+      }
+
+      const isAllPages = pageFrom === 1 && pageToOpt >= pageCount
       for (let p = startIdx; p <= endIdx; p++) {
         const pngBuffer = await renderPagePng(buffer, p, dpi, transparent)
-        const isAllPages = pageFrom === 1 && pageToOpt >= pageCount
         const fileName = pageCount === 1 && isAllPages
           ? `${baseName}.png`
           : `${baseName}-page-${p + 1}.png`

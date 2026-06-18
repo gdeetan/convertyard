@@ -1,11 +1,33 @@
 let workerInstance: Worker | null = null
 
+// Track pending requests so we can reject them if the worker crashes.
+const pending = new Map<string, (err: Error) => void>()
+
+function rejectAll(err: Error) {
+  for (const reject of pending.values()) reject(err)
+  pending.clear()
+}
+
 function getWorker(): Worker {
   if (!workerInstance) {
-    workerInstance = new Worker(
+    const w = new Worker(
       new URL('./mupdf.worker.ts', import.meta.url),
       { type: 'module' }
     )
+
+    w.addEventListener('error', (e: ErrorEvent) => {
+      const err = new Error(e.message || 'mupdf worker crashed')
+      workerInstance = null
+      rejectAll(err)
+    })
+
+    w.addEventListener('messageerror', () => {
+      const err = new Error('mupdf worker message deserialization failed')
+      workerInstance = null
+      rejectAll(err)
+    })
+
+    workerInstance = w
   }
   return workerInstance
 }
@@ -19,9 +41,13 @@ function send<T>(
     const worker = getWorker()
     const id = crypto.randomUUID()
 
+    // Register a reject hook so getWorker's onerror can cancel this promise.
+    pending.set(id, reject)
+
     const handler = (e: MessageEvent) => {
       if (e.data.id !== id) return
       worker.removeEventListener('message', handler)
+      pending.delete(id)
       if (e.data.type === 'error') {
         reject(new Error(e.data.message))
       } else {
@@ -84,8 +110,6 @@ export async function getPageSizes(fileBuffer: ArrayBuffer): Promise<{ width: nu
   return JSON.parse(json) as { width: number; height: number }[]
 }
 
-// Returns one JSON string per page from mupdf's structured text API.
-// Each JSON string contains block/line/span data with font name, size, bold/italic flags.
 export async function unlockPdf(fileBuffer: ArrayBuffer, password: string): Promise<ArrayBuffer> {
   const clone = fileBuffer.slice(0)
   const res = await send<{ data: ArrayBuffer }>('unlock-pdf', { fileBuffer: clone, password }, [clone])
