@@ -18,6 +18,7 @@ import { config as pngToAvif } from './tools/png-to-avif'
 import { config as avifToPng } from './tools/avif-to-png'
 import { config as compressImage } from './tools/compress-image'
 import { config as imageResizer } from './tools/image-resizer'
+import { config as imageCropper } from './tools/image-cropper'
 import { config as mp4ToMp3 } from './tools/mp4-to-mp3'
 import { config as mp3ToMp4 } from './tools/mp3-to-mp4'
 import { config as backgroundRemover } from './tools/background-remover'
@@ -58,6 +59,7 @@ export const tools: ToolConfig[] = [
   avifToPng,
   compressImage,
   imageResizer,
+  imageCropper,
   mp4ToMp3,
   mp3ToMp4,
   backgroundRemover,

@@ -1,9 +1,14 @@
 import type { VerticalHubConfig } from '@/lib/types'
-
-// Populated in Prompt 19 — add each config file import here as it's created.
-// Example (uncomment when file exists):
-// import { config as upsc } from './verticals/upsc'
+import { upscConfig } from './verticals/upsc'
+import { sscCglConfig } from './verticals/ssc-cgl'
+import { neetConfig } from './verticals/neet'
+import { jeeMainConfig } from './verticals/jee-main'
+import { ibpsPoConfig } from './verticals/ibps-po'
 
 export const verticals: VerticalHubConfig[] = [
-  // configs added here in Prompt 19
+  upscConfig,
+  sscCglConfig,
+  neetConfig,
+  jeeMainConfig,
+  ibpsPoConfig,
 ]

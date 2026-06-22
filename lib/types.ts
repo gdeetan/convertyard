@@ -133,6 +133,11 @@ export interface ToolConfig {
     results: (File | null)[]
     options: ToolOptions
   }>
+  interactivePanel?: React.ComponentType<{
+    files: File[]
+    options: ToolOptions
+    onChange: (name: string, value: unknown) => void
+  }>
   advancedOptions?: ToolOption[]
   presetBar?: React.ComponentType<{ onApply: (values: ToolOptions) => void }>
   faq: FAQItem[]
@@ -190,6 +195,7 @@ export interface VerticalHubConfig {
   intro: string
   toolPresets: {
     toolSlug: string
+    toolHref?: string
     label: string
     targetBytes?: number
     targetDimensions?: { width: number; height: number }

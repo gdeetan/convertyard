@@ -88,7 +88,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['image-resizer', 'jpg-to-webp', 'png-to-webp'],
+  relatedTools: ['image-cropper', 'image-resizer', 'jpg-to-webp', 'png-to-webp'],
   relatedArticles: ['compress-images-without-losing-quality', 'webp-vs-avif-vs-jpeg', 'best-webp-quality', 'batch-convert-images'],
 
   meta: {
