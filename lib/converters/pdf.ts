@@ -1225,7 +1225,6 @@ function resolveWatermarkPosition(
   const col = position.includes('left') ? 0 : position.includes('right') ? 2 : 1
   const row = position.includes('bottom') ? 0 : position.includes('top') ? 2 : 1
 
-  // Visual center of where the watermark should appear
   const cx =
     col === 0 ? pw * 0.1 + itemW / 2 :
     col === 2 ? pw * 0.9 - itemW / 2 :
@@ -1235,12 +1234,190 @@ function resolveWatermarkPosition(
     row === 2 ? ph * 0.9 - itemH / 2 :
     ph / 2
 
-  // Back-compute the drawing origin so that the item center lands at (cx, cy)
-  // after rotating around the origin by rotRad (CCW in PDF coordinate space)
+  // Back-compute drawing origin so item center lands at (cx,cy) after CCW rotation
   const x = cx - (itemW / 2) * Math.cos(rotRad) + (itemH / 2) * Math.sin(rotRad)
   const y = cy - (itemW / 2) * Math.sin(rotRad) - (itemH / 2) * Math.cos(rotRad)
-
   return [x, y]
+}
+
+function parseHexColor(hex: string): [number, number, number] {
+  const clean = (hex ?? '#cc0000').replace(/^#/, '').padEnd(6, '0')
+  const r = parseInt(clean.slice(0, 2), 16)
+  const g = parseInt(clean.slice(2, 4), 16)
+  const b = parseInt(clean.slice(4, 6), 16)
+  return [
+    isNaN(r) ? 0.8 : r / 255,
+    isNaN(g) ? 0 : g / 255,
+    isNaN(b) ? 0 : b / 255,
+  ]
+}
+
+// Vector path: pdf-lib modifies the existing PDF (preserves text searchability).
+// Throws on complex/large PDFs with malformed internal objects.
+async function watermarkPdfVector(
+  file: File,
+  options: ToolOptions,
+  onProgress?: (pct: number) => void
+): Promise<File> {
+  const buffer = await file.arrayBuffer()
+  const doc = await PDFDocument.load(buffer, {
+    ignoreEncryption: true,
+    throwOnInvalidObject: false,
+    updateMetadata: false,
+  })
+  const pages = doc.getPages()
+  if (pages.length === 0) throw new Error('PDF has no pages.')
+
+  const wmType = (options.watermarkType as string) ?? 'text'
+  const applyTo = (options.applyTo as string) ?? 'all'
+  const position = (options.position as string) ?? 'center'
+  const opacity = Math.min(1, Math.max(0, ((options.opacity as number) ?? 30) / 100))
+  const rotation = (options.rotation as number) ?? 45
+  const layer = (options.layer as string) ?? 'above'
+  const targetIndices = applyTo === 'first' ? [0] : pages.map((_, idx) => idx)
+
+  if (wmType === 'text') {
+    const text = (options.watermarkText as string) ?? 'CONFIDENTIAL'
+    const sizeKey = (options.fontSize as string) ?? 'medium'
+    const fontSize = sizeKey === 'small' ? 24 : sizeKey === 'large' ? 72 : 48
+    const [r, g, b] = parseHexColor(options.textColor as string)
+    const font = await doc.embedFont(StandardFonts.Helvetica)
+    const textWidth = font.widthOfTextAtSize(text, fontSize)
+
+    for (let j = 0; j < targetIndices.length; j++) {
+      const page = pages[targetIndices[j]]
+      const { width: pw, height: ph } = page.getSize()
+      const [tx, ty] = resolveWatermarkPosition(position, pw, ph, textWidth, fontSize, rotation)
+      page.drawText(text, {
+        x: tx, y: ty, size: fontSize, font,
+        color: rgb(r, g, b),
+        opacity: layer === 'behind' ? opacity * 0.6 : opacity,
+        rotate: degrees(rotation),
+      })
+      onProgress?.(Math.round(5 + ((j + 1) / targetIndices.length) * 80))
+    }
+  } else {
+    const imageFile = options.watermarkImage as File | null
+    if (!imageFile) throw new Error('No watermark image provided.')
+    const imgBuffer = await imageFile.arrayBuffer()
+    const isPng = imageFile.type === 'image/png' || imageFile.name.toLowerCase().endsWith('.png')
+    const embedded = isPng ? await doc.embedPng(imgBuffer) : await doc.embedJpg(imgBuffer)
+    const imgSizePct = Math.min(100, Math.max(5, (options.imageSizePct as number) ?? 30)) / 100
+
+    for (let j = 0; j < targetIndices.length; j++) {
+      const page = pages[targetIndices[j]]
+      const { width: pw, height: ph } = page.getSize()
+      const imgW = pw * imgSizePct
+      const imgH = (embedded.height / embedded.width) * imgW
+      const [ix, iy] = resolveWatermarkPosition(position, pw, ph, imgW, imgH, rotation)
+      page.drawImage(embedded, { x: ix, y: iy, width: imgW, height: imgH, opacity, rotate: degrees(rotation) })
+      onProgress?.(Math.round(5 + ((j + 1) / targetIndices.length) * 80))
+    }
+  }
+
+  onProgress?.(90)
+  const pdfBytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+  const outName = file.name.replace(/\.pdf$/i, '') + '-watermarked.pdf'
+  return new File([pdfBytes as unknown as BlobPart], outName, { type: 'application/pdf' })
+}
+
+// Raster fallback: mupdf renders each page → Canvas 2D draws watermark → new PDF.
+// Works for any PDF regardless of complexity. Loses text searchability.
+async function watermarkPdfRaster(
+  file: File,
+  options: ToolOptions,
+  onProgress?: (pct: number) => void
+): Promise<File> {
+  const buffer = await file.arrayBuffer()
+  const pageCount = await getPageCount(buffer)
+  if (pageCount === 0) throw new Error('PDF has no pages.')
+
+  const wmType = (options.watermarkType as string) ?? 'text'
+  const applyTo = (options.applyTo as string) ?? 'all'
+  const position = (options.position as string) ?? 'center'
+  const opacity = Math.min(1, Math.max(0, ((options.opacity as number) ?? 30) / 100))
+  const rotationDeg = (options.rotation as number) ?? 45
+
+  // Pre-load image watermark once
+  let imageBitmap: ImageBitmap | null = null
+  if (wmType === 'image') {
+    const imageFile = options.watermarkImage as File | null
+    if (!imageFile) throw new Error('No watermark image provided.')
+    const blob = new Blob([await imageFile.arrayBuffer()], { type: imageFile.type })
+    imageBitmap = await createImageBitmap(blob)
+  }
+
+  const doc = await PDFDocument.create()
+
+  for (let p = 0; p < pageCount; p++) {
+    const applyWatermark = applyTo === 'all' || p === 0
+    const jpegBuffer = await renderPage(buffer, p, 150, 92)
+    const jpegBytes = new Uint8Array(jpegBuffer)
+
+    if (applyWatermark) {
+      const bmp = await createImageBitmap(new Blob([jpegBytes], { type: 'image/jpeg' }))
+      const canvas = new OffscreenCanvas(bmp.width, bmp.height)
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(bmp, 0, 0)
+      bmp.close()
+
+      // Resolve visual center in canvas space (top-left origin, Y down)
+      const col = position.includes('left') ? 0 : position.includes('right') ? 2 : 1
+      const row = position.includes('top') ? 0 : position.includes('bottom') ? 2 : 1
+      const wmCx =
+        col === 0 ? canvas.width * 0.15 :
+        col === 2 ? canvas.width * 0.85 :
+        canvas.width / 2
+      const wmCy =
+        row === 0 ? canvas.height * 0.15 :
+        row === 2 ? canvas.height * 0.85 :
+        canvas.height / 2
+
+      ctx.save()
+      ctx.globalAlpha = opacity
+      ctx.translate(wmCx, wmCy)
+      // Canvas Y-axis is inverted vs PDF, so negate rotation to match visual direction
+      ctx.rotate(-rotationDeg * (Math.PI / 180))
+
+      if (wmType === 'text') {
+        const text = (options.watermarkText as string) ?? 'CONFIDENTIAL'
+        const sizeKey = (options.fontSize as string) ?? 'medium'
+        const fontPx =
+          sizeKey === 'small' ? Math.round(canvas.width * 0.06) :
+          sizeKey === 'large' ? Math.round(canvas.width * 0.18) :
+          Math.round(canvas.width * 0.12)
+        const hexColor = (options.textColor as string) ?? '#cc0000'
+        ctx.font = `bold ${fontPx}px Helvetica, Arial, sans-serif`
+        ctx.fillStyle = /^#[0-9a-fA-F]{3,6}$/.test(hexColor) ? hexColor : '#cc0000'
+        const textW = ctx.measureText(text).width
+        ctx.fillText(text, -textW / 2, fontPx / 3)
+      } else if (imageBitmap) {
+        const imgSizePct = Math.min(100, Math.max(5, (options.imageSizePct as number) ?? 30)) / 100
+        const imgW = canvas.width * imgSizePct
+        const imgH = (imageBitmap.height / imageBitmap.width) * imgW
+        ctx.drawImage(imageBitmap, -imgW / 2, -imgH / 2, imgW, imgH)
+      }
+
+      ctx.restore()
+
+      const outBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.92 })
+      const outBytes = new Uint8Array(await outBlob.arrayBuffer())
+      const image = await doc.embedJpg(outBytes)
+      const page = doc.addPage([image.width, image.height])
+      page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+    } else {
+      const image = await doc.embedJpg(jpegBytes)
+      const page = doc.addPage([image.width, image.height])
+      page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+    }
+
+    onProgress?.(Math.round(((p + 1) / pageCount) * 90))
+  }
+
+  imageBitmap?.close()
+  const pdfBytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+  const outName = file.name.replace(/\.pdf$/i, '') + '-watermarked.pdf'
+  return new File([pdfBytes as unknown as BlobPart], outName, { type: 'application/pdf' })
 }
 
 export async function watermarkPdf(
@@ -1253,98 +1430,19 @@ export async function watermarkPdf(
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     onProgress?.(i, 0)
-
     try {
-      const buffer = await file.arrayBuffer()
-      // throwOnInvalidObject: false tolerates malformed objects common in large/complex PDFs
-      // updateMetadata: false skips unnecessary metadata rewrites on large docs
-      const doc = await PDFDocument.load(buffer, {
-        ignoreEncryption: true,
-        throwOnInvalidObject: false,
-        updateMetadata: false,
-      })
-      const pages = doc.getPages()
-
-      const wmType = (options.watermarkType as string) ?? 'text'
-      const applyTo = (options.applyTo as string) ?? 'all'
-      const position = (options.position as string) ?? 'center'
-      const opacity = Math.min(1, Math.max(0, ((options.opacity as number) ?? 30) / 100))
-      const rotation = (options.rotation as number) ?? 45
-      const layer = (options.layer as string) ?? 'above'
-
-      const targetIndices = applyTo === 'first' ? [0] : pages.map((_, idx) => idx)
-
-      if (wmType === 'text') {
-        const text = (options.watermarkText as string) ?? 'CONFIDENTIAL'
-        const sizeKey = (options.fontSize as string) ?? 'medium'
-        const fontSize = sizeKey === 'small' ? 24 : sizeKey === 'large' ? 72 : 48
-
-        const hexColor = (options.textColor as string) ?? '#cc0000'
-        const r = parseInt(hexColor.slice(1, 3), 16) / 255
-        const g = parseInt(hexColor.slice(3, 5), 16) / 255
-        const b = parseInt(hexColor.slice(5, 7), 16) / 255
-
-        const font = await doc.embedFont(StandardFonts.Helvetica)
-        const textWidth = font.widthOfTextAtSize(text, fontSize)
-
-        for (let j = 0; j < targetIndices.length; j++) {
-          const idx = targetIndices[j]
-          const page = pages[idx]
-          const { width: pw, height: ph } = page.getSize()
-          const [tx, ty] = resolveWatermarkPosition(position, pw, ph, textWidth, fontSize, rotation)
-
-          page.drawText(text, {
-            x: tx,
-            y: ty,
-            size: fontSize,
-            font,
-            color: rgb(r, g, b),
-            opacity: layer === 'behind' ? opacity * 0.6 : opacity,
-            rotate: degrees(rotation),
-          })
-          onProgress?.(i, Math.round(5 + ((j + 1) / targetIndices.length) * 80))
-        }
-      } else {
-        const imageFile = options.watermarkImage as File | null
-        if (!imageFile) {
-          results.push(new Error('No watermark image provided.'))
-          continue
-        }
-
-        const imgBuffer = await imageFile.arrayBuffer()
-        const isPng = imageFile.type === 'image/png' || imageFile.name.toLowerCase().endsWith('.png')
-        const embedded = isPng
-          ? await doc.embedPng(imgBuffer)
-          : await doc.embedJpg(imgBuffer)
-
-        const imgSizePct = Math.min(100, Math.max(5, (options.imageSizePct as number) ?? 30)) / 100
-
-        for (let j = 0; j < targetIndices.length; j++) {
-          const idx = targetIndices[j]
-          const page = pages[idx]
-          const { width: pw, height: ph } = page.getSize()
-          const imgW = pw * imgSizePct
-          const imgH = (embedded.height / embedded.width) * imgW
-          const [ix, iy] = resolveWatermarkPosition(position, pw, ph, imgW, imgH, rotation)
-          page.drawImage(embedded, {
-            x: ix,
-            y: iy,
-            width: imgW,
-            height: imgH,
-            opacity,
-            rotate: degrees(rotation),
-          })
-          onProgress?.(i, Math.round(5 + ((j + 1) / targetIndices.length) * 80))
-        }
+      // Vector path first: faster, preserves text searchability
+      const result = await watermarkPdfVector(file, options, (pct) => onProgress?.(i, pct))
+      results.push(result)
+    } catch {
+      // Raster fallback: mupdf renders pages, Canvas 2D draws watermark
+      // Works for any PDF complexity/size including large textbooks
+      try {
+        const result = await watermarkPdfRaster(file, options, (pct) => onProgress?.(i, pct))
+        results.push(result)
+      } catch (err) {
+        results.push(err instanceof Error ? err : new Error(String(err)))
       }
-
-      onProgress?.(i, 90)
-      const pdfBytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
-      const outName = file.name.replace(/\.pdf$/i, '') + '-watermarked.pdf'
-      results.push(new File([pdfBytes as unknown as BlobPart], outName, { type: 'application/pdf' }))
-      onProgress?.(i, 100)
-    } catch (err) {
-      results.push(err instanceof Error ? err : new Error(String(err)))
     }
   }
 
