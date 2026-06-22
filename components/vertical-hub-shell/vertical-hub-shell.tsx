@@ -46,7 +46,7 @@ export function VerticalHubShell({ config }: VerticalHubShellProps) {
           {config.toolPresets.map((preset, i) => (
             <Link
               key={i}
-              href={`/${preset.toolSlug}/`}
+              href={preset.toolHref ?? `/${preset.toolSlug}/`}
               className="rounded-lg border border-border p-4 hover:border-primary hover:bg-bg-muted transition-colors"
             >
               <div className="font-semibold text-fg">{preset.label}</div>

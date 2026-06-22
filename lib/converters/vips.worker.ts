@@ -59,6 +59,22 @@ self.onmessage = async (e: MessageEvent) => {
 
       self.postMessage({ id, type: 'progress', pct: 30 })
 
+      // Crop: extractArea using 0–1 fractions of post-orient image dimensions
+      const hasCrop =
+        typeof opts.cropX === 'number' &&
+        typeof opts.cropY === 'number' &&
+        typeof opts.cropW === 'number' &&
+        typeof opts.cropH === 'number'
+      if (hasCrop) {
+        const left = Math.round((opts.cropX as number) * image.width)
+        const top  = Math.round((opts.cropY as number) * image.height)
+        const w    = Math.max(1, Math.round((opts.cropW as number) * image.width))
+        const h    = Math.max(1, Math.round((opts.cropH as number) * image.height))
+        const cropped = image.extractArea(left, top, w, h)
+        image.delete()
+        image = cropped
+      }
+
       const maxDim = typeof opts.maxDimension === 'number' ? opts.maxDimension : 0
       if (maxDim > 0) {
         const longer = Math.max(image.width, image.height)
