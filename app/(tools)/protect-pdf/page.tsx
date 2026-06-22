@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Lock, Shield, Download, RefreshCcw, Eye, EyeOff, CheckCircle2 } from 'lucide-react'
-import { protectPdf } from '@/lib/converters/mupdf-client'
+import { Lock, Shield, Download, RefreshCcw, Eye, EyeOff, CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react'
+import { protectPdf, buildPermissionsMask } from '@/lib/converters/mupdf-client'
 import { Dropzone } from '@/components/tool-shell/dropzone'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
@@ -33,6 +33,13 @@ export default function ProtectPdfPage() {
   const [phase, setPhase] = useState<'idle' | 'processing' | 'done'>('idle')
   const [results, setResults] = useState<Result[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [showAdvanced, setShowAdvanced] = useState(false)
+  const [encryptStrength, setEncryptStrength] = useState<'aes-256' | 'aes-128'>('aes-256')
+  const [allowPrinting, setAllowPrinting] = useState(true)
+  const [allowCopying, setAllowCopying] = useState(true)
+  const [allowEditing, setAllowEditing] = useState(true)
+  const [allowForms, setAllowForms] = useState(true)
+  const [allowAccessibility, setAllowAccessibility] = useState(true)
 
   const handleAdd = useCallback((added: File[]) => {
     setFiles((prev) => [...prev, ...added])
@@ -43,11 +50,24 @@ export default function ProtectPdfPage() {
     setPhase('processing')
     setError(null)
 
+    const permissions = buildPermissionsMask({
+      allowPrinting,
+      allowCopying,
+      allowEditing,
+      allowFillingForms: allowForms,
+      allowAccessibility,
+    })
+
     try {
       const out: Result[] = []
       for (const file of files) {
         const buffer = await file.arrayBuffer()
-        const encrypted = await protectPdf(buffer, userPw, ownerPw || userPw)
+        const encrypted = await protectPdf(buffer, {
+          userPassword: userPw,
+          ownerPassword: ownerPw || userPw,
+          encryptStrength,
+          permissions,
+        })
         const outName = file.name.replace(/\.pdf$/i, '') + '-protected.pdf'
         out.push({
           name: outName,
@@ -69,6 +89,13 @@ export default function ProtectPdfPage() {
     setResults([])
     setPhase('idle')
     setError(null)
+    setShowAdvanced(false)
+    setEncryptStrength('aes-256')
+    setAllowPrinting(true)
+    setAllowCopying(true)
+    setAllowEditing(true)
+    setAllowForms(true)
+    setAllowAccessibility(true)
   }
 
   const strength = passwordStrength(userPw)
@@ -171,6 +198,69 @@ export default function ProtectPdfPage() {
                   </button>
                 </div>
               </div>
+            </div>
+
+            {/* Advanced: encryption strength + permissions */}
+            <div className="border-t border-border pt-4">
+              <button
+                type="button"
+                onClick={() => setShowAdvanced((v) => !v)}
+                className="flex items-center gap-1.5 text-xs text-fg-muted hover:text-fg transition-colors"
+              >
+                {showAdvanced ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                Encryption &amp; permissions
+              </button>
+
+              {showAdvanced && (
+                <div className="mt-4 space-y-4">
+                  {/* Encryption strength */}
+                  <div>
+                    <p className="text-sm font-medium text-fg mb-2">Encryption</p>
+                    <div className="flex flex-col gap-1.5 sm:flex-row sm:gap-4">
+                      {(['aes-256', 'aes-128'] as const).map((v) => (
+                        <label key={v} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="radio"
+                            name="encryptStrength"
+                            value={v}
+                            checked={encryptStrength === v}
+                            onChange={() => setEncryptStrength(v)}
+                            className="accent-primary"
+                          />
+                          {v === 'aes-256' ? 'AES-256 (recommended)' : 'AES-128 (legacy compatibility)'}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Permissions */}
+                  <div>
+                    <p className="text-sm font-medium text-fg mb-2">Permissions</p>
+                    <div className="space-y-2">
+                      {[
+                        { label: 'Allow printing', val: allowPrinting, set: setAllowPrinting },
+                        { label: 'Allow copying text', val: allowCopying, set: setAllowCopying },
+                        { label: 'Allow editing', val: allowEditing, set: setAllowEditing },
+                        { label: 'Allow filling forms', val: allowForms, set: setAllowForms },
+                        { label: 'Allow accessibility (screen readers)', val: allowAccessibility, set: setAllowAccessibility },
+                      ].map(({ label, val, set }) => (
+                        <label key={label} className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={val}
+                            onChange={(e) => set(e.target.checked)}
+                            className="accent-primary"
+                          />
+                          {label}
+                        </label>
+                      ))}
+                    </div>
+                    <p className="mt-2 text-xs text-fg-subtle">
+                      Restrictions apply to anyone with only the open password. Owner password bypasses all.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {error && (

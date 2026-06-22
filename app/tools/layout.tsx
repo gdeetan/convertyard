@@ -2,11 +2,11 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'All Tools — ConvertYard',
-  description: 'Browse 60+ local-first file conversion tools. Images, PDF, video, audio, developer utilities, web tools, and AI tools — all run in your browser.',
+  description: 'Browse 40+ local-first file conversion tools. Images, PDF, video, audio, developer utilities, web tools, and AI tools — all run in your browser.',
   alternates: { canonical: 'https://convertyard.com/tools' },
   openGraph: {
     title: 'All Tools — ConvertYard',
-    description: 'Browse 60+ local-first file conversion tools — all run in your browser.',
+    description: 'Browse 40+ local-first file conversion tools — all run in your browser.',
     url: 'https://convertyard.com/tools',
   },
 }

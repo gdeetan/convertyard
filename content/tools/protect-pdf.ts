@@ -1,6 +1,8 @@
 import type { ToolConfig, ConversionResult } from '@/lib/types'
 
-async function _stub(_files: File[]): Promise<ConversionResult[]> { return [] }
+// Page uses a custom UI with password inputs and permission toggles that calls
+// protectPdf() from mupdf-client directly — ToolShell's convertFn is not invoked.
+async function _noopForToolShell(_files: File[]): Promise<ConversionResult[]> { return [] }
 
 export const config: ToolConfig = {
   slug: 'protect-pdf',
@@ -10,11 +12,11 @@ export const config: ToolConfig = {
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
   outputExt: '.pdf',
-  convertFn: _stub,
+  convertFn: _noopForToolShell,
   faq: [
     {
       q: 'What encryption is used?',
-      a: 'AES-128 encryption, which is the standard supported by pdf-lib in the browser and widely supported by PDF readers.',
+      a: 'AES-256 by default — the strongest encryption supported by all modern PDF readers. AES-128 is available for compatibility with older software.',
     },
     {
       q: 'What is the difference between user password and owner password?',
@@ -22,7 +24,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'What permissions can I set?',
-      a: "You can restrict printing, copying text, and editing. When restrictions are set, users who only have the user password cannot perform those actions.",
+      a: "You can restrict printing, copying text, editing, and filling forms. When restrictions are set, users who only have the user password cannot perform those actions. The owner password bypasses all restrictions.",
     },
     {
       q: 'What if I forget the password?',
@@ -30,7 +32,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Is my password sent to your servers?',
-      a: 'Never. Encryption runs entirely in your browser via WebAssembly. Your PDF and your password never leave your device.',
+      a: 'Never. Encryption runs entirely in your browser using WebAssembly. Your PDF and your password never leave your device.',
     },
     {
       q: 'Can I batch-protect multiple PDFs with the same password?',
@@ -41,6 +43,6 @@ export const config: ToolConfig = {
   relatedArticles: [],
   meta: {
     title: 'Protect PDF — Password Protect PDF — ConvertYard',
-    description: 'Add password protection to your PDFs with AES encryption. Set open and permission passwords. Browser-only — your password never leaves your device.',
+    description: 'Add password protection to your PDFs with AES-256 encryption. Set open and permission passwords. Browser-only — your password never leaves your device.',
   },
 }

@@ -116,18 +116,52 @@ export async function unlockPdf(fileBuffer: ArrayBuffer, password: string): Prom
   return res.data
 }
 
+export interface ProtectPdfOptions {
+  userPassword: string
+  ownerPassword?: string
+  encryptStrength?: 'aes-128' | 'aes-256'
+  permissions?: number
+}
+
 export async function protectPdf(
   fileBuffer: ArrayBuffer,
-  userPassword: string,
-  ownerPassword: string
+  options: ProtectPdfOptions
 ): Promise<ArrayBuffer> {
   const clone = fileBuffer.slice(0)
   const res = await send<{ data: ArrayBuffer }>(
     'protect-pdf',
-    { fileBuffer: clone, userPassword, ownerPassword },
+    {
+      fileBuffer: clone,
+      userPassword: options.userPassword,
+      ownerPassword: options.ownerPassword || options.userPassword,
+      encryptStrength: options.encryptStrength ?? 'aes-256',
+      permissions: options.permissions,
+    },
     [clone]
   )
   return res.data
+}
+
+/**
+ * Compute a PDF permission bitmask from individual allow-flags.
+ * PDF spec bits (weight): print=4, modify=8, copy=16, annotate=32,
+ * fill-forms=256, accessibility=1024, assemble=2048, print-hq=4096.
+ * Bits set to 1 = allowed; 0 = restricted.
+ */
+export function buildPermissionsMask(opts: {
+  allowPrinting?: boolean
+  allowCopying?: boolean
+  allowEditing?: boolean
+  allowFillingForms?: boolean
+  allowAccessibility?: boolean
+}): number {
+  let mask = 0
+  if (opts.allowPrinting !== false)      mask |= 4 | 4096   // print + print-hq
+  if (opts.allowEditing !== false)        mask |= 8           // modify
+  if (opts.allowCopying !== false)        mask |= 16          // copy
+  if (opts.allowFillingForms !== false)   mask |= 32 | 256    // annotate + fill forms
+  if (opts.allowAccessibility !== false)  mask |= 1024        // accessibility
+  return mask
 }
 
 export async function extractStructuredText(fileBuffer: ArrayBuffer): Promise<string[]> {

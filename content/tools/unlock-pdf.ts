@@ -1,6 +1,8 @@
 import type { ToolConfig, ConversionResult } from '@/lib/types'
 
-async function _stub(_files: File[]): Promise<ConversionResult[]> { return [] }
+// Page uses a custom UI with per-file password inputs and calls unlockPdf() from
+// mupdf-client directly — ToolShell's convertFn is not invoked by this page.
+async function _noopForToolShell(_files: File[]): Promise<ConversionResult[]> { return [] }
 
 export const config: ToolConfig = {
   slug: 'unlock-pdf',
@@ -10,7 +12,7 @@ export const config: ToolConfig = {
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
   outputExt: '.pdf',
-  convertFn: _stub,
+  convertFn: _noopForToolShell,
   faq: [
     {
       q: 'Can this tool crack or guess a PDF password?',

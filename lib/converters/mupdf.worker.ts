@@ -26,7 +26,7 @@ function getMupdf(): Promise<any> {
 }
 
 self.onmessage = async (e: MessageEvent) => {
-  const { id, type, fileBuffer, pageIndex, dpi, quality, transparent, password, userPassword, ownerPassword } = e.data as {
+  const { id, type, fileBuffer, pageIndex, dpi, quality, transparent, password, userPassword, ownerPassword, encryptStrength, permissions } = e.data as {
     id: string
     type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text' | 'page-sizes' | 'unlock-pdf' | 'protect-pdf'
     fileBuffer: ArrayBuffer
@@ -37,6 +37,8 @@ self.onmessage = async (e: MessageEvent) => {
     password?: string
     userPassword?: string
     ownerPassword?: string
+    encryptStrength?: 'aes-128' | 'aes-256'
+    permissions?: number
   }
 
   try {
@@ -170,12 +172,18 @@ self.onmessage = async (e: MessageEvent) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pdfDoc: any = src.asPDF()
       if (!pdfDoc) throw new Error('Not a valid PDF')
-      const opts: Record<string, string> = {
-        encrypt: 'aes-256',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const opts: Record<string, any> = {
+        encrypt: encryptStrength === 'aes-128' ? 'aes-128' : 'aes-256',
         'user-password': userPassword ?? '',
         'owner-password': ownerPassword || userPassword || '',
         garbage: 'compact',
-        compress: 'yes',
+        compress: true,
+      }
+      // PDF permission bitmask: bits set = allowed. mupdf accepts permissions=NUMBER.
+      // If caller provides explicit permissions bitmask, forward it.
+      if (typeof permissions === 'number') {
+        opts.permissions = permissions
       }
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const buf: any = pdfDoc.saveToBuffer(opts)

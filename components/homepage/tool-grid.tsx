@@ -140,7 +140,7 @@ export function ToolGrid() {
           id="tools-heading"
           className="mb-8 text-2xl font-bold tracking-tight text-fg sm:text-3xl"
         >
-          60+ tools. All local, all free.
+          40+ tools. All local, all free.
         </h2>
 
         {/* Filter pills */}
@@ -234,7 +234,7 @@ export function ToolGrid() {
             href="/tools"
             className="text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
           >
-            View all 60+ tools →
+            View all 40+ tools →
           </Link>
         </div>
       </div>
