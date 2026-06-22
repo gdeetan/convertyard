@@ -26,6 +26,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'background-remover', title: 'Background Remover', description: 'Remove backgrounds with AI, no account needed.', category: 'image-editing', status: 'live', badge: 'AI' },
   { slug: 'compress-image',     title: 'Image Compressor',   description: 'Batch compress any image format.', category: 'image-editing', status: 'live' },
   { slug: 'image-resizer',      title: 'Image Resizer',      description: 'Resize to exact pixels or percent — batch.', category: 'image-editing', status: 'live' },
+  { slug: 'image-cropper',      title: 'Image Cropper',      description: 'Crop to exact ratios — 1:1, passport, and more.', category: 'image-editing', status: 'live' },
 
   // PDF — 21 live
   { slug: 'merge-pdf',    title: 'Merge PDF',    description: 'Combine multiple PDFs into one.', category: 'pdf', status: 'live' },
