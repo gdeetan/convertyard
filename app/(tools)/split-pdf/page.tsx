@@ -8,6 +8,7 @@ import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
 import { RelatedToolsStrip } from '@/components/tool-shell/related-tools-strip'
 import { cn } from '@/lib/utils/cn'
 import { formatBytes, downloadFile } from '@/lib/utils/download'
+import { downloadAsZip } from '@/lib/utils/zip'
 import { splitPdf } from '@/lib/converters/pdf'
 import { getPageCount } from '@/lib/converters/mupdf-client'
 import { config } from '@/content/tools/split-pdf'
@@ -26,14 +27,17 @@ export default function SplitPdfPage() {
   const [everyN, setEveryN] = useState(2)
   const [pageFrom, setPageFrom] = useState(1)
   const [pageTo, setPageTo] = useState(9999)
-  const countingRef = useRef(false)
+  // Symbol token: each new detectPageCounts call supersedes the previous one
+  const countingTokenRef = useRef<symbol | null>(null)
 
   const detectPageCounts = useCallback(async (fileList: File[]) => {
-    if (fileList.length === 0 || countingRef.current) return
-    countingRef.current = true
+    if (fileList.length === 0) return
+    const token = Symbol()
+    countingTokenRef.current = token
     setPhase('counting')
     const counts = new Map<string, number>()
     for (const f of fileList) {
+      if (countingTokenRef.current !== token) return // superseded by newer call
       try {
         const buf = await f.arrayBuffer()
         counts.set(f.name, await getPageCount(buf))
@@ -41,23 +45,37 @@ export default function SplitPdfPage() {
         counts.set(f.name, 0)
       }
     }
+    if (countingTokenRef.current !== token) return // superseded
     setPageCounts(counts)
-    countingRef.current = false
     setPhase('ready')
   }, [])
 
   const handleAdd = useCallback((added: File[]) => {
     setFiles((prev) => {
       const next = [...prev, ...added]
-      detectPageCounts(next)
+      // Schedule async call outside the synchronous updater cycle
+      setTimeout(() => detectPageCounts(next), 0)
       return next
     })
   }, [detectPageCounts])
 
   const handleRemove = (index: number) => {
     setFiles((prev) => {
+      const removedName = prev[index]?.name
       const next = prev.filter((_, i) => i !== index)
-      if (next.length === 0) { setPhase('idle'); setPageCounts(new Map()) }
+      if (next.length === 0) {
+        setPhase('idle')
+        setPageCounts(new Map())
+      } else {
+        if (removedName) {
+          setPageCounts((prevCounts) => {
+            const updated = new Map(prevCounts)
+            updated.delete(removedName)
+            return updated
+          })
+        }
+        setTimeout(() => detectPageCounts(next), 0)
+      }
       return next
     })
   }
@@ -94,6 +112,10 @@ export default function SplitPdfPage() {
       setPhase('error')
     }
   }
+
+  const handleDownloadAll = useCallback(async () => {
+    await downloadAsZip(results, 'split-output.zip')
+  }, [results])
 
   const totalBytes = files.reduce((s, f) => s + f.size, 0)
 
@@ -300,6 +322,16 @@ export default function SplitPdfPage() {
 
         {phase === 'done' && results.length > 0 && (
           <div className="space-y-5">
+            {results.length > 1 && (
+              <button type="button" onClick={handleDownloadAll}
+                className={cn('w-full flex items-center justify-center gap-2 rounded-xl px-6 py-3',
+                  'bg-primary text-primary-fg text-sm font-semibold',
+                  'transition-colors hover:bg-primary-hover',
+                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary')}>
+                <Download className="h-4 w-4" aria-hidden="true" />
+                Download all {results.length} files as ZIP
+              </button>
+            )}
             <ul className="space-y-2">
               {results.map((result, idx) => (
                 <li key={idx} className="flex items-start gap-4 rounded-xl border border-border bg-bg px-4 py-3">
