@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'image-resizer',
   title: 'Batch Image Resizer',
   subtitle: 'Local-first image resizing. Built for batches.',
-  category: 'images',
+  category: 'image-editing',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '',
