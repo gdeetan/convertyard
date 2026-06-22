@@ -8,7 +8,11 @@
     "start": "next start",
     "lint": "next lint",
     "postinstall": "cp node_modules/wasm-vips/lib/vips.wasm public/vips.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.wasm public/mupdf-wasm.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf.js public/mupdf.js 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.js public/mupdf-wasm.js 2>/dev/null || true",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui"
   },
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.15",
@@ -44,9 +48,12 @@
     "@types/node": "^22.15.21",
     "@types/react": "^19.1.5",
     "@types/react-dom": "^19.1.5",
+    "@vitest/coverage-v8": "^4.1.9",
     "autoprefixer": "^10.4.21",
+    "happy-dom": "^20.10.6",
     "postcss": "^8.5.3",
     "tailwindcss": "^4.1.8",
+    "tsx": "^4.22.4",
     "typescript": "^5.8.3",
     "vitest": "^4.1.8"
   }
