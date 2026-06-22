@@ -10,7 +10,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npx tsx scripts/generate-fixtures.ts
       - run: npm run test
 
@@ -22,7 +22,7 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
       - run: npx playwright install --with-deps chromium firefox webkit
       - run: npx tsx scripts/generate-fixtures.ts
       - run: npm run test:e2e
