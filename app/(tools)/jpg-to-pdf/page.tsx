@@ -23,6 +23,7 @@ export default function JpgToPdfPage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [pageSize, setPageSize] = useState<PageSize>('fit-to-image')
   const [outputMode, setOutputMode] = useState<OutputMode>('all-in-one')
+  const [orientation, setOrientation] = useState<'auto' | 'portrait' | 'landscape'>('auto')
   const dragIndex = useRef<number | null>(null)
   const [thumbUrls, setThumbUrls] = useState<string[]>([])
 
@@ -56,6 +57,7 @@ export default function JpgToPdfPage() {
     setProgress(0)
     setResults([])
     setErrorMsg('')
+    setOrientation('auto')
   }
 
   const onDragStart = (index: number) => { dragIndex.current = index }
@@ -86,7 +88,7 @@ export default function JpgToPdfPage() {
     try {
       const rawResults = await imagesToPdf(
         files,
-        { pageSize, outputMode },
+        { pageSize, outputMode, orientation },
         (_, pct) => setProgress(pct)
       )
       const fileResults = rawResults.filter((r): r is File => r instanceof File)
@@ -227,6 +229,35 @@ export default function JpgToPdfPage() {
                   ))}
                 </div>
               </fieldset>
+
+              {/* Orientation — only for A4 / US Letter */}
+              {pageSize !== 'fit-to-image' && (
+                <fieldset>
+                  <legend className="mb-1.5 text-xs font-medium text-fg">Orientation</legend>
+                  <div className="flex flex-col gap-1.5">
+                    {([
+                      { value: 'auto',      label: 'Auto (match image)' },
+                      { value: 'portrait',  label: 'Portrait' },
+                      { value: 'landscape', label: 'Landscape' },
+                    ] as const).map((opt) => (
+                      <label key={opt.value} className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="radio"
+                          name="orientation"
+                          value={opt.value}
+                          checked={orientation === opt.value}
+                          onChange={() => setOrientation(opt.value)}
+                          className="text-primary accent-primary"
+                        />
+                        <span className="text-sm text-fg">{opt.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <p className="mt-1 text-xs text-fg-subtle">
+                    Auto matches image orientation. Portrait/Landscape forces the page direction.
+                  </p>
+                </fieldset>
+              )}
             </div>
 
             {/* Add more */}
