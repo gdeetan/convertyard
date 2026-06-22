@@ -697,44 +697,44 @@ async function embedImagePage(doc: PDFDocument, inputFile: File, pageSize: strin
   const { width, height } = image
 
   // Page dimensions in PDF points (1 pt = 1/72 inch)
+  if (pageSize === 'fit-to-image') {
+    const page = doc.addPage([width, height])
+    page.drawImage(image, { x: 0, y: 0, width, height })
+    return
+  }
+
   let pageW: number, pageH: number
   if (pageSize === 'a4') {
     pageW = 595; pageH = 842
-  } else if (pageSize === 'letter') {
-    pageW = 612; pageH = 792
   } else {
-    // fit-to-image: use pixel dimensions directly (1 pt = 1 px at 72 DPI)
-    pageW = width; pageH = height
+    // letter
+    pageW = 612; pageH = 792
+  }
+
+  // Resolve orientation BEFORE adding the page so dimensions are correct
+  const isLandscapeImage = width > height
+  const wantLandscape =
+    orientation === 'landscape' ||
+    (orientation === 'auto' && isLandscapeImage)
+  if (wantLandscape && pageH > pageW) {
+    ;[pageW, pageH] = [pageH, pageW]
+  } else if (!wantLandscape && pageW > pageH) {
+    ;[pageW, pageH] = [pageH, pageW]
   }
 
   const page = doc.addPage([pageW, pageH])
-
-  if (pageSize !== 'fit-to-image') {
-    // Swap page dimensions based on orientation
-    const isLandscapeImage = width > height
-    const wantLandscape =
-      orientation === 'landscape' ||
-      (orientation === 'auto' && isLandscapeImage)
-    if (wantLandscape && pageH > pageW) {
-      ;[pageW, pageH] = [pageH, pageW]
-    } else if (!wantLandscape && pageW > pageH) {
-      ;[pageW, pageH] = [pageH, pageW]
-    }
-    const margin = 36
-    const availW = pageW - 2 * margin
-    const availH = pageH - 2 * margin
-    const scale = Math.min(availW / width, availH / height)
-    const drawW = width * scale
-    const drawH = height * scale
-    page.drawImage(image, {
-      x: (pageW - drawW) / 2,
-      y: (pageH - drawH) / 2,
-      width: drawW,
-      height: drawH,
-    })
-  } else {
-    page.drawImage(image, { x: 0, y: 0, width: pageW, height: pageH })
-  }
+  const margin = 36
+  const availW = pageW - 2 * margin
+  const availH = pageH - 2 * margin
+  const scale = Math.min(availW / width, availH / height)
+  const drawW = width * scale
+  const drawH = height * scale
+  page.drawImage(image, {
+    x: (pageW - drawW) / 2,
+    y: (pageH - drawH) / 2,
+    width: drawW,
+    height: drawH,
+  })
 }
 
 export async function imagesToPdf(
