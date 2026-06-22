@@ -99,6 +99,7 @@ function ProgressRow({ entry }: { entry: FileEntry }) {
   return (
     <div
       role="listitem"
+      data-testid="progress-item"
       className={cn(
         'flex items-center gap-3 border-b border-border px-4 last:border-0',
         'bg-bg-elevated',

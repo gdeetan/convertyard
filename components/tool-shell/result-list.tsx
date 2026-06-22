@@ -67,6 +67,7 @@ export function ResultList({ entries, zipName = 'convertyard.zip' }: ResultListP
         {succeeded.length > 0 && (
           <button
             type="button"
+            data-testid="download-all"
             onClick={handleDownloadAll}
             disabled={zipping}
             className={cn(
@@ -142,6 +143,7 @@ function ResultRow({ entry }: { entry: FileEntry }) {
   return (
     <div
       role="listitem"
+      data-testid={isDone ? 'result-success' : 'result-error'}
       className={cn(
         'flex items-center gap-3 border-b border-border px-4 last:border-0',
         'bg-bg-elevated'
