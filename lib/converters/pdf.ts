@@ -1256,7 +1256,13 @@ export async function watermarkPdf(
 
     try {
       const buffer = await file.arrayBuffer()
-      const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+      // throwOnInvalidObject: false tolerates malformed objects common in large/complex PDFs
+      // updateMetadata: false skips unnecessary metadata rewrites on large docs
+      const doc = await PDFDocument.load(buffer, {
+        ignoreEncryption: true,
+        throwOnInvalidObject: false,
+        updateMetadata: false,
+      })
       const pages = doc.getPages()
 
       const wmType = (options.watermarkType as string) ?? 'text'
@@ -1264,6 +1270,7 @@ export async function watermarkPdf(
       const position = (options.position as string) ?? 'center'
       const opacity = Math.min(1, Math.max(0, ((options.opacity as number) ?? 30) / 100))
       const rotation = (options.rotation as number) ?? 45
+      const layer = (options.layer as string) ?? 'above'
 
       const targetIndices = applyTo === 'first' ? [0] : pages.map((_, idx) => idx)
 
@@ -1280,19 +1287,22 @@ export async function watermarkPdf(
         const font = await doc.embedFont(StandardFonts.Helvetica)
         const textWidth = font.widthOfTextAtSize(text, fontSize)
 
-        for (const idx of targetIndices) {
+        for (let j = 0; j < targetIndices.length; j++) {
+          const idx = targetIndices[j]
           const page = pages[idx]
           const { width: pw, height: ph } = page.getSize()
           const [tx, ty] = resolveWatermarkPosition(position, pw, ph, textWidth, fontSize, rotation)
+
           page.drawText(text, {
             x: tx,
             y: ty,
             size: fontSize,
             font,
             color: rgb(r, g, b),
-            opacity,
+            opacity: layer === 'behind' ? opacity * 0.6 : opacity,
             rotate: degrees(rotation),
           })
+          onProgress?.(i, Math.round(5 + ((j + 1) / targetIndices.length) * 80))
         }
       } else {
         const imageFile = options.watermarkImage as File | null
@@ -1309,7 +1319,8 @@ export async function watermarkPdf(
 
         const imgSizePct = Math.min(100, Math.max(5, (options.imageSizePct as number) ?? 30)) / 100
 
-        for (const idx of targetIndices) {
+        for (let j = 0; j < targetIndices.length; j++) {
+          const idx = targetIndices[j]
           const page = pages[idx]
           const { width: pw, height: ph } = page.getSize()
           const imgW = pw * imgSizePct
@@ -1323,11 +1334,12 @@ export async function watermarkPdf(
             opacity,
             rotate: degrees(rotation),
           })
+          onProgress?.(i, Math.round(5 + ((j + 1) / targetIndices.length) * 80))
         }
       }
 
       onProgress?.(i, 90)
-      const pdfBytes = await doc.save()
+      const pdfBytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
       const outName = file.name.replace(/\.pdf$/i, '') + '-watermarked.pdf'
       results.push(new File([pdfBytes as unknown as BlobPart], outName, { type: 'application/pdf' }))
       onProgress?.(i, 100)
