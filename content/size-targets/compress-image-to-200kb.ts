@@ -51,5 +51,5 @@ export const config: SizeTargetConfig = {
     },
   ],
   relatedSizes: ['to-100kb', 'to-300kb', 'to-500kb'],
-  relatedVerticals: ['upsc', 'state-psc'],
+  relatedVerticals: ['upsc', 'state-psc', 'us-ds-160-visa'],
 }

@@ -56,5 +56,5 @@ export const config: SizeTargetConfig = {
     },
   ],
   relatedSizes: ['to-200kb', 'to-300kb', 'to-1mb'],
-  relatedVerticals: ['college-admission', 'job-application'],
+  relatedVerticals: ['college-admission', 'job-application', 'us-college-application', 'rbi-grade-b', 'nda-cds', 'insurance-exams'],
 }

@@ -51,5 +51,5 @@ export const config: SizeTargetConfig = {
     },
   ],
   relatedSizes: ['to-10kb', 'to-50kb', 'to-100kb'],
-  relatedVerticals: ['ssc-cgl', 'upsc'],
+  relatedVerticals: ['ssc-cgl', 'upsc', 'uppsc', 'bpsc', 'mpsc', 'tnpsc', 'kpsc', 'sbi', 'rbi-grade-b', 'insurance-exams'],
 }

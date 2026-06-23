@@ -56,5 +56,5 @@ export const config: SizeTargetConfig = {
     },
   ],
   relatedSizes: ['to-500kb', 'to-2mb', 'to-5mb'],
-  relatedVerticals: ['resume', 'visa-schengen', 'visa-uk'],
+  relatedVerticals: ['resume', 'visa-schengen', 'visa-uk', 'us-college-application'],
 }

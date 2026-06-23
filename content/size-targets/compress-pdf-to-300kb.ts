@@ -52,5 +52,5 @@ export const config: SizeTargetConfig = {
     },
   ],
   relatedSizes: ['to-200kb', 'to-500kb'],
-  relatedVerticals: ['uppsc', 'bpsc', 'mpsc'],
+  relatedVerticals: ['uppsc', 'bpsc', 'mpsc', 'tnpsc', 'kpsc', 'nda-cds', 'capf-ssc-gd'],
 }

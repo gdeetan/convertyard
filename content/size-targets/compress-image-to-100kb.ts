@@ -56,5 +56,5 @@ export const config: SizeTargetConfig = {
     },
   ],
   relatedSizes: ['to-50kb', 'to-200kb', 'to-300kb'],
-  relatedVerticals: ['upsc', 'neet', 'jee-main', 'gate'],
+  relatedVerticals: ['upsc', 'neet', 'jee-main', 'gate', 'nda-cds', 'capf-ssc-gd'],
 }
