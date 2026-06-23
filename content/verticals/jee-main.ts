@@ -12,7 +12,7 @@ export const jeeMainConfig: VerticalHubConfig = {
   category: 'exam',
   h1: 'JEE Main Photo & Signature Size Requirements 2026',
   subhead: 'Prepare your JEE Main 2026 application photo and signature to NTA specs — crop, compress, download.',
-  intro: 'NTA updated JEE Main photo and signature limits for 2026: the photo maximum was reduced from 300 KB to 200 KB, and the signature maximum was increased to 100 KB. Both must be JPEG with a white background. The signature (3.5×1.5 cm) is a wide landscape strip — do not crop it into a square.',
+  intro: 'NTA updated JEE Main photo and signature limits for 2026: the photo maximum was reduced from 300 KB to 200 KB, and the signature maximum was increased to 100 KB. Both must be JPEG with a white background. The signature (3.5×1.5 cm) is a wide landscape strip — do not crop it into a square. Note: the 2026 NTA application includes an Aadhaar-linked identity verification step with live photo capture — a separate step on the NTA portal that does not require a file prepared by these tools.',
 
   toolPresets: [
     {
@@ -89,5 +89,5 @@ export const jeeMainConfig: VerticalHubConfig = {
   ],
 
   relatedVerticals: ['neet', 'upsc', 'ssc-cgl', 'ibps-po'],
-  lastUpdated: '2026-06-22',
+  lastUpdated: '2026-06-23',
 }

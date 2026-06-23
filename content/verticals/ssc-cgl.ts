@@ -1,86 +1,88 @@
 import type { VerticalHubConfig } from '@/lib/types'
 
-// Specs sourced from compress-image-to-50kb.ts and compress-image-to-20kb.ts
-// to ensure consistency across all size-target pages.
-// SSC CGL 2025–26 notification: photo 20–50 KB passport format, sig 10–20 KB.
+// SSC CGL 2026 uses live photo capture (webcam or mobile) during OTR registration —
+// there is no passport photo file to upload at the registration stage.
+// Signature is still a file upload: 10–20 KB, JPEG, blue or black ink.
+// Source: SSC CGL 2026 official notification (ssc.gov.in, released 21 May 2026),
+// confirmed via multiple OTR portal walkthroughs. Verified June 2026.
 export const sscCglConfig: VerticalHubConfig = {
   slug: 'ssc-cgl',
   name: 'SSC CGL',
   fullName: 'Staff Selection Commission — Combined Graduate Level',
   country: 'India',
   category: 'exam',
-  h1: 'SSC CGL Photo & Signature Size Requirements',
-  subhead: 'Get your SSC CGL application photo to exactly 20–50 KB in passport format — no rejections, no retakes.',
-  intro: 'SSC CGL\'s portal is strict about both file size and photo format. The photo must be a passport rectangle (taller than it is wide — 3.5×4.5 cm), not a square. Many candidates get rejected for uploading a square crop used for other exams. The signature must be on white paper in blue or black ink and compressed to 10–20 KB.',
+  h1: 'SSC CGL Photo & Signature Size Requirements 2026',
+  subhead: 'Prepare your SSC CGL signature to spec and understand the 2026 live photo capture process.',
+  intro: 'SSC CGL 2026 changed how photos are submitted: there is no passport photo file to upload during OTR registration. Instead, the portal captures a live photo via your webcam or mobile camera during the application. Make sure you are in a well-lit area with a plain background, no cap or glasses, and that your webcam or phone camera is working before you open the portal. The signature is still a file upload — prepare that below. If you need a passport photo for a later stage (document verification or admit card), the crop and compress steps are still useful — label that file for the correct purpose, not for OTR registration.',
 
   toolPresets: [
     {
+      toolSlug: 'compress-image',
+      toolHref: '/compress-image/to-20kb',
+      label: 'Step 1: Compress signature to 20 KB',
+      targetBytes: 20 * 1024,
+      notes: 'SSC CGL signature range is 10–20 KB. 20 KB is the upper limit and gives the best quality within the range.',
+    },
+    {
       toolSlug: 'image-cropper',
       toolHref: '/image-cropper',
-      label: 'Step 1: Crop photo to passport ratio (3.5:4.5)',
+      label: 'Optional: Crop passport photo for document verification',
       targetDimensions: { width: 413, height: 531 },
-      notes: 'Select the Passport 3.5:4.5 preset. SSC requires a portrait rectangle, not a square.',
+      notes: 'The OTR portal does not accept a pre-prepared photo file — it captures live via webcam. If you need a passport photo for document verification or admit card at a later stage, use the Passport 3.5:4.5 preset here.',
     },
     {
       toolSlug: 'compress-image',
       toolHref: '/compress-image/to-50kb',
-      label: 'Step 2: Compress photo to 50 KB',
+      label: 'Optional: Compress that photo to 50 KB',
       targetBytes: 50 * 1024,
-      notes: 'SSC CGL accepts photos from 20 KB to 50 KB. 50 KB is the safest target — maximum quality within the limit.',
-    },
-    {
-      toolSlug: 'compress-image',
-      toolHref: '/compress-image/to-20kb',
-      label: 'Step 3: Compress signature to 20 KB',
-      targetBytes: 20 * 1024,
-      notes: 'SSC signature range is 10–20 KB. 20 KB is the upper limit and gives slightly better quality.',
+      notes: 'Only if preparing a passport photo for document verification — not for OTR registration.',
     },
   ],
 
   officialSpecs: [
     {
-      documentType: 'Photograph',
-      size: '20–50 KB',
-      dimensions: '3.5×4.5 cm (portrait rectangle, ~413×531 px at 300 dpi)',
-      format: 'JPEG / JPG only',
-      notes: 'Plain white background, 80% face visible, taken recently',
+      documentType: 'Photograph (OTR registration)',
+      size: 'N/A — live capture only',
+      dimensions: 'Captured via webcam or mobile during application',
+      format: 'Captured in-portal',
+      notes: 'Plain background, no cap/glasses, face fully visible, good lighting. No pre-prepared file needed.',
     },
     {
       documentType: 'Signature',
       size: '10–20 KB',
       dimensions: 'Variable (crop tightly to signature)',
       format: 'JPEG / JPG only',
-      notes: 'Blue or black ink on plain white paper, running handwriting',
+      notes: 'Blue or black ink on plain white paper, running handwriting, not capital letters',
     },
   ],
 
   commonMistakes: [
-    'Uploading a square (1:1) photo — SSC CGL requires a portrait rectangle (3.5 cm wide × 4.5 cm tall). Square photos are rejected.',
-    'File size above 50 KB — SSC\'s portal is strict. Even 51 KB causes an upload error.',
-    'PNG instead of JPEG — SSC only accepts JPG. A PNG renamed to .jpg is detected and rejected.',
+    'Preparing a passport photo file to upload during registration — SSC CGL 2026 uses live webcam capture at OTR registration. Have your webcam or mobile camera ready when you open the portal instead.',
+    'Poor lighting or cluttered background during live capture — the portal rejects photos where the face is obscured or the background is busy. Sit facing a window or lamp before opening the form.',
+    'Wearing glasses or a cap during live capture — SSC requires the face to be fully visible with no accessories during the live photo step.',
+    'PNG instead of JPEG for the signature — SSC only accepts JPG. A PNG renamed to .jpg is detected and rejected.',
     'Signature on lined, printed, or light-blue paper — background must be plain white.',
-    'Signature that fills only a tiny part of the image — crop tightly around the signature to reduce file size without losing quality.',
   ],
 
   specificFaq: [
     {
-      q: 'Is the SSC CGL photo format the same as an ordinary passport photo?',
-      a: 'Yes — it uses the same 3.5×4.5 cm passport-size rectangle used in Indian passports and most government applications. This is a portrait format, taller than it is wide. Use the Passport 3.5:4.5 preset in the crop tool.',
+      q: 'Does SSC CGL 2026 still require uploading a passport photo file?',
+      a: 'No — SSC CGL 2026 replaced the file upload with live photo capture during OTR registration. The portal will activate your webcam or provide a QR code for your phone. You do not need to crop or compress a photo file for this step.',
     },
     {
       q: 'What is the exact pixel size for an SSC CGL photo?',
-      a: 'SSC does not mandate a specific pixel size — only the file size (20–50 KB) and the 3.5×4.5 cm aspect ratio. At standard DPI of 300, this is approximately 413×531 pixels. The crop tool\'s Passport preset targets these dimensions.',
+      a: 'For the 2026 live capture process, there are no file dimensions to prepare — the portal captures the photo directly. If a passport photo file is needed for a later stage (admit card, document verification), the standard is approximately 413×531 px (3.5×4.5 cm at 300 dpi).',
     },
     {
-      q: 'Can I use the same photo for SSC CGL and IBPS PO?',
-      a: 'Yes. Both SSC CGL and IBPS PO require the same passport-format photo (3.5×4.5 cm) compressed to 20–50 KB in JPEG. One well-prepared photo works for both.',
+      q: 'Can I use the same signature file for SSC CGL and IBPS PO?',
+      a: 'Yes. Both require the same format: a JPEG signature on white paper, 10–20 KB. One prepared signature file works for both applications.',
     },
     {
-      q: 'My photo looks good but the portal says it\'s the wrong size. What do I do?',
-      a: 'Check three things: (1) Is it JPEG, not PNG? (2) Is the file size between 20 and 50 KB — not just the pixel dimensions? (3) Is the ratio closer to 3:4 portrait rather than 1:1 square? All three conditions must be met.',
+      q: 'My signature upload shows "wrong file size". What do I check?',
+      a: 'Confirm three things: (1) Is the file JPEG, not PNG? (2) Is the size between 10 KB and 20 KB — not just the pixel dimensions? (3) Is the background plain white with no lines? All three conditions must be met for the signature upload to pass.',
     },
   ],
 
   relatedVerticals: ['upsc', 'ibps-po', 'neet', 'jee-main'],
-  lastUpdated: '2026-06-22',
+  lastUpdated: '2026-06-23',
 }

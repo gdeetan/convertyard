@@ -11,7 +11,7 @@ export const ibpsPoConfig: VerticalHubConfig = {
   category: 'exam',
   h1: 'IBPS PO Photo & Signature Size Requirements',
   subhead: 'Compress and crop your IBPS PO application photo to exactly 20–50 KB in passport format — all in your browser.',
-  intro: 'IBPS PO uses the same photo and signature specs as SSC CGL and most other IBPS exams (RRB, Clerk, SO): a passport-format portrait photo (3.5×4.5 cm) compressed to 20–50 KB, and a signature compressed to 10–20 KB. JPEG only — PNG is not accepted. If you already have a photo prepared for SSC CGL, the same file works for IBPS PO.',
+  intro: 'IBPS PO uses the same photo and signature specs as most other IBPS exams (RRB, Clerk, SO): a passport-format portrait photo (3.5×4.5 cm) compressed to 20–50 KB, and a signature compressed to 10–20 KB. JPEG only — PNG is not accepted. Note: IBPS PO 2026 also includes a live webcam photo capture during application in addition to the passport photo file upload — have your webcam ready when opening the IBPS portal.',
 
   toolPresets: [
     {
@@ -82,5 +82,5 @@ export const ibpsPoConfig: VerticalHubConfig = {
   ],
 
   relatedVerticals: ['ssc-cgl', 'upsc', 'neet', 'jee-main'],
-  lastUpdated: '2026-06-22',
+  lastUpdated: '2026-06-23',
 }

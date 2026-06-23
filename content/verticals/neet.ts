@@ -12,7 +12,7 @@ export const neetConfig: VerticalHubConfig = {
   category: 'exam',
   h1: 'NEET UG Photo & Signature Size Requirements 2026',
   subhead: 'Prepare your NEET UG application photo and signature to NTA specifications — crop, resize, and compress in your browser.',
-  intro: 'NTA\'s NEET UG 2026 application requires two types of photographs: a passport-size (3.5×4.5 cm) and a postcard-size (4"×6"). Both must be JPEG, 10–200 KB, with at least 80% face coverage against a white background. The signature must be in blue or black ink on white paper, compressed to under 30 KB. The portal rejects files outside these limits.',
+  intro: 'NTA\'s NEET UG 2026 application requires two types of photographs: a passport-size (3.5×4.5 cm) and a postcard-size (4"×6"). Both must be JPEG, 10–200 KB, with at least 80% face coverage against a white background. The signature must be in blue or black ink on white paper, compressed to under 30 KB. The portal rejects files outside these limits. Note: the 2026 NTA application also includes an Aadhaar-linked identity verification step with live photo capture — this happens on the NTA portal and is separate from the file upload these tools prepare.',
 
   toolPresets: [
     {
@@ -90,5 +90,5 @@ export const neetConfig: VerticalHubConfig = {
   ],
 
   relatedVerticals: ['upsc', 'jee-main', 'ssc-cgl', 'ibps-po'],
-  lastUpdated: '2026-06-22',
+  lastUpdated: '2026-06-23',
 }
