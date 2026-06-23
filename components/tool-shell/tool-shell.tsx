@@ -30,6 +30,7 @@ interface ToolShellProps {
   config: ToolConfig
   embedded?: boolean
   onResults?: (results: File[]) => void
+  initialOptions?: ToolOptions
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -136,13 +137,16 @@ function buildDefaultOptions(config: ToolConfig): ToolOptions {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export function ToolShell({ config, embedded = false, onResults }: ToolShellProps) {
+export function ToolShell({ config, embedded = false, onResults, initialOptions }: ToolShellProps) {
   const [state, dispatch] = useReducer(reducer, {
     entries: [],
     phase: 'idle',
     announcement: '',
   })
-  const [options, setOptions] = useState<ToolOptions>(() => buildDefaultOptions(config))
+  const [options, setOptions] = useState<ToolOptions>(() => ({
+    ...buildDefaultOptions(config),
+    ...initialOptions,
+  }))
   const [fileWarning, setFileWarning] = useState<string | null>(null)
   const [advancedOpen, setAdvancedOpen] = useState(false)
 

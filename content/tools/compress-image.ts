@@ -1,4 +1,7 @@
 import { imageCompress } from '@/lib/converters/image-compress'
+import { ImageAnalyzerPanel } from '@/components/image/ImageAnalyzerPanel'
+import { ImageCompressionPreview } from '@/components/image/CompressionPreview'
+import { ImagePresetBar } from '@/components/image/ImagePresetBar'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -10,6 +13,10 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '',
   convertFn: (files, opts, onProgress) => imageCompress(files, opts, onProgress),
+
+  interactivePanel: ImageAnalyzerPanel,
+  previewPanel: ImageCompressionPreview,
+  presetBar: ImagePresetBar,
 
   options: [
     {
@@ -45,22 +52,90 @@ export const config: ToolConfig = {
       type: 'toggle',
       name: 'stripMetadata',
       label: 'Strip metadata',
-      default: false,
-      hint: 'Removes EXIF, GPS, and camera data — smaller files, more privacy',
+      default: true,
+      hint: 'On by default — most photos carry GPS location data you probably don\'t want to share publicly.',
     },
     {
       type: 'toggle',
       name: 'autoOrient',
       label: 'Auto-orient',
       default: true,
-      hint: 'Fixes rotation on phone photos using EXIF data',
+      hint: 'Fixes rotation on phone photos using EXIF data.',
+    },
+  ],
+
+  advancedOptions: [
+    {
+      type: 'section-header',
+      label: 'Format',
+    },
+    {
+      type: 'dropdown',
+      name: 'chromaSubsampling',
+      label: 'Chroma subsampling',
+      choices: [
+        { value: 'auto',  label: 'Auto (4:2:0 for photos)' },
+        { value: '4:4:4', label: '4:4:4 — full colour detail' },
+        { value: '4:2:0', label: '4:2:0 — smaller files (standard)' },
+      ],
+      default: 'auto',
+      hint: 'JPEG only. 4:4:4 preserves sharp colour edges; 4:2:0 is the web standard and noticeably smaller.',
+    },
+    {
+      type: 'toggle',
+      name: 'progressive',
+      label: 'Progressive encoding',
+      default: false,
+      hint: 'JPEG only. Images load blurry then sharpen — better perceived speed on slow connections.',
+    },
+    {
+      type: 'toggle',
+      name: 'lossless',
+      label: 'Lossless',
+      default: false,
+      hint: 'WebP/AVIF only. Exact pixel reproduction — larger files, zero quality loss.',
+    },
+    {
+      type: 'toggle',
+      name: 'paletteReduction',
+      label: 'Palette reduction',
+      default: false,
+      hint: 'PNG only. Reduces to 256-colour indexed mode — best for screenshots and diagrams with few colours.',
+    },
+    {
+      type: 'section-header',
+      label: 'Resize on compress',
+    },
+    {
+      type: 'radio',
+      name: 'maxDimension',
+      label: 'Limit longest edge',
+      choices: [
+        { value: '0',    label: 'Original' },
+        { value: '1920', label: '1920px (Full HD)' },
+        { value: '1280', label: '1280px (Web)' },
+        { value: '800',  label: '800px (Thumbnail)' },
+      ],
+      default: '0',
+      hint: 'Aspect ratio is always preserved.',
+    },
+    {
+      type: 'section-header',
+      label: 'Metadata & colour',
+    },
+    {
+      type: 'toggle',
+      name: 'convertToSrgb',
+      label: 'Convert to sRGB',
+      default: true,
+      hint: 'Converts embedded ICC colour profile to sRGB — safer for web display, removes large ICC data.',
     },
   ],
 
   faq: [
     {
       q: 'Does compression reduce image dimensions?',
-      a: 'No. This tool only changes file size by re-encoding at a lower quality level. The width and height of your images stay exactly the same. If you need to resize, use the Batch Image Resizer.',
+      a: 'No by default. This tool only changes file size by re-encoding at a lower quality level. Width and height stay the same unless you enable "Limit longest edge" in Advanced settings. For specific pixel dimensions, use the Batch Image Resizer.',
     },
     {
       q: 'What quality setting should I use?',
@@ -75,12 +150,16 @@ export const config: ToolConfig = {
       a: 'When a max file size is set, the tool first reduces quality in steps of 10 (from your chosen quality down to 20). If the file is still over target at quality 20, it then reduces the image dimensions by 10% per step, stopping at 50% of the original size. The smallest file achieved is returned — even if the target could not be fully reached.',
     },
     {
-      q: 'Why does my image look softer at very small targets?',
-      a: 'Very aggressive compression requires both lower quality and smaller dimensions. At quality 20 the encoder introduces visible artifacts, and at 50% dimensions fine detail is lost. If sharpness matters more than file size, raise the target or accept a larger output file.',
+      q: 'What is chroma subsampling and should I change it?',
+      a: 'Chroma subsampling reduces colour detail to save space. 4:2:0 (the default) is used in 99% of JPEG images on the web and is invisible to most viewers. 4:4:4 preserves sharper colour edges, which matters for text overlaid on images, logos, or graphics with vivid colour transitions. The difference in file size is typically 15–25%.',
     },
     {
-      q: 'Does lossy compression accumulate if I compress twice?',
-      a: "Yes, compressing a JPG more than once degrades quality each time. For archival workflows, always compress from the original file. This tool processes your local files and outputs new files — your originals are never modified.",
+      q: 'Why is "Strip metadata" on by default?',
+      a: 'Smartphone photos typically embed GPS coordinates, device model, and shooting conditions in EXIF data. When you share images publicly, this metadata travels with the file. Stripping it is the safer default. Turn it off in options if you need to preserve metadata for archival or professional workflows.',
+    },
+    {
+      q: 'Why does my image look softer at very small targets?',
+      a: 'Very aggressive compression requires both lower quality and smaller dimensions. At quality 20 the encoder introduces visible artifacts, and at 50% dimensions fine detail is lost. If sharpness matters more than file size, raise the target or accept a larger output file.',
     },
     {
       q: 'Are my images uploaded to your servers?',

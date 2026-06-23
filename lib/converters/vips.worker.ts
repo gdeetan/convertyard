@@ -57,6 +57,13 @@ self.onmessage = async (e: MessageEvent) => {
         image = oriented
       }
 
+      // Convert embedded ICC profile to sRGB (removes large ICC data, improves web compatibility)
+      if (opts.convertToSrgb === true && image.interpretation !== vips.Interpretation.srgb) {
+        const srgb = image.colourspace(vips.Interpretation.srgb)
+        image.delete()
+        image = srgb
+      }
+
       self.postMessage({ id, type: 'progress', pct: 30 })
 
       // Crop: extractArea using 0–1 fractions of post-orient image dimensions
@@ -75,7 +82,10 @@ self.onmessage = async (e: MessageEvent) => {
         image = cropped
       }
 
-      const maxDim = typeof opts.maxDimension === 'number' ? opts.maxDimension : 0
+      const maxDimRaw = opts.maxDimension
+      const maxDim = typeof maxDimRaw === 'number' ? maxDimRaw
+        : typeof maxDimRaw === 'string' ? parseInt(maxDimRaw, 10) || 0
+        : 0
       if (maxDim > 0) {
         const longer = Math.max(image.width, image.height)
         if (longer > maxDim) {
@@ -132,6 +142,10 @@ self.onmessage = async (e: MessageEvent) => {
         encodeOpts.effort = typeof opts.method === 'number' ? opts.method : 4
       } else if (outputFormat === 'jpg' || outputFormat === 'jpeg') {
         encodeOpts.Q = quality
+        // Chroma subsampling: VipsForeignSubsample OFF=2 (4:4:4), ON=1 (4:2:0), AUTO=0
+        if (opts.chromaSubsampling === '4:4:4') encodeOpts['subsample-mode'] = 2
+        else if (opts.chromaSubsampling === '4:2:0') encodeOpts['subsample-mode'] = 1
+        if (opts.progressive === true) encodeOpts.interlace = true
       } else if (outputFormat === 'avif') {
         encodeOpts.Q = quality
         encodeOpts.effort = typeof opts.effort === 'number' ? opts.effort : 4
@@ -139,6 +153,7 @@ self.onmessage = async (e: MessageEvent) => {
       } else if (outputFormat === 'png') {
         // Map quality (1-100) to vips compression (0-9, higher = smaller/slower)
         encodeOpts.compression = Math.min(9, Math.round((100 - quality) * 9 / 100))
+        if (opts.paletteReduction === true) encodeOpts.palette = true
       }
 
       const maxSizeKb = typeof opts.maxSizeKb === 'number' ? opts.maxSizeKb : 0
