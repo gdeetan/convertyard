@@ -94,7 +94,7 @@ export default function Page() {
         <p className="text-sm text-fg-muted">
           Don&apos;t see your exam or application?{' '}
           <a
-            href="mailto:gdtwebmaster@gmail.com"
+            href="mailto:convertyard@gmail.com"
             className="font-medium text-primary hover:underline"
           >
             Email us and we&apos;ll add it.
