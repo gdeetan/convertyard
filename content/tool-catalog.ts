@@ -63,16 +63,16 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'json-formatter', title: 'JSON Formatter',         description: 'Format, validate, and minify JSON.', category: 'developer', status: 'live' },
   { slug: 'base64',         title: 'Base64 Encoder/Decoder', description: 'Encode and decode Base64 strings.', category: 'developer', status: 'live' },
   { slug: 'json-to-csv',    title: 'JSON to CSV',            description: 'Flatten JSON arrays into spreadsheets.', category: 'developer', status: 'live' },
-  { slug: 'diff-checker',    title: 'Diff Checker',    description: 'Visual diff for text and code.', category: 'developer', status: 'coming-soon' },
-  { slug: 'jwt-decoder',     title: 'JWT Decoder',     description: 'Decode and inspect JWT tokens.', category: 'developer', status: 'coming-soon' },
-  { slug: 'regex-tester',    title: 'Regex Tester',    description: 'Test regex patterns with live matches.', category: 'developer', status: 'coming-soon' },
+  { slug: 'diff-checker',    title: 'Diff Checker',    description: 'Visual diff for text and code.', category: 'developer', status: 'live' },
+  { slug: 'jwt-decoder',     title: 'JWT Decoder',     description: 'Decode and inspect JWT tokens.', category: 'developer', status: 'live' },
+  { slug: 'regex-tester',    title: 'Regex Tester',    description: 'Test regex patterns with live matches.', category: 'developer', status: 'live' },
 
-  // Web Tools — all coming soon
-  { slug: 'favicon-generator',    title: 'Favicon Generator',    description: 'Generate all favicon sizes from one image.', category: 'web-tools', status: 'coming-soon' },
+  // Web Tools
+  { slug: 'favicon-generator',    title: 'Favicon Generator',    description: 'Generate all favicon sizes from one image.', category: 'web-tools', status: 'live' },
   { slug: 'og-image-generator',   title: 'OG Image Generator',   description: 'Design Open Graph images for social sharing.', category: 'web-tools', status: 'coming-soon' },
-  { slug: 'qr-code-generator',    title: 'QR Code Generator',    description: 'Generate QR codes for any URL.', category: 'web-tools', status: 'coming-soon' },
-  { slug: 'color-picker',         title: 'Color Picker',         description: 'Pick colors and export in any format.', category: 'web-tools', status: 'coming-soon' },
-  { slug: 'gradient-generator',   title: 'Gradient Generator',   description: 'Build CSS gradients visually.', category: 'web-tools', status: 'coming-soon' },
+  { slug: 'qr-code-generator',    title: 'QR Code Generator',    description: 'Generate QR codes for any URL.', category: 'web-tools', status: 'live' },
+  { slug: 'color-picker',         title: 'Color Picker',         description: 'Pick colors and export in any format.', category: 'web-tools', status: 'live' },
+  { slug: 'gradient-generator',   title: 'Gradient Generator',   description: 'Build CSS gradients visually.', category: 'web-tools', status: 'live' },
 
   // AI Tools — all coming soon
   { slug: 'alt-text-generator',  title: 'Alt Text Generator',  description: 'Generate descriptive alt text for any image.', category: 'ai-tools', status: 'live', badge: 'AI' },
