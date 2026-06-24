@@ -1,0 +1,115 @@
+export const meta = {
+  title: "EXIF Data and Your Photos: What's Hiding in That JPEG",
+  description:
+    'Every JPEG from your phone contains hidden metadata — camera model, timestamp, GPS coordinates. Here\'s what\'s in yours and how to strip it.',
+  lastUpdated: '2026-06-24',
+  faq: [
+    {
+      q: 'What is EXIF data?',
+      a: "EXIF (Exchangeable Image File Format) is metadata embedded in JPEG and TIFF files by cameras and smartphones. It records technical information about how the photo was taken — plus, if location services were enabled, exactly where.",
+    },
+    {
+      q: 'Does every JPEG contain EXIF data?',
+      a: "Most do, unless it's been deliberately stripped. Photos from smartphone cameras include GPS coordinates by default if location permissions are granted to the camera app. Photos edited in software may have additional EXIF fields added by the editor.",
+    },
+    {
+      q: 'Can I see what EXIF data my photo contains before sharing it?',
+      a: "Yes. On Mac: open in Preview → Tools → Show Inspector → Exif tab. On Windows: right-click → Properties → Details. Drop the file into the compress image tool on ConvertYard — it displays an EXIF summary including a GPS warning if coordinates are present.",
+    },
+    {
+      q: 'Does sharing a photo on social media expose EXIF data?',
+      a: "Most major platforms (Facebook, Instagram, X/Twitter) strip EXIF data when you upload. WhatsApp does too for most image types. Email attachments and direct file sharing (AirDrop, WeTransfer, Google Drive) preserve EXIF data — the recipient gets the original file including all metadata.",
+    },
+    {
+      q: 'When should I keep EXIF data?',
+      a: "Photography portfolios and archival use — EXIF data documents the technical context of a shot (focal length, aperture, shutter speed) and is valuable for photographers reviewing their work. Print and stock photo services often use EXIF for copyright attribution.",
+    },
+    {
+      q: 'Does stripping EXIF data affect image quality?',
+      a: "No. EXIF is metadata appended to the file — removing it doesn't change the pixel data at all. The visual image is identical after stripping.",
+    },
+  ],
+  relatedTools: ['compress-image', 'jpg-to-webp'],
+}
+
+## The Photo You Just Sent May Contain Your Home Address
+
+When you take a photo on a smartphone with location services enabled, your camera records the GPS coordinates of where the photo was taken. Those coordinates are embedded in the JPEG file as EXIF metadata. When you share that file — by email, via a direct link, AirDrop, on a forum — the coordinates go with it.
+
+Anyone with the file can extract them.
+
+This is not a hypothetical. It is the default behaviour of every smartphone camera with location permissions enabled. Apple's Camera app, Google's Pixel camera, Samsung's Camera app — they all embed GPS coordinates into JPEG files unless you have explicitly disabled location access for the camera app, or have it set to "Ask Each Time" and decline.
+
+The mechanism is simple: open the file properties on any computer, look for the GPS fields, paste those numbers into a map. That's it. No specialist software, no technical knowledge required.
+
+## What EXIF Data Contains
+
+EXIF (Exchangeable Image File Format) is a standard for metadata embedded in JPEG and TIFF files. The standard was developed in the 1990s and is now implemented by every major camera and smartphone manufacturer.
+
+A typical photo from a modern smartphone contains:
+
+- **GPS coordinates**: latitude and longitude, precise to several metres, recorded at the moment of capture
+- **Timestamp**: date and time the photo was taken, often including the timezone
+- **Camera make and model**: "Apple iPhone 15 Pro", "Samsung Galaxy S24 Ultra", "Google Pixel 9"
+- **Exposure settings**: aperture (f-stop), shutter speed, ISO sensitivity
+- **Lens information**: focal length, equivalent focal length, optical zoom factor
+- **Orientation**: which direction the camera was held (portrait, landscape, upside-down)
+- **Software**: the editing application if the photo was processed after capture (Lightroom, Snapseed, etc.)
+- **Flash status**: whether flash fired and in what mode
+- **White balance**: auto or manual, and the colour temperature if recorded
+
+Some of this is benign. Camera model and exposure settings are useful for photographers. Orientation data helps apps display photos right-side-up.
+
+The GPS coordinates are the field worth knowing about.
+
+## A Real Scenario
+
+You photograph something at home — a piece of furniture you're selling, a document you need to share, a product you're listing — and post the image to a public forum or send it directly to someone you don't know well.
+
+The photo file is available. Anyone who can view it can usually download the original. They open the file on their computer, right-click, look at properties, and see GPS coordinates embedded in the Details tab. They copy those coordinates and paste them into Google Maps or Apple Maps.
+
+That's the street you live on. In many cases, it's the exact building.
+
+This is the mechanism behind documented cases of location de-anonymisation through shared photos. Journalists and security researchers have demonstrated it repeatedly. The pattern is always the same: a camera with location access enabled, a file shared directly (not through a platform that strips metadata), and coordinates extracted by the recipient.
+
+The risk is highest with direct file sharing: email attachments, AirDrop transfers, uploads to file hosting services like Google Drive or WeTransfer, and posts to forums or communities that serve the original file rather than a processed copy.
+
+Social media platforms — Facebook, Instagram, X/Twitter — generally strip EXIF data when you upload. That's protective but not something to rely on: platform behaviour can change, and the same photo sent by email alongside a social post carries the full metadata.
+
+## How to Check What's in Your Photo
+
+Before you share any photo, you can verify exactly what metadata it contains. Three methods:
+
+**On a Mac**: Open the photo in Preview. Go to Tools → Show Inspector (or press ⌘I). Click the Exif tab. Scroll through the fields. If your photo has GPS coordinates, you will see "Latitude" and "Longitude" fields with decimal values. Those are the coordinates.
+
+**On Windows**: Right-click the file → Properties → Details tab. Scroll down to the GPS section. If GPS Latitude and GPS Longitude appear, the file contains location data.
+
+**Via ConvertYard**: Drop a photo into the [compress image](/compress-image/) tool. The analyzer panel displays an EXIF summary automatically, and flags GPS coordinates with a visible warning before you do anything with the file. This is useful if you want to inspect a batch of photos quickly without opening each one individually.
+
+If you see GPS fields in any of these views, the file contains your location at the moment of capture. Decide whether that's acceptable before sharing.
+
+## Stripping EXIF Data
+
+Two straightforward options:
+
+**Strip and keep the image format**: Use [compress image](/compress-image/). Enable "Remove metadata" in the settings panel — this strips all EXIF fields from the output file while keeping it as a JPEG. There is no quality change; the pixel data is identical. The output file simply has no metadata appended to it.
+
+After downloading, open the file in Preview or check Properties again. GPS fields should be absent. If the EXIF tab shows no GPS fields (or doesn't appear at all), the strip was successful.
+
+**Convert the format**: Converting a JPEG to WebP using [jpg-to-webp](/jpg-to-webp/) produces a WebP file. WebP supports Exif metadata, but many converters do not copy EXIF across by default during format conversion. The resulting WebP typically contains no location data. Verify with the same check: open in Preview → Inspector → Exif.
+
+Both approaches take seconds. If you are sharing photos that were taken at home, at a recurring location, or anywhere you would not want recipients to know about, stripping EXIF is the appropriate step before sending.
+
+## When to Keep EXIF Data
+
+EXIF metadata is not always a liability. There are contexts where preserving it is the right choice:
+
+**Photography portfolios**: Technical metadata — aperture, shutter speed, ISO, focal length — documents the context of a shot. Photographers reviewing their own work use EXIF to understand what settings produced a particular result. Clients evaluating a photographer's capabilities may look at EXIF to understand the technical approach. Stripping this data removes information that has genuine value.
+
+**Archival use**: Long-term archives benefit from timestamp and camera data for cataloguing and provenance. A photo archive with EXIF intact can be sorted, filtered, and understood decades later in ways that a stripped archive cannot.
+
+**Stock photo submission**: Some stock photography platforms use EXIF for copyright attribution or technical filtering. Check the platform's requirements before stripping.
+
+The decision is straightforward: who is receiving this file, and what can they do with the metadata it contains? For a photo going to a stock agency or a personal archive, full EXIF is useful. For a photo going to a stranger, a public forum, or anyone who doesn't need to know where you were when you took it, strip the GPS fields at minimum.
+
+The pixel data — the actual image — is identical either way. Stripping EXIF changes nothing you can see.

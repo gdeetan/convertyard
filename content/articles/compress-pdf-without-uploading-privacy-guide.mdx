@@ -1,0 +1,100 @@
+export const meta = {
+  title: 'How to Compress PDFs Without Uploading: The Privacy Guide',
+  description:
+    'Compress PDFs in your browser without sending files to any server. Includes a step-by-step Network tab verification trick that anyone can run.',
+  lastUpdated: '2026-06-24',
+  faq: [
+    {
+      q: 'How do I know a PDF tool is actually processing files locally?',
+      a: "Open your browser's DevTools (F12), go to the Network tab, then drop a file into the tool. If the tool is truly local-only, you'll see no outbound file upload — no POST request containing your file data. This is a checkable fact, not a claim.",
+    },
+    {
+      q: 'Why does it matter if my PDF gets uploaded to compress it?',
+      a: "Most people wouldn't hand a contract or medical scan to a stranger on the street to photocopy. Uploading that same file to a free online tool's server is structurally similar. The file passes through infrastructure you don't control, under a privacy policy you haven't read.",
+    },
+    {
+      q: 'Does ConvertYard compress PDFs in the browser?',
+      a: "Yes. ConvertYard uses WebAssembly (specifically MuPDF compiled to WASM) to compress PDFs directly in your browser tab. Nothing is uploaded. You can verify this with the Network tab method described in this article.",
+    },
+    {
+      q: 'What about browser cache — could a compressed file leak?',
+      a: "Browser cache stores assets like scripts and images, not file processing results. Your compressed PDF is handed directly to the browser download manager, not stored in cache. Basic device hygiene (disk encryption, screen lock) is still good practice.",
+    },
+    {
+      q: 'Is browser-based compression as effective as server-side?',
+      a: "For most PDFs, yes — the same MuPDF algorithms run either way. Very large files (500MB+) may hit browser memory limits before they'd hit a server's limits, but the compression quality is equivalent.",
+    },
+  ],
+  relatedTools: ['compress-pdf', 'protect-pdf', 'merge-pdf'],
+}
+
+You've just signed a contract. It needs to go to your solicitor today, but the PDF is 18MB — too large for the email attachment limit. You google "compress PDF free," click the first result, drag your file in. Thirty seconds later you have a 4MB file. Problem solved. What you probably didn't notice: that signed contract just traveled to a server you've never heard of, processed by a company whose privacy policy you've never read. For most files, this is a minor inconvenience. For contracts, medical records, financial statements, or anything with a signature on it, it's worth understanding exactly what happened — and what didn't have to happen.
+
+## What "Uploading" Means for Most Free PDF Tools
+
+When you use a popular online PDF compressor — Smallpdf, ILovePDF, Adobe Acrobat's web tool — here's what actually happens: your file leaves your device, travels over the internet to a server owned by that company, gets processed on their infrastructure, and the result travels back. The compression happens on hardware you don't control, by software maintained by a team you've never vetted, under a privacy policy you almost certainly haven't read.
+
+This isn't an accusation. Server-side processing is the standard architecture for web tools, and most of those companies have reasonable privacy policies. But "reasonable" and "you've read it" are different things. Retention periods vary. Some tools delete files after an hour; others after 24 hours; some policies are vague. Whether your files are processed in a jurisdiction with strong data protection laws depends on where their servers are, which is another thing most users never check.
+
+The point isn't that these tools are malicious. It's that until recently, server-side was the only viable option. That changed.
+
+## How WebAssembly Makes Browser-Only Processing Viable
+
+WebAssembly (WASM) is a binary instruction format that runs in the browser at near-native speed. It lets developers compile existing C, C++, and Rust codebases — codebases that took decades to build and optimize — and run them directly inside a browser tab.
+
+The practical result: tools that previously required server infrastructure can now run entirely client-side. FFmpeg for video transcoding. libvips for image processing. MuPDF for PDF compression and manipulation. These aren't lightweight reimplementations — they're the same battle-tested libraries that power desktop software, compiled to run in your browser.
+
+ConvertYard's [PDF compressor](/compress-pdf/) uses MuPDF compiled to WASM. When you visit the page, the server delivers the site assets — HTML, CSS, JavaScript, the WASM module — then steps out entirely. From that point on, your file never leaves your device. The compression happens in your browser tab, using your CPU, with your file staying in memory that only your browser can access.
+
+This wasn't reliably possible five years ago. Browser WASM support was patchy, memory limits were tight, and the tooling to compile major C++ libraries to WASM was immature. It is now a production-ready approach, and it changes the privacy calculus for file conversion tools completely.
+
+## How to Verify a Tool Is Actually Local-Only
+
+You shouldn't have to take any tool's word for this. Here's how to check — it takes about two minutes, works in any browser, and requires no technical background.
+
+**Step 1: Open DevTools**
+
+- Windows/Linux: press **F12**
+- Mac: press **Cmd + Option + I**
+
+A panel will open, usually at the bottom or right side of your browser window.
+
+**Step 2: Click the Network tab**
+
+It's one of the tabs along the top of the DevTools panel. This tab records every network request your browser makes.
+
+**Step 3: Clear existing entries**
+
+Click the circle-with-a-line icon (or press Ctrl+L / Cmd+K) to clear the log. This removes noise from the page load so you're only watching what happens next.
+
+**Step 4: Drop your PDF into the tool**
+
+Use a file you don't mind losing — a blank test PDF works fine. Drop it into the tool and let it process.
+
+**Step 5: Watch the Network tab during processing**
+
+This is where you get the answer.
+
+**If the tool is server-side:** you'll see a POST or PUT request appear with a URL like `api.toolname.com/upload` or `compress.toolname.com/process`. Click that request and look at the request size — it will roughly match your file size. That's your file going up.
+
+**If the tool is local-only:** you'll see no outbound upload. Script files, fonts, maybe an analytics ping — none of which contain your file. The file processing column stays quiet. Your file never moved.
+
+Try this with ConvertYard's [compress PDF tool](/compress-pdf/). Drop a file in, watch the Network tab. You'll see the WASM module load (a one-time download, on first use). You will not see your file in any outbound request. Then try the same test with another tool you use regularly — the comparison is instructive.
+
+This method works because browsers can't lie about their own network activity in DevTools. A tool claiming to be "local-only" while secretly uploading your file would show up here immediately. The Network tab is a checkable fact, not a marketing claim.
+
+## When Local-Only Isn't Enough on Its Own
+
+Removing the upload risk is meaningful, but it's not the whole picture. A few other things worth knowing:
+
+**Disk encryption.** If your device is unencrypted, anyone with physical access to it can read your files — compressed PDFs included. FileVault on Mac and BitLocker on Windows are both built in and straightforward to enable. If you're handling genuinely sensitive documents regularly, this matters more than which compression tool you use.
+
+**Screen lock.** An unlocked screen on a shared or public computer is a more common attack vector than most file upload risks. Lock your screen when stepping away. This sounds basic because it is, but it's also more commonly skipped than disk encryption.
+
+**Browser extensions.** Some browser extensions request broad permissions — including read access to page content or downloads. Most are benign, but auditing your installed extensions occasionally is worthwhile. Any extension with access to "all websites" or "downloads" has theoretical access to files you process in the browser. This applies equally to local-processing tools and server-side ones.
+
+**The broader point:** local processing removes one specific risk — your file transiting a third-party server — without replacing basic device security. Think of it as eliminating an unnecessary exposure, not as a comprehensive security solution. The two are complementary.
+
+## Try It
+
+Drop your PDF into the [compress PDF tool](/compress-pdf/). Set your quality target, click compress, download. No account required. No upload. If you want proof rather than a promise, run the Network tab method above while the compression runs. The tab will stay quiet where it matters.

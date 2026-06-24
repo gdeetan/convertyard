@@ -1,0 +1,105 @@
+export const meta = {
+  title: 'ConvertYard vs. iLovePDF: Which Free PDF Tool Should You Use',
+  description:
+    'Comparing ConvertYard and iLovePDF on batch limits, upload requirements, ad experience, and tool coverage. Mechanics compared, not marketing.',
+  lastUpdated: '2026-06-24',
+  faq: [
+    {
+      q: 'Does iLovePDF upload files to a server?',
+      a: "Yes. iLovePDF processes files server-side. Your files are uploaded to iLovePDF's servers for processing. ConvertYard processes everything in-browser — files never leave your device.",
+    },
+    {
+      q: "Does iLovePDF have file size or batch limits on its free tier?",
+      a: "iLovePDF's free tier has limits on file size and number of tasks per hour — verify current limits at ilovepdf.com before making a decision, as these change. ConvertYard has no task limits and processes batches of 1,000+ files.",
+    },
+    {
+      q: 'Where does iLovePDF currently have more tools than ConvertYard?',
+      a: "iLovePDF currently has OCR (optical character recognition for scanned PDFs) and e-signature tools. ConvertYard does not yet offer these. For most other PDF tasks, the tool coverage is comparable.",
+    },
+    {
+      q: 'Which has fewer ads?',
+      a: "ConvertYard shows one ad slot per tool page, placed below the FAQ section — never inside the conversion flow. iLovePDF's ad placement varies; check the current experience directly.",
+    },
+    {
+      q: 'Can I use both tools for different jobs?',
+      a: "Yes. Use ConvertYard for batch processing and privacy-sensitive documents. Use iLovePDF for tasks ConvertYard doesn't yet cover (OCR, e-sign). There's no registration required for either.",
+    },
+  ],
+  relatedTools: ['compress-pdf', 'merge-pdf', 'split-pdf', 'watermark-pdf'],
+}
+
+## Two Free PDF Tools, Same Category — So What's Different?
+
+Both ConvertYard and iLovePDF are free, browser-based PDF tools. Neither requires installing software. Both cover the core PDF tasks most people need: compress, merge, split, rotate, watermark, and convert to or from Word and Excel formats. At first glance, they look interchangeable.
+
+The differences are in mechanics — how batching works, where files are processed, and what the ad experience looks like. This comparison covers those specifics without inflating either side. It doesn't declare a winner; it describes what each tool actually does so you can pick based on your situation.
+
+> **Note before publishing:** Verify iLovePDF's current free-tier file-size and task limits at ilovepdf.com — these change and the comparison should cite current numbers.
+
+## Batch Limits in Practice
+
+iLovePDF's free tier applies limits on tasks per hour and caps on file sizes. The exact numbers change periodically, so check the current limits directly at ilovepdf.com before relying on any specific figures. In practice, if you're compressing a dozen PDFs or merging a handful of documents, you're unlikely to hit the ceiling in a single session. If you're processing a larger set — say, a full folder of contracts or a month's worth of invoices — the limits become a real constraint.
+
+ConvertYard has no per-task limit. Drop in a folder of 500 PDFs to [compress PDF](/compress-pdf/) and all 500 will process. The practical ceiling is your browser's available memory, which runs around 4–8 GB on a modern machine. That translates to hundreds of typical PDFs in a single batch.
+
+For users who regularly process more than a handful of files at a time, this difference is material. For occasional single-file tasks, it isn't.
+
+**What triggers the limit matters too.** On iLovePDF, the counter typically increments per operation — each compress or merge counts as one task. If you're running a mixed workflow (compress, then split, then merge), you may exhaust the hourly allowance faster than expected. ConvertYard counts nothing: you can compress 200 files, then split another 50, then merge a batch — all in the same session without any counter incrementing.
+
+For teams or individuals processing documents on a schedule — end-of-month invoices, weekly report archives, recurring batch exports — the no-limit approach removes a workflow variable that would otherwise require planning around.
+
+## Where Processing Happens
+
+This is the most structurally significant difference between the two tools.
+
+**iLovePDF** processes files server-side. When you upload a PDF to compress or merge, the file travels from your device to iLovePDF's servers, gets processed there, and is returned to you for download. This is a standard, competently handled approach used by many PDF tools. iLovePDF deletes files from their servers after a set period — check their privacy policy for current retention details.
+
+**ConvertYard** processes files in the browser using WebAssembly. No file leaves your device. You can verify this yourself: open DevTools (F12 or Cmd+Option+I), go to the Network tab, drop in a PDF, and run the conversion. No outbound upload request appears — because none happens. The WASM library runs entirely in your browser tab.
+
+For casual use — compressing a PDF to email, [merging PDF](/merge-pdf/) reports to send a colleague — the processing location rarely matters. For confidential documents — signed contracts, financial statements, medical records, legal filings — where processing happens is a meaningful consideration. Files that never leave your device can't be intercepted, retained, or exposed by a third-party server.
+
+Neither approach is disreputable. The distinction is real, and you should pick based on your document sensitivity.
+
+## Ad Experience
+
+ConvertYard's policy is fixed in the product's design and applies to every tool page: one ad slot per page, placed below the FAQ section, clearly labeled "Advertisement." Ads are never placed above the fold, inside the dropzone, in the progress UI, or between the convert button and the download. They load after the main content paints and never block conversions.
+
+iLovePDF's ad placement and density varies over time and by device. The current experience is best checked directly — this comparison won't speculate on something that changes. What both tools share as a stated goal is that ads shouldn't interrupt your conversion workflow. Whether either succeeds at that is something you can observe in a single session.
+
+Neither tool charges to use core features, so some form of monetization is a reasonable trade-off. The question is whether it stays out of your way.
+
+One practical signal: if you're in the middle of a batch and an ad interrupts or slows the download step, the ad placement has crossed into the conversion flow. On ConvertYard that's structurally prevented by policy. On iLovePDF, your experience depends on what they're serving at that moment. Neither tool is in the business of annoying you into a paid plan — both make more money from continued free use than from driving users away.
+
+## Where iLovePDF Currently Has More Tools
+
+Two honest gaps as of mid-2026:
+
+**OCR (optical character recognition).** iLovePDF can extract selectable text from scanned PDFs — documents that were photographed or printed and then scanned back in, where the text exists only as image pixels. ConvertYard does not currently offer OCR. If you need to make a scanned document searchable or copy text from a scan, iLovePDF covers this and ConvertYard does not.
+
+**E-signatures.** iLovePDF has a signing workflow. ConvertYard does not yet offer e-signature tools.
+
+> **Revise this section after OCR ships** (scheduled in the build queue).
+
+For the tools both products cover — [compress PDF](/compress-pdf/), [merge PDF](/merge-pdf/), [split PDF](/split-pdf/), rotate, watermark, Word/Excel conversion, password protect, and unlock — output quality is comparable in practice. Run the same file through both tools and the results are difficult to distinguish for typical documents.
+
+These gaps are worth naming plainly. A comparison that doesn't mention them isn't useful. If OCR or e-signature is a regular part of your PDF workflow, iLovePDF is the better fit today. If those features aren't part of your workflow, the gap doesn't affect you.
+
+## Decision Framework
+
+**Use ConvertYard if:**
+
+- You're processing batches larger than a handful of files in a single session
+- You're working with confidential documents — contracts, financial records, medical files — and want to verify that nothing is uploaded
+- You've hit iLovePDF's free-tier task or file-size limits
+- You want predictable ad placement that never appears inside the conversion flow
+- You work offline or on a restricted network where uploads to external servers aren't permitted
+
+**Use iLovePDF if:**
+
+- You need OCR on a scanned PDF — extracting text from an image-based document
+- You need e-signature functionality
+- You have a one-off task where either tool would work and you already have iLovePDF open
+
+Neither requires an account for basic use. You can test both on the same document and see which fits your workflow. For most PDF tasks, either tool gets the job done — the decision comes down to batch size, document sensitivity, and whether you need the tools ConvertYard doesn't yet offer.
+
+If you're uncertain, run both on the same file. The output quality for standard compress, merge, and split operations is close enough that the deciding factor will be the workflow, not the result.

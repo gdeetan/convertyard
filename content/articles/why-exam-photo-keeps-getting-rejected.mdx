@@ -1,0 +1,86 @@
+export const meta = {
+  title: 'Why Your Exam Form Photo Keeps Getting Rejected (and How to Fix It)',
+  description:
+    'The five most common reasons exam portal photos get rejected — with exact fixes for each one so you can resubmit without retaking the photo.',
+  lastUpdated: '2026-06-24',
+  faq: [
+    {
+      q: 'Why does my photo get rejected even when it looks correct?',
+      a: "Portals check multiple parameters automatically: file size, pixel dimensions, aspect ratio, and sometimes metadata. A photo can look visually correct on screen but fail a file-size check if it wasn't compressed to the right range, or fail a dimensions check if the pixel count doesn't match the requirement exactly.",
+    },
+    {
+      q: "How do I check my photo's file size and dimensions before uploading?",
+      a: "On Mac: right-click the file → Get Info shows file size. Open in Preview → Tools → Inspector shows pixel dimensions. On Windows: right-click → Properties → Details tab shows both. Ensure both match the portal's requirements before uploading.",
+    },
+    {
+      q: 'What background colour do exam portals require?',
+      a: 'Most Indian government exam portals require a plain white background. Some accept very light grey. Coloured, patterned, or gradient backgrounds cause rejection. The background must be uniform and free from shadows.',
+    },
+    {
+      q: 'Can I fix a rejected photo myself or do I need to retake it?',
+      a: 'File size and dimension issues can be fixed without retaking — use the crop tool to adjust framing and compress image to hit the size range. Background issues and centering problems may require a retake if the original photo does not have usable framing.',
+    },
+    {
+      q: 'What is the live-capture requirement some portals now have?',
+      a: "Several 2025–2026 exam notifications require applicants to upload a photo taken within the application window (not a stored or scanned photograph). Some portals detect this via metadata (EXIF timestamp). If the portal says 'recently taken' or 'live capture', use a photo taken specifically for this application.",
+    },
+  ],
+  relatedTools: ['image-cropper', 'compress-image'],
+}
+
+You've submitted your exam form photo. The portal rejects it. You recheck everything, try again with the same photo. Rejected again. Exam portal validation is automated and unforgiving — it checks multiple parameters simultaneously, and a single failed check rejects the whole upload regardless of whether everything else is correct. Understanding which parameter failed (and why) is the fastest path to a successful upload. Here are the five most common rejection reasons, in order of frequency.
+
+## Reason 1: File Size Outside the Allowed Range
+
+**What's happening:** Your photo file is too large — or occasionally too small. Most portals require a file between 10KB and 100KB, or 20KB and 200KB. The exact range varies by exam, so check the current notification carefully.
+
+**Why it's common:** Phone cameras produce JPEGs in the 2–8MB range. Even after cropping to a smaller frame, the file size often stays well above the portal's upper limit. Cropping removes pixels but the remaining pixels are still captured at full camera quality, so the file size drops proportionally — not to the small target range portals typically require.
+
+**Fix:** Use the [compress image](/compress-image/) tool. Drop your cropped photo, reduce the quality slider until the output file size lands inside the portal's required range. Check the exact file size shown before re-uploading — don't estimate.
+
+## Reason 2: Wrong Dimensions or Aspect Ratio
+
+**What's happening:** The portal expects specific pixel dimensions — 200×240, 480×640, or 3.5×4.5cm scanned at a specific DPI are common examples. Your uploaded photo doesn't match.
+
+**Why it's common:** Two mistakes cause this. First, resizing without locking the aspect ratio gives you the right pixel count on one side but wrong proportions overall. Second, cropping to the wrong ratio gives the wrong shape even when the file size looks correct. Both produce a photo that looks fine on screen but fails the portal's dimension check.
+
+**Fix:** Use the [image cropper](/image-cropper/) tool. Lock the aspect ratio to what the portal requires — most Indian exam portals use 3:4 or standard passport dimensions (3.5×4.5). Crop with your face correctly centred, then resize to the exact pixel dimensions specified. Verify the output dimensions before uploading.
+
+## Reason 3: Wrong Background Colour
+
+**What's happening:** Your photo has a coloured, patterned, or non-uniform background. Most portals require a plain white background. Some accept very light grey, but anything else — blue studio backdrops, off-white walls, patterned curtains, outdoor settings — triggers rejection.
+
+**Why it's common:** Very few people have a plain white wall available. Photos taken indoors against "roughly white" walls often have visible texture, shadows, or a warm tone that fails the portal's check. Some photo-editing apps blur the background rather than removing it, which looks clean to the eye but is not the uniform white the portal requires.
+
+**Fix:** The most reliable fix is a retake. Find a plain white wall with even lighting and no visible shadow behind your head. Background removal and replacement with AI tools is possible but carries risk — the result can look artificial, and portals with a human review stage sometimes reject photos that look digitally altered.
+
+## Reason 4: Photo Too Old
+
+**What's happening:** The portal requires a recent photograph — typically taken within the last 6 months. Some portals enforce this by checking the EXIF metadata embedded in the image file, which records the capture date and time set by the camera or phone.
+
+**Why it's common:** Applicants reuse a good photo from a previous application cycle. A well-lit, correctly framed photo from 18 months ago is tempting to reuse — but if the portal reads the EXIF timestamp and it falls outside the allowed window, the upload fails.
+
+**Fix:** Take a new photo. If the portal explicitly checks EXIF data or states a specific date window, ensure the photo was taken within that window. Do not strip EXIF data as a workaround — some portals treat missing metadata as equally suspicious.
+
+## Reason 5: Live-Capture Requirement
+
+**What's happening:** Several 2025–2026 exam notifications now specifically require a photo taken during the registration window — not a scanned photograph or a stored photo from a prior session. Some portals call this "live capture" or "recently taken photograph." This is a stricter version of the recency requirement above.
+
+**Why it's common:** Applicants use a high-quality studio photograph from a previous application cycle. The photo meets every other requirement — correct size, dimensions, white background, recent enough by calendar — but the portal's language explicitly bars photographs taken before the registration window opened, and the EXIF timestamp makes this verifiable.
+
+**Fix:** Take a photo specifically for this application, within the allowed time window stated in the notification. Check the current notification carefully — the language varies between "recent photograph," "live capture," and explicit date windows. When in doubt, take a fresh photo the day you fill in the form.
+
+## A Pre-Upload Checklist
+
+Run through this before every upload:
+
+- [ ] File format is JPEG (.jpg), not PNG
+- [ ] File size is within the portal's specified range
+- [ ] Pixel dimensions match the portal's requirements exactly
+- [ ] Aspect ratio is correct (usually 3:4 or passport 3.5:4.5)
+- [ ] Background is plain white, no shadows
+- [ ] Face is centred, both ears visible
+- [ ] No glasses
+- [ ] Photo was taken within the required time window
+
+See the dedicated pages for each exam's specific requirements: [UPSC](/for/upsc/), [SSC CGL](/for/ssc-cgl/), [NEET](/for/neet/), [JEE Main](/for/jee-main/), [IBPS PO](/for/ibps-po/).

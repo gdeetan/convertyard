@@ -1,0 +1,108 @@
+export const meta = {
+  title: 'How to Crop Photos for ID and Exam Photo Requirements',
+  description:
+    'Step-by-step guide to cropping passport, visa, and exam photos correctly in your browser. Covers UPSC, SSC CGL, NEET, JEE Main, and IBPS PO requirements.',
+  lastUpdated: '2026-06-24',
+  faq: [
+    {
+      q: 'What is the difference between cropping and resizing a photo?',
+      a: "Cropping changes the framing — cutting away parts of the image to change the aspect ratio or focus. Resizing scales the entire image up or down without changing what's in it. For exam photos, you typically need to crop first to get the right aspect ratio and face positioning, then resize to the required dimensions.",
+    },
+    {
+      q: 'What aspect ratio are most exam photos?',
+      a: "Most Indian government exam photos use a 3:4 aspect ratio (width:height). Passport photos typically use 35mm × 45mm (roughly 3:4). Always check the current notification for the specific exam — dimensions change cycle to cycle.",
+    },
+    {
+      q: 'How much of the frame should my face occupy?',
+      a: "For most Indian exam portals, the face (chin to top of head including hair) should occupy 70–80% of the frame height. The face must be centred horizontally. Ears should be visible. Glasses are typically prohibited.",
+    },
+    {
+      q: 'Why does my exam photo keep getting rejected even when it looks correct?',
+      a: "The most common reasons: file size is outside the allowed range (too large or too small after JPEG compression), the aspect ratio is slightly off, the background is not plain white or light grey, or the photo was taken more than 6 months ago.",
+    },
+    {
+      q: 'Can I use a scanned photo for exam forms?',
+      a: "Several 2025–2026 exam notifications now require a live-capture photo (taken within the registration window) rather than a scanned photograph. Check the current notification for each exam before submitting.",
+    },
+    {
+      q: 'What tools do I need to prepare an exam photo?',
+      a: "You need two operations: crop (to get the right aspect ratio and face framing) and compress (to hit the file size target, typically 10KB–200KB). The image cropper and compress image tools on ConvertYard handle both steps locally — no upload required.",
+    },
+  ],
+  relatedTools: ['image-cropper', 'compress-image', 'jpg-to-pdf'],
+}
+
+## Why "Just Resize" Doesn't Work
+
+If you've had an exam photo rejected, there's a good chance the rejection had nothing to do with resolution or file format. The portal flagged it because your face didn't occupy the right portion of the frame.
+
+Cropping and resizing are two different operations. Resizing scales the entire image — if your photo has too much empty ceiling above your head, resizing to 200×240px just produces a smaller version of the same badly framed photo. The face is still too small in the frame. The portal still rejects it.
+
+Cropping cuts away parts of the image to change the framing. You drag a box around the face, lock the aspect ratio, and throw away everything outside that box. The result is a tightly framed portrait where the face fills the required proportion of the frame. Then you resize that cropped result to the required pixel dimensions.
+
+The sequence matters: **crop first, resize second.** Most people do it in the wrong order — or skip cropping entirely and wonder why the result keeps failing. Exam portals check face coverage automatically. They don't look at the file dimensions alone.
+
+## Common Requirements Across Exam Photo Specifications
+
+Indian government exam portals share a consistent set of photo requirements. They're not identical across portals, but most fall within the same range:
+
+- **Aspect ratio:** 3:4 (width to height). Sometimes listed as specific pixel dimensions like 200×240 or 480×640 — these are all the same ratio.
+- **Face coverage:** The face (chin to top of head, including hair) should occupy 70–80% of the frame height. Face centred horizontally. Both ears visible.
+- **Background:** Plain white or very light grey. No patterns, no furniture, no shadows falling across the face or background.
+- **Recency:** Taken within the last 6 months. Some portals check EXIF metadata.
+- **Glasses:** Prohibited on most portals since 2023. Remove them for the photo.
+- **File format:** JPEG only. PNG and WebP are typically rejected.
+- **File size:** 10KB–200KB depending on the portal. This range varies more than any other requirement — always check the current notification.
+
+For the crop itself, a reliable target position: chin near the bottom 15% of the frame, top of head (including hair) near the top 5–10%, face centred horizontally. If you can see a sliver of space above the head and the chin sits just above the lower edge, the framing is about right.
+
+## Exam-Specific Requirements
+
+Each exam has its own portal with its own specification. Requirements change each cycle, so treat the following as a starting point — always verify against the current official notification before submitting.
+
+- **[UPSC Civil Services](/for/upsc/)** — Union Public Service Commission. Photos are required at multiple stages: the application form, the admit card, and in-person at the exam centre.
+- **[SSC CGL](/for/ssc-cgl/)** — Staff Selection Commission Combined Graduate Level. Portal has historically been strict about file size upper limits.
+- **[NEET (UG)](/for/neet/)** — National Eligibility cum Entrance Test. Photo requirements are verified at the exam centre against the printed admit card — framing issues that pass the portal check sometimes fail in-person.
+- **[JEE Main](/for/jee-main/)** — Joint Entrance Examination Main. Specifications have changed across sessions; check the current information bulletin.
+- **[IBPS PO](/for/ibps-po/)** — Institute of Banking Personnel Selection Probationary Officer. Banking exam portals tend to enforce strict file size ranges.
+
+If a portal is not listed here, navigate to the current notification PDF for that exam — the photo specification section is usually in an annexure at the back.
+
+## Walkthrough: Cropping a Photo with the Image Cropper
+
+Open the **[image cropper](/image-cropper/)** and follow these steps:
+
+1. **Drop your photo** into the tool. Use the original file from your camera or phone — don't use a version that's already been compressed or resized.
+2. **Set the aspect ratio to 3:4.** This locks the crop box proportions so you can't accidentally end up with the wrong ratio. If your exam specifies pixel dimensions instead of a ratio (e.g. 200×240), that's still 3:4 — use 3:4.
+3. **Drag the crop box** to position the face correctly. Aim for: chin near the bottom edge of the box (roughly the bottom 15% of the frame), top of head near the top edge (top 5–10%), face centred left-to-right so both ears are visible.
+4. **Check the preview** before confirming. The face should fill the frame — not floating in the middle of a large blank background, and not so tight that the top of the head is cut off.
+5. **Click crop to download** the result. The downloaded file is your cropped photo at the correct aspect ratio.
+
+The tool processes the photo locally in your browser. Nothing is uploaded. If you're working with a sensitive document photo (passport, national ID), this matters.
+
+## Adjusting File Size After Cropping
+
+Most portals require the photo to be between 10KB and 100KB, or 20KB and 200KB. A photo straight from a phone camera — even after cropping — will typically be 1MB to 5MB. That's 5 to 50 times over the limit.
+
+Use the **[compress image](/compress-image/)** tool:
+
+1. **Drop the cropped photo** — the file you just downloaded from the image cropper.
+2. **Adjust the quality slider** downward until the output file size falls inside the required range. For most exam portals, a JPEG quality setting between 60–80% will land in the 20KB–150KB range. The exact result depends on the content of the photo.
+3. **Check the output size** before downloading. The tool shows the compressed file size. If it's still too large, reduce quality further. If it's too small (pixelated), the original photo resolution was too low — you'll need to retake it.
+4. **Download** and use this compressed, cropped file for the exam portal.
+
+Both the image cropper and the compress image tool run entirely locally. Your photo never leaves your device — this is the same guarantee for a casual holiday photo and for a government document photo.
+
+## Common Rejection Reasons and Fixes
+
+| Rejection reason | Fix |
+|---|---|
+| File too large | Compress to the target range using [compress image](/compress-image/) |
+| File too small (pixelated) | Retake at higher resolution, then crop and compress |
+| Wrong aspect ratio | Re-crop with the correct ratio locked in the [image cropper](/image-cropper/) |
+| Background not plain | Retake against a plain white or light grey wall with no shadows |
+| Face not centred | Re-crop with face centred horizontally — both ears should be visible |
+| Photo too old | Use a recent photo — some portals check EXIF date metadata |
+| Glasses visible | Remove glasses before taking the photo |
+
+The most avoidable rejection reason is wrong aspect ratio — it means the crop step was skipped or done without locking the ratio. Lock the ratio in the tool before you drag the crop box, and this error disappears.

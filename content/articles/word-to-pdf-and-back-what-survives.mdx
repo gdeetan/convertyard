@@ -1,0 +1,153 @@
+export const meta = {
+  title: 'Word to PDF and Back: What Actually Survives the Round Trip',
+  description:
+    "Honest guide to Word–PDF conversion fidelity. What converts cleanly, what doesn't survive the round trip, and a self-test to check before you send.",
+  lastUpdated: '2026-06-24',
+  faq: [
+    {
+      q: 'Can I convert a PDF back to an editable Word document?',
+      a: "Yes — PDF to Word conversion works well for text-based PDFs. The conversion extracts text, basic formatting, and images. Complex layouts (multi-column, headers/footers with custom formatting) may not reproduce exactly, and scanned PDFs (images of pages) require OCR first.",
+    },
+    {
+      q: 'Why does my converted Word document look different from the original?',
+      a: "PDFs store content as positioned elements on a page — they don't have a concept of 'paragraphs' or 'columns' in the same way Word does. Converting back requires inferring that structure from positions, which is imperfect for complex layouts.",
+    },
+    {
+      q: 'Do tracked changes and comments survive PDF conversion?',
+      a: "No. When you convert a Word document with tracked changes to PDF, the PDF shows the document as it appears with changes accepted (or rejected, depending on your view setting) — tracked changes metadata doesn't transfer to the PDF format.",
+    },
+    {
+      q: 'What happens to fonts when converting Word to PDF?',
+      a: "If the font is available on the system running the conversion, it's embedded in the PDF and renders correctly everywhere. If the font isn't available, the converter substitutes a similar font. The result may look slightly different but usually reads fine.",
+    },
+    {
+      q: 'When is PDF-to-Word conversion the wrong choice?',
+      a: "When the original Word file is available — get the source instead. When the PDF was created from a scanned image (OCR needed first). When the layout is highly complex (tables within tables, precise multi-column) — re-typesetting may be faster than fixing the conversion output.",
+    },
+    {
+      q: 'Does Excel to PDF conversion preserve formulas?',
+      a: "No. PDF is a presentation format — it shows the values in cells, not the formulas. Converting Excel to PDF is a one-way operation; the resulting PDF shows the spreadsheet as it appeared, not the live calculations.",
+    },
+  ],
+  relatedTools: ['word-to-pdf', 'pdf-to-word', 'excel-to-pdf', 'pdf-to-powerpoint'],
+}
+
+## The Most Common Source of Support Frustration for PDF Converters
+
+"It doesn't look right." That's the feedback. Wrong spacing, missing columns, fonts that are close but not quite right. The columns are merged. A table that was crisp in Word looks jumbled in the converted document. So you convert again, this time with a different tool, and get a slightly different wrong result.
+
+This happens because of a fundamental mismatch between what Word and PDF files store. That mismatch isn't a bug — it's structural. Understanding it takes two minutes and will save you from re-converting the same file three times.
+
+## What Word and PDF Files Actually Store
+
+**Word documents store semantic structure.** A .docx file knows that a block of text is a paragraph, that another block is a Heading 2, that a span of text is bold, that a section is a three-column table. The file stores those relationships. When you open the document, Word (or LibreOffice, or Google Docs) reads that structure and draws the page according to its own rendering rules. The same .docx file can render slightly differently in different applications, because the structure — not the pixels — is what's stored.
+
+**PDF files store positioned elements.** A PDF knows that a specific text string sits at position x=72, y=144 on the page, rendered in Helvetica at 12pt. Another string is at x=360, y=144 — right next to the first one, visually. There is no concept of "paragraph" in a PDF. No concept of "column." No concept of "this is a heading." Just a set of elements placed at coordinates on a page, rendered faithfully every time in every viewer.
+
+Converting PDF back to Word requires software to look at those positioned elements and infer: these two text strings at similar y-coordinates are probably in the same paragraph; these groups of text strings form two distinct columns; this horizontal line plus the text above it is probably a table header. For simple documents, that inference works well. For complex layouts, it's educated guessing — and sometimes it guesses wrong.
+
+## What Converts Cleanly
+
+**Word to PDF** is generally reliable. The conversion goes from structured data to a positioned-element representation, which is a well-defined operation. These elements convert cleanly:
+
+- Body text, headings, and basic paragraph formatting
+- Tables with simple row/column structure
+- Inline images
+- Hyperlinks (clickable links are preserved in the PDF)
+- Numbered and bulleted lists
+- Standard header and footer content
+- Most fonts (the font is embedded in the PDF, so it renders correctly on any device)
+
+Use [Word to PDF](/word-to-pdf/) when you need a document that looks identical everywhere, can't be accidentally edited, and prints consistently.
+
+**PDF to Word** works well for a specific class of PDFs:
+
+- Text from text-based PDFs (not scanned images of pages)
+- Single-column body text
+- Inline images
+- Basic table structures with clear cell boundaries
+
+If a PDF was originally created from a Word document (or any structured source file), PDF-to-Word conversion usually recovers most of the content correctly. The result will likely need minor cleanup — a paragraph break here, a spacing adjustment there — but the text and structure come through.
+
+Use [PDF to Word](/pdf-to-word/) when you need to edit a document and don't have the original source file.
+
+## What Doesn't Always Survive the PDF → Word Round Trip
+
+Some elements consistently cause problems. Knowing which ones lets you check the output in the right places.
+
+### Complex Multi-Column Layouts
+
+A two-column newsletter or academic paper stores two parallel columns of text in the PDF as two groups of positioned elements side by side. When software converts this back to Word, it has to decide: are these two columns, or one column with text that happens to be positioned to the right? The algorithm gets it right for obvious cases and wrong for ambiguous ones. A two-column academic paper may come back as a single column with the right column's text appended after the left column's text — readable, but out of order.
+
+### Font Substitutions
+
+Fonts embedded in a PDF are specific to that PDF. If the conversion process doesn't have access to the original font (because it's a commercial font not installed on the conversion system), it substitutes a visually similar alternative. The text is still there and readable. The line lengths may shift slightly, causing text reflow that pushes content onto additional pages.
+
+### Embedded Objects
+
+OLE objects — live charts from Excel, embedded spreadsheets, interactive elements — are rendered as static images when a Word file is converted to PDF. When you convert that PDF back to Word, those elements come back as images, not live objects. A chart that was editable in the original .docx is now a PNG in the recovered .docx.
+
+### Tracked Changes and Comments
+
+If you convert a Word document with tracked changes to PDF, the PDF shows the document as it appears in your current view — with changes accepted, rejected, or shown inline, depending on what you have displayed. The tracked changes metadata is gone. Comments are gone. If you need to preserve these, keep the .docx. Converting to PDF with tracked changes visible is a common mistake when sending documents for external review.
+
+### Nested Tables
+
+Simple tables — rows and columns, no merges, no nesting — convert and recover well. Nested tables (a table inside a table cell) are complex for PDF-to-Word algorithms to reconstruct. The output may show merged cells, misaligned columns, or the inner table broken out as a separate table.
+
+### Text Boxes and Floating Elements
+
+Word supports text boxes and images positioned at arbitrary coordinates on the page — not anchored to the text flow. PDFs preserve the visual position of these elements. Converting back to Word, the algorithm has to decide whether each positioned element is part of the main text flow or a separate floating object, and at what anchor point. The results vary. A sidebar text box positioned to the right of body text may come back as an inline element in the wrong place.
+
+## A Practical Self-Test Before You Send
+
+For any document that matters, spend two minutes testing before it goes out.
+
+**Testing Word → PDF:**
+
+1. Convert your Word file using [Word to PDF](/word-to-pdf/)
+2. Open the resulting PDF
+3. Press Ctrl+A (Windows) or Cmd+A (Mac) to select all text, then copy
+4. Paste into a plain text editor
+
+If text pastes successfully, the PDF is text-based (not an image). If nothing pastes, the PDF was created from a scanned image or the conversion embedded everything as graphics.
+
+5. Read the pasted text — does the order make sense? Is every section present?
+6. Check tables, headers, and any multi-column sections visually
+
+If something looks wrong in the PDF, fix it in the source Word file and re-convert. Don't try to fix issues in the PDF — that path takes longer and the fix rarely sticks.
+
+**Testing PDF → Word (round-trip):**
+
+1. Convert the PDF back to Word using [PDF to Word](/pdf-to-word/)
+2. Open the resulting .docx in Word
+3. Check: column structure intact? Tables aligned? All text present and in the right order?
+4. For documents with tables: click inside a table and check the cell structure in the Table Properties dialog
+
+Reserve 10–15 minutes to spot-check a complex document. Simple single-column documents can be verified in under a minute.
+
+## When to Re-Type Instead of Convert
+
+PDF-to-Word conversion is the right choice when:
+
+- You need to edit a document and the original Word source isn't available
+- The PDF is text-based (not a scan)
+- The layout is moderate complexity — single or simple two-column, basic tables
+- The document is long enough that re-typing would take more time than fixing the conversion output
+
+Re-typing is faster than converting when:
+
+- **The source file is available.** Get the .docx. Don't convert a PDF when you can open the original.
+- **The document is short with complex formatting.** A one-page flyer with five different fonts, text at angles, and layered images will take longer to fix after conversion than to recreate.
+- **The PDF is a scan.** OCR must run first to extract text. If OCR quality is poor, the conversion output will have errors throughout. Re-typing a short scanned document is often faster.
+- **The layout is highly complex.** Tables within tables, text wrapping around images, precisely positioned multi-column layouts — if the conversion output would take an hour to fix, re-typesetting may be the faster path.
+
+A useful mental benchmark: if fixing the conversion output would take more time than re-creating the document structure from scratch, use the time for re-creation.
+
+## Excel and PowerPoint
+
+The same Word/PDF dynamics apply to other Office formats.
+
+**[Excel to PDF](/excel-to-pdf/)** converts your spreadsheet to a fixed-layout document showing the values in each cell, exactly as they appear in Excel. The formulas are gone — the PDF shows results, not calculations. What appears in the PDF is controlled by your Print Area setting in Excel. If your sheet has 50 columns but your print area covers columns A–J, only A–J appear in the PDF. Excel-to-PDF is a one-way conversion; there is no meaningful "PDF to Excel" — the formulas cannot be recovered from a PDF.
+
+**[PDF to PowerPoint](/pdf-to-powerpoint/)** converts each PDF page into a PowerPoint slide. This works well for recovering text content and basic layouts from presentation PDFs. Complex backgrounds, embedded video, and animations don't transfer — those are presentation-layer features that PDFs don't store in a recoverable way. The resulting slides give you editable text and images that you can rework, which is usually the goal.

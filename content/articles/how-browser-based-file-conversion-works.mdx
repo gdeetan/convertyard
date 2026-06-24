@@ -1,0 +1,119 @@
+export const meta = {
+  title: 'The Complete Guide to Browser-Based File Conversion',
+  description:
+    'How WebAssembly makes local-only file conversion possible — and what it means for speed, privacy, and reliability. Your files stay in your browser.',
+  lastUpdated: '2026-06-24',
+  faq: [
+    {
+      q: 'What is WebAssembly and why does it matter for file conversion?',
+      a: "WebAssembly (WASM) is a binary format that lets compiled native code run in a browser at near-native speed. Libraries like ffmpeg, libvips, and MuPDF — previously only available as desktop software or server processes — can now run entirely in your browser tab.",
+    },
+    {
+      q: 'Is browser-based conversion as fast as server-side?',
+      a: "For files under 100MB, typically yes. For very large files or CPU-intensive operations like OCR, server-side can be faster because it uses dedicated hardware. The tradeoff is that server-side requires uploading your file.",
+    },
+    {
+      q: 'Can I convert files offline with a browser-based tool?',
+      a: "After the WASM module is loaded on first visit, yes. The actual conversion logic runs locally. If you reload the page, it needs to re-fetch the WASM module — but once loaded, an internet connection isn't required for the conversion itself.",
+    },
+    {
+      q: 'What happens to files I convert in the browser?',
+      a: "They stay in browser memory during processing and are passed directly to the download manager when done. They are not written to disk cache or uploaded anywhere. Once you close the tab, the in-memory file is gone.",
+    },
+    {
+      q: "Why doesn't every tool use WebAssembly?",
+      a: "WebAssembly is newer (2019 as a W3C standard) and requires porting native libraries — non-trivial engineering work. Many tools predate WASM or chose server-side because it's simpler to scale and doesn't hit browser memory limits.",
+    },
+    {
+      q: 'What are the real limitations of browser-based file conversion?',
+      a: "Browser memory caps file size (practically 2–8GB depending on device). CPU-intensive operations use the user's battery and processor. Very large batches may slow down on older hardware. These are real tradeoffs worth knowing.",
+    },
+  ],
+  relatedTools: ['jpg-to-webp', 'compress-pdf', 'compress-image'],
+}
+
+## The Problem With "Free" File Conversion
+
+Every conversion tool has to run code somewhere. Someone writes an algorithm that reads your PDF, reinterprets it as a DOCX, and writes the output. That algorithm runs on a machine. The question is which machine.
+
+For most of the history of web-based file tools, the answer was: a server you don't control. You drag a file into a browser window, the tool uploads it to a third-party server, the server runs the conversion, and the result comes back down. Free, fast, convenient — and in exchange, your file spends time on infrastructure owned by a company whose privacy policy you didn't read, stored on disks you can't inspect, processed by code you can't audit.
+
+For personal photos or a grocery list PDF, this is probably fine. For payslips, client contracts, medical records, legal documents, or anything commercially sensitive, it's a different calculation.
+
+WebAssembly changed what's possible. For the first time, the code that does the conversion can run in your browser tab — not simulated, not stripped-down, but the same algorithms used by professional desktop software and server-side pipelines. The file never has to move.
+
+---
+
+## What WebAssembly Is
+
+WebAssembly (WASM) is a binary instruction format designed to run in web browsers at near-native speed. The W3C standardised it in 2019, and it's now supported in every major browser — Chrome, Firefox, Safari, Edge.
+
+The key word is "compiled." WASM isn't JavaScript. It's a compilation target — a format that C, C++, and Rust code can be compiled into. That means software written for native platforms — video encoders, image processors, document renderers — can be compiled to WASM and shipped to a browser without rewriting the core logic.
+
+This matters enormously for file conversion, because the hard part of file conversion isn't the web interface. It's the format-specific codec work: parsing a HEIC container, re-encoding a video stream, rasterising a PDF page at exact pixel density. That work is done by battle-tested native libraries:
+
+- **ffmpeg** — the standard for audio and video encoding, used in practically every media pipeline on earth
+- **libvips** — high-performance image processing, designed for large images with minimal memory usage
+- **MuPDF** — a compact, fast PDF and document renderer
+
+All three now have WASM builds. When a browser-based tool uses them, it's running the real thing — not a JavaScript port, not an approximation. The algorithm is identical. The only difference is where it executes.
+
+---
+
+## How It Works Mechanically
+
+When you use a browser-based conversion tool, a specific sequence of events happens. Understanding it makes clear what the privacy guarantees actually rest on.
+
+**1. Page load — HTML, CSS, JavaScript arrive as usual.** The page renders, the dropzone appears, the UI is functional. At this stage, no heavy processing is involved. The server has delivered a static site — that's its entire job.
+
+**2. First interaction triggers WASM load.** When you drop a file or click convert for the first time, the browser fetches the WASM module. This is a compiled binary — typically 5 to 20MB depending on the library. It downloads once per session and is cached aggressively. Subsequent conversions in the same session start instantly.
+
+**3. Processing runs in a Web Worker.** Conversion doesn't happen on the main browser thread — it runs inside a Web Worker, which is a separate execution context. This keeps the UI responsive while the conversion runs. You can still click, scroll, and interact with the page. The Web Worker has access to the WASM module and the file data, and nothing else.
+
+**4. Output is handed directly to the download system.** When conversion finishes, the output is constructed in browser memory and passed to the browser's built-in download mechanism. No intermediate server, no temp storage. The output file is assembled from bytes in RAM and given directly to your Downloads folder.
+
+At no point in this sequence does the file leave your device. The server's role — after loading the page — is nothing. It served a static site. The conversion runs on your hardware.
+
+You can verify this yourself. Open your browser's DevTools (F12 in most browsers), go to the Network tab, and watch what happens during a conversion. You'll see the initial page assets, the WASM module fetch, and then — during the actual conversion — no outbound traffic. The network goes quiet because there's nothing to send.
+
+---
+
+## What This Means Concretely
+
+The architecture described above has four practical consequences that matter depending on what you're converting and why.
+
+**Privacy — the file doesn't move.** This isn't a policy claim. It's a mechanical fact you can verify. No server receives your file; no database stores it; no employee can access it. For anyone converting documents with personal or commercial sensitivity, this is the only conversion pipeline that offers a meaningful privacy guarantee.
+
+**Speed — no round-trip.** Server-based conversion requires: upload → queue → process → download. Browser-based conversion skips the first three steps. For large files on slow or congested connections, this often makes browser-based conversion faster end-to-end, even if the raw processing speed were identical. A 50MB PDF that would take 30 seconds to upload and download may convert locally in 8 seconds.
+
+**Offline-capable.** Once the WASM module has loaded during a session, the conversion itself doesn't require an internet connection. The processing logic is in your browser's memory, and the file is on your device. The conversion can complete without a single packet leaving the machine. (Reloading the page will re-fetch the WASM module, but in a stable session, it's fully offline.)
+
+**No rate limits, no queues, no accounts.** The processing runs on your hardware. There's no server capacity to protect, no per-day task limit to enforce, no "upgrade to Pro for batch processing." Batch 1,000 files: that runs on your CPU, not someone else's.
+
+---
+
+## The Honest Limitations
+
+WebAssembly is fast. It's not unconditionally faster than dedicated server hardware, and it inherits real constraints from the browser environment. These are worth knowing.
+
+**Large files push browser memory limits.** Browsers have limits on how much memory a tab can consume — and it varies by device. Practically, files in the hundreds of megabytes are usually fine; files above 1–2GB may hit limits on lower-RAM devices. A file that would process in seconds on a server with 64GB RAM may fail silently in a browser on a 4GB device. The constraint isn't the software — it's the container.
+
+**CPU-intensive operations consume your resources.** OCR, AI-based upscaling, video transcoding — these are computationally heavy tasks. On a server, they run on dedicated hardware. In a browser, they run on your laptop's processor and battery. A task that a server would handle in 2 seconds while you do something else may take 20 seconds on your CPU while the fans spin up. This is a real tradeoff, not a bug.
+
+**Cold start adds latency on first use.** The first time you use a browser-based tool in a session, it fetches the WASM module — 5 to 20MB depending on the library. On a fast connection, this is a few seconds. On a slow connection, it's longer. After the first use, the module is in memory for the rest of the session. The cold start is a one-time cost per session.
+
+**Older and low-RAM hardware has less headroom.** A Chromebook with 4GB of RAM, an older Android phone, an aging laptop — these devices have less memory available for in-browser processing. Large batch jobs (500+ files) or large individual files (100MB+) may be slower or more error-prone on constrained hardware. The tool isn't less reliable on these devices — it just has fewer resources to work with.
+
+None of these limitations are reasons to avoid browser-based conversion. They're parameters to understand. For the overwhelming majority of real-world use cases — PDFs under 100MB, image batches of a few hundred files, audio files in typical consumer formats — browser-based conversion works well and maintains the privacy guarantee that server-side tools cannot.
+
+---
+
+## This Is the Foundation Every Tool Here Is Built On
+
+Every ConvertYard tool — [JPG to WebP](/jpg-to-webp/), [compress PDF](/compress-pdf/), [compress image](/compress-image/), and everything else in the directory — is built on this architecture. WebAssembly runs the core algorithm. A Web Worker keeps the UI thread alive and responsive. Output goes straight to Downloads.
+
+No upload. No server. No account. No queue.
+
+The specific WASM library varies by task — libvips for image processing, MuPDF for PDF operations, ffmpeg for audio and video — but the structure is always the same: native-speed code running inside your browser tab, processing your file on your hardware.
+
+For a full walkthrough of how the system is put together, see the [how it works](/how-it-works/) page.

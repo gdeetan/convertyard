@@ -1,0 +1,123 @@
+export const meta = {
+  title: "PDF Watermarking 101: Protecting Documents Without Killing Readability",
+  description:
+    'How to watermark a PDF effectively — text vs. logo, placement, opacity, and the honest limits of what a watermark actually protects against.',
+  lastUpdated: '2026-06-24',
+  faq: [
+    {
+      q: 'Does a watermark prevent someone from copying my PDF?',
+      a: "No. A watermark deters copying and makes unauthorised use visible — it doesn't technically prevent it. Someone determined can remove or work around a watermark. For documents that need actual access restriction, use password protection in addition to or instead of watermarking.",
+    },
+    {
+      q: 'What opacity should I use for a watermark?',
+      a: '20–40% opacity is the standard range for draft/confidential watermarks. High enough to be clearly visible in a printed copy, low enough that the underlying text remains readable. Opacity above 60% typically makes the document difficult to read.',
+    },
+    {
+      q: 'Diagonal vs. corner watermark — which is harder to remove?',
+      a: "A tiled diagonal watermark (repeating across the page) is harder to remove cleanly than a single corner watermark, because removing it requires editing a larger portion of the document. For deterrence purposes, either works. For formal distribution control, neither is a reliable technical barrier.",
+    },
+    {
+      q: 'Can I watermark all pages in a PDF at once?',
+      a: "Yes. ConvertYard's watermark PDF tool applies the watermark to every page in the document. Drop the file, set your text and opacity, and download — all pages are watermarked in one pass.",
+    },
+    {
+      q: "What's the difference between a watermark and password protection?",
+      a: "A watermark is visible text or image overlaid on the document — it deters misuse but doesn't restrict access. Password protection encrypts the file so it can't be opened without a password. They serve different purposes and can be used together.",
+    },
+  ],
+  relatedTools: ['watermark-pdf', 'protect-pdf', 'merge-pdf'],
+}
+
+You've finished a document and you're about to send it out. Maybe it's a contract draft going to a client for review. Maybe it's a confidential report shared outside your organisation. Maybe it's original creative work you want to mark as yours. Watermarking is the standard answer — overlay visible text or a logo on every page so the document's status or origin travels with it.
+
+This guide covers how to watermark a PDF effectively: when text beats a logo, how opacity actually works, where to place a watermark, and — importantly — what a watermark genuinely protects against and what it doesn't.
+
+## Why Watermark a PDF?
+
+Watermarking serves four practical purposes, and knowing which one applies to you shapes every decision that follows.
+
+**Draft control.** "DRAFT" stamped diagonally across every page tells reviewers the document isn't final. It prevents someone from accidentally circulating a version that's still being edited, and it provides cover if a draft leaks — the watermark makes its status unambiguous.
+
+**Copyright and attribution.** Distributing a PDF that contains your original work — photography, reports, research, design — with your name or company name as a watermark makes the source visible in every copy. If someone shares the document further (with or without your permission), the attribution travels with it.
+
+**Confidentiality labelling.** "CONFIDENTIAL" on internal documents shared outside your organisation sets expectations clearly. It's also a compliance signal: in regulated industries, labelling documents with their handling classification is often a policy requirement, not just a courtesy.
+
+**Distribution tracking.** If you're sending the same document to multiple recipients and you're concerned about leaks, you can watermark each copy differently — "Copy 1 — Recipient A" vs. "Copy 2 — Recipient B." If a copy surfaces publicly, you know which one was shared.
+
+That's the value. Now the honest baseline: a watermark does none of this through technical enforcement. It doesn't restrict who can open the file. It doesn't prevent copying. A motivated person with PDF editing software can remove it. What a watermark does is make misuse visible and create a clear record of the document's status or origin. That matters — just not in the way that security theatre implies.
+
+## Text Watermarks vs. Logo Watermarks
+
+The choice between text and a logo watermark comes down to clarity vs. brand.
+
+**Text watermarks** — "DRAFT," "CONFIDENTIAL," your company name, a version number — are the most common type for good reason. They're immediately legible on screen and in print, they don't require any image assets, and their meaning is unambiguous to anyone who opens the document. If your goal is draft control or confidentiality labelling, text is clearer than a logo almost every time.
+
+**Logo watermarks** use a brand mark as a semi-transparent image overlaid on the page. They're appropriate when you're distributing branded content to clients or partners and you want the document to feel like yours without being aggressive about it. Done well, a logo watermark is subtle — barely visible until you look for it, but clearly present. Done poorly, it's a blurry smear that obscures the text underneath.
+
+For a logo watermark to look clean, you need the source image to have a transparent background. A PNG with transparency works. A JPG with a white background will produce a white rectangle on the page, not a floating logo. If your brand mark is available as an SVG, that's even better — it scales to any size without degradation.
+
+A practical rule: if someone needs to understand what the watermark means at a glance — "this is a draft," "this is confidential" — use text. If you're marking distributed content as yours and you'd rather the mark be subtle, use your logo.
+
+## Placement and Opacity
+
+Two variables control how effective a watermark is: where it goes on the page, and how transparent it is.
+
+### Placement
+
+**Diagonal tiled.** The watermark text repeats at an angle across the entire page, covering every part of the document surface. This is the hardest placement to remove cleanly — because the watermark is spread across so much of the page, editing it out requires touching a large portion of the document. It's also the most prominent option. Use this for internal drafts and confidential documents where you want the watermark to be impossible to miss.
+
+**Single position — centre or corner.** One instance of the watermark per page, placed in the centre or a corner. Less obtrusive, cleaner visual appearance, appropriate when you want light attribution on distributed documents without overwhelming the content. Easier to remove than a tiled watermark, but still clearly present.
+
+For draft and confidential marking, diagonal tiled is the standard choice. For branded distribution where subtlety matters, a centred or corner mark is usually right.
+
+### Opacity
+
+The working range for most use cases is 20–40%.
+
+At **20%**, the watermark is visible but the underlying document text is easy to read. Good for branded distribution where you want attribution without interference.
+
+At **30%**, the watermark is clearly intentional. Visible in both screen view and print. This is a reasonable default for drafts and confidential marking.
+
+At **40%**, the watermark is prominent. Hard to overlook. Appropriate when you want there to be no ambiguity about the document's status.
+
+Above **60%**, document readability starts to suffer — particularly on pages with dense text or small print. Above 80%, you're watermarking against yourself.
+
+One practical note: test your opacity at the resolution and format you'll actually be distributing. A watermark that looks subtle on a high-resolution screen can be more prominent in a print output or on a lower-resolution display. Set your opacity, download the file, and check it the way your recipient will see it before you send it.
+
+## What Watermarking Doesn't Protect Against
+
+This is the section most guides skip. They shouldn't.
+
+**Screenshots and photos.** Anyone can take a screenshot of a watermarked PDF or photograph their screen with a phone. The watermark appears in the capture, but so does all the content. For a short document, this is an effective workaround that takes seconds.
+
+**Re-typing.** For a document with a few hundred words of text, someone could simply re-type the content into a new document. No watermark survives that process.
+
+**PDF editing software.** Watermarks can be removed from PDF files using editing software. Simple text watermarks on basic PDFs are particularly easy to strip. A tiled diagonal watermark requires more effort because it overlaps with the document content, but it's not technically impossible to remove — it just raises the cost. For a sophisticated adversary, a watermark is not a reliable barrier.
+
+**None of this means watermarking is useless.** It means watermarking is a deterrent and a record, not a lock. For most real use cases — marking internal documents, sending drafts for review, attributing distributed content — deterrence is enough. You're not defending against sophisticated adversaries. You're making the document's status clear and making opportunistic misuse slightly less convenient.
+
+If you need actual access restriction, use [password protection](/protect-pdf/). A password-protected PDF can't be opened without the password. A watermarked PDF can. These are complementary tools that serve different purposes — and for sensitive documents, you can use both. Apply a watermark for visible attribution or status marking, and apply password protection to restrict who can open the file at all.
+
+## Walkthrough: Watermarking a PDF
+
+The process is straightforward. Here's how it works with ConvertYard's [watermark PDF](/watermark-pdf/) tool:
+
+1. **Open the tool.** Go to [/watermark-pdf/](/watermark-pdf/) — no account required.
+
+2. **Drop your PDF.** Drag the file into the dropzone or click to browse. The file stays in your browser — nothing is uploaded to a server.
+
+3. **Enter your watermark text.** Type the text you want to use: "DRAFT," "CONFIDENTIAL," your company name, a version number, or whatever fits your use case.
+
+4. **Set opacity.** Start at 30% and adjust from there. If the document is image-heavy, you may want to go slightly higher so the watermark remains visible against photos. If the document is text-dense, stay toward the lower end to preserve readability.
+
+5. **Choose placement.** For draft and confidential documents, diagonal is the standard choice. For lighter attribution on distributed content, centre or corner works well.
+
+6. **Download.** Click convert and download the watermarked PDF. Every page in the document has the watermark applied — you don't need to do it page by page.
+
+That's it. If you're distributing the same document to multiple recipients and want to track copies, repeat the process with a different watermark text for each recipient before sending.
+
+For documents that need both visible marking and access restriction, run the file through [protect-pdf](/protect-pdf/) after watermarking — or handle both in sequence. And if you're combining multiple documents before watermarking, [merge-pdf](/merge-pdf/) first, then watermark the combined file.
+
+---
+
+A watermark is a clear, simple signal. It doesn't lock anything down — but it makes the status of a document visible, travels with every copy, and raises the cost of misuse just enough to matter in most real situations. Use it for what it is, pair it with password protection when you need actual access control, and set your opacity low enough that the underlying document remains readable.
