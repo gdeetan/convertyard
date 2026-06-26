@@ -60,8 +60,10 @@ export async function recognizePage(
       words,
     }
   } catch (err) {
+    const w = workerInstance
     workerInstance = null
     currentLang = null
+    await w?.terminate()
     throw err
   }
 }

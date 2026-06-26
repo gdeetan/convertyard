@@ -3,6 +3,7 @@ import { getPageCount, renderPage, renderPagePng, extractText, extractStructured
 import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
 import { convertPdfToWord } from './pdf-to-word'
+import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 
 // ── Merge ─────────────────────────────────────────────────────────────────────
 
@@ -1151,6 +1152,13 @@ export async function fillPdfForm(
   return new File([bytes as Uint8Array<ArrayBuffer>], `${baseName}-filled.pdf`, { type: 'application/pdf' })
 }
 
+function ocrTextToRows(text: string): string[][] {
+  return text
+    .split('\n')
+    .filter(line => line.trim().length > 0)
+    .map(line => [line.trim()])
+}
+
 // ── PDF → Excel ───────────────────────────────────────────────────────────────
 
 export async function pdfToExcel(
@@ -1160,52 +1168,72 @@ export async function pdfToExcel(
 ): Promise<ConversionResult[]> {
   const XLSX = await import('xlsx')
   const results: ConversionResult[] = []
+  const ocrLanguage = typeof options.ocrLanguage === 'string' ? options.ocrLanguage : 'eng'
 
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i]
-    onProgress?.(i, 0)
+  try {
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      onProgress?.(i, 0)
 
-    try {
-      const buffer = await file.arrayBuffer()
-      onProgress?.(i, 10)
+      try {
+        const buffer = await file.arrayBuffer()
+        onProgress?.(i, 10)
 
-      const structuredPages = await extractStructuredText(buffer)
-      onProgress?.(i, 50)
+        const structuredPages = await extractStructuredText(buffer)
+        onProgress?.(i, 50)
 
-      const wb = XLSX.utils.book_new()
-      const combineSheets = !!(options.combineSheets)
+        const wb = XLSX.utils.book_new()
+        const combineSheets = !!(options.combineSheets)
 
-      if (combineSheets) {
-        const allRows: string[][] = []
-        for (let p = 0; p < structuredPages.length; p++) {
-          const rows = pageToRows(structuredPages[p])
-          if (rows.length > 0) {
-            if (allRows.length > 0) allRows.push([])
-            allRows.push(...rows)
+        if (combineSheets) {
+          const allRows: string[][] = []
+          for (let p = 0; p < structuredPages.length; p++) {
+            let rows = pageToRows(structuredPages[p])
+            if (rows.length === 0) {
+              const pngBuffer = await renderPagePng(buffer, p, 300)
+              const blob = new Blob([pngBuffer], { type: 'image/png' })
+              const ocrResult = await recognizePage(blob, ocrLanguage)
+              rows = ocrTextToRows(ocrResult.text)
+            }
+            if (rows.length > 0) {
+              if (allRows.length > 0) allRows.push([])
+              allRows.push(...rows)
+            } else {
+              if (allRows.length > 0) allRows.push([])
+              allRows.push(['(no extractable text)'])
+            }
+            onProgress?.(i, Math.round(50 + (40 * (p + 1)) / structuredPages.length))
           }
-          onProgress?.(i, Math.round(50 + (40 * (p + 1)) / structuredPages.length))
+          const ws = XLSX.utils.aoa_to_sheet(allRows)
+          XLSX.utils.book_append_sheet(wb, ws, 'All Pages')
+        } else {
+          for (let p = 0; p < structuredPages.length; p++) {
+            let rows = pageToRows(structuredPages[p])
+            if (rows.length === 0) {
+              const pngBuffer = await renderPagePng(buffer, p, 300)
+              const blob = new Blob([pngBuffer], { type: 'image/png' })
+              const ocrResult = await recognizePage(blob, ocrLanguage)
+              rows = ocrTextToRows(ocrResult.text)
+            }
+            const sheetRows = rows.length > 0 ? rows : [['(no extractable text)']]
+            const ws = XLSX.utils.aoa_to_sheet(sheetRows)
+            XLSX.utils.book_append_sheet(wb, ws, `Page ${p + 1}`)
+            onProgress?.(i, Math.round(50 + (40 * (p + 1)) / structuredPages.length))
+          }
         }
-        const ws = XLSX.utils.aoa_to_sheet(allRows)
-        XLSX.utils.book_append_sheet(wb, ws, 'All Pages')
-      } else {
-        for (let p = 0; p < structuredPages.length; p++) {
-          const rows = pageToRows(structuredPages[p])
-          const sheetRows = rows.length > 0 ? rows : [['(no extractable text)']]
-          const ws = XLSX.utils.aoa_to_sheet(sheetRows)
-          XLSX.utils.book_append_sheet(wb, ws, `Page ${p + 1}`)
-          onProgress?.(i, Math.round(50 + (40 * (p + 1)) / structuredPages.length))
-        }
-      }
 
-      const xlsxBuffer: ArrayBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
-      const outName = file.name.replace(/\.pdf$/i, '') + '.xlsx'
-      results.push(new File([xlsxBuffer], outName, {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      }))
-      onProgress?.(i, 100)
-    } catch (err) {
-      results.push(err instanceof Error ? err : new Error(String(err)))
+        const xlsxBuffer: ArrayBuffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+        const outName = file.name.replace(/\.pdf$/i, '') + '.xlsx'
+        results.push(new File([xlsxBuffer], outName, {
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        }))
+        onProgress?.(i, 100)
+      } catch (err) {
+        results.push(err instanceof Error ? err : new Error(String(err)))
+      }
     }
+  } finally {
+    await terminateOcrWorker()
   }
 
   return results
