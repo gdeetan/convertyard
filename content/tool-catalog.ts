@@ -50,6 +50,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'protect-pdf',       title: 'Protect PDF',        description: 'Add AES password encryption and permission controls.',  category: 'pdf', status: 'live', badge: 'Privacy' },
   { slug: 'watermark-pdf',     title: 'Watermark PDF',      description: 'Add text or image watermarks with live preview.',      category: 'pdf', status: 'live' },
   { slug: 'pdf-to-powerpoint', title: 'PDF to PowerPoint',  description: 'Each PDF page becomes a slide in a .pptx file.',      category: 'pdf', status: 'live' },
+  { slug: 'ocr-pdf',           title: 'OCR PDF',            description: 'Make scanned PDFs searchable. Runs in your browser.',   category: 'pdf', status: 'live' },
 
   // Video & Audio — all coming soon
   { slug: 'mp4-to-mp3',       title: 'MP4 to MP3',       description: 'Strip audio from video in seconds.', category: 'video-audio', status: 'live' },
