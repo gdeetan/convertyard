@@ -1,24 +1,4 @@
-import { mergePDFs, type MergeSource } from '@/lib/converters/pdf'
-import type { ToolConfig, ToolOptions } from '@/lib/types'
-import { PDFDocument } from 'pdf-lib'
-
-// Adapter: convert File[] to MergeSource[] for the new mergePDFs signature
-async function mergePDFsAdapter(
-  files: File[],
-  options: ToolOptions,
-  onProgress?: (fileIndex: number, pct: number) => void
-) {
-  // Build sources with all pages for each file
-  const sources: MergeSource[] = await Promise.all(
-    files.map(async (file) => {
-      const buffer = await file.arrayBuffer()
-      const doc = await PDFDocument.load(buffer)
-      const pageIndices = doc.getPageIndices()
-      return { file, pageIndices }
-    })
-  )
-  return mergePDFs(sources, options, onProgress)
-}
+import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
   slug: 'merge-pdf',
@@ -28,12 +8,21 @@ export const config: ToolConfig = {
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
   outputExt: '.pdf',
-  convertFn: mergePDFsAdapter,
+  // This tool uses a custom page.tsx — convertFn is never called through ToolShell.
+  convertFn: () => Promise.resolve([]),
 
   faq: [
     {
       q: 'What order will the pages appear in the merged PDF?',
-      a: 'Pages appear in the order you arrange your files using the drag handles. Drag any file up or down before clicking Merge to set the exact page sequence you want.',
+      a: 'Pages appear in the order you arrange your files using the drag handles. Within each file, you can expand the page grid and drag individual pages to reorder them. The final output reflects both file order and any per-file page reordering you apply.',
+    },
+    {
+      q: 'Can I merge only specific pages from each file?',
+      a: 'Yes. Expand any file in the list by clicking the chevron next to its name. You\'ll see a thumbnail grid of all its pages. Click ✕ on any page to exclude it from the merge — the thumbnail dims to show it\'s excluded. Click the + on a dimmed page to re-include it.',
+    },
+    {
+      q: 'Can I reorder pages from different files?',
+      a: 'You can reorder pages within each file using the thumbnail grid. To interleave pages from different sources, reorder the files first using the file-level drag handles, then use the per-file page controls to set the page order within each file.',
     },
     {
       q: 'Does merging reduce the quality of my PDFs?',
