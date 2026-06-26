@@ -1,5 +1,24 @@
-import { mergePDFs } from '@/lib/converters/pdf'
-import type { ToolConfig } from '@/lib/types'
+import { mergePDFs, type MergeSource } from '@/lib/converters/pdf'
+import type { ToolConfig, ToolOptions } from '@/lib/types'
+import { PDFDocument } from 'pdf-lib'
+
+// Adapter: convert File[] to MergeSource[] for the new mergePDFs signature
+async function mergePDFsAdapter(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+) {
+  // Build sources with all pages for each file
+  const sources: MergeSource[] = await Promise.all(
+    files.map(async (file) => {
+      const buffer = await file.arrayBuffer()
+      const doc = await PDFDocument.load(buffer)
+      const pageIndices = doc.getPageIndices()
+      return { file, pageIndices }
+    })
+  )
+  return mergePDFs(sources, options, onProgress)
+}
 
 export const config: ToolConfig = {
   slug: 'merge-pdf',
@@ -9,7 +28,7 @@ export const config: ToolConfig = {
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
   outputExt: '.pdf',
-  convertFn: mergePDFs,
+  convertFn: mergePDFsAdapter,
 
   faq: [
     {

@@ -8,8 +8,9 @@ import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
 import { RelatedToolsStrip } from '@/components/tool-shell/related-tools-strip'
 import { cn } from '@/lib/utils/cn'
 import { formatBytes, downloadFile } from '@/lib/utils/download'
-import { mergePDFs } from '@/lib/converters/pdf'
+import { mergePDFs, type MergeSource } from '@/lib/converters/pdf'
 import { config } from '@/content/tools/merge-pdf'
+import { PDFDocument } from 'pdf-lib'
 
 type Phase = 'idle' | 'merging' | 'done' | 'error'
 
@@ -62,7 +63,16 @@ export default function MergePdfPage() {
     setPhase('merging')
     setProgress(0)
     try {
-      const results = await mergePDFs(files, {}, (_, pct) => setProgress(pct))
+      // Build sources with all pages for each file
+      const sources: MergeSource[] = await Promise.all(
+        files.map(async (file) => {
+          const buffer = await file.arrayBuffer()
+          const doc = await PDFDocument.load(buffer)
+          const pageIndices = doc.getPageIndices()
+          return { file, pageIndices }
+        })
+      )
+      const results = await mergePDFs(sources, {}, (_, pct) => setProgress(pct))
       const merged = results[0]
       if (merged instanceof Error) throw merged
       if (!(merged instanceof File)) throw new Error('Merge failed')
