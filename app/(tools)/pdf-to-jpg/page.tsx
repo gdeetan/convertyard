@@ -164,7 +164,7 @@ export default function PdfToJpgPage() {
       return prev.filter(e => e.file !== fileToRemove)
     })
     if (preview !== null) {
-      const previewEntry = entries[preview.fileIdx]
+      const previewEntry = entriesRef.current[preview.fileIdx]
       if (previewEntry?.file === fileToRemove) closePreview()
     }
   }
