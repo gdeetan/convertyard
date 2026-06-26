@@ -14,7 +14,7 @@ export const meta = {
     },
     {
       q: 'Where does iLovePDF currently have more tools than ConvertYard?',
-      a: "iLovePDF currently has OCR (optical character recognition for scanned PDFs) and e-signature tools. ConvertYard does not yet offer these. For most other PDF tasks, the tool coverage is comparable.",
+      a: "iLovePDF has e-signature tools that ConvertYard does not. For most other PDF tasks — including OCR for scanned documents — the coverage is now comparable.",
     },
     {
       q: 'Which has fewer ads?',
@@ -22,7 +22,7 @@ export const meta = {
     },
     {
       q: 'Can I use both tools for different jobs?',
-      a: "Yes. Use ConvertYard for batch processing and privacy-sensitive documents. Use iLovePDF for tasks ConvertYard doesn't yet cover (OCR, e-sign). There's no registration required for either.",
+      a: "Yes. Use ConvertYard for batch processing, privacy-sensitive documents, and OCR on scanned PDFs. Use iLovePDF if you need e-signatures. Neither requires registration.",
     },
   ],
   relatedTools: ['compress-pdf', 'merge-pdf', 'split-pdf', 'watermark-pdf'],
@@ -72,13 +72,13 @@ One practical signal: if you're in the middle of a batch and an ad interrupts or
 
 Two honest gaps as of mid-2026:
 
-**OCR (optical character recognition).** iLovePDF can extract selectable text from scanned PDFs — documents that were photographed or printed and then scanned back in, where the text exists only as image pixels. ConvertYard does not currently offer OCR. If you need to make a scanned document searchable or copy text from a scan, iLovePDF covers this and ConvertYard does not.
+**OCR (optical character recognition).** Both tools now cover OCR. ConvertYard's [OCR PDF tool](/ocr-pdf/) runs entirely in the browser via Tesseract.js — your scanned document is never uploaded to a server. iLovePDF's OCR is server-side. For sensitive documents — contracts, medical records, legal filings — the local-processing advantage matters here more than on any other tool.
 
 **E-signatures.** iLovePDF has a signing workflow. ConvertYard does not yet offer e-signature tools.
 
 For the tools both products cover — [compress PDF](/compress-pdf/), [merge PDF](/merge-pdf/), [split PDF](/split-pdf/), rotate, watermark, Word/Excel conversion, password protect, and unlock — output quality is comparable in practice. Run the same file through both tools and the results are difficult to distinguish for typical documents.
 
-These gaps are worth naming plainly. A comparison that doesn't mention them isn't useful. If OCR or e-signature is a regular part of your PDF workflow, iLovePDF is the better fit today. If those features aren't part of your workflow, the gap doesn't affect you.
+The remaining gap worth naming: e-signatures. If e-sign is a regular part of your PDF workflow, iLovePDF covers that and ConvertYard does not. For everything else — including OCR on scanned documents — the tool sets are comparable, with ConvertYard's browser-only processing being the meaningful differentiator for privacy-sensitive work.
 
 ## Decision Framework
 
@@ -92,7 +92,7 @@ These gaps are worth naming plainly. A comparison that doesn't mention them isn'
 
 **Use iLovePDF if:**
 
-- You need OCR on a scanned PDF — extracting text from an image-based document
+- You need e-signatures on a PDF
 - You need e-signature functionality
 - You have a one-off task where either tool would work and you already have iLovePDF open
 
