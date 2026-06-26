@@ -7,21 +7,26 @@ import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 
 // ── Merge ─────────────────────────────────────────────────────────────────────
 
+export interface MergeSource {
+  file: File
+  pageIndices: number[]  // 0-based, in the order to include them
+}
+
 export async function mergePDFs(
-  files: File[],
+  sources: MergeSource[],
   _options: ToolOptions,
   onProgress?: (fileIndex: number, pct: number) => void
 ): Promise<ConversionResult[]> {
-  if (files.length === 0) return []
+  const activeSources = sources.filter(s => s.pageIndices.length > 0)
+  if (activeSources.length === 0) return []
 
   const merged = await PDFDocument.create()
 
-  for (let i = 0; i < files.length; i++) {
-    onProgress?.(0, Math.round((i / files.length) * 80))
-    const buffer = await files[i].arrayBuffer()
+  for (let i = 0; i < activeSources.length; i++) {
+    onProgress?.(0, Math.round((i / activeSources.length) * 80))
+    const buffer = await activeSources[i].file.arrayBuffer()
     const srcDoc = await PDFDocument.load(buffer)
-    const pageIndices = srcDoc.getPageIndices()
-    const copied = await merged.copyPages(srcDoc, pageIndices)
+    const copied = await merged.copyPages(srcDoc, activeSources[i].pageIndices)
     for (const page of copied) merged.addPage(page)
   }
 
@@ -29,8 +34,10 @@ export async function mergePDFs(
   const bytes = await merged.save({ useObjectStreams: true })
   onProgress?.(0, 100)
 
-  const baseName = files[0].name.replace(/\.[^.]+$/, '')
-  const outName = files.length === 1 ? files[0].name : `${baseName}-merged.pdf`
+  const baseName = activeSources[0].file.name.replace(/\.[^.]+$/, '')
+  const outName = activeSources.length === 1
+    ? activeSources[0].file.name
+    : `${baseName}-merged.pdf`
   return [new File([new Uint8Array(bytes)], outName, { type: 'application/pdf' })]
 }
 
