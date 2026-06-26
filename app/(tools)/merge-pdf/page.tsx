@@ -16,6 +16,7 @@ import { getPageCount, renderPagePng } from '@/lib/converters/mupdf-client'
 import { config } from '@/content/tools/merge-pdf'
 
 interface PdfFileEntry {
+  id: string
   file: File
   pageCount: number | null
   thumbnails: (string | null)[]
@@ -43,6 +44,7 @@ export default function MergePdfPage() {
     for (const file of added) {
       // Create initial entry with unknown page count
       const entry: PdfFileEntry = {
+        id: `${file.name}-${file.size}-${file.lastModified}-${Date.now()}`,
         file,
         pageCount: null,
         thumbnails: [],
@@ -111,7 +113,7 @@ export default function MergePdfPage() {
       }
       return []
     })
-    cancelledFiles.current = new Set()
+    queueMicrotask(() => { cancelledFiles.current = new Set() })
     setPhase('idle')
     setProgress(0)
     setResult(null)
@@ -164,12 +166,12 @@ export default function MergePdfPage() {
     e.preventDefault()
     const drag = dragPageRef.current
     if (!drag || drag.fileIdx !== fileIdx || drag.fromPageOrderIdx === toPageOrderIdx) return
+    dragPageRef.current = { fileIdx, fromPageOrderIdx: toPageOrderIdx }
     setEntries(prev => prev.map((entry, i) => {
       if (i !== fileIdx) return entry
       const next = [...entry.pageOrder]
       const [moved] = next.splice(drag.fromPageOrderIdx, 1)
       next.splice(toPageOrderIdx, 0, moved)
-      dragPageRef.current = { fileIdx, fromPageOrderIdx: toPageOrderIdx }
       return { ...entry, pageOrder: next }
     }))
   }
@@ -239,7 +241,7 @@ export default function MergePdfPage() {
             {/* File list */}
             <ul className="space-y-1.5" aria-label="Files to merge">
               {entries.map((entry, fileIdx) => (
-                <li key={`${entry.file.name}-${fileIdx}`}>
+                <li key={entry.id}>
                   {/* File row */}
                   <div
                     draggable
