@@ -49,10 +49,9 @@ export default function PdfToJpgPage() {
   const cancelledFiles = useRef<Set<File>>(new Set())
   const previewDebounce = useRef<ReturnType<typeof setTimeout> | null>(null)
   const previewBlobUrl = useRef<string | null>(null)
+  const previewGeneration = useRef(0)
   const entriesRef = useRef<PdfFileEntry[]>([])
-
-  // Keep entriesRef in sync so renderPreview can read current entries
-  useEffect(() => { entriesRef.current = entries }, [entries])
+  entriesRef.current = entries
 
   // Debounced preview re-render when dpi/quality change
   useEffect(() => {
@@ -70,16 +69,19 @@ export default function PdfToJpgPage() {
   const renderPreview = async (fileIdx: number, pageIndex: number) => {
     const entry = entriesRef.current[fileIdx]
     if (!entry) return
+    const gen = ++previewGeneration.current
     setPreview(prev => prev ? { ...prev, blobUrl: null } : null)
     try {
       const buffer = await entry.file.arrayBuffer()
       const jpegBuffer = await renderPage(buffer, pageIndex, dpi, quality)
+      if (gen !== previewGeneration.current) return // superseded
       const blob = new Blob([jpegBuffer], { type: 'image/jpeg' })
       if (previewBlobUrl.current) URL.revokeObjectURL(previewBlobUrl.current)
       const url = URL.createObjectURL(blob)
       previewBlobUrl.current = url
       setPreview({ fileIdx, pageIndex, blobUrl: url })
     } catch {
+      if (gen !== previewGeneration.current) return
       setPreview(prev => prev ? { ...prev, blobUrl: null } : null)
     }
   }
@@ -112,7 +114,7 @@ export default function PdfToJpgPage() {
       try {
         const buffer = await file.arrayBuffer()
         const n = await getPageCount(buffer)
-        if (cancelledFiles.current.has(file)) return
+        if (cancelledFiles.current.has(file)) continue
 
         setEntries(prev => prev.map(e =>
           e.file === file
@@ -149,15 +151,22 @@ export default function PdfToJpgPage() {
   }, [])
 
   const handleRemove = (idx: number) => {
+    const fileToRemove = entries[idx]?.file
+    if (!fileToRemove) return
     setEntries(prev => {
-      const entry = prev[idx]
-      cancelledFiles.current.add(entry.file)
-      for (const url of entry.thumbnails) {
-        if (url) URL.revokeObjectURL(url)
+      const entry = prev.find(e => e.file === fileToRemove)
+      if (entry) {
+        cancelledFiles.current.add(entry.file)
+        for (const url of entry.thumbnails) {
+          if (url) URL.revokeObjectURL(url)
+        }
       }
-      return prev.filter((_, i) => i !== idx)
+      return prev.filter(e => e.file !== fileToRemove)
     })
-    if (preview?.fileIdx === idx) closePreview()
+    if (preview !== null) {
+      const previewEntry = entries[preview.fileIdx]
+      if (previewEntry?.file === fileToRemove) closePreview()
+    }
   }
 
   const handleReset = () => {
@@ -198,7 +207,7 @@ export default function PdfToJpgPage() {
   const selectAll = (fileIdx: number) => {
     setEntries(prev => prev.map((e, i) =>
       i === fileIdx
-        ? { ...e, selectedPages: new Set(Array.from({ length: e.pageCount! }, (_, j) => j)) }
+        ? { ...e, selectedPages: new Set(Array.from({ length: e.pageCount ?? 0 }, (_, j) => j)) }
         : e
     ))
   }
@@ -472,8 +481,8 @@ export default function PdfToJpgPage() {
 
             {/* DPI + Quality controls */}
             <div className="space-y-3 border-t border-border pt-3">
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-fg-subtle w-14 shrink-0">DPI</span>
+              <div className="flex items-center gap-3" role="group" aria-label="Output DPI">
+                <span className="text-xs text-fg-subtle w-14 shrink-0" aria-hidden="true">DPI</span>
                 <div className="flex gap-1.5">
                   {DPI_OPTIONS.map(d => (
                     <button
@@ -556,6 +565,7 @@ export default function PdfToJpgPage() {
                 className="h-full rounded-full bg-primary transition-all duration-200"
                 style={{ width: `${progress}%` }}
                 role="progressbar"
+                aria-label="Conversion progress"
                 aria-valuenow={progress}
                 aria-valuemin={0}
                 aria-valuemax={100}
