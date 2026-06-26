@@ -70,8 +70,7 @@ export default function MergePdfPage() {
         for (let p = 0; p < n; p++) {
           if (cancelledFiles.current.has(file)) return
           try {
-            const buf = await file.arrayBuffer()
-            const png = await renderPagePng(buf, p, 72)
+            const png = await renderPagePng(buffer, p, 72)
             if (cancelledFiles.current.has(file)) return
             const url = URL.createObjectURL(new Blob([png], { type: 'image/png' }))
             setEntries(prev => prev.map(e => {
@@ -344,8 +343,9 @@ export default function MergePdfPage() {
 
                           {/* Excluded pages */}
                           {(() => {
+                            const orderSet = new Set(entry.pageOrder)
                             const excluded = Array.from({ length: entry.pageCount }, (_, i) => i)
-                              .filter(i => !entry.pageOrder.includes(i))
+                              .filter(i => !orderSet.has(i))
                             if (excluded.length === 0) return null
                             return (
                               <>
