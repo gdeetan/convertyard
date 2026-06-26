@@ -399,6 +399,7 @@ async function pageImageParagraph(
 
 // ── Scanned PDF detection ─────────────────────────────────────────────────────
 
+// Used by detectPdfQuality for pre-conversion quality detection; not used in the conversion path itself.
 export function isScanned(pages: StPage[]): boolean {
   const total = pages
     .flatMap(p => p.blocks ?? [])

@@ -1156,7 +1156,11 @@ function ocrTextToRows(text: string): string[][] {
   return text
     .split('\n')
     .filter(line => line.trim().length > 0)
-    .map(line => [line.trim()])
+    .map(line => {
+      // Split on tabs or 2+ spaces to recover columnar structure from scanned tables
+      const cols = line.trim().split(/\t|\s{2,}/).map(c => c.trim()).filter(c => c.length > 0)
+      return cols.length > 1 ? cols : [line.trim()]
+    })
 }
 
 // ── PDF → Excel ───────────────────────────────────────────────────────────────
