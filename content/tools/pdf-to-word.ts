@@ -34,6 +34,25 @@ export const config: ToolConfig = {
       default: true,
       hint: 'Embeds page screenshots for complex layouts. Turn off for faster, text-only output.',
     },
+    {
+      type: 'dropdown' as const,
+      name: 'ocrLanguage',
+      label: 'Document language (scanned PDFs)',
+      hint: 'Used only when OCR is needed for scanned PDFs. Choose the primary language in the document to improve accuracy.',
+      choices: [
+        { value: 'eng', label: 'English' },
+        { value: 'hin', label: 'Hindi' },
+        { value: 'fra', label: 'French' },
+        { value: 'deu', label: 'German' },
+        { value: 'spa', label: 'Spanish' },
+        { value: 'por', label: 'Portuguese' },
+        { value: 'chi_sim', label: 'Chinese (Simplified)' },
+        { value: 'ara', label: 'Arabic' },
+        { value: 'jpn', label: 'Japanese' },
+        { value: 'kor', label: 'Korean' },
+      ],
+      default: 'eng',
+    },
   ],
 
   limitationNote: {

@@ -12,7 +12,7 @@ export const config: ToolConfig = {
   convertFn: pdfToExcel,
   limitationNote: {
     summary: 'Works best on text-based PDFs with clear table structure',
-    body: 'Extracts text with positional data and groups into rows/columns. Works well on clean tabular PDFs (bank statements, reports, invoices). Does not work on scanned PDFs — images of pages return no data.',
+    body: 'Extracts text with positional data and groups into rows/columns. Works well on clean tabular PDFs (bank statements, reports, invoices). Scanned PDFs are processed with Tesseract OCR automatically — table extraction from scans is best-effort and accuracy depends on scan quality.',
   },
   options: [
     {
@@ -22,6 +22,25 @@ export const config: ToolConfig = {
       hint: 'When off, each page becomes its own worksheet. When on, all pages are stacked in one sheet.',
       default: false,
     },
+    {
+      type: 'dropdown',
+      name: 'ocrLanguage',
+      label: 'Document language (scanned PDFs)',
+      hint: 'Used only when OCR is needed for scanned PDFs. Choose the primary language in the document.',
+      choices: [
+        { value: 'eng', label: 'English' },
+        { value: 'hin', label: 'Hindi' },
+        { value: 'fra', label: 'French' },
+        { value: 'deu', label: 'German' },
+        { value: 'spa', label: 'Spanish' },
+        { value: 'por', label: 'Portuguese' },
+        { value: 'chi_sim', label: 'Chinese (Simplified)' },
+        { value: 'ara', label: 'Arabic' },
+        { value: 'jpn', label: 'Japanese' },
+        { value: 'kor', label: 'Korean' },
+      ],
+      default: 'eng',
+    },
   ],
   faq: [
     {
@@ -30,7 +49,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'When does it not work well?',
-      a: "Scanned PDFs (photos of documents), PDFs with merged cells, or complex multi-column layouts. For scanned PDFs, run them through the PDF to Text tool first.",
+      a: "Scanned PDFs (photos of documents), PDFs with merged cells, or complex multi-column layouts may produce imperfect results. For scanned PDFs, OCR runs automatically — select the correct language in options for non-English documents.",
     },
     {
       q: 'How are multi-page PDFs handled?',

@@ -2,7 +2,8 @@ import {
   Document, Packer, Paragraph, TextRun, HeadingLevel, ImageRun,
   Table, TableRow, TableCell, WidthType,
 } from 'docx'
-import { extractStructuredText, getPageCount, renderPage } from './mupdf-client'
+import { extractStructuredText, getPageCount, renderPage, renderPagePng } from './mupdf-client'
+import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 
 // ── mupdf structured-text JSON types ─────────────────────────────────────────
 
@@ -410,6 +411,29 @@ export function isScanned(pages: StPage[]): boolean {
   return total.length < 50
 }
 
+export function isPageScanned(page: StPage): boolean {
+  const chars = (page.blocks ?? [])
+    .filter(isTextBlock)
+    .flatMap(b => b.lines ?? [])
+    .flatMap(l => l.spans ?? [])
+    .map(spanText)
+    .join('')
+    .replace(/\s/g, '')
+  return chars.length < 10
+}
+
+export function ocrTextToStPage(text: string): StPage {
+  return {
+    blocks: text
+      .split('\n')
+      .filter(line => line.trim().length > 0)
+      .map(line => ({
+        type: 'text' as const,
+        lines: [{ spans: [{ text: line.trim() }] }],
+      })),
+  }
+}
+
 export async function detectPdfQuality(
   file: File
 ): Promise<'text' | 'scanned' | 'complex'> {
@@ -472,77 +496,59 @@ export async function convertPdfToWord(
 
   onProgress?.(30)
 
-  if (isScanned(pages)) {
-    // OCR path for scanned/image-only PDFs
+  try {
+    // Per-page OCR fallback: scanned pages detected individually
     const lang = opts.ocrLanguage ?? 'eng'
-    const { createWorker } = await import('tesseract.js')
-    const worker = await createWorker(lang)
-    const ocrTexts: string[] = []
-
     for (let p = 0; p < totalPages; p++) {
-      const absolutePage = pageFrom - 1 + p
-      const jpegBuffer = await renderPage(buffer, absolutePage, 150, 85)
-      const blob = new Blob([jpegBuffer], { type: 'image/jpeg' })
-      const url = URL.createObjectURL(blob)
-      try {
-        const { data: { text } } = await worker.recognize(url)
-        ocrTexts.push(text)
-      } finally {
-        URL.revokeObjectURL(url)
+      if (isPageScanned(pages[p])) {
+        const absolutePage = pageFrom - 1 + p
+        const pngBuffer = await renderPagePng(buffer, absolutePage, 300)
+        const pngBlob = new Blob([pngBuffer], { type: 'image/png' })
+        const ocrResult = await recognizePage(pngBlob, lang)
+        pages[p] = ocrTextToStPage(ocrResult.text)
       }
       onProgress?.(Math.round(30 + ((p + 1) / totalPages) * 50))
     }
 
-    await worker.terminate()
+    onProgress?.(85)
 
-    // Convert OCR plain text to StPage structure so we reuse the same pipeline
-    pages = ocrTexts.map(text => ({
-      blocks: text
-        .split(/\n{2,}/)
-        .filter(b => b.trim())
-        .map(b => ({
-          type: 'text' as const,
-          lines: [{ spans: [{ text: b.trim() }] }],
-        })),
-    }))
-  }
+    const body = bodyFontSize(pages)
+    let children: Array<Paragraph | Table>
 
-  onProgress?.(85)
-
-  const body = bodyFontSize(pages)
-  let children: Array<Paragraph | Table>
-
-  if (includeImages) {
-    // Build page paragraphs interleaved with page screenshots
-    children = []
-    for (let p = 0; p < totalPages; p++) {
-      if (p > 0) {
-        children.push(new Paragraph({ pageBreakBefore: true, children: [] }))
+    if (includeImages) {
+      // Build page paragraphs interleaved with page screenshots
+      children = []
+      for (let p = 0; p < totalPages; p++) {
+        if (p > 0) {
+          children.push(new Paragraph({ pageBreakBefore: true, children: [] }))
+        }
+        // Embed page screenshot first
+        try {
+          const absolutePage = pageFrom - 1 + p
+          children.push(await pageImageParagraph(buffer, absolutePage))
+        } catch {
+          // continue without image if render fails
+        }
       }
-      // Embed page screenshot first
-      try {
-        const absolutePage = pageFrom - 1 + p
-        children.push(await pageImageParagraph(buffer, absolutePage))
-      } catch {
-        // continue without image if render fails
+      if (children.length === 0) {
+        children = [new Paragraph({ children: [new TextRun('')] })]
       }
+    } else {
+      children = pagesToParagraphs(pages, body)
     }
-    if (children.length === 0) {
-      children = [new Paragraph({ children: [new TextRun('')] })]
-    }
-  } else {
-    children = pagesToParagraphs(pages, body)
+
+    const doc = new Document({ sections: [{ properties: {}, children }] })
+    const blob = await Packer.toBlob(doc)
+    const baseName = file.name.replace(/\.[^.]+$/, '')
+
+    onProgress?.(100)
+
+    return new File(
+      [blob],
+      `${baseName}.docx`,
+      { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }
+    )
+  } finally {
+    await terminateOcrWorker()
   }
-
-  const doc = new Document({ sections: [{ properties: {}, children }] })
-  const blob = await Packer.toBlob(doc)
-  const baseName = file.name.replace(/\.[^.]+$/, '')
-
-  onProgress?.(100)
-
-  return new File(
-    [blob],
-    `${baseName}.docx`,
-    { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }
-  )
 }
