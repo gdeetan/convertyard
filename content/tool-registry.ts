@@ -36,6 +36,7 @@ import { config as unlockPdf } from './tools/unlock-pdf'
 import { config as protectPdf } from './tools/protect-pdf'
 import { config as watermarkPdf } from './tools/watermark-pdf'
 import { config as pdfToPowerpoint } from './tools/pdf-to-powerpoint'
+import { config as ocrPdf } from './tools/ocr-pdf'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
@@ -77,6 +78,7 @@ export const tools: ToolConfig[] = [
   protectPdf,
   watermarkPdf,
   pdfToPowerpoint,
+  ocrPdf,
 ]
 
 export const toolBySlug = Object.fromEntries(
