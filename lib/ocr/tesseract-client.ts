@@ -22,8 +22,14 @@ async function getWorker(lang: string): Promise<Tesseract.Worker> {
     await workerInstance.terminate()
     workerInstance = null
   }
-  workerInstance = await Tesseract.createWorker(lang)
-  currentLang = lang
+  try {
+    workerInstance = await Tesseract.createWorker(lang)
+    currentLang = lang
+  } catch (err) {
+    workerInstance = null
+    currentLang = null
+    throw err
+  }
   return workerInstance
 }
 
@@ -32,28 +38,31 @@ export async function recognizePage(
   lang: string
 ): Promise<OcrPageResult> {
   const worker = await getWorker(lang)
-  const { data } = await worker.recognize(image, {}, { blocks: true })
-
-  // Flatten words from blocks -> paragraphs -> lines -> words hierarchy
-  const words: OcrWord[] = []
-  for (const block of data.blocks ?? []) {
-    for (const para of block.paragraphs) {
-      for (const line of para.lines) {
-        for (const w of line.words) {
-          words.push({
-            text: w.text,
-            confidence: w.confidence,
-            bbox: w.bbox,
-          })
+  try {
+    const { data } = await worker.recognize(image, {}, { blocks: true })
+    const words: OcrWord[] = []
+    for (const block of data.blocks ?? []) {
+      for (const para of block.paragraphs ?? []) {
+        for (const line of para.lines ?? []) {
+          for (const w of line.words ?? []) {
+            words.push({
+              text: w.text,
+              confidence: w.confidence,
+              bbox: w.bbox,
+            })
+          }
         }
       }
     }
-  }
-
-  return {
-    text: data.text,
-    confidence: data.confidence,
-    words,
+    return {
+      text: data.text ?? '',
+      confidence: data.confidence ?? 0,
+      words,
+    }
+  } catch (err) {
+    workerInstance = null
+    currentLang = null
+    throw err
   }
 }
 
