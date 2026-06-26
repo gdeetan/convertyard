@@ -1,55 +1,36 @@
-import { pdfToJpg } from '@/lib/converters/pdf'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
   slug: 'pdf-to-jpg',
   title: 'PDF to JPG Converter',
-  subtitle: 'Export every PDF page as a JPG image. Built for batches.',
+  subtitle: 'Export PDF pages as JPG images. Pick pages, preview quality.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
   outputExt: '.jpg',
-  convertFn: pdfToJpg,
-
-  options: [
-    {
-      type: 'slider',
-      name: 'dpi',
-      label: 'DPI',
-      min: 72,
-      max: 300,
-      step: 1,
-      default: 150,
-      hint: '72 DPI for screen, 150 DPI for web/email, 300 DPI for print',
-    },
-    {
-      type: 'slider',
-      name: 'quality',
-      label: 'JPEG Quality',
-      min: 1,
-      max: 100,
-      step: 1,
-      default: 85,
-      hint: '85 is the sweet spot — sharp enough for most uses at a reasonable file size',
-    },
-  ],
+  // This tool uses a custom page.tsx — convertFn is never called through ToolShell.
+  convertFn: () => Promise.resolve([]),
 
   faq: [
+    {
+      q: 'Can I export only specific pages?',
+      a: 'Yes. Expand any file to see its page thumbnails, then uncheck the pages you want to skip. Only checked pages are included in the download.',
+    },
+    {
+      q: 'Can I preview what the output will look like before downloading?',
+      a: 'Yes. Click any page thumbnail to open a full-resolution preview at your chosen DPI and quality settings. Change the DPI or quality controls to see the effect in real time.',
+    },
     {
       q: 'What DPI should I choose?',
       a: '72 DPI is fine for web thumbnails or quick previews. 150 DPI is a good default for email attachments, presentations, and most online uses — clear and readable without large file sizes. 300 DPI produces print-quality images suitable for physical printing or professional workflows. Higher DPI means larger files and slower processing.',
     },
     {
       q: 'How does a multi-page PDF export?',
-      a: 'Each page becomes a separate JPG file. The files are named using your original PDF name followed by the page number — for example, a file called "report.pdf" exports as "report-page-1.jpg", "report-page-2.jpg", and so on. All pages download together in a single ZIP.',
+      a: 'Each selected page becomes a separate JPG file named with your original PDF name and the original page number — for example, page 3 of "report.pdf" exports as "report-page-3.jpg". All files download together in a single ZIP.',
     },
     {
       q: 'Will text in the PDF be readable in the exported JPGs?',
       a: 'Yes, as long as you use a sufficient DPI. At 150 DPI, standard body text is clearly legible. Small text (footnotes, captions) may need 200–300 DPI to remain sharp. JPEG compression can also soften fine text — use quality 85 or higher to preserve readability.',
-    },
-    {
-      q: 'Can I convert just one page from a multi-page PDF?',
-      a: 'The current tool exports all pages. To convert a single page, use Split PDF first to extract that page into its own PDF, then convert it here.',
     },
     {
       q: 'Are my files uploaded to your servers?',
@@ -67,6 +48,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'PDF to JPG Converter — ConvertYard',
     description:
-      'Convert PDF pages to JPG images in your browser. Choose DPI and quality. Batch convert 1,000 files — no uploads, no account, entirely local.',
+      'Convert PDF pages to JPG images in your browser. Pick pages, preview quality before downloading. Batch convert — no uploads, no account, entirely local.',
   },
 }
