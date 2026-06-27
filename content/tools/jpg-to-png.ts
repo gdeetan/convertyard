@@ -16,12 +16,12 @@ export const config: ToolConfig = {
     {
       type: 'slider',
       name: 'quality',
-      label: 'Compression level',
+      label: 'Quality',
       min: 1,
       max: 100,
       step: 1,
       default: 85,
-      hint: 'PNG is lossless — this controls compression speed vs file size, not quality',
+      hint: 'PNG is lossless — this controls internal compression, not pixel quality. Higher = smaller file, slightly slower encode.',
     },
     {
       type: 'number',
@@ -85,6 +85,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'JPG to PNG Converter — ConvertYard',
     description:
-      'Convert JPG to PNG in your browser. Batch up to 1,000 files — no uploads, no account. Lossless output with resize and metadata controls.',
+      'Convert JPG to PNG in your browser. Batch up to 1,000 files — no uploads, no account, no watermarks. Lossless output with resize and metadata controls.',
   },
 }

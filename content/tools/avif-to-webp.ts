@@ -52,6 +52,13 @@ export const config: ToolConfig = {
     },
     {
       type: 'toggle',
+      name: 'autoOrient',
+      label: 'Auto-orient',
+      default: true,
+      hint: 'Fixes rotation using EXIF data if present',
+    },
+    {
+      type: 'toggle',
       name: 'stripMetadata',
       label: 'Strip metadata',
       default: false,
@@ -88,6 +95,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'AVIF to WebP Converter — ConvertYard',
     description:
-      'Convert AVIF to WebP in your browser. Batch up to 1,000 files — no uploads, no account. Handles quality, lossless mode, and resize.',
+      'Convert AVIF to WebP in your browser. Batch up to 1,000 files — no uploads, no account, no watermarks. Handles quality, lossless mode, and resize.',
   },
 }
