@@ -30,6 +30,16 @@ function getMimeType(outputFormat: string): string {
     : 'image/jpeg'
 }
 
+function hexToRgb(hex: string): [number, number, number] {
+  const h = (hex || '#ffffff').replace('#', '')
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h
+  return [
+    parseInt(full.slice(0, 2), 16) || 255,
+    parseInt(full.slice(2, 4), 16) || 255,
+    parseInt(full.slice(4, 6), 16) || 255,
+  ]
+}
+
 self.onmessage = async (e: MessageEvent) => {
   const { id, fileBuffer, outputFormat, opts, fileName } = e.data as {
     id: string
@@ -62,6 +72,14 @@ self.onmessage = async (e: MessageEvent) => {
         const srgb = image.colourspace(vips.Interpretation.srgb)
         image.delete()
         image = srgb
+      }
+
+      // Flatten alpha channel when encoding to JPG (JPG has no alpha support)
+      if ((outputFormat === 'jpg' || outputFormat === 'jpeg') && image.hasAlpha()) {
+        const bg = hexToRgb(typeof opts.bgColor === 'string' ? opts.bgColor : '#ffffff')
+        const flat = image.flatten({ background: bg })
+        image.delete()
+        image = flat
       }
 
       self.postMessage({ id, type: 'progress', pct: 30 })
