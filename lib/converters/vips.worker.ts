@@ -33,11 +33,8 @@ function getMimeType(outputFormat: string): string {
 function hexToRgb(hex: string): [number, number, number] {
   const h = (hex || '#ffffff').replace('#', '')
   const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h
-  return [
-    parseInt(full.slice(0, 2), 16) || 255,
-    parseInt(full.slice(2, 4), 16) || 255,
-    parseInt(full.slice(4, 6), 16) || 255,
-  ]
+  const parse = (s: string) => { const n = parseInt(s, 16); return Number.isNaN(n) ? 255 : n }
+  return [parse(full.slice(0, 2)), parse(full.slice(2, 4)), parse(full.slice(4, 6))]
 }
 
 self.onmessage = async (e: MessageEvent) => {
