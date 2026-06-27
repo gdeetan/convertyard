@@ -54,7 +54,7 @@ export async function libvipsConvert(
 
     if (
       !file.type.startsWith('image/') &&
-      !file.name.match(/\.(jpe?g|png|webp|avif|heic|heif|gif|tiff?)$/i)
+      !file.name.match(/\.(jpe?g|png|webp|avif|heic|heif|gif|tiff?|bmp)$/i)
     ) {
       results.push(new Error(`Unsupported file type: ${file.type || 'unknown'}`))
       onProgress?.(i, 100)
