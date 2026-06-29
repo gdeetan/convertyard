@@ -85,6 +85,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'TIFF to WebP Converter — ConvertYard',
     description:
-      'Convert TIFF to WebP in your browser. Batch up to 1,000 scanner or camera TIFFs — no uploads, no account. Get web-ready WebP files up to 60x smaller than the original.',
+      'Convert TIFF to WebP in your browser. Batch up to 1,000 TIFFs — no uploads, no account. Get web-ready WebP files up to 60x smaller than the original.',
   },
 }

@@ -71,6 +71,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'TIFF to PNG Converter — ConvertYard',
     description:
-      'Convert TIFF to PNG in your browser. Lossless — every pixel preserved. Batch up to 1,000 files, no uploads, no account. Scanner TIFFs to universally compatible PNGs.',
+      'Convert TIFF to PNG in your browser. Lossless — every pixel preserved. Batch up to 1,000 files, no uploads, no account. Files never leave your device.',
   },
 }
