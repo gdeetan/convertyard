@@ -57,7 +57,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Can I convert 1,000 GIF files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes each one in your browser — no uploads, no server. Each GIF produces one PNG from its first frame. Download all results as a single ZIP when done.',
+      a: 'Yes. Drop them all in and ConvertYard processes each one in your browser — no uploads, no server. Each GIF produces one PNG from its first frame. PNG files are larger than JPG so high-resolution batches may take a moment. Download all results as a single ZIP when done.',
     },
     {
       q: 'Are my files uploaded to your servers?',

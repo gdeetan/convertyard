@@ -21,7 +21,7 @@ export const config: ToolConfig = {
       max: 100,
       step: 1,
       default: 85,
-      hint: '85 gives excellent quality with significant file size reduction',
+      hint: '85 gives excellent quality — GIF first frames typically produce JPGs 5–20x smaller than the source GIF',
     },
     {
       type: 'color-picker',
