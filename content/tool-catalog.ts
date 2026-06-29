@@ -33,6 +33,8 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'tiff-to-jpg',  title: 'TIFF to JPG',  description: 'Convert TIFF photos and scans to JPG — up to 10x smaller.', category: 'images', status: 'live' },
   { slug: 'tiff-to-png',  title: 'TIFF to PNG',  description: 'Lossless TIFF to PNG — preserves every pixel and layer.', category: 'images', status: 'live' },
   { slug: 'tiff-to-webp', title: 'TIFF to WebP', description: 'TIFF scans and photos to web-ready WebP.', category: 'images', status: 'live' },
+  { slug: 'gif-to-jpg',   title: 'GIF to JPG',   description: 'Extract the first frame of any GIF as a static JPG.', category: 'images', status: 'live' },
+  { slug: 'gif-to-png',   title: 'GIF to PNG',   description: 'Extract the first frame of any GIF as a lossless PNG.', category: 'images', status: 'live' },
   // Image editing — coming soon
   { slug: 'background-remover', title: 'Background Remover', description: 'Remove backgrounds with AI, no account needed.', category: 'image-editing', status: 'live', badge: 'AI' },
   { slug: 'compress-image',     title: 'Image Compressor',   description: 'Batch compress any image format.', category: 'image-editing', status: 'live' },
