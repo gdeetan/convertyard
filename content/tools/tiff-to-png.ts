@@ -66,7 +66,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['tiff-to-jpg', 'tiff-to-webp', 'png-to-jpg', 'compress-image'],
-  relatedArticles: ['batch-convert-images'],
+  relatedArticles: ['compress-images-without-losing-quality', 'exif-data-whats-hiding-in-your-photo'],
 
   meta: {
     title: 'TIFF to PNG Converter — ConvertYard',

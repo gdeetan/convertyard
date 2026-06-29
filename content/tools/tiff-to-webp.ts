@@ -80,7 +80,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['tiff-to-jpg', 'tiff-to-png', 'jpg-to-webp', 'compress-image'],
-  relatedArticles: ['batch-convert-images'],
+  relatedArticles: ['compress-images-without-losing-quality', 'webp-vs-avif-vs-jpeg'],
 
   meta: {
     title: 'TIFF to WebP Converter — ConvertYard',

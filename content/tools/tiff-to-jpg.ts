@@ -80,11 +80,11 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['tiff-to-png', 'tiff-to-webp', 'jpg-to-png', 'compress-image'],
-  relatedArticles: ['batch-convert-images'],
+  relatedArticles: ['compress-images-without-losing-quality', 'exif-data-whats-hiding-in-your-photo'],
 
   meta: {
     title: 'TIFF to JPG Converter — ConvertYard',
     description:
-      'Convert TIFF to JPG in your browser. Batch up to 1,000 files — no uploads, no account. Shrink scanner TIFFs by 10–50x at quality 85 with no visible loss.',
+      'Convert TIFF to JPG in your browser. Batch up to 1,000 files — no uploads, no account. Shrink scanner TIFFs by 10–50x with no visible loss.',
   },
 }
