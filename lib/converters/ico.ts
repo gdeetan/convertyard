@@ -1,6 +1,4 @@
-import type { ToolOptions } from '@/lib/types'
-
-export type ConversionResult = File | Error
+import type { ToolOptions, ConversionResult } from '@/lib/types'
 
 const ICO_SIZES = [16, 32, 48, 64, 128] as const
 
@@ -106,8 +104,10 @@ export async function pngToIco(
 function parseIcoEntries(
   u8: Uint8Array,
 ): Array<{ width: number; height: number; offset: number; size: number }> {
+  if (u8.length < 6) throw new Error('Truncated ICO: header too short')
   const v = new DataView(u8.buffer, u8.byteOffset)
   const count = v.getUint16(4, true)
+  if (6 + count * 16 > u8.length) throw new Error('Truncated ICO: directory overruns buffer')
   const entries = []
   for (let i = 0; i < count; i++) {
     const e = 6 + i * 16
@@ -136,7 +136,8 @@ async function dibToPngBytes(dib: Uint8Array): Promise<Uint8Array> {
   hv.setUint8(1, 0x4d)  // 'M'
   hv.setUint32(2, fileSize, true)
   hv.setUint32(6, 0, true)   // reserved
-  hv.setUint32(10, 14 + 40, true)  // pixel data offset (after BITMAPINFOHEADER)
+  const dibHeaderSize = new DataView(dib.buffer, dib.byteOffset).getUint32(0, true)
+  hv.setUint32(10, 14 + dibHeaderSize, true)  // pixel data offset
 
   const bmp = new Uint8Array(fileSize)
   bmp.set(header)
