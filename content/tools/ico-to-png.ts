@@ -40,6 +40,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'ICO to PNG Converter — ConvertYard',
     description:
-      'Extract PNG from ICO files in your browser. Gets the largest size from multi-resolution .ico containers. Batch convert — no upload, no account.',
+      'Extract PNG from ICO files in your browser. Gets the largest size from multi-resolution .ico containers. Batch convert 1,000 ICOs — no upload, no account.',
   },
 }
