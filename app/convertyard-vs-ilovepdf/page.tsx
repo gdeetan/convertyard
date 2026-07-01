@@ -82,6 +82,7 @@ export default function Page() {
           <h1 className="mb-4 text-3xl font-bold tracking-tight text-fg sm:text-4xl">
             ConvertYard vs ILovePDF
           </h1>
+          <p className="mb-4 text-xs text-fg-subtle">Published May 28, 2026</p>
           <p className="text-lg leading-relaxed text-fg-muted">
             Both are free PDF tools. The difference is where your files go — ILovePDF uploads them
             to servers; ConvertYard processes them entirely inside your browser.

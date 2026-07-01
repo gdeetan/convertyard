@@ -81,6 +81,7 @@ export default function Page() {
           <h1 className="mb-4 text-3xl font-bold tracking-tight text-fg sm:text-4xl">
             ConvertYard vs Convertio
           </h1>
+          <p className="mb-4 text-xs text-fg-subtle">Published May 9, 2026</p>
           <p className="text-lg leading-relaxed text-fg-muted">
             Convertio supports 300+ formats. ConvertYard supports ~40 and never uploads your files.
             The right choice depends on what you're converting and how sensitive it is.

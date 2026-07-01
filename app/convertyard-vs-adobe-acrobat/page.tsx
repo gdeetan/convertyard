@@ -82,6 +82,7 @@ export default function Page() {
           <h1 className="mb-4 text-3xl font-bold tracking-tight text-fg sm:text-4xl">
             ConvertYard vs Adobe Acrobat Online
           </h1>
+          <p className="mb-4 text-xs text-fg-subtle">Published June 17, 2026</p>
           <p className="text-lg leading-relaxed text-fg-muted">
             Adobe is the industry standard for complex PDF workflows. ConvertYard is free, requires
             no account, and never uploads your files. Most people need one for everyday tasks and
