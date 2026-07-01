@@ -60,7 +60,7 @@ const FAQ = [
   },
   {
     q: 'Do you use analytics or cookies?',
-    a: "Yes. We use Google Analytics to understand which tools people use. Display ads (shown below tools and in articles) are served by ad networks that may set cookies. Neither has any access to your files — file processing runs entirely in your browser and nothing is sent to any server, including ours.",
+    a: "Two separate things. Your files: 100% local — all conversion runs in your browser via WebAssembly and nothing ever reaches our servers. Site analytics: yes, we use Google Analytics to understand which tools are popular, and ad networks may set cookies. Those systems see page visits, not your files.",
   },
   {
     q: 'Does it work offline?',
