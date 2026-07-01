@@ -72,6 +72,16 @@ const CATEGORY_LABELS: Record<string, string> = {
   ai: 'AI',
 }
 
+const CATALOG_TO_GRID: Record<string, Category> = {
+  images: 'images',
+  'image-editing': 'image-editing',
+  pdf: 'pdf',
+  'video-audio': 'video-audio',
+  developer: 'dev',
+  'web-tools': 'web-tools',
+  'ai-tools': 'ai',
+}
+
 interface Tool {
   slug: string
   name: string
@@ -134,7 +144,21 @@ export function ToolGrid() {
     setActive(id)
   }
 
-  const visible = active === 'all'
+  const trimmed = query.trim().toLowerCase()
+  const isSearching = trimmed.length > 0
+
+  const searchResults = isSearching
+    ? ALL_TOOLS.filter(
+        (t) =>
+          t.status === 'live' &&
+          (t.title.toLowerCase().includes(trimmed) ||
+            t.description.toLowerCase().includes(trimmed))
+      )
+    : null
+
+  const visible: any[] = searchResults !== null
+    ? searchResults
+    : active === 'all'
     ? TOOLS.filter((t) => POPULAR_SLUGS.has(t.slug))
     : TOOLS.filter((t) => t.category === active)
 
@@ -213,7 +237,7 @@ export function ToolGrid() {
         <div
           role="tablist"
           aria-label="Filter tools by category"
-          className="mb-8 flex flex-wrap gap-2"
+          className={cn('mb-8 flex flex-wrap gap-2 transition-opacity', isSearching && 'pointer-events-none opacity-40')}
         >
           {FILTERS.map(({ id, label }) => (
             <button
