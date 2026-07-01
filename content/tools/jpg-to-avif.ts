@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'jpg-to-avif',
   title: 'JPG to AVIF Converter',
-  subtitle: 'Local-first JPG to AVIF conversion. Built for batches.',
+  subtitle: 'AVIF compresses 30–50% better than JPG at the same quality. Convert your archive without uploading a single file.',
   category: 'images',
   accepts: ['image/jpeg'],
   acceptsExt: ['.jpg', '.jpeg'],

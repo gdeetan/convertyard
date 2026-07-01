@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'favicon-generator',
   title: 'Favicon Generator',
-  subtitle: 'Generate all favicon sizes from one image. Local-first. Built for batches.',
+  subtitle: 'Upload one image, get every favicon size: ICO, PNG, Apple touch icon, and web manifest. No upload to any server.',
   category: 'web',
   accepts: ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'],
   acceptsExt: ['.png', '.jpg', '.jpeg', '.svg', '.webp'],

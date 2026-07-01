@@ -5,7 +5,7 @@ const noop = async (): Promise<[]> => []
 export const config: ToolConfig = {
   slug: 'rotate-pdf',
   title: 'Rotate PDF Pages',
-  subtitle: 'Rotate pages permanently. Preview thumbnails before saving. Built for batches.',
+  subtitle: 'Rotate individual pages or the whole PDF permanently. Preview thumbnails before saving. Nothing leaves your browser.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],

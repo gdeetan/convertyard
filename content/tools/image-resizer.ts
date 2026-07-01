@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'image-resizer',
   title: 'Batch Image Resizer',
-  subtitle: 'Local-first image resizing. Built for batches.',
+  subtitle: 'Resize to exact pixels or let aspect ratio calculate the other dimension. One setting, 1,000 files, one ZIP.',
   category: 'image-editing',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],

@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'pdf-to-png',
   title: 'PDF to PNG Converter',
-  subtitle: 'Export PDF pages as high-quality PNG images. Built for batches.',
+  subtitle: 'Export every PDF page as a high-resolution PNG — up to 600 DPI. Useful for thumbnails, slides, and image pipelines.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],

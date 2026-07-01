@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'heic-to-webp',
   title: 'HEIC to WebP Converter',
-  subtitle: 'Local-first HEIC to WebP conversion. Built for batches.',
+  subtitle: 'Convert iPhone HEIC photos to modern WebP — smaller than JPG, wider support than HEIC. No iCloud needed.',
   category: 'images',
   accepts: ['image/heic', 'image/heif'],
   acceptsExt: ['.heic', '.heif'],

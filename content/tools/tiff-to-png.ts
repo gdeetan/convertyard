@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'tiff-to-png',
   title: 'TIFF to PNG Converter',
-  subtitle: 'Local-first TIFF to PNG conversion. Built for batches.',
+  subtitle: 'Convert TIFF to lossless PNG. Handles multi-layer and high-DPI TIFFs. No upload, no server.',
   category: 'images',
   accepts: ['image/tiff', 'image/x-tiff'],
   acceptsExt: ['.tif', '.tiff'],

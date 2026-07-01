@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'pdf-to-text',
   title: 'PDF to Text Converter',
-  subtitle: 'Extract all text from any PDF. Built for batches.',
+  subtitle: 'Extract searchable text from any PDF — one file per PDF or split by page. Preview before download.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],

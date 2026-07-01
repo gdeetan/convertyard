@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'bmp-to-webp',
   title: 'BMP to WebP Converter',
-  subtitle: 'Local-first BMP to WebP conversion. Built for batches.',
+  subtitle: 'BMP to modern WebP — dramatically smaller files, wider web support. Batch 1,000+ images in your browser.',
   category: 'images',
   accepts: ['image/bmp', 'image/x-bmp', 'image/x-ms-bmp'],
   acceptsExt: ['.bmp'],

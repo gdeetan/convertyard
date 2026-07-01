@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'tiff-to-webp',
   title: 'TIFF to WebP Converter',
-  subtitle: 'Local-first TIFF to WebP conversion. Built for batches.',
+  subtitle: 'TIFF to modern WebP — dramatically smaller, same visual quality. Batch 1,000 files at once.',
   category: 'images',
   accepts: ['image/tiff', 'image/x-tiff'],
   acceptsExt: ['.tif', '.tiff'],

@@ -5,7 +5,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'image-cropper',
   title: 'Batch Image Cropper',
-  subtitle: 'Local-first image cropping. Built for batches.',
+  subtitle: 'Crop to exact pixels or preset aspect ratios. Apply the same crop to 1,000 images at once.',
   category: 'image-editing',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],

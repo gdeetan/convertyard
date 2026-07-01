@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'avif-to-webp',
   title: 'AVIF to WebP Converter',
-  subtitle: 'Local-first AVIF to WebP conversion. Built for batches.',
+  subtitle: 'Both modern formats, both smaller than JPG. Convert your AVIF files to WebP without uploading anything.',
   category: 'images',
   accepts: ['image/avif'],
   acceptsExt: ['.avif'],

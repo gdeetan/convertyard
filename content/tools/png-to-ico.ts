@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'png-to-ico',
   title: 'PNG to ICO Converter',
-  subtitle: 'Local-first PNG to ICO conversion. Built for batches.',
+  subtitle: 'Generate ICO favicons from PNG — packs 16, 32, 48, 64, and 128px layers into one file. No upload.',
   category: 'images',
   accepts: ['image/png'],
   acceptsExt: ['.png'],

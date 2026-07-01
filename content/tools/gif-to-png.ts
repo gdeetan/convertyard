@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'gif-to-png',
   title: 'GIF to PNG Converter',
-  subtitle: 'Local-first GIF to PNG conversion. Built for batches.',
+  subtitle: 'Convert GIF to lossless PNG — transparency preserved. Handles animated and static GIFs. No upload required.',
   category: 'images',
   accepts: ['image/gif'],
   acceptsExt: ['.gif'],

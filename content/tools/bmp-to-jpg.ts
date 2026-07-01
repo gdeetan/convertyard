@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'bmp-to-jpg',
   title: 'BMP to JPG Converter',
-  subtitle: 'Local-first BMP to JPG conversion. Built for batches.',
+  subtitle: 'BMP files are 10× larger than JPG. Batch convert 1,000+ bitmaps to compressed JPG — no upload required.',
   category: 'images',
   accepts: ['image/bmp', 'image/x-bmp', 'image/x-ms-bmp'],
   acceptsExt: ['.bmp'],

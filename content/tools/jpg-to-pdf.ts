@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'jpg-to-pdf',
   title: 'JPG to PDF Converter',
-  subtitle: 'Combine images into a PDF or create one PDF per image. Built for batches.',
+  subtitle: 'Combine photos into one PDF or create one PDF per image. Drag to reorder pages. No upload required.',
   category: 'pdf',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic', '.heif'],

@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'split-pdf',
   title: 'Split PDF',
-  subtitle: 'Extract pages or split a PDF into parts. Built for batches.',
+  subtitle: 'Split by page range, extract specific pages, or divide into equal chunks. Nothing leaves your browser.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],

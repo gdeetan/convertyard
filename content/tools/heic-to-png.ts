@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'heic-to-png',
   title: 'HEIC to PNG Converter',
-  subtitle: 'Local-first HEIC to PNG conversion. Built for batches.',
+  subtitle: 'iPhone HEIC photos to lossless PNG — full quality, transparency intact. No iCloud, no plugins needed.',
   category: 'images',
   accepts: ['image/heic', 'image/heif'],
   acceptsExt: ['.heic', '.heif'],

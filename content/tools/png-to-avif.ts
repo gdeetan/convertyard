@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'png-to-avif',
   title: 'PNG to AVIF Converter',
-  subtitle: 'Local-first PNG to AVIF conversion. Built for batches.',
+  subtitle: 'PNG to AVIF — same quality, up to 50% smaller file. Convert your entire library without uploading anything.',
   category: 'images',
   accepts: ['image/png'],
   acceptsExt: ['.png'],

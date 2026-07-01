@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'tiff-to-jpg',
   title: 'TIFF to JPG Converter',
-  subtitle: 'Local-first TIFF to JPG conversion. Built for batches.',
+  subtitle: 'TIFF files can be 100× larger than JPG. Convert 1,000+ at once and cut file sizes by 90%. No upload.',
   category: 'images',
   accepts: ['image/tiff', 'image/x-tiff'],
   acceptsExt: ['.tif', '.tiff'],

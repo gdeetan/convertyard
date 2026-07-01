@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'jpg-to-png',
   title: 'JPG to PNG Converter',
-  subtitle: 'Local-first JPG to PNG conversion. Built for batches.',
+  subtitle: 'JPG to lossless PNG — no generation loss, every pixel preserved. Batch 1,000 files in your browser.',
   category: 'images',
   accepts: ['image/jpeg'],
   acceptsExt: ['.jpg', '.jpeg'],

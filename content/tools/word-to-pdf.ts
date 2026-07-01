@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'word-to-pdf',
   title: 'Word to PDF Converter',
-  subtitle: 'Convert DOCX files to PDF in your browser. No upload. Built for batches.',
+  subtitle: 'Convert DOCX to PDF with accurate formatting. No upload, no Office license required. Batch 1,000 files.',
   category: 'pdf',
   accepts: [
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',

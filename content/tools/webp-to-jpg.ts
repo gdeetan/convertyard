@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'webp-to-jpg',
   title: 'WebP to JPG Converter',
-  subtitle: 'Local-first WebP to JPG conversion. Built for batches.',
+  subtitle: 'WebP to universal JPG — compatible with every app, OS, and platform. Batch 1,000+ files at once.',
   category: 'images',
   accepts: ['image/webp'],
   acceptsExt: ['.webp'],

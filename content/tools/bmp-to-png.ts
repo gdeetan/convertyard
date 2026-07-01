@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'bmp-to-png',
   title: 'BMP to PNG Converter',
-  subtitle: 'Local-first BMP to PNG conversion. Built for batches.',
+  subtitle: 'Convert BMP to lossless PNG without quality loss. Drop 1,000+ files — no upload, no server.',
   category: 'images',
   accepts: ['image/bmp', 'image/x-bmp', 'image/x-ms-bmp'],
   acceptsExt: ['.bmp'],

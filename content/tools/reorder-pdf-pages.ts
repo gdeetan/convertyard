@@ -5,7 +5,7 @@ const noop = async (): Promise<[]> => []
 export const config: ToolConfig = {
   slug: 'reorder-pdf-pages',
   title: 'Reorder PDF Pages',
-  subtitle: 'Drag to rearrange, delete, or duplicate pages. Undo/redo support. Built for batches.',
+  subtitle: 'Drag to rearrange, delete, or duplicate pages. Full undo/redo. Nothing leaves your browser.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],

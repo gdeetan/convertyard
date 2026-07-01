@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'gif-to-jpg',
   title: 'GIF to JPG Converter',
-  subtitle: 'Local-first GIF to JPG conversion. Built for batches.',
+  subtitle: 'Extracts the first frame of animated GIFs or converts static GIFs to JPG. Drop 1,000 at once.',
   category: 'images',
   accepts: ['image/gif'],
   acceptsExt: ['.gif'],
