@@ -1,0 +1,108 @@
+export const meta = {
+  title: 'How to Convert HEIC to JPG on Windows (Without iTunes)',
+  description:
+    'Windows does not open HEIC files by default. Here are three ways to convert iPhone photos to JPG on Windows — including a browser method that requires no software installation.',
+  lastUpdated: '2026-06-09',
+  faq: [
+    {
+      q: 'Why can\'t Windows open HEIC files?',
+      a: "HEIC uses Apple's HEIF container format with HEVC (H.265) video compression for still images. Microsoft added partial HEIC support to Windows 10 and 11 via the Photos app — but it requires installing the HEVC Video Extensions codec from the Microsoft Store (which costs $0.99 or is sometimes free). Without that codec, Windows Photo Viewer and most apps cannot open HEIC files.",
+    },
+    {
+      q: 'Can I convert HEIC to JPG on Windows without installing anything?',
+      a: "Yes. ConvertYard converts HEIC to JPG entirely in your browser — no software to install, no account required, no uploads. Open the tool in Chrome or Edge, drop your HEIC files, and download the JPGs.",
+    },
+    {
+      q: 'Does AirDrop or iCloud fix the HEIC problem on Windows?',
+      a: "Partially. If you AirDrop photos to a Mac, they may be automatically converted to JPEG during transfer (this is a setting in Photos on iPhone). iCloud for Windows will attempt to download HEIC files and may convert them if you have the HEVC codec installed. These approaches work but require additional software or ecosystem access.",
+    },
+    {
+      q: 'Will converting HEIC to JPG reduce quality?',
+      a: "At quality 90, the JPG output is visually indistinguishable from the original HEIC in normal viewing. HEIC uses a very efficient compression algorithm (based on HEVC video compression), so HEIC files at their default iPhone quality are already quite compressed. Converting to JPG at 85–90 preserves that quality without visible degradation.",
+    },
+  ],
+  relatedTools: ['heic-to-jpg', 'heic-to-png', 'heic-to-webp'],
+}
+
+When you transfer photos from an iPhone to a Windows PC, you often end up with HEIC files that Windows refuses to open. HEIC is Apple's default photo format since iOS 11, but Windows doesn't support it natively without an extra codec. Here's how to convert them.
+
+**[Convert HEIC to JPG in your browser — no uploads →](/heic-to-jpg/)**
+
+## Why your iPhone saves photos as HEIC
+
+Apple switched to HEIC (High Efficiency Image Container) as the default iPhone camera format in iOS 11 (2017). HEIC uses HEVC (H.265) compression, which produces files roughly 50% smaller than equivalent JPEGs at the same quality. A typical iPhone photo that would be 4–6MB as JPEG is 2–3MB as HEIC.
+
+The tradeoff: HEIC is an Apple format. While it's based on an open standard (ISO 23008-12), practical support outside Apple devices is limited. Windows, Android, most web services, and most print labs don't support HEIC natively.
+
+## Option 1: Convert in your browser (no installation required)
+
+The fastest method for most people. ConvertYard converts HEIC to JPG entirely in your browser using WebAssembly — no software, no account, no file uploads.
+
+1. Open [ConvertYard's HEIC to JPG tool](/heic-to-jpg/) in Chrome or Edge
+2. Drop your HEIC files (1 or 1,000 — the tool handles batches)
+3. Click Convert
+4. Download the JPGs individually or as a ZIP
+
+The conversion runs on your CPU locally. Your photos never leave your device.
+
+**Best for:** Occasional conversions, batches, or when you're on a machine where you can't install software.
+
+## Option 2: Install the HEVC codec from the Microsoft Store
+
+Microsoft added HEIC support to Windows 10 and 11 through a codec extension. Once installed, the Photos app, File Explorer thumbnails, and most other apps can open HEIC files directly.
+
+1. Open the Microsoft Store
+2. Search for "HEVC Video Extensions"
+3. Install the extension (free if your device qualifies, otherwise $0.99)
+
+After installation, HEIC files open in the Photos app like any other image. To convert to JPEG, open the photo in Photos → `…` menu → Save as → choose JPEG.
+
+**Best for:** Users who want ongoing native Windows support and don't mind the one-time setup.
+
+## Option 3: Set your iPhone to shoot in JPEG instead of HEIC
+
+If you regularly transfer photos to Windows and always need JPEGs, change the iPhone camera setting to capture in JPEG from the start.
+
+1. Open **Settings** on your iPhone
+2. Tap **Camera** → **Formats**
+3. Choose **Most Compatible** instead of High Efficiency
+
+With Most Compatible selected, the iPhone camera saves photos as JPEG. The photos will be roughly twice as large as HEIC, but they'll open everywhere without conversion.
+
+**Note:** This setting only affects new photos. Existing HEIC photos in your library still need to be converted.
+
+**Best for:** Users who primarily use Windows and don't need HEIC's storage efficiency.
+
+## Option 4: Use iCloud for Windows
+
+If you use iCloud to sync photos, iCloud for Windows can convert HEIC to JPEG during download.
+
+1. Install iCloud for Windows from the Microsoft Store
+2. Sign in with your Apple ID
+3. In iCloud settings, enable **iCloud Photos**
+4. By default, iCloud for Windows downloads photos in their original HEIC format — but if the HEVC codec is installed, they open normally
+
+**Best for:** Users already in the Apple ecosystem who sync photos via iCloud.
+
+## Batch converting HEIC to JPG
+
+If you have hundreds or thousands of HEIC photos from your iPhone, batch conversion is the practical approach. Transferring them one at a time is not.
+
+ConvertYard handles HEIC batches of 1,000+ files:
+1. Transfer your HEIC files to your Windows PC (via USB cable, AirDrop to a Mac then to Windows, or iCloud)
+2. Open the HEIC to JPG tool in Chrome or Edge
+3. Drop all your HEIC files at once
+4. Click Convert — progress shows per file
+5. Download the ZIP containing all JPGs
+
+The entire conversion happens locally in your browser. On a modern laptop, 100 typical iPhone photos takes about 2–4 minutes.
+
+## Which method should you use?
+
+| Situation | Best method |
+|-----------|-------------|
+| One-time or occasional conversion | Browser tool (no installation) |
+| Want native Windows support going forward | HEVC codec from Microsoft Store |
+| Always shooting for Windows | Set iPhone to "Most Compatible" |
+| iCloud user | iCloud for Windows |
+| Batch converting existing library | Browser tool (handles 1,000+ at once) |

@@ -146,4 +146,39 @@ export const articles: ArticleEntry[] = [
       'Updated 2026 comparison of AVIF, WebP, and JPEG — compression, browser support, and a plain-English decision framework for web and general use.',
     lastUpdated: '2026-06-24',
   },
+  {
+    slug: 'batch-convert-images',
+    title: 'How to Batch Convert Images: The Complete Guide',
+    description:
+      'Convert hundreds or thousands of images at once — without desktop software, without uploads, and without babysitting a one-file-at-a-time tool.',
+    lastUpdated: '2026-05-14',
+  },
+  {
+    slug: 'best-webp-quality',
+    title: 'What Is the Best WebP Quality Setting?',
+    description:
+      'Quality 80 is the standard recommendation for WebP — here is why, what changes at different settings, and when to go higher or lower.',
+    lastUpdated: '2026-05-21',
+  },
+  {
+    slug: 'avif-browser-support',
+    title: 'AVIF Browser Support in 2026: When Is It Safe to Use?',
+    description:
+      'AVIF is supported in Chrome, Firefox, Edge, and Safari 16+. That covers over 93% of global web traffic. Here is how to deploy AVIF safely with fallbacks.',
+    lastUpdated: '2026-05-28',
+  },
+  {
+    slug: 'lossless-vs-lossy',
+    title: 'Lossless vs. Lossy Image Compression: What Is the Difference?',
+    description:
+      'Lossless compression preserves every pixel exactly. Lossy discards data your eye will not notice. Here is when each matters and which formats use which.',
+    lastUpdated: '2026-06-02',
+  },
+  {
+    slug: 'heic-to-jpg-on-windows',
+    title: 'How to Convert HEIC to JPG on Windows (Without iTunes)',
+    description:
+      'Windows does not open HEIC files by default. Here are three ways to convert iPhone photos to JPG on Windows — including a browser method that requires no software installation.',
+    lastUpdated: '2026-06-09',
+  },
 ]

@@ -218,6 +218,22 @@ export default function Page() {
           </div>
         </section>
 
+        {/* See also */}
+        <section className="mb-8">
+          <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-fg-subtle">See also</p>
+          <div className="flex flex-wrap gap-2">
+            {[
+              { label: 'ConvertYard vs Smallpdf', href: '/convertyard-vs-smallpdf' },
+              { label: 'ConvertYard vs Convertio', href: '/convertyard-vs-convertio' },
+              { label: 'ConvertYard vs ILovePDF', href: '/convertyard-vs-ilovepdf' },
+            ].map(({ label, href }) => (
+              <a key={href} href={href} className="rounded-lg border border-border bg-bg-elevated px-3 py-1.5 text-sm text-fg-muted transition-colors hover:border-border-strong hover:text-fg">
+                {label} →
+              </a>
+            ))}
+          </div>
+        </section>
+
         {/* CTA */}
         <section className="rounded-xl border border-border bg-bg-elevated p-6 text-center">
           <p className="mb-4 text-base font-semibold text-fg">

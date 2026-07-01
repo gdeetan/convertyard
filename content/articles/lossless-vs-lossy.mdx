@@ -1,0 +1,99 @@
+export const meta = {
+  title: 'Lossless vs. Lossy Image Compression: What Is the Difference?',
+  description:
+    'Lossless compression preserves every pixel exactly. Lossy discards data your eye will not notice. Here is when each matters and which formats use which.',
+  lastUpdated: '2026-06-02',
+  faq: [
+    {
+      q: 'What is the difference between lossless and lossy compression?',
+      a: 'Lossless compression reduces file size without discarding any image data — the original can be perfectly recovered. Lossy compression permanently discards some image data to achieve smaller files, targeting information the human visual system is least sensitive to. JPEG, standard WebP, and AVIF use lossy compression. PNG and GIF use lossless.',
+    },
+    {
+      q: 'Can you tell the difference between lossless and lossy images?',
+      a: 'At typical quality settings (JPEG 80+, WebP 80+), most people cannot distinguish lossy from lossless in normal viewing conditions. The difference only becomes visible at very low quality settings or when zooming into fine detail. At quality 80, the visual difference between lossless PNG and lossy WebP is imperceptible for photographs.',
+    },
+    {
+      q: 'Is WebP lossless or lossy?',
+      a: 'Both. WebP supports both lossless and lossy encoding. When you convert to WebP without enabling lossless mode, it uses lossy compression by default. Lossless WebP produces larger files but preserves every pixel — useful for screenshots, logos, and images you will edit again.',
+    },
+    {
+      q: 'Should I use lossless or lossy for product photos?',
+      a: "Lossy. For photographs displayed on a website, lossy compression at quality 80 is indistinguishable from lossless and produces files 3–8x smaller. Use lossless only if you're storing master images that will be re-processed or if the photos contain fine text that lossy compression handles poorly.",
+    },
+  ],
+  relatedTools: ['compress-image', 'png-to-webp', 'jpg-to-webp', 'png-to-avif'],
+}
+
+Every time you save an image, you're choosing between two fundamentally different approaches to making the file smaller. Understanding the difference between lossless and lossy compression is the single most useful concept for making the right format decision.
+
+**[Compress images in your browser — no uploads →](/compress-image/)**
+
+## The core difference
+
+**Lossless compression** reorganizes how image data is stored to take up less space, without discarding any of it. Decompress a losslessly-compressed image and you get back every original pixel — identical to the source. Think of it like a more efficient filing system: the same information, packed more tightly.
+
+**Lossy compression** permanently discards image information — specifically, information that psychovisual research suggests the human eye won't notice. Once that data is gone, it cannot be recovered. The file is smaller because it contains less information.
+
+Both approaches reduce file size. The difference is whether the original can be perfectly reconstructed.
+
+## Which formats use which
+
+| Format | Compression type | Notes |
+|--------|-----------------|-------|
+| PNG | Lossless | Always lossless — compression level affects speed, not quality |
+| GIF | Lossless | Limited to 256 colors |
+| JPEG | Lossy | Quality slider controls how much data is discarded |
+| WebP | Both | Lossy by default; lossless mode available |
+| AVIF | Both | Lossy by default; lossless mode available |
+| TIFF | Both | Commonly stored uncompressed or lossless (LZW) |
+| BMP | None (or lossless) | Typically uncompressed |
+
+## How lossy compression decides what to discard
+
+Lossy compression algorithms — JPEG, WebP, AVIF — are built around well-studied limitations of human vision:
+
+1. **Color sensitivity is lower than brightness sensitivity.** Your eye detects brightness changes precisely but is much less sensitive to subtle color shifts. Lossy encoders store color information at lower precision than brightness information.
+
+2. **High-frequency detail is less visible in textured areas.** In a patch of grass or fabric, you won't notice if the fine grain is approximated. Lossy encoders apply less precision to high-frequency textures.
+
+3. **Smooth areas are perceived more accurately.** A clear sky or a solid-color background needs more precision — lossy artifacts in smooth areas (banding, color shifts) are more visible than in textured areas.
+
+The quality slider you see in export tools controls how aggressively the encoder discards data in each of these areas.
+
+## When lossless compression is the right choice
+
+Use lossless when:
+
+**You'll edit the image again.** Every time you open a lossy image, modify it, and save, you lose a little more quality — the artifacts compound. Keep your working files as PNG or lossless WebP and export lossy versions for delivery.
+
+**The image contains text or sharp geometric edges.** JPEG and WebP at typical quality settings create visible artifacts around sharp edges — ringing, haloing, and slight blurring. Screenshots, UI mockups, infographics with text, and diagrams are much sharper as PNG.
+
+**Pixel-perfect accuracy is required.** Medical imaging, satellite imagery, technical illustrations where measurements matter — lossless is mandatory.
+
+**You're storing master images.** Archive originals as PNG or TIFF. You can always create a lossy delivery version later; you cannot recover quality from a lossy source.
+
+## When lossy compression is the right choice
+
+Use lossy for:
+
+**Photographs for web delivery.** A JPEG or WebP photo at quality 80 is visually identical to a PNG at 3–8x the file size. For a website serving product photos or blog images, this difference in file size directly affects page load speed.
+
+**Any image that won't be edited again.** Once an image is in its final state and you're just displaying it, there's no downside to lossy compression at a quality setting where artifacts are invisible.
+
+**Mobile and bandwidth-constrained contexts.** The smaller the file, the faster the page. For users on mobile data, the difference between a 400KB WebP and a 2MB PNG is meaningful.
+
+## The quality threshold: where lossy becomes invisible
+
+Lossy compression at typical quality settings is designed to be invisible. At **JPEG quality 80**, **WebP quality 80**, or **AVIF quality 65**, most people cannot identify the compressed version in a direct side-by-side comparison with the lossless original — even on a high-resolution display.
+
+Below quality 70, artifacts start to become visible in many images. This is the range where JPEG shows its characteristic block structure and color banding.
+
+The practical takeaway: for display-only images on the web, choose lossy at quality 80. Reserve lossless for masters, editable assets, and images with fine text.
+
+## Converting between lossless and lossy
+
+When you convert from lossless to lossy (PNG → WebP), you're encoding from the original pixel data. The output quality is controlled entirely by the quality setting you choose.
+
+When you convert from lossy to lossy (JPEG → WebP), you're re-encoding from already-compressed data. Some additional quality loss is unavoidable — though at quality 80, this is imperceptible. The key rule: **never repeatedly re-encode lossy images.** Each round trip compresses the artifacts from the previous compression.
+
+When you convert from lossy to lossless (JPEG → PNG), the output preserves the compressed pixel values exactly — including any existing JPEG artifacts. Converting a lossy JPEG to PNG does not improve image quality; it just stores the existing artifacts losslessly in a larger file.

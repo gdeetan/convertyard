@@ -96,7 +96,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['pdf-to-text', 'merge-pdf', 'compress-pdf', 'split-pdf'],
-  relatedArticles: [],
+  relatedArticles: ['word-to-pdf-and-back-what-survives', 'convertyard-vs-adobe-acrobat-pro', 'compress-pdf-without-uploading-privacy-guide'],
 
   meta: {
     title: 'PDF to Word Converter — ConvertYard',
