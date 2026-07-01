@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRecentTools } from '@/lib/hooks/use-recent-tools'
 import Link from 'next/link'
 import {
   Image,
@@ -160,6 +161,8 @@ export function ToolGrid() {
     setActive(id)
   }
 
+  const { tools: recentTools } = useRecentTools()
+
   const trimmed = query.trim().toLowerCase()
   const isSearching = trimmed.length > 0
 
@@ -191,6 +194,22 @@ export function ToolGrid() {
         >
           40+ tools. All local, all free.
         </h2>
+
+        {/* Recently used */}
+        {recentTools.length > 0 && !isSearching && (
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-fg-subtle">Recently used:</span>
+            {recentTools.map((t) => (
+              <a
+                key={t.slug}
+                href={`/${t.slug}`}
+                className="rounded-full border border-border bg-bg-elevated px-3 py-1 text-xs font-medium text-fg hover:border-primary hover:text-primary transition-colors"
+              >
+                {t.title}
+              </a>
+            ))}
+          </div>
+        )}
 
         {/* Search */}
         <div className="relative mb-6">

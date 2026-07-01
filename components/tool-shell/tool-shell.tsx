@@ -15,6 +15,7 @@ import { RelatedArticlesStrip } from './related-articles-strip'
 import type { ToolConfig, FileEntry, ToolPhase, ToolOptions, ToolCategory, CompressionMeta, ConversionResult } from '@/lib/types'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { sizeTargets } from '@/content/size-target-registry'
+import { useRecentTools } from '@/lib/hooks/use-recent-tools'
 
 const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
   images:          { label: 'Image Converters', href: '/images' },
@@ -149,6 +150,7 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions 
   }))
   const [fileWarning, setFileWarning] = useState<string | null>(null)
   const [advancedOpen, setAdvancedOpen] = useState(false)
+  const { record } = useRecentTools()
 
   const handlePresetApply = useCallback((values: ToolOptions) => {
     setOptions(prev => ({ ...prev, ...values }))
@@ -215,11 +217,13 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions 
       }
     }
     dispatch({ type: 'FINISH' })
+    const anySucceeded = results.some((r) => !(r instanceof Error))
+    if (anySucceeded) record(config.slug, config.title)
     if (onResults) {
       const successFiles = results.filter((r): r is File => r instanceof File)
       onResults(successFiles)
     }
-  }, [state.entries, config, options, onResults])
+  }, [state.entries, config, options, onResults, record])
 
   const { entries, phase, announcement } = state
   const hasFiles = entries.length > 0
