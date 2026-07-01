@@ -308,14 +308,13 @@ export function Hero() {
             id="hero-heading"
             className="text-4xl font-bold tracking-tight text-fg sm:text-5xl lg:text-6xl"
           >
-            Local-first conversion,
+            Your files never
             <br />
-            built for batches.
+            leave your computer.
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-fg-muted">
-            Convert thousands of images, PDFs, videos, and audio files entirely
-            in your browser. Nothing uploads.
+            Convert 1,000 images, PDFs, videos, or audio files in your browser — in seconds. Nothing uploads. Ever.
           </p>
 
           {/* CTAs */}
