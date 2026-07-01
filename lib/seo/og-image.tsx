@@ -27,7 +27,7 @@ export function makeOgResponse(props: OgImageTemplateProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div
             style={{
-              background: '#3b82f6',
+              background: '#C2410C',
               borderRadius: '8px',
               width: '40px',
               height: '40px',
