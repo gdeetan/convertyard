@@ -51,7 +51,7 @@ export function ComparisonTable() {
                   ConvertYard
                 </th>
                 <th className="py-4 pl-4 pr-6 text-left text-xs font-semibold uppercase tracking-wider text-fg-subtle" scope="col">
-                  Smallpdf, ilovePDF &amp; others
+                  Smallpdf, ilovePDF, CloudConvert
                 </th>
               </tr>
             </thead>
@@ -95,7 +95,7 @@ export function ComparisonTable() {
             {/* Competitors card */}
             <div className="rounded-xl border border-border bg-bg-elevated overflow-hidden">
               <div className="border-b border-border bg-bg-muted px-4 py-3">
-                <p className="text-xs font-semibold text-fg-subtle">Smallpdf, ilovePDF &amp; others</p>
+                <p className="text-xs font-semibold text-fg-subtle">Smallpdf, ilovePDF, CloudConvert</p>
               </div>
               <ul className="divide-y divide-border">
                 {ROWS.map((row) => (
@@ -107,6 +107,14 @@ export function ComparisonTable() {
               </ul>
             </div>
           </div>
+        </div>
+
+        <div className="mt-8 flex flex-wrap gap-3 text-sm">
+          <span className="text-fg-subtle">Compare in detail:</span>
+          <a href="/convertyard-vs-smallpdf" className="text-primary hover:underline">vs Smallpdf</a>
+          <a href="/convertyard-vs-ilovepdf" className="text-primary hover:underline">vs ilovePDF</a>
+          <a href="/convertyard-vs-convertio" className="text-primary hover:underline">vs Convertio</a>
+          <a href="/convertyard-vs-adobe-acrobat" className="text-primary hover:underline">vs Adobe Acrobat</a>
         </div>
       </div>
     </section>
