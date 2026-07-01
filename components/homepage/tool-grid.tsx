@@ -347,14 +347,28 @@ export function ToolGrid() {
           })}
         </div>
 
-        {/* View all */}
-        <div className="mt-8 text-center">
-          <Link
-            href="/tools"
-            className="text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
-          >
-            View all 40+ tools →
-          </Link>
+        {/* Footer: result count when searching, view-all link otherwise */}
+        <div className="mt-8 text-center text-sm">
+          {isSearching ? (
+            searchResults!.length === 0 ? (
+              <p className="text-fg-muted">
+                No tools match <strong className="text-fg">&ldquo;{query.trim()}&rdquo;</strong> — try a shorter search.
+              </p>
+            ) : (
+              <p className="text-fg-subtle">
+                {searchResults!.length} tool{searchResults!.length !== 1 ? 's' : ''}{' '}
+                {searchResults!.length === 1 ? 'matches' : 'match'}{' '}
+                <strong className="text-fg">&ldquo;{query.trim()}&rdquo;</strong>
+              </p>
+            )
+          ) : (
+            <Link
+              href="/tools"
+              className="font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
+            >
+              View all 60+ tools →
+            </Link>
+          )}
         </div>
       </div>
     </section>
