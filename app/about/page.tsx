@@ -43,7 +43,14 @@ export default function AboutPage() {
         <p>
           ConvertYard is the realization of that: every tool processes files locally in your browser.
           Your CPU does the work. Nothing uploads. Not for convenience, not "securely" — simply not
-          at all. You can verify this yourself by watching your network tab during a conversion.
+          at all. You can{' '}
+          <a
+            href="/#devtools-heading"
+            className="font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
+          >
+            verify this yourself
+          </a>{' '}
+          by watching your network tab during a conversion.
         </p>
 
         <p>
