@@ -34,6 +34,11 @@ export function ResultList({ entries, zipName = 'convertyard.zip' }: ResultListP
     enabled: useVirt,
   })
 
+  const totalSavedBytes = succeeded.reduce(
+    (sum, e) => sum + (e.result ? e.file.size - e.result.size : 0),
+    0
+  )
+
   const handleDownloadAll = async () => {
     const files = succeeded.map((e) => e.result!)
     if (files.length === 0) return
@@ -57,6 +62,11 @@ export function ResultList({ entries, zipName = 'convertyard.zip' }: ResultListP
           <p className="text-sm font-semibold text-fg">
             {succeeded.length} of {total} file{total !== 1 ? 's' : ''} converted
           </p>
+          {totalSavedBytes > 0 && succeeded.length > 1 && (
+            <p className="text-xs text-success">
+              Total saved: {formatBytes(totalSavedBytes)} across {succeeded.length} files
+            </p>
+          )}
           {failed.length > 0 && (
             <p className="text-xs text-error">
               {failed.length} failed — download the rest below
