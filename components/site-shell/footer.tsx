@@ -15,6 +15,8 @@ const TOOL_LINKS = [
 const RESOURCE_LINKS = [
   { name: 'How it works', href: '/how-it-works' },
   { name: 'Blog', href: '/blog' },
+  { name: 'For teams', href: '/for/teams' },
+  { name: 'For exams & forms', href: '/for/' },
   { name: 'API', href: '#', note: 'coming soon' },
   { name: 'GitHub', href: '#' },
 ]

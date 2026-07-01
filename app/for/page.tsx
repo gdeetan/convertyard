@@ -44,14 +44,35 @@ export default function Page() {
     <div className="mx-auto max-w-3xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="mb-12 text-center">
         <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">
-          Upload kits for exams &amp; applications
+          Tools built for specific workflows
         </h1>
         <p className="mt-4 text-lg text-fg-muted">
-          Exact photo, signature, and document specs for competitive exams, visas, and
-          college applications. Crop, compress, and download — all in your browser.
-          No uploads, no accounts.
+          Pre-configured tool sets for exams, visas, college applications, and professional teams.
+          Everything runs in your browser — no uploads, no accounts.
         </p>
       </div>
+
+      {/* Teams callout */}
+      <Link
+        href="/for/teams"
+        className="group mb-12 flex items-start justify-between gap-4 rounded-xl border border-border bg-bg-elevated p-6 transition-colors hover:border-primary hover:bg-bg-muted"
+      >
+        <div>
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wider text-primary">
+            For professionals
+          </p>
+          <p className="text-base font-semibold text-fg">
+            Sensitive document conversion for teams
+          </p>
+          <p className="mt-1.5 text-sm text-fg-muted">
+            Legal, HR, healthcare, and finance teams use ConvertYard because files never leave
+            the browser. No upload logs. No BAA required.
+          </p>
+        </div>
+        <span className="mt-1 shrink-0 text-sm font-medium text-primary group-hover:underline">
+          Learn more →
+        </span>
+      </Link>
 
       <div className="space-y-10">
         {groups.map(group => {
