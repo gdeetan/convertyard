@@ -108,6 +108,36 @@ export function webSiteSchema() {
   }
 }
 
+export function howToSchema(config: { title: string; slug: string; options?: unknown[] }) {
+  const steps = [
+    {
+      '@type': 'HowToStep',
+      name: 'Add your files',
+      text: 'Drag and drop your files onto the tool, or click to browse. You can add up to 1,000 files at once.',
+    },
+    ...(config.options && config.options.length > 0
+      ? [{
+          '@type': 'HowToStep',
+          name: 'Adjust settings',
+          text: 'Set your conversion options — quality, format, size target, or other parameters.',
+        }]
+      : []),
+    {
+      '@type': 'HowToStep',
+      name: 'Convert and download',
+      text: `Click Convert. ${config.title} runs entirely in your browser. Download individual files or a ZIP of all results.`,
+    },
+  ]
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'HowTo',
+    name: `How to use ${config.title}`,
+    description: `Convert files locally in your browser with ${config.title}. No upload required.`,
+    step: steps,
+  }
+}
+
 export function textSoftwareApplicationSchema(config: TextToolConfig) {
   return {
     '@context': 'https://schema.org',

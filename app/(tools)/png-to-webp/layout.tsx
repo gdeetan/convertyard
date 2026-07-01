@@ -1,6 +1,7 @@
 import { config } from '@/content/tools/png-to-webp'
 import { toolMetadata } from '@/lib/seo/metadata'
 import {
+  howToSchema,
   softwareApplicationSchema,
   faqPageSchema,
   breadcrumbSchema,
@@ -12,6 +13,7 @@ export const metadata: Metadata = toolMetadata(config)
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   const schemas = [
+    howToSchema(config),
     softwareApplicationSchema(config),
     faqPageSchema(config.faq),
     breadcrumbSchema([
