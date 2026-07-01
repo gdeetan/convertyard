@@ -17,6 +17,8 @@ const RESOURCE_LINKS = [
   { name: 'Blog', href: '/blog' },
   { name: 'For teams', href: '/for/teams' },
   { name: 'For exams & forms', href: '/for/' },
+  { name: 'ConvertYard vs Smallpdf', href: '/convertyard-vs-smallpdf' },
+  { name: 'ConvertYard vs Convertio', href: '/convertyard-vs-convertio' },
   { name: 'API', href: '#', note: 'coming soon' },
   { name: 'GitHub', href: '#' },
 ]
