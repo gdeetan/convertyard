@@ -218,7 +218,7 @@ export function ToolGrid() {
                 const url = new URL(window.location.href)
                 url.searchParams.delete('q')
                 history.replaceState(null, '', url.toString())
-                ;(e.target as HTMLInputElement).blur()
+                ;(e.target as HTMLInputElement).focus()
               }
             }}
             placeholder="Search 60+ tools…"
