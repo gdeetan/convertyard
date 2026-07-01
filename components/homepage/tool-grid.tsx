@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { ALL_TOOLS } from '@/content/tool-catalog'
+import type { CatalogTool } from '@/content/tool-catalog'
 
 const POPULAR_SLUGS = new Set([
   'heic-to-jpg',
@@ -80,6 +81,21 @@ const CATALOG_TO_GRID: Record<string, Category> = {
   developer: 'dev',
   'web-tools': 'web-tools',
   'ai-tools': 'ai',
+}
+
+function highlight(text: string, query: string): React.ReactNode {
+  if (!query) return text
+  const idx = text.toLowerCase().indexOf(query.toLowerCase())
+  if (idx === -1) return text
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="rounded-sm bg-amber-100 px-px dark:bg-amber-900/40">
+        {text.slice(idx, idx + query.length)}
+      </mark>
+      {text.slice(idx + query.length)}
+    </>
+  )
 }
 
 interface Tool {
@@ -270,8 +286,19 @@ export function ToolGrid() {
           style={{ gridAutoRows: '1fr' }}
         >
           {visible.map((tool) => {
-            const Icon = CATEGORY_ICONS[tool.category] ?? FileText
-            const catLabel = CATEGORY_LABELS[tool.category] ?? tool.category
+            // CatalogTool has `title`+`description`; local Tool has `name`+`desc`
+            const isCatalog = 'title' in tool
+            const displayName = isCatalog
+              ? (tool as CatalogTool).title
+              : (tool as Tool).name
+            const displayDesc = isCatalog
+              ? (tool as CatalogTool).description
+              : (tool as Tool).desc
+            const gridCategory = isCatalog
+              ? (CATALOG_TO_GRID[(tool as CatalogTool).category] ?? 'images')
+              : (tool as Tool).category
+            const Icon = CATEGORY_ICONS[gridCategory] ?? FileText
+            const catLabel = CATEGORY_LABELS[gridCategory] ?? gridCategory
             return (
               <Link
                 key={tool.slug}
@@ -289,7 +316,7 @@ export function ToolGrid() {
                     <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
                   </div>
                   <div className="flex gap-1.5">
-                    {tool.badge && (
+                    {'badge' in tool && tool.badge && (
                       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                         {tool.badge}
                       </span>
@@ -301,15 +328,17 @@ export function ToolGrid() {
                 </div>
 
                 {/* Content */}
-                <h3 className="mb-1 text-sm font-semibold text-fg group-hover:text-primary transition-colors">
-                  {tool.name}
+                <h3 className="mb-1 text-sm font-semibold text-fg transition-colors group-hover:text-primary">
+                  {isSearching ? highlight(displayName, trimmed) : displayName}
                 </h3>
-                <p className="flex-1 text-xs leading-relaxed text-fg-muted">{tool.desc}</p>
+                <p className="flex-1 text-xs leading-relaxed text-fg-muted">
+                  {isSearching ? highlight(displayDesc, trimmed) : displayDesc}
+                </p>
 
                 {/* Arrow */}
                 <div className="mt-4 flex justify-end">
                   <ArrowRight
-                    className="h-4 w-4 text-fg-subtle transition-all group-hover:text-primary group-hover:translate-x-0.5"
+                    className="h-4 w-4 text-fg-subtle transition-all group-hover:translate-x-0.5 group-hover:text-primary"
                     aria-hidden="true"
                   />
                 </div>
