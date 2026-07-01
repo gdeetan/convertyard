@@ -291,7 +291,7 @@ export function Hero() {
   return (
     <section
       aria-labelledby="hero-heading"
-      className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8"
+      className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-16 lg:px-8"
     >
       <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-5 lg:gap-16">
         {/* Left: copy — 3/5 width on desktop */}

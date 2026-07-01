@@ -22,7 +22,7 @@ export function TrustStrip() {
   return (
     <section
       aria-label="Why ConvertYard"
-      className="bg-bg-muted py-16 sm:py-24"
+      className="bg-bg-muted py-10 sm:py-16"
     >
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <dl className="grid grid-cols-1 gap-10 sm:grid-cols-3">

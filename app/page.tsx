@@ -111,7 +111,7 @@ export default function HomePage() {
       <UseCases />
 
       {/* FAQ */}
-      <section className="py-16 sm:py-24">
+      <section className="py-10 sm:py-16">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <FAQAccordion items={FAQ} />
           <p className="mt-8 text-sm text-fg-muted">

@@ -26,7 +26,7 @@ export function ComparisonTable() {
   return (
     <section
       aria-labelledby="compare-heading"
-      className="bg-bg-muted py-16 sm:py-24"
+      className="bg-bg-muted py-10 sm:py-16"
     >
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <h2

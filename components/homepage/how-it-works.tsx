@@ -23,7 +23,7 @@ export function HowItWorks() {
     <section
       id="how-it-works"
       aria-labelledby="hiw-heading"
-      className="py-16 sm:py-24"
+      className="py-10 sm:py-16"
     >
       <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <h2
