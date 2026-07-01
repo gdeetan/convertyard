@@ -396,6 +396,15 @@ export function Nav() {
               type="search"
               placeholder="Search tools…"
               aria-label="Search tools"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const val = (e.currentTarget as HTMLInputElement).value.trim()
+                  if (val) {
+                    closeMobileMenu()
+                    window.location.href = `/?q=${encodeURIComponent(val)}#tools`
+                  }
+                }
+              }}
               className={cn(
                 'w-full rounded-lg border border-border bg-bg-muted py-3 pl-9 pr-4',
                 'text-sm text-fg placeholder:text-fg-subtle',
