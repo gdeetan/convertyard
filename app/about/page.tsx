@@ -50,7 +50,14 @@ export default function AboutPage() {
           >
             verify this yourself
           </a>{' '}
-          by watching your network tab during a conversion.
+          by watching your network tab during a conversion. This also means ConvertYard requires{' '}
+          <a
+            href="/gdpr-compliant-file-converter"
+            className="font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
+          >
+            no GDPR data processor agreement and no HIPAA BAA
+          </a>
+          {' '}— there's no upload to regulate.
         </p>
 
         <p>

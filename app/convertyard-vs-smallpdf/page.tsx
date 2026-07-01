@@ -224,6 +224,7 @@ export default function Page() {
               { label: 'ConvertYard vs Convertio', href: '/convertyard-vs-convertio' },
               { label: 'ConvertYard vs ILovePDF', href: '/convertyard-vs-ilovepdf' },
               { label: 'ConvertYard vs Adobe Acrobat', href: '/convertyard-vs-adobe-acrobat' },
+              { label: 'GDPR-safe file converter', href: '/gdpr-compliant-file-converter' },
             ].map(({ label, href }) => (
               <a key={href} href={href} className="rounded-lg border border-border bg-bg-elevated px-3 py-1.5 text-sm text-fg-muted transition-colors hover:border-border-strong hover:text-fg">
                 {label} →
