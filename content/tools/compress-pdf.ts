@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'compress-pdf',
   title: 'Compress PDF',
-  subtitle: 'Reduce PDF file size for email and sharing. Built for batches.',
+  subtitle: 'Hit exact size targets for email limits and government portals. Target-size mode finds the smallest file that meets your threshold.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],

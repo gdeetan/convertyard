@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'heic-to-jpg',
   title: 'HEIC to JPG Converter',
-  subtitle: 'Local-first HEIC to JPG conversion. Built for batches.',
+  subtitle: 'iPhone photos to universal JPGs in your browser. Drop 1,000 at once — no iCloud, no Lightroom needed.',
   category: 'images',
   accepts: ['image/heic', 'image/heif'],
   acceptsExt: ['.heic', '.heif'],

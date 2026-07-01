@@ -51,7 +51,7 @@ export function ComparisonTable() {
                   ConvertYard
                 </th>
                 <th className="py-4 pl-4 pr-6 text-left text-xs font-semibold uppercase tracking-wider text-fg-subtle" scope="col">
-                  Typical online converters
+                  Smallpdf, ilovePDF &amp; others
                 </th>
               </tr>
             </thead>
@@ -95,7 +95,7 @@ export function ComparisonTable() {
             {/* Competitors card */}
             <div className="rounded-xl border border-border bg-bg-elevated overflow-hidden">
               <div className="border-b border-border bg-bg-muted px-4 py-3">
-                <p className="text-xs font-semibold text-fg-subtle">Typical converters</p>
+                <p className="text-xs font-semibold text-fg-subtle">Smallpdf, ilovePDF &amp; others</p>
               </div>
               <ul className="divide-y divide-border">
                 {ROWS.map((row) => (

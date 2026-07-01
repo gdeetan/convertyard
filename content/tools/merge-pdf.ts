@@ -3,7 +3,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'merge-pdf',
   title: 'Merge PDF',
-  subtitle: 'Combine multiple PDFs into one file. Built for batches.',
+  subtitle: 'Drag files into order, exclude individual pages, then merge — all before a single byte leaves your browser.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],

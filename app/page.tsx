@@ -5,6 +5,7 @@ import { TrustStrip } from '@/components/homepage/trust-strip'
 import { ToolGrid } from '@/components/homepage/tool-grid'
 import { HowItWorks } from '@/components/homepage/how-it-works'
 import { ComparisonTable } from '@/components/homepage/comparison-table'
+import { DevToolsProof } from '@/components/homepage/devtools-proof'
 import { UseCases } from '@/components/homepage/use-cases'
 import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
 
@@ -51,15 +52,15 @@ const FAQ = [
   },
   {
     q: 'Do you store any data about my files?',
-    a: "No. We never see your files, so we can't store anything. We use privacy-first analytics (Cloudflare Web Analytics) that doesn't use cookies or track individuals.",
+    a: "No. We never see your files, so we can't store anything about them. All conversion runs in your browser — no file data, filenames, or contents ever reach our servers.",
   },
   {
     q: 'Do you show ads?',
     a: "Yes. Display ads appear below the FAQ on tool pages and within articles. They never appear inside the conversion flow, above the fold, or anywhere they'd get in your way. Your files are still processed entirely locally — ads and file processing are completely separate systems.",
   },
   {
-    q: 'Do you use Google Analytics or cookies?',
-    a: "Yes — the site uses Google Analytics to understand which tools are popular and improve them. Ad networks may also set cookies for ad delivery. This is standard for content sites. None of it touches your files, which are processed entirely in your browser. We show a cookie consent banner to visitors in regulated regions.",
+    q: 'Do you use analytics or cookies?',
+    a: "Yes. We use Google Analytics to understand which tools people use. Display ads (shown below tools and in articles) are served by ad networks that may set cookies. Neither has any access to your files — file processing runs entirely in your browser and nothing is sent to any server, including ours.",
   },
   {
     q: 'Does it work offline?',
@@ -103,6 +104,7 @@ export default function HomePage() {
 
       <Hero />
       <TrustStrip />
+      <DevToolsProof />
       <ToolGrid />
       <HowItWorks />
       <ComparisonTable />

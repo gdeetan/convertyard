@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'pdf-to-word',
   title: 'PDF to Word Converter',
-  subtitle: 'Convert any PDF to an editable DOCX. Built for batches.',
+  subtitle: 'Editable Word files from any PDF — OCR included for scanned documents. Runs entirely in your browser.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],

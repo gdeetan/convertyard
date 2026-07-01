@@ -7,7 +7,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'compress-image',
   title: 'Image Compressor',
-  subtitle: 'Local-first image compression. Built for batches.',
+  subtitle: 'Compress JPG, PNG, and WebP with a live before/after preview. Set an exact size target per file.',
   category: 'image-editing',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
