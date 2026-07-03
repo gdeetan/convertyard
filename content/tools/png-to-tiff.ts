@@ -37,6 +37,10 @@ export const config: ToolConfig = {
       a: 'Yes. TIFF supports alpha channels. Your transparent PNG will have a transparent layer in the TIFF output.',
     },
     {
+      q: 'Should I use 8-bit or 16-bit TIFF?',
+      a: 'This tool outputs 8-bit TIFF, which is standard for most print use. For fine-art or HDR workflows requiring 16-bit depth, you will need a desktop application such as Photoshop or GIMP.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. Conversion runs in your browser via WebAssembly. Your files never leave your device.',
     },

@@ -41,6 +41,13 @@ export const config: ToolConfig = {
       default: 92,
       hint: '92 gives near-lossless output. Drop to 70–80 for smaller thumbnails.',
     },
+    {
+      type: 'color',
+      name: 'bgColor',
+      label: 'Background colour',
+      default: '#ffffff',
+      hint: 'JPG has no transparency — choose what fills the background',
+    },
   ],
   faq: [
     {

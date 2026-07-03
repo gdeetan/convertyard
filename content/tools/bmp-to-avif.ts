@@ -38,6 +38,10 @@ export const config: ToolConfig = {
       a: 'BMP is uncompressed — AVIF typically reduces file size by 95–98% versus BMP. A 10MB BMP becomes roughly 200–500KB AVIF at quality 80.',
     },
     {
+      q: 'Why would I use AVIF over WebP?',
+      a: 'AVIF is 30–50% smaller than WebP at equivalent quality. For high-traffic pages or large image libraries, AVIF delivers better performance. WebP has wider legacy browser support — use it if you need IE11 or older Android compatibility.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. Conversion runs in your browser via WebAssembly. Your files never leave your device.',
     },

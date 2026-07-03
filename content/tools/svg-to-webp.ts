@@ -55,6 +55,10 @@ export const config: ToolConfig = {
       a: 'WebP files are typically 25–35% smaller than equivalent PNGs. For icon sets deployed on high-traffic pages, this reduces page weight noticeably. Both formats support transparency.',
     },
     {
+      q: 'Should I use lossless or lossy WebP for icons?',
+      a: 'The quality slider controls lossy compression. For icons and logos, use quality 90+ for sharp edges. Lossy WebP at high quality is visually indistinguishable from lossless but produces smaller files.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. Conversion uses your browser\'s Canvas API. Your SVGs stay on your device.',
     },
