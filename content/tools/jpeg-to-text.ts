@@ -68,6 +68,10 @@ export const config: ToolConfig = {
       a: 'Yes, exactly the same functionality. Both accept .jpg and .jpeg files.',
     },
     {
+      q: 'How many files can I process at once?',
+      a: 'There is no hard limit. For large batches (50+ files), processing continues in the background — keep the tab open until it finishes.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. OCR runs entirely in your browser. Your files never leave your device.',
     },

@@ -45,6 +45,10 @@ export const config: ToolConfig = {
       a: 'Use this for CSV output (the universal format for data work). Use Image to Excel if you specifically need a .xlsx file you can open directly in Excel or Google Sheets.',
     },
     {
+      q: 'Can I process multiple table images at once?',
+      a: 'Yes. Drop as many images as you need — each produces its own .csv file, downloaded together as a ZIP. For tables spanning multiple images, combine the CSVs in your spreadsheet tool after export.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. OCR runs entirely in your browser. Your images never leave your device.',
     },
