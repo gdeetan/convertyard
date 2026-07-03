@@ -22,7 +22,7 @@ export default function BlogPage() {
       </header>
 
       <ul className="space-y-4">
-        {articles.map((article) => (
+        {[...articles].sort((a, b) => b.lastUpdated.localeCompare(a.lastUpdated)).map((article) => (
           <li key={article.slug}>
             <Link
               href={`/blog/${article.slug}/`}

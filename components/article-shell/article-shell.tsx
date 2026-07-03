@@ -8,6 +8,7 @@ import {
   breadcrumbSchema,
   BASE_URL,
 } from '@/lib/seo/schema'
+import { articleIllustrations } from '@/components/article-illustrations'
 
 interface FAQItem {
   q: string
@@ -33,6 +34,7 @@ export function ArticleShell({
   relatedTools,
   children,
 }: ArticleShellProps) {
+  const Illustration = articleIllustrations[slug]
   const url = `${BASE_URL}/blog/${slug}/`
 
   const articleJson = articleSchema({
@@ -112,6 +114,13 @@ export function ArticleShell({
             <time dateTime={lastUpdated}>{formattedDate}</time>
           </p>
         </header>
+
+        {/* Hero illustration */}
+        {Illustration && (
+          <div className="mb-10">
+            <Illustration />
+          </div>
+        )}
 
         {/* MDX prose */}
         <article>{children}</article>
