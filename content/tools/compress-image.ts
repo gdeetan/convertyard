@@ -168,7 +168,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['image-cropper', 'image-resizer', 'jpg-to-webp', 'png-to-webp'],
-  relatedArticles: ['compress-images-without-losing-quality', 'webp-vs-avif-vs-jpeg', 'best-webp-quality', 'batch-convert-images'],
+  relatedArticles: ['compress-images-without-losing-quality', 'avif-vs-webp-vs-jpeg-2026', 'best-webp-quality', 'batch-convert-images'],
 
   meta: {
     title: 'Image Compressor — ConvertYard',

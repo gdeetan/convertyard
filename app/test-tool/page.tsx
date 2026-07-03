@@ -101,7 +101,7 @@ const testConfig: ToolConfig = {
     },
   ],
   relatedTools: ['jpg-to-webp', 'png-to-avif', 'heic-to-jpg', 'image-resizer'],
-  relatedArticles: ['webp-vs-avif-vs-jpeg', 'how-to-batch-convert-images'],
+  relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'how-to-batch-convert-images'],
   meta: {
     title: 'Test Tool — ConvertYard',
     description:

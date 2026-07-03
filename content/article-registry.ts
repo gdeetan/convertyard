@@ -28,13 +28,6 @@ export const articles: ArticleEntry[] = [
     lastUpdated: '2026-04-13',
   },
   {
-    slug: 'webp-vs-avif-vs-jpeg',
-    title: 'WebP vs AVIF vs JPEG: Which Image Format Should You Use?',
-    description:
-      'Real compression numbers, browser support tables, and a plain-English decision guide for choosing between JPEG, WebP, and AVIF for web images.',
-    lastUpdated: '2026-04-21',
-  },
-  {
     slug: 'lossless-vs-lossy',
     title: 'Lossless vs. Lossy Image Compression: What Is the Difference?',
     description:
@@ -179,6 +172,6 @@ export const articles: ArticleEntry[] = [
     title: 'Why Your Exam Form Photo Keeps Getting Rejected (and How to Fix It)',
     description:
       'The five most common reasons exam portal photos get rejected — with exact fixes for each one so you can resubmit without retaking the photo.',
-    lastUpdated: '2026-06-30',
+    lastUpdated: '2026-07-01',
   },
 ]

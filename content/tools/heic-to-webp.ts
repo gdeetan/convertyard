@@ -90,7 +90,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['heic-to-jpg', 'heic-to-png', 'jpg-to-webp', 'png-to-webp'],
-  relatedArticles: ['what-is-heic', 'webp-vs-avif-vs-jpeg', 'batch-convert-images'],
+  relatedArticles: ['what-is-heic', 'avif-vs-webp-vs-jpeg-2026', 'batch-convert-images'],
 
   meta: {
     title: 'HEIC to WebP Converter — ConvertYard',

@@ -87,7 +87,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['avif-to-jpg', 'jpg-to-webp', 'png-to-avif'],
-  relatedArticles: ['webp-vs-avif-vs-jpeg', 'avif-browser-support', 'best-webp-quality'],
+  relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'avif-browser-support', 'best-webp-quality'],
 
   meta: {
     title: 'JPG to AVIF Converter — ConvertYard',

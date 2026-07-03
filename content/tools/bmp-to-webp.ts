@@ -83,7 +83,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['bmp-to-jpg', 'bmp-to-png', 'jpg-to-webp', 'png-to-webp'],
-  relatedArticles: ['webp-vs-avif-vs-jpeg', 'batch-convert-images'],
+  relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'batch-convert-images'],
 
   meta: {
     title: 'BMP to WebP Converter — ConvertYard',

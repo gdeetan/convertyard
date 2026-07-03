@@ -80,7 +80,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['webp-to-png', 'jpg-to-webp', 'compress-image'],
-  relatedArticles: ['webp-vs-avif-vs-jpeg', 'best-webp-quality', 'batch-convert-images'],
+  relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'best-webp-quality', 'batch-convert-images'],
 
   meta: {
     title: 'WebP to JPG Converter — ConvertYard',

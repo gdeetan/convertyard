@@ -80,7 +80,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['png-to-jpg', 'jpg-to-webp', 'jpg-to-avif', 'compress-image'],
-  relatedArticles: ['webp-vs-avif-vs-jpeg', 'batch-convert-images'],
+  relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'batch-convert-images'],
 
   meta: {
     title: 'JPG to PNG Converter — ConvertYard',

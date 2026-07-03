@@ -67,7 +67,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['png-to-avif', 'avif-to-jpg', 'webp-to-png'],
-  relatedArticles: ['webp-vs-avif-vs-jpeg', 'avif-browser-support', 'lossless-vs-lossy'],
+  relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'avif-browser-support', 'lossless-vs-lossy'],
 
   meta: {
     title: 'AVIF to PNG Converter — ConvertYard',

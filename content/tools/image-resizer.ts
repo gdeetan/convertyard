@@ -96,7 +96,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['image-cropper', 'compress-image', 'jpg-to-webp', 'png-to-webp'],
-  relatedArticles: ['webp-vs-avif-vs-jpeg', 'batch-convert-images', 'best-webp-quality'],
+  relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'batch-convert-images', 'best-webp-quality'],
 
   meta: {
     title: 'Batch Image Resizer — ConvertYard',
