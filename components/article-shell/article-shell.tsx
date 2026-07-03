@@ -107,7 +107,8 @@ export function ArticleShell({
             {title}
           </h1>
           <p className="mt-3 text-sm text-fg-subtle">
-            Updated{' '}
+            By <span className="text-fg">ConvertYard Team</span>
+            {' · '}Updated{' '}
             <time dateTime={lastUpdated}>{formattedDate}</time>
           </p>
         </header>
