@@ -159,7 +159,7 @@ export async function imageOcrConvert(
         }
         case 'excel': {
           const xlsxBytes = parseToExcel(text, baseName)
-          outFile = new File([xlsxBytes], `${baseName}.xlsx`, {
+          outFile = new File([xlsxBytes as unknown as Uint8Array<ArrayBuffer>], `${baseName}.xlsx`, {
             type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           })
           break

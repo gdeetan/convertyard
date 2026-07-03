@@ -42,7 +42,7 @@ export const config: ToolConfig = {
       hint: '92 gives near-lossless output. Drop to 70–80 for smaller thumbnails.',
     },
     {
-      type: 'color',
+      type: 'color-picker',
       name: 'bgColor',
       label: 'Background colour',
       default: '#ffffff',

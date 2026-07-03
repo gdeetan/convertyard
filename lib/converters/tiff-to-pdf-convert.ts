@@ -60,7 +60,7 @@ export async function tiffToPdfConvert(
     const bytes = await pdfDoc.save({ useObjectStreams: true, addDefaultPage: false })
     const baseName = sorted[0].name.replace(/\.[^.]+$/, '')
     const outName = sorted.length === 1 ? `${baseName}.pdf` : `${baseName}-merged.pdf`
-    results.push(new File([bytes as unknown as Uint8Array], outName, { type: 'application/pdf' }))
+    results.push(new File([bytes as unknown as Uint8Array<ArrayBuffer>], outName, { type: 'application/pdf' }))
     onProgress?.(0, 100)
   } else {
     for (let i = 0; i < files.length; i++) {
@@ -71,7 +71,7 @@ export async function tiffToPdfConvert(
         onProgress?.(i, 60)
         const bytes = await pdfDoc.save({ useObjectStreams: true, addDefaultPage: false })
         const name = files[i].name.replace(/\.tiff?$/i, '.pdf')
-        results.push(new File([bytes as unknown as Uint8Array], name, { type: 'application/pdf' }))
+        results.push(new File([bytes as unknown as Uint8Array<ArrayBuffer>], name, { type: 'application/pdf' }))
         onProgress?.(i, 100)
       } catch (err) {
         onProgress?.(i, 100)
