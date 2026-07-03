@@ -27,6 +27,8 @@ function getMimeType(outputFormat: string): string {
   return outputFormat === 'webp' ? 'image/webp'
     : outputFormat === 'avif' ? 'image/avif'
     : outputFormat === 'png' ? 'image/png'
+    : outputFormat === 'tiff' || outputFormat === 'tif' ? 'image/tiff'
+    : outputFormat === 'bmp' ? 'image/bmp'
     : 'image/jpeg'
 }
 
@@ -169,6 +171,12 @@ self.onmessage = async (e: MessageEvent) => {
         // Map quality (1-100) to vips compression (0-9, higher = smaller/slower)
         encodeOpts.compression = Math.min(9, Math.round((100 - quality) * 9 / 100))
         if (opts.paletteReduction === true) encodeOpts.palette = true
+      } else if (outputFormat === 'tiff' || outputFormat === 'tif') {
+        const comp = (opts.tiffCompression as string) ?? 'lzw'
+        encodeOpts.compression = comp
+        if (opts.tiffBitDepth === 16) encodeOpts.bitdepth = 16
+      } else if (outputFormat === 'bmp') {
+        // BMP has no quality/compression settings — strip only
       }
 
       const maxSizeKb = typeof opts.maxSizeKb === 'number' ? opts.maxSizeKb : 0

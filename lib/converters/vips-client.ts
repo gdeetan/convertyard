@@ -16,6 +16,8 @@ function getMimeType(outputFormat: string): string {
   return outputFormat === 'webp' ? 'image/webp'
     : outputFormat === 'avif' ? 'image/avif'
     : outputFormat === 'png' ? 'image/png'
+    : outputFormat === 'tiff' || outputFormat === 'tif' ? 'image/tiff'
+    : outputFormat === 'bmp' ? 'image/bmp'
     : 'image/jpeg'
 }
 
