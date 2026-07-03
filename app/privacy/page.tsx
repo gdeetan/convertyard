@@ -52,9 +52,11 @@ export default function PrivacyPage() {
           <h2 className="text-lg font-semibold text-fg mb-3">Analytics</h2>
           <p>
             We use <strong>Google Analytics 4</strong> to understand aggregate site usage: which
-            tools are visited, how long pages are open, which browsers are used. Google Analytics is
-            loaded only after you click "Accept" in the cookie banner. If you click "Reject" or
-            dismiss the banner, no analytics script loads.
+            tools are visited, how long pages are open, which browsers are used. This verified
+            traffic data is also required to apply to premium ad networks like Mediavine — the main
+            way we keep every tool free without paywalls or file limits. Google Analytics is loaded
+            only after you click "Accept" in the cookie banner. If you click "Reject" or dismiss the
+            banner, no analytics script loads.
           </p>
           <p className="mt-3">
             We also have <strong>Cloudflare Web Analytics</strong> — cookieless, privacy-first

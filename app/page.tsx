@@ -60,7 +60,7 @@ const FAQ = [
   },
   {
     q: 'Do you use analytics or cookies?',
-    a: "Two separate things. Your files: 100% local — all conversion runs in your browser via WebAssembly and nothing ever reaches our servers. Site analytics: yes, we use Google Analytics to understand which tools are popular, and ad networks may set cookies. Those systems see page visits, not your files.",
+    a: "Two things, kept completely separate. Your files: 100% local — all conversion runs in your browser via WebAssembly and nothing ever reaches our servers. Site analytics: yes, we use Google Analytics (loaded only after you accept the cookie banner) to measure which tools are popular and to build the verified traffic data required to apply to premium ad networks like Mediavine. That ad revenue is how we keep every tool free with no signups or watermarks. Ad networks may set their own cookies. None of this touches your files.",
   },
   {
     q: 'Does it work offline?',
