@@ -9,7 +9,7 @@ import { sizeTargets }  from '@/content/size-target-registry'
 import { verticals }    from '@/content/vertical-registry'
 import { BASE_URL }     from '@/lib/seo/schema'
 
-const BUILD_DATE = new Date('2026-07-01')
+const BUILD_DATE = new Date()
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const toolEntries: MetadataRoute.Sitemap = tools.map((t) => ({
@@ -62,6 +62,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/convertyard-vs-convertio/`,      lastModified: new Date('2026-05-09'), changeFrequency: 'monthly', priority: 0.7  },
     { url: `${BASE_URL}/convertyard-vs-ilovepdf/`,       lastModified: new Date('2026-05-28'), changeFrequency: 'monthly', priority: 0.7  },
     { url: `${BASE_URL}/convertyard-vs-adobe-acrobat/`,  lastModified: new Date('2026-06-17'), changeFrequency: 'monthly', priority: 0.7  },
+    { url: `${BASE_URL}/convertyard-vs-cloudconvert/`,   lastModified: new Date('2026-07-04'), changeFrequency: 'monthly', priority: 0.7  },
     { url: `${BASE_URL}/gdpr-compliant-file-converter/`, lastModified: BUILD_DATE, changeFrequency: 'monthly', priority: 0.7  },
     { url: `${BASE_URL}/how-it-works/`,lastModified: BUILD_DATE, changeFrequency: 'yearly',  priority: 0.6  },
     { url: `${BASE_URL}/privacy/`,     lastModified: BUILD_DATE, changeFrequency: 'yearly',  priority: 0.5  },
