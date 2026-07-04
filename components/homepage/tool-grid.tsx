@@ -257,7 +257,7 @@ export function ToolGrid() {
                 ;(e.target as HTMLInputElement).focus()
               }
             }}
-            placeholder="Search 60+ tools…"
+            placeholder="Search 88 tools…"
             aria-label="Search tools"
             className={cn(
               'w-full rounded-xl border bg-bg-muted py-3 pl-10 pr-10',
@@ -402,7 +402,7 @@ export function ToolGrid() {
               href="/tools"
               className="font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
             >
-              View all 60+ tools →
+              View all 88 tools →
             </Link>
           )}
         </div>
