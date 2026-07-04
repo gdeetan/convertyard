@@ -1,5 +1,6 @@
 // Canvas-based image preprocessing for handwriting OCR.
-// Pipeline: grayscale → contrast stretch → Otsu binarization → deskew → upscale
+// Pipeline: grayscale → contrast stretch → Sauvola adaptive binarization
+//           → ruled-line removal → deskew → upscale
 
 const MIN_WIDTH_PX = 1500
 
@@ -36,14 +37,13 @@ export async function preprocessForOcr(blob: Blob): Promise<Blob> {
     stretched[i] = Math.min(255, Math.max(0, Math.round(((gray[i] - lo) / range) * 255)))
   }
 
-  // 3. Otsu binarization — compute optimal global threshold
-  const threshold = otsuThreshold(stretched)
-  const binary = new Uint8Array(gray.length)
-  for (let i = 0; i < binary.length; i++) {
-    binary[i] = stretched[i] < threshold ? 0 : 255
-  }
+  // 3. Sauvola adaptive binarization — per-block local threshold handles uneven lighting
+  const binary = sauvolaBinarize(stretched, width, height)
 
-  // 4. Deskew — find rotation angle via projection profile, rotate
+  // 4. Ruled-line removal — erase horizontal lines that span > 55% of the width
+  removeRuledLines(binary, width, height)
+
+  // 5. Deskew — find rotation angle via projection profile, rotate
   const angle = estimateSkewAngle(binary, width, height)
   const sinA = Math.sin(angle)
   const cosA = Math.cos(angle)
@@ -65,7 +65,7 @@ export async function preprocessForOcr(blob: Blob): Promise<Blob> {
   octx.fillStyle = '#ffffff'
   octx.fillRect(0, 0, finalW, finalH)
 
-  // Write binarized pixels back to ImageData for rotation
+  // Write binarized pixels back to canvas for rotation/upscale
   const binData = ctx.createImageData(width, height)
   for (let i = 0; i < binary.length; i++) {
     const v = binary[i]
@@ -91,7 +91,86 @@ export async function preprocessForOcr(blob: Blob): Promise<Blob> {
   return out.convertToBlob({ type: 'image/png' })
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Sauvola adaptive binarization ────────────────────────────────────────────
+//
+// Splits the image into blocks, computes local mean + std per block,
+// then applies T = mean × (1 + k × (std/R − 1)) per pixel.
+// k=0.2, R=128 are standard Sauvola parameters.
+// Falls back to global Otsu if Sauvola produces < 0.3% black pixels
+// (happens on already-clean scanned docs with near-zero local variance).
+
+function sauvolaBinarize(gray: Uint8Array, w: number, h: number): Uint8Array {
+  const k = 0.2
+  const R = 128
+  const blockSize = Math.max(16, Math.min(32, Math.floor(w / 50)))
+  const threshMap = new Float32Array(w * h)
+
+  for (let by = 0; by < h; by += blockSize) {
+    for (let bx = 0; bx < w; bx += blockSize) {
+      const x1 = Math.min(bx + blockSize, w)
+      const y1 = Math.min(by + blockSize, h)
+      let sum = 0, sumSq = 0, n = 0
+      for (let y = by; y < y1; y++) {
+        for (let x = bx; x < x1; x++) {
+          const v = gray[y * w + x]
+          sum += v
+          sumSq += v * v
+          n++
+        }
+      }
+      const mean = sum / n
+      const std = Math.sqrt(Math.max(0, sumSq / n - mean * mean))
+      const thresh = mean * (1 + k * (std / R - 1))
+      for (let y = by; y < y1; y++) {
+        for (let x = bx; x < x1; x++) {
+          threshMap[y * w + x] = thresh
+        }
+      }
+    }
+  }
+
+  const binary = new Uint8Array(w * h)
+  let blackCount = 0
+  for (let i = 0; i < binary.length; i++) {
+    if (gray[i] < threshMap[i]) { binary[i] = 0; blackCount++ } else { binary[i] = 255 }
+  }
+
+  // Fallback to Otsu if Sauvola underperformed (very uniform/clean image)
+  if (blackCount / binary.length < 0.003) {
+    const thresh = otsuThreshold(gray)
+    for (let i = 0; i < binary.length; i++) {
+      binary[i] = gray[i] < thresh ? 0 : 255
+    }
+  }
+
+  return binary
+}
+
+// ── Ruled-line removal ────────────────────────────────────────────────────────
+//
+// A ruled notebook line appears as a row where a single horizontal black run
+// spans > 55% of the image width. Text characters create many short runs,
+// not a single long one — so this rarely erases real text.
+// Also catches multi-row lines by merging adjacent erased rows.
+
+function removeRuledLines(binary: Uint8Array, w: number, h: number): void {
+  for (let y = 0; y < h; y++) {
+    let maxRun = 0
+    let currentRun = 0
+    for (let x = 0; x < w; x++) {
+      if (binary[y * w + x] === 0) {
+        if (++currentRun > maxRun) maxRun = currentRun
+      } else {
+        currentRun = 0
+      }
+    }
+    if (maxRun > w * 0.55) {
+      for (let x = 0; x < w; x++) binary[y * w + x] = 255
+    }
+  }
+}
+
+// ── Otsu global threshold (fallback) ─────────────────────────────────────────
 
 function otsuThreshold(gray: Uint8Array): number {
   const hist = new Float64Array(256)
@@ -99,13 +178,8 @@ function otsuThreshold(gray: Uint8Array): number {
   const total = gray.length
   for (let i = 0; i < 256; i++) hist[i] /= total
 
-  let sumB = 0
-  let wB = 0
-  let sum1 = 0
+  let sumB = 0, wB = 0, sum1 = 0, maxVar = 0, thresh = 128
   for (let i = 0; i < 256; i++) sum1 += i * hist[i]
-
-  let maxVar = 0
-  let thresh = 128
   for (let t = 0; t < 256; t++) {
     wB += hist[t]
     if (wB === 0) continue
@@ -120,7 +194,8 @@ function otsuThreshold(gray: Uint8Array): number {
   return thresh
 }
 
-// Projection profile deskew: scan angles [-5°, +5°], pick max sharpness
+// ── Projection profile deskew ─────────────────────────────────────────────────
+
 function estimateSkewAngle(binary: Uint8Array, w: number, h: number): number {
   const candidates = [-5, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 5]
   let bestAngle = 0
@@ -142,9 +217,7 @@ function estimateSkewAngle(binary: Uint8Array, w: number, h: number): number {
       }
     }
 
-    // Score = variance of non-zero profile rows (higher = sharper lines)
-    let mean = 0
-    let count = 0
+    let mean = 0, count = 0
     for (const v of profile) { if (v > 0) { mean += v; count++ } }
     if (count === 0) continue
     mean /= count
