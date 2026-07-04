@@ -196,7 +196,7 @@ export function ToolGrid() {
     ? searchResults
     : active === 'all'
     ? TOOLS.filter((t) => POPULAR_SLUGS.has(t.slug))
-    : TOOLS.filter((t) => t.category === active)
+    : ALL_TOOLS.filter((t) => t.status === 'live' && CATALOG_TO_GRID[t.category] === active).slice(0, 12)
 
   return (
     <section
