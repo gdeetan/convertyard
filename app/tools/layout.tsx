@@ -1,12 +1,15 @@
 import type { Metadata } from 'next'
+import { ALL_TOOLS } from '@/content/tool-catalog'
+
+const liveToolCount = ALL_TOOLS.filter(t => t.status === 'live').length
 
 export const metadata: Metadata = {
   title: 'All Tools — ConvertYard',
-  description: 'Browse 88 local-first file conversion tools. Images, PDF, video, audio, developer utilities, web tools, and AI tools — all run in your browser.',
+  description: `Browse ${liveToolCount} local-first file conversion tools. Images, PDF, video, audio, developer utilities, web tools, and AI tools — all run in your browser.`,
   alternates: { canonical: 'https://convertyard.com/tools' },
   openGraph: {
     title: 'All Tools — ConvertYard',
-    description: 'Browse 88 local-first file conversion tools — all run in your browser.',
+    description: `Browse ${liveToolCount} local-first file conversion tools — all run in your browser.`,
     url: 'https://convertyard.com/tools',
   },
 }

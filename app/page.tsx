@@ -1,5 +1,8 @@
 import type { Metadata } from 'next'
 import { organizationSchema, webSiteSchema, faqPageSchema } from '@/lib/seo/schema'
+import { ALL_TOOLS } from '@/content/tool-catalog'
+
+const liveToolCount = ALL_TOOLS.filter(t => t.status === 'live').length
 import { Hero } from '@/components/homepage/hero'
 import { TrustStrip } from '@/components/homepage/trust-strip'
 import { ToolGrid } from '@/components/homepage/tool-grid'
@@ -18,7 +21,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'ConvertYard — Local-first conversion, built for batches',
     description:
-      'Convert thousands of images, PDFs, videos, and audio files entirely in your browser. No uploads, no accounts. 88 free tools.',
+      `Convert thousands of images, PDFs, videos, and audio files entirely in your browser. No uploads, no accounts. ${liveToolCount} free tools.`,
     url: 'https://convertyard.com/',
     siteName: 'ConvertYard',
     type: 'website',

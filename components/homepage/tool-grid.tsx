@@ -20,6 +20,8 @@ import { cn } from '@/lib/utils/cn'
 import { ALL_TOOLS } from '@/content/tool-catalog'
 import type { CatalogTool } from '@/content/tool-catalog'
 
+const LIVE_TOOL_COUNT = ALL_TOOLS.filter(t => t.status === 'live').length
+
 const POPULAR_SLUGS = new Set([
   'heic-to-jpg',
   'jpg-to-webp',
@@ -209,7 +211,7 @@ export function ToolGrid() {
           id="tools-heading"
           className="mb-8 text-2xl font-bold tracking-tight text-fg sm:text-3xl"
         >
-          88 tools. All local, all free.
+          {LIVE_TOOL_COUNT} tools. All local, all free.
         </h2>
 
         {/* Recently used */}
@@ -257,7 +259,7 @@ export function ToolGrid() {
                 ;(e.target as HTMLInputElement).focus()
               }
             }}
-            placeholder="Search 88 tools…"
+            placeholder={`Search ${LIVE_TOOL_COUNT} tools…`}
             aria-label="Search tools"
             className={cn(
               'w-full rounded-xl border bg-bg-muted py-3 pl-10 pr-10',
@@ -402,7 +404,7 @@ export function ToolGrid() {
               href="/tools"
               className="font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
             >
-              View all 88 tools →
+              View all {LIVE_TOOL_COUNT} tools →
             </Link>
           )}
         </div>
