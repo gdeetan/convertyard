@@ -5,7 +5,7 @@ export interface CatalogTool {
   slug: string
   title: string
   description: string
-  category: 'images' | 'pdf' | 'video-audio' | 'developer' | 'web-tools' | 'ai-tools' | 'image-editing'
+  category: 'images' | 'pdf' | 'video-audio' | 'developer' | 'web-tools' | 'ai-tools' | 'image-editing' | 'image-to-text'
   status: ToolStatus
   badge?: string
 }
@@ -89,6 +89,20 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'qr-code-generator',    title: 'QR Code Generator',    description: 'Generate QR codes for any URL.', category: 'web-tools', status: 'live' },
   { slug: 'color-picker',         title: 'Color Picker',         description: 'Pick colors and export in any format.', category: 'web-tools', status: 'live' },
   { slug: 'gradient-generator',   title: 'Gradient Generator',   description: 'Build CSS gradients visually.', category: 'web-tools', status: 'live' },
+
+  // Image to Text (OCR) — 12 live
+  { slug: 'jpg-to-text',           title: 'JPG to Text',            description: 'Extract text from JPG images. No uploads, no limits.',               category: 'image-to-text', status: 'live' },
+  { slug: 'screenshot-to-text',    title: 'Screenshot to Text',     description: 'Pull text out of screenshots. Batch up to 500.',                     category: 'image-to-text', status: 'live' },
+  { slug: 'png-to-text',           title: 'PNG to Text',            description: 'Extract text from PNGs, including transparent backgrounds.',          category: 'image-to-text', status: 'live' },
+  { slug: 'photo-to-text',         title: 'Photo to Text',          description: 'Deskew and OCR photos of documents. Batch-ready.',                    category: 'image-to-text', status: 'live' },
+  { slug: 'scan-to-text',          title: 'Scan to Text',           description: 'Convert scanned documents into editable text. Accepts TIFF.',         category: 'image-to-text', status: 'live' },
+  { slug: 'jpeg-to-text',          title: 'JPEG to Text',           description: 'Extract text from JPEG files — same as JPG, spelled differently.',    category: 'image-to-text', status: 'live' },
+  { slug: 'handwriting-to-text',   title: 'Handwriting to Text',    description: 'Transcribe handwritten notes with a model trained on handwriting.',   category: 'image-to-text', status: 'live' },
+  { slug: 'image-to-excel',        title: 'Image to Excel',         description: 'Extract tables from images into .xlsx spreadsheets.',                 category: 'image-to-text', status: 'live' },
+  { slug: 'receipt-to-text',       title: 'Receipt to Text',        description: 'Extract receipt data into CSV. Batch up to 500 receipts.',            category: 'image-to-text', status: 'live' },
+  { slug: 'table-image-to-text',   title: 'Table Image to Text',    description: 'Extract tables from images into structured CSV or TSV.',              category: 'image-to-text', status: 'live' },
+  { slug: 'business-card-to-text', title: 'Business Card to Text',  description: 'Scan business cards and extract contact details as CSV.',             category: 'image-to-text', status: 'live' },
+  { slug: 'heic-to-text',          title: 'HEIC to Text',           description: 'Extract text from iPhone HEIC photos without converting first.',      category: 'image-to-text', status: 'live' },
 
   // AI Tools — all coming soon
   { slug: 'alt-text-generator',  title: 'Alt Text Generator',  description: 'Generate descriptive alt text for any image.', category: 'ai-tools', status: 'live', badge: 'AI' },
