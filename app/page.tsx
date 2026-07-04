@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'ConvertYard — Local-first conversion, built for batches',
     description:
-      'Convert thousands of images, PDFs, videos, and audio files entirely in your browser. No uploads, no accounts. 40+ free tools.',
+      'Convert thousands of images, PDFs, videos, and audio files entirely in your browser. No uploads, no accounts. 88 free tools.',
     url: 'https://convertyard.com/',
     siteName: 'ConvertYard',
     type: 'website',
