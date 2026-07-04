@@ -170,3 +170,77 @@ export async function mp3ToMp4(
 
   return results
 }
+
+const GIF_SCALE: Record<string, string> = {
+  'original': 'scale=trunc(iw/2)*2:trunc(ih/2)*2',
+  '480p':     'scale=-2:480',
+  '720p':     'scale=-2:720',
+  '1080p':    'scale=-2:1080',
+}
+
+export async function gifToMp4(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+
+  const resolution = (options.resolution as string) ?? 'original'
+  const loop       = (options.loop       as string) ?? '1x'
+  const scaleFilter = GIF_SCALE[resolution] ?? GIF_SCALE['original']
+
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const inputName  = `gif_in_${i}.gif`
+      const outputName = `gif_out_${i}.mp4`
+
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        // -stream_loop must come before -i; -t (duration cap) applies to output
+        const preInputArgs =
+          loop === '2x'       ? ['-stream_loop', '1',  '-i', inputName] :
+          loop === 'infinite' ? ['-stream_loop', '-1', '-i', inputName] :
+                                ['-i', inputName]
+
+        const durationArgs = loop === 'infinite' ? ['-t', '30'] : []
+
+        await ffmpeg.exec([
+          ...preInputArgs,
+          ...durationArgs,
+          '-movflags', 'faststart',
+          '-pix_fmt', 'yuv420p',
+          '-vf', scaleFilter,
+          '-an',
+          outputName,
+        ])
+
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+
+      if (!data) throw new Error('Conversion produced no output')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      results.push(new File([data], `${baseName}.mp4`, { type: 'video/mp4' }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(err instanceof Error ? err : new Error('Conversion failed'))
+    }
+  }
+
+  return results
+}
