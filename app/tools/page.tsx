@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { ALL_TOOLS } from '@/content/tool-catalog'
 import { CATEGORY_META } from '@/content/category-meta'
+import { ToolsSearch } from '@/components/tools-page/tools-search'
 
 const CATEGORIES = [
   { slug: 'images',        label: 'Images',         href: '/images' },
@@ -10,6 +11,7 @@ const CATEGORIES = [
   { slug: 'developer',     label: 'Developer',       href: '/developer' },
   { slug: 'web-tools',     label: 'Web Tools',       href: '/web-tools' },
   { slug: 'ai-tools',      label: 'AI Tools',        href: '/ai-tools' },
+  { slug: 'image-to-text', label: 'Image to Text',  href: '/image-to-text-converter' },
 ] as const
 
 type CategorySlug = typeof CATEGORIES[number]['slug']
@@ -20,7 +22,7 @@ export default function ToolsPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-12 sm:px-6">
-      <header className="mb-10">
+      <header className="mb-8">
         <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">
           All Tools
         </h1>
@@ -28,6 +30,8 @@ export default function ToolsPage() {
           {liveTotal} live · {comingTotal} coming soon
         </p>
       </header>
+
+      <ToolsSearch />
 
       <div className="space-y-12">
         {CATEGORIES.map((cat) => {
