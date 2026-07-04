@@ -5,13 +5,13 @@ import { ToolsSearch } from '@/components/tools-page/tools-search'
 
 const CATEGORIES = [
   { slug: 'images',        label: 'Images',         href: '/images' },
+  { slug: 'image-to-text', label: 'Image to Text',  href: '/image-to-text-converter' },
   { slug: 'image-editing', label: 'Image Editing',  href: '/image-editing' },
   { slug: 'pdf',           label: 'PDF',             href: '/pdf' },
   { slug: 'video-audio',   label: 'Video & Audio',   href: '/video-audio' },
   { slug: 'developer',     label: 'Developer',       href: '/developer' },
   { slug: 'web-tools',     label: 'Web Tools',       href: '/web-tools' },
   { slug: 'ai-tools',      label: 'AI Tools',        href: '/ai-tools' },
-  { slug: 'image-to-text', label: 'Image to Text',  href: '/image-to-text-converter' },
 ] as const
 
 type CategorySlug = typeof CATEGORIES[number]['slug']

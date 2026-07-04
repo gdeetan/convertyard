@@ -11,6 +11,7 @@ import {
   Globe,
   Sparkles,
   Wand2,
+  ScanText,
   ArrowRight,
   Search,
   X,
@@ -41,11 +42,12 @@ const POPULAR_SLUGS = new Set([
   'pdf-to-powerpoint',
 ])
 
-type Category = 'all' | 'images' | 'image-editing' | 'pdf' | 'video-audio' | 'dev' | 'web-tools' | 'ai'
+type Category = 'all' | 'images' | 'ocr' | 'image-editing' | 'pdf' | 'video-audio' | 'dev' | 'web-tools' | 'ai'
 
 const FILTERS: { id: Category; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'images', label: 'Images' },
+  { id: 'ocr', label: 'Image to Text' },
   { id: 'image-editing', label: 'Editing' },
   { id: 'pdf', label: 'PDF' },
   { id: 'video-audio', label: 'Video & Audio' },
@@ -56,6 +58,7 @@ const FILTERS: { id: Category; label: string }[] = [
 
 const CATEGORY_ICONS: Record<string, React.ElementType> = {
   images: Image,
+  ocr: ScanText,
   'image-editing': Wand2,
   pdf: FileText,
   'video-audio': Film,
@@ -66,6 +69,7 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
 
 const CATEGORY_LABELS: Record<string, string> = {
   images: 'Images',
+  ocr: 'Image to Text',
   'image-editing': 'Editing',
   pdf: 'PDF',
   'video-audio': 'Video & Audio',
@@ -76,6 +80,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 const CATALOG_TO_GRID: Record<string, Category> = {
   images: 'images',
+  'image-to-text': 'ocr',
   'image-editing': 'image-editing',
   pdf: 'pdf',
   'video-audio': 'video-audio',
@@ -130,6 +135,18 @@ const TOOLS: Tool[] = [
   { slug: 'base64',                name: 'Base64 encoder/decoder',category: 'dev',         desc: 'Encode and decode Base64 strings and files.' },
   { slug: 'json-to-csv',           name: 'JSON to CSV',           category: 'dev',         desc: 'Flatten JSON arrays into CSV spreadsheets.' },
   { slug: 'alt-text-generator',    name: 'Alt text generator',    category: 'ai',          desc: 'Generate accessible alt text from images.',   badge: 'AI' },
+  { slug: 'screenshot-to-text',    name: 'Screenshot to Text',    category: 'ocr',         desc: 'Pull text out of screenshots. Batch up to 500.' },
+  { slug: 'jpg-to-text',           name: 'JPG to Text',           category: 'ocr',         desc: 'Extract text from JPG images. No uploads.' },
+  { slug: 'photo-to-text',         name: 'Photo to Text',         category: 'ocr',         desc: 'Deskew and OCR photos of documents.' },
+  { slug: 'png-to-text',           name: 'PNG to Text',           category: 'ocr',         desc: 'Extract text from PNGs, including transparent backgrounds.' },
+  { slug: 'scan-to-text',          name: 'Scan to Text',          category: 'ocr',         desc: 'Convert scanned documents into editable text.' },
+  { slug: 'handwriting-to-text',   name: 'Handwriting to Text',   category: 'ocr',         desc: 'Transcribe handwritten notes with a dedicated model.' },
+  { slug: 'image-to-excel',        name: 'Image to Excel',        category: 'ocr',         desc: 'Extract tables from images into .xlsx spreadsheets.' },
+  { slug: 'receipt-to-text',       name: 'Receipt to Text',       category: 'ocr',         desc: 'Extract receipt data into CSV. Batch up to 500.' },
+  { slug: 'table-image-to-text',   name: 'Table Image to Text',   category: 'ocr',         desc: 'Extract tables from images into CSV or TSV.' },
+  { slug: 'business-card-to-text', name: 'Business Card to Text', category: 'ocr',         desc: 'Scan business cards and extract contacts as CSV.' },
+  { slug: 'heic-to-text',          name: 'HEIC to Text',          category: 'ocr',         desc: 'Extract text from iPhone HEIC photos directly.' },
+  { slug: 'jpeg-to-text',          name: 'JPEG to Text',          category: 'ocr',         desc: 'Extract text from JPEG files.' },
 ]
 
 export function ToolGrid() {
