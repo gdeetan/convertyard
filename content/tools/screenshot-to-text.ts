@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'screenshot-to-text',
   title: 'Screenshot to Text Converter',
   subtitle: 'Extract text from screenshots. Drop up to 500 at once, no uploads.',
-  category: 'images',
+  category: 'image-to-text',
   accepts: ['image/png', 'image/jpeg', 'image/webp'],
   acceptsExt: ['.png', '.jpg', '.jpeg', '.webp'],
   outputExt: '.txt',

@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'handwriting-to-text',
   title: 'Handwriting to Text Converter',
   subtitle: 'Transcribe handwritten notes and forms into digital text.',
-  category: 'images',
+  category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '.txt',

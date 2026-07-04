@@ -18,13 +18,14 @@ import { sizeTargets } from '@/content/size-target-registry'
 import { useRecentTools } from '@/lib/hooks/use-recent-tools'
 
 const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
-  images:          { label: 'Image Converters', href: '/images' },
-  'image-editing': { label: 'Image Editing',    href: '/image-editing' },
-  pdf:             { label: 'PDF Tools',        href: '/pdf' },
-  'video-audio':   { label: 'Video & Audio',    href: '/video-audio' },
-  dev:             { label: 'Developer Tools',  href: '/developer' },
-  web:             { label: 'Web Tools',        href: '/web-tools' },
-  ai:              { label: 'AI Tools',         href: '/ai-tools' },
+  images:           { label: 'Image Converters',     href: '/images' },
+  'image-editing':  { label: 'Image Editing',        href: '/image-editing' },
+  'image-to-text':  { label: 'Image to Text',        href: '/image-to-text-converter' },
+  pdf:              { label: 'PDF Tools',            href: '/pdf' },
+  'video-audio':    { label: 'Video & Audio',        href: '/video-audio' },
+  dev:              { label: 'Developer Tools',      href: '/developer' },
+  web:              { label: 'Web Tools',            href: '/web-tools' },
+  ai:               { label: 'AI Tools',             href: '/ai-tools' },
 }
 
 interface ToolShellProps {

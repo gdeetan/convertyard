@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'scan-to-text',
   title: 'Scan to Text Converter',
   subtitle: 'Convert scanned document images into editable text. Accepts TIFF, JPG, PNG.',
-  category: 'images',
+  category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/tiff', 'image/bmp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp'],
   outputExt: '.txt',

@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'business-card-to-text',
   title: 'Business Card to Text Converter',
   subtitle: 'Scan business cards and extract contact details into CSV.',
-  category: 'images',
+  category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '.csv',

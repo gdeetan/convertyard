@@ -1,6 +1,6 @@
 import type React from 'react'
 
-export type ToolCategory = 'images' | 'pdf' | 'video-audio' | 'dev' | 'web' | 'ai' | 'image-editing'
+export type ToolCategory = 'images' | 'pdf' | 'video-audio' | 'dev' | 'web' | 'ai' | 'image-editing' | 'image-to-text'
 
 export interface FAQItem {
   q: string

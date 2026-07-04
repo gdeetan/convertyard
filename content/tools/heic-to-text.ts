@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'heic-to-text',
   title: 'HEIC to Text Converter',
   subtitle: 'Extract text from iPhone photos without converting first.',
-  category: 'images',
+  category: 'image-to-text',
   accepts: ['image/heic', 'image/heif'],
   acceptsExt: ['.heic', '.heif'],
   outputExt: '.txt',

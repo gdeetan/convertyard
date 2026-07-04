@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'photo-to-text',
   title: 'Photo to Text Converter',
   subtitle: 'Extract text from phone photos of documents. Batch-ready.',
-  category: 'images',
+  category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'],
   outputExt: '.txt',

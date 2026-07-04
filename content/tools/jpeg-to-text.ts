@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'jpeg-to-text',
   title: 'JPEG to Text Converter',
   subtitle: 'Extract text from JPEG files. Same as JPG, just spelled differently.',
-  category: 'images',
+  category: 'image-to-text',
   accepts: ['image/jpeg'],
   acceptsExt: ['.jpeg', '.jpg'],
   outputExt: '.txt',

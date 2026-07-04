@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'table-image-to-text',
   title: 'Table Image to Text Converter',
   subtitle: 'Extract tables from images into CSV. Research papers, price grids, reports.',
-  category: 'images',
+  category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '.csv',

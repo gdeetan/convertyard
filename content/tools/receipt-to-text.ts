@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'receipt-to-text',
   title: 'Receipt to Text Converter',
   subtitle: 'Extract receipt data into CSV for expense reports. Batch up to 500.',
-  category: 'images',
+  category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '.csv',

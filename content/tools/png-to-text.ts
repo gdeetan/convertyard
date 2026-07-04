@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'png-to-text',
   title: 'PNG to Text Converter',
   subtitle: 'Extract text from PNG images. Transparent backgrounds handled automatically.',
-  category: 'images',
+  category: 'image-to-text',
   accepts: ['image/png'],
   acceptsExt: ['.png'],
   outputExt: '.txt',
