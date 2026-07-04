@@ -36,6 +36,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'tiff-to-webp', title: 'TIFF to WebP', description: 'TIFF scans and photos to web-ready WebP.', category: 'images', status: 'live' },
   { slug: 'gif-to-jpg',   title: 'GIF to JPG',   description: 'Extract the first frame of any GIF as a static JPG.', category: 'images', status: 'live' },
   { slug: 'gif-to-png',   title: 'GIF to PNG',   description: 'Extract the first frame of any GIF as a lossless PNG.', category: 'images', status: 'live' },
+  { slug: 'gif-to-webp',  title: 'GIF to WebP',  description: 'Convert animated GIFs to animated WebP — same motion, 25–40% smaller files.', category: 'images', status: 'live' },
   { slug: 'png-to-ico',   title: 'PNG to ICO',   description: 'Pack a PNG into a multi-size .ico favicon — 16, 32, 48, 64, 128 px.', category: 'images', status: 'live' },
   { slug: 'ico-to-png',   title: 'ICO to PNG',   description: 'Extract the largest image from any .ico file as a lossless PNG.', category: 'images', status: 'live' },
   { slug: 'svg-to-png',   title: 'SVG to PNG',   description: 'Rasterise SVG files at any resolution — 1×, 2×, 4×, or custom px.', category: 'images', status: 'live' },
