@@ -64,7 +64,7 @@ export const config: ToolConfig = {
       a: 'No. Conversion uses ffmpeg.wasm running in your browser. Your files never leave your device.',
     },
   ],
-  relatedTools: ['jpg-to-gif', 'png-to-gif', 'webp-to-jpg'],
+  relatedTools: ['gif-to-webp', 'jpg-to-gif', 'png-to-gif', 'webp-to-jpg'],
   relatedArticles: [],
   meta: {
     title: 'WebP to GIF Converter — ConvertYard',

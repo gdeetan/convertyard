@@ -65,7 +65,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['gif-to-jpg', 'png-to-jpg', 'png-to-webp', 'compress-image'],
+  relatedTools: ['gif-to-webp', 'gif-to-mp4', 'gif-to-jpg', 'compress-image'],
   relatedArticles: ['compress-images-without-losing-quality', 'how-browser-based-file-conversion-works'],
 
   meta: {

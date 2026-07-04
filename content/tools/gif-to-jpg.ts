@@ -72,7 +72,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['gif-to-png', 'jpg-to-png', 'png-to-jpg', 'compress-image'],
+  relatedTools: ['gif-to-webp', 'gif-to-mp4', 'gif-to-png', 'compress-image'],
   relatedArticles: ['compress-images-without-losing-quality', 'exif-data-whats-hiding-in-your-photo'],
 
   meta: {
