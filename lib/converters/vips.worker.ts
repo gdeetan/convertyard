@@ -56,11 +56,15 @@ self.onmessage = async (e: MessageEvent) => {
     self.postMessage({ id, type: 'progress', pct: 10 })
 
     const uint8 = new Uint8Array(fileBuffer)
+    const isAnimated = opts.animated === true
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let image: any = vips.Image.newFromBuffer(uint8)
+    let image: any = isAnimated
+      ? vips.Image.newFromBuffer(uint8, { n: -1 })
+      : vips.Image.newFromBuffer(uint8)
 
     try {
-      if (opts.autoOrient !== false) {
+      // autorot() operates on single images — skip for animated (GIF has no EXIF rotation)
+      if (opts.autoOrient !== false && !isAnimated) {
         const oriented = image.autorot()
         image.delete()
         image = oriented
@@ -73,8 +77,8 @@ self.onmessage = async (e: MessageEvent) => {
         image = srgb
       }
 
-      // Flatten alpha channel when encoding to JPG (JPG has no alpha support)
-      if ((outputFormat === 'jpg' || outputFormat === 'jpeg') && image.hasAlpha()) {
+      // Flatten alpha channel when encoding to JPG — skip for animated (flatten doesn't work on multi-page)
+      if ((outputFormat === 'jpg' || outputFormat === 'jpeg') && image.hasAlpha() && !isAnimated) {
         const bg = hexToRgb(typeof opts.bgColor === 'string' ? opts.bgColor : '#ffffff')
         const flat = image.flatten({ background: bg })
         image.delete()
