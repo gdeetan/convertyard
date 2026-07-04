@@ -25,7 +25,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'png-to-jpg',   title: 'PNG to JPG',   description: 'Convert PNG to JPG — transparent areas filled with your chosen color.', category: 'images', status: 'live' },
   { slug: 'jpg-to-png',   title: 'JPG to PNG',   description: 'Convert JPG to lossless PNG — larger files, perfect quality.', category: 'images', status: 'live' },
   { slug: 'heic-to-webp', title: 'HEIC to WebP', description: 'iPhone HEIC photos to WebP — smaller than JPG, browser-ready.', category: 'images', status: 'live' },
-  { slug: 'heic-to-avif', title: 'HEIC to AVIF', description: 'Convert iPhone HEIC photos to AVIF — best-in-class compression, 50% smaller than JPG.', category: 'images', status: 'live' },
+  { slug: 'heic-to-avif', title: 'HEIC to AVIF', description: 'Convert iPhone HEIC photos to AVIF — best-in-class compression, up to 50% smaller than JPG.', category: 'images', status: 'live' },
   { slug: 'avif-to-webp', title: 'AVIF to WebP', description: 'Convert AVIF to WebP for broader software compatibility.', category: 'images', status: 'live' },
   { slug: 'webp-to-avif', title: 'WebP to AVIF', description: 'Upgrade WebP to AVIF — 10–20% smaller, same quality.', category: 'images', status: 'live' },
   { slug: 'bmp-to-jpg',   title: 'BMP to JPG',   description: 'Shrink Windows BMP files by 10–50x with no visible loss.', category: 'images', status: 'live' },

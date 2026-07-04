@@ -31,7 +31,7 @@ export const config: ToolConfig = {
       max: 9,
       step: 1,
       default: 4,
-      hint: '0 = fastest (larger file), 9 = smallest file (much slower)',
+      hint: '0 = fastest encode (larger file), 9 = smallest file (slower). AVIF encoding is thorough — larger files may take a few seconds.',
     },
     {
       type: 'number',
@@ -62,7 +62,7 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Why convert HEIC to AVIF instead of JPG?',
-      a: 'AVIF achieves 40–50% better compression than JPG at the same visual quality, and 20–30% better than WebP. If you are converting iPhone photos for web use, AVIF gives you the smallest files. Browser support covers Chrome, Edge, Firefox, and Safari 16+.',
+      a: 'AVIF achieves 40–50% better compression than JPG at the same visual quality, and 20–30% better than WebP. If you\'re converting iPhone photos for web use, AVIF gives you the smallest files. Browser support covers Chrome, Edge, Firefox, and Safari 16+.',
     },
     {
       q: 'Does this preserve image quality from HEIC?',
