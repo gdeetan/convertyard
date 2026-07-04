@@ -209,7 +209,7 @@ export function ToolGrid() {
           id="tools-heading"
           className="mb-8 text-2xl font-bold tracking-tight text-fg sm:text-3xl"
         >
-          40+ tools. All local, all free.
+          88 tools. All local, all free.
         </h2>
 
         {/* Recently used */}
