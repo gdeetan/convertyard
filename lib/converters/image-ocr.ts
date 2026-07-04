@@ -1,4 +1,6 @@
 import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
+import { preprocessForOcr } from '@/lib/ocr/preprocessing'
+import { recognizeWithTrOCR } from '@/lib/ocr/trocr-client'
 import type { ConversionResult, ToolOptions } from '@/lib/types'
 import * as XLSX from 'xlsx'
 
@@ -32,6 +34,34 @@ async function compositePng(blob: Blob): Promise<Blob> {
   return canvas.convertToBlob({ type: 'image/png' })
 }
 
+// ── Line cropping for TrOCR ───────────────────────────────────────────────────
+
+async function cropLinesToBlobs(
+  preprocessedBlob: Blob,
+  lines: Array<{ x0: number; y0: number; x1: number; y1: number }>
+): Promise<Blob[]> {
+  if (lines.length === 0 || typeof OffscreenCanvas === 'undefined') return []
+  const bmp = await createImageBitmap(preprocessedBlob)
+  const blobs: Blob[] = []
+  for (const { x0, y0, x1, y1 } of lines) {
+    const w = x1 - x0
+    const h = y1 - y0
+    if (w <= 0 || h <= 0) continue
+    const c = new OffscreenCanvas(w, h)
+    c.getContext('2d')!.drawImage(bmp, x0, y0, w, h, 0, 0, w, h)
+    blobs.push(await c.convertToBlob({ type: 'image/png' }))
+  }
+  bmp.close()
+  return blobs
+}
+
+// ── PSM mapping from handwritingStyle ────────────────────────────────────────
+
+function psmForStyle(style: string): number {
+  if (style === 'print') return 6   // uniform block of text
+  return 3                           // auto (handles cursive / mixed layout)
+}
+
 // ── Structured output parsers ─────────────────────────────────────────────────
 
 function parseReceiptText(text: string, filename: string): string {
@@ -59,8 +89,7 @@ function parseBusinessCardText(text: string, filename: string): string {
   const phone = phoneMatch?.[0]?.trim() ?? ''
   const url = urlMatch?.[0] ?? ''
   return [filename, name, company, email, phone, url, text.replace(/\n/g, ' | ')]
-    .map(cell => `"${String(cell).replace(/"/g, '""')}"`)
-    .join(',')
+    .map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
 }
 
 function parseTableText(text: string): string {
@@ -101,6 +130,9 @@ export async function imageOcrConvert(
 ): Promise<ConversionResult[]> {
   const lang = typeof opts.language === 'string' ? opts.language : 'eng'
   const mode = (opts.outputMode as OcrMode | undefined) ?? 'text'
+  const engine = (opts.recognitionEngine as string | undefined) ?? 'standard'
+  const style = (opts.handwritingStyle as string | undefined) ?? 'mixed'
+  const useAi = engine === 'ai-enhanced' && lang === 'eng'
   const isPng = (f: File) => f.type === 'image/png' || /\.png$/i.test(f.name)
 
   const results: ConversionResult[] = []
@@ -114,18 +146,48 @@ export async function imageOcrConvert(
       let blob: Blob = file
 
       if (isHeic(file)) {
-        onProgress?.(i, 15)
+        onProgress?.(i, 10)
         blob = await decodeHeic(file)
       }
 
       if (isPng(file)) {
-        onProgress?.(i, 20)
+        onProgress?.(i, 15)
         blob = await compositePng(blob)
       }
 
-      onProgress?.(i, 30)
+      // Preprocessing: grayscale, contrast, binarize, deskew, upscale
+      onProgress?.(i, 20)
+      blob = await preprocessForOcr(blob)
 
-      const { text, confidence } = await recognizePage(blob, lang)
+      let text: string
+      let confidence: number
+
+      if (useAi) {
+        // AI path: Tesseract layout analysis only → TrOCR per line
+        onProgress?.(i, 25)
+        const { lines, confidence: conf } = await recognizePage(blob, lang, { oem: 1, psm: 3 })
+        confidence = conf
+        onProgress?.(i, 40)
+        const lineBlobs = await cropLinesToBlobs(blob, lines)
+        if (lineBlobs.length > 0) {
+          text = await recognizeWithTrOCR(
+            lineBlobs,
+            p => onProgress?.(i, 40 + Math.round(p * 0.5))
+          )
+        } else {
+          // Fallback: no lines detected, run TrOCR on the whole image
+          const { recognizeWithTrOCR: fullRun } = await import('@/lib/ocr/trocr-client')
+          text = await fullRun([blob], p => onProgress?.(i, 40 + Math.round(p * 0.5)))
+        }
+      } else {
+        // Standard path: enhanced Tesseract with OEM/PSM tuning
+        onProgress?.(i, 30)
+        const result = await recognizePage(blob, lang, {
+          oem: 1,
+          psm: psmForStyle(style),
+        });
+        ({ text, confidence } = result)
+      }
 
       onProgress?.(i, 90)
 
@@ -134,7 +196,7 @@ export async function imageOcrConvert(
 
       switch (mode) {
         case 'markdown': {
-          const mdContent = `# ${baseName}\n\nConfidence: ${confidence.toFixed(0)}%\n\n${text.trim()}`
+          const mdContent = `# ${baseName}\n\nConfidence: ${confidence!.toFixed(0)}%\n\n${text.trim()}`
           outFile = new File([mdContent], `${baseName}.md`, { type: 'text/markdown' })
           break
         }
