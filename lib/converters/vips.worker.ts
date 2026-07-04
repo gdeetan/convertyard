@@ -87,6 +87,8 @@ self.onmessage = async (e: MessageEvent) => {
 
       self.postMessage({ id, type: 'progress', pct: 30 })
 
+      // NOTE: crop, thumbnailImage resize, and maxSizeKb dimension reduction are not animated-safe.
+      // Callers using opts.animated must not pass cropX/cropY/cropW/cropH, width, height, or maxSizeKb.
       // Crop: extractArea using 0–1 fractions of post-orient image dimensions
       const hasCrop =
         typeof opts.cropX === 'number' &&
@@ -145,7 +147,8 @@ self.onmessage = async (e: MessageEvent) => {
         image = resized
       }
 
-      if (opts.sharpen === true) {
+      // sharpen doesn't work correctly on multi-page animated images
+      if (opts.sharpen === true && !isAnimated) {
         const sharpened = image.sharpen({ sigma: 0.5, x1: 1.0 })
         image.delete()
         image = sharpened
