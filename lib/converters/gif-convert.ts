@@ -13,10 +13,12 @@ function palettegenVf(fps: number, outputWidth: number): string {
 }
 
 // Build -filter_complex string for encode pass.
-// Output label [x] attaches directly to the last filter — no trailing comma.
+// [0:v] explicitly routes the first input's video stream — required when
+// there are multiple inputs (-i image -i palette.png) so ffmpeg doesn't
+// misroute streams and produce an empty output.
 function encodeFilterComplex(fps: number, outputWidth: number): string {
   const scale = outputWidth > 0 ? `,scale=${outputWidth}:-1:flags=lanczos` : ''
-  return `fps=${fps}${scale}[x];[x][1:v]paletteuse=dither=bayer`
+  return `[0:v]fps=${fps}${scale}[x];[x][1:v]paletteuse=dither=bayer`
 }
 
 // Single file → GIF. Handles static images and animated sources (WebP, GIF).
