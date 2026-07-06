@@ -47,7 +47,13 @@ async function cropLinesToBlobs(
   for (const { x, y, w, h } of lines) {
     if (w <= 0 || h <= 0) continue
     const c = new OffscreenCanvas(w, h)
-    c.getContext('2d')!.drawImage(bmp, x, y, w, h, 0, 0, w, h)
+    const cCtx = c.getContext('2d')!
+    cCtx.drawImage(bmp, x, y, w, h, 0, 0, w, h)
+    // Skip near-blank crops (pen remnants, noise) — TrOCR outputs "000" on sparse crops.
+    const pixels = cCtx.getImageData(0, 0, w, h).data
+    let blackCount = 0
+    for (let p = 0; p < pixels.length; p += 4) { if (pixels[p] < 128) blackCount++ }
+    if (blackCount / (w * h) < 0.004) continue
     blobs.push(await c.convertToBlob({ type: 'image/png' }))
   }
   bmp.close()

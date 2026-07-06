@@ -66,11 +66,17 @@ export async function detectLines(binarizedBlob: Blob): Promise<LineBox[]> {
 
   // Filter non-text bands: pens, rulers, horizontal objects have very high
   // per-row black pixel density (> 25% of width) across the entire band.
-  const textBands = bands.filter(({ y0, y1 }) => {
+  const densityBands = bands.filter(({ y0, y1 }) => {
     let total = 0
     for (let y = y0; y < y1; y++) total += profile[y]
     return total / Math.max(1, y1 - y0) < W * 0.25
   })
+
+  // Filter bands that are too short to be text lines.
+  // Pen label text / noise bands are typically 10–20px at 1500px width.
+  // Real handwriting lines are 60px+ at that scale.
+  const minBandH = Math.max(20, Math.round(W * 0.013))
+  const textBands = densityBands.filter(b => (b.y1 - b.y0) >= minBandH)
 
   // Split bands that are too tall — they likely contain 2+ merged lines.
   // Find the lowest-density row in the middle portion of the band and split there.
