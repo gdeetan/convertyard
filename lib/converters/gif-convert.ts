@@ -51,7 +51,8 @@ async function singleToGif(file: File, opts: ToolOptions): Promise<File> {
 
   if (ret !== 0) throw new Error(`FFmpeg exited with code ${ret}`)
 
-  const data = await ffmpeg.readFile(outputName) as Uint8Array
+  const raw = await ffmpeg.readFile(outputName)
+  const data = new Uint8Array(raw as ArrayBuffer)
   if (data.length === 0) throw new Error('FFmpeg produced empty GIF output')
 
   const blob = new Blob([data], { type: 'image/gif' })
@@ -100,7 +101,8 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
   ])
   if (ret2 !== 0) throw new Error(`FFmpeg encode pass exited with code ${ret2}`)
 
-  const data = await ffmpeg.readFile('output.gif') as Uint8Array
+  const raw = await ffmpeg.readFile('output.gif')
+  const data = new Uint8Array(raw as ArrayBuffer)
   if (data.length === 0) throw new Error('FFmpeg produced empty GIF output')
 
   const blob = new Blob([data], { type: 'image/gif' })
