@@ -41,6 +41,30 @@ async function decodeAvifViaCanvas(file: File): Promise<File> {
   return new File([blob], `${baseName}.png`, { type: 'image/png' })
 }
 
+function isBmp(file: File): boolean {
+  return (
+    file.type === 'image/bmp' ||
+    file.type === 'image/x-bmp' ||
+    file.type === 'image/x-ms-bmp' ||
+    /\.bmp$/i.test(file.name)
+  )
+}
+
+// Decode BMP → PNG via Canvas API.
+// wasm-vips WASM build omits the BMP foreign loader, so BMP files must
+// be pre-decoded in the browser before passing to the vips worker.
+async function decodeBmpViaCanvas(file: File): Promise<File> {
+  const bitmap = await createImageBitmap(file)
+  const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Could not get 2D canvas context')
+  ctx.drawImage(bitmap, 0, 0)
+  bitmap.close()
+  const blob = await canvas.convertToBlob({ type: 'image/png' })
+  const baseName = file.name.replace(/\.bmp$/i, '')
+  return new File([blob], `${baseName}.png`, { type: 'image/png' })
+}
+
 export async function libvipsConvert(
   files: File[],
   outputFormat: string,
@@ -71,6 +95,10 @@ export async function libvipsConvert(
       } else if (isAvif(file)) {
         onProgress?.(i, 20)
         file = await decodeAvifViaCanvas(file)
+        onProgress?.(i, 40)
+      } else if (isBmp(file)) {
+        onProgress?.(i, 20)
+        file = await decodeBmpViaCanvas(file)
         onProgress?.(i, 40)
       }
 
