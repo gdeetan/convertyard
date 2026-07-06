@@ -1,5 +1,5 @@
 // Canvas-based image preprocessing for handwriting OCR.
-// Pipeline: grayscale → contrast stretch → Sauvola adaptive binarization
+// Pipeline: grayscale → gaussian blur → contrast stretch → Sauvola adaptive binarization
 //           → ruled-line removal → deskew → upscale
 
 const MIN_WIDTH_PX = 1500
@@ -221,39 +221,47 @@ function otsuThreshold(gray: Uint8Array): number {
 // ── Projection profile deskew ─────────────────────────────────────────────────
 
 function estimateSkewAngle(binary: Uint8Array, w: number, h: number): number {
-  const candidates: number[] = []
-  for (let deg = -20; deg <= 20; deg += 0.25) {
-    candidates.push(Math.round(deg * 100) / 100)
-  }
-  let bestAngle = 0
-  let bestScore = -1
-
-  for (const deg of candidates) {
-    const rad = (deg * Math.PI) / 180
-    const sin = Math.sin(rad)
-    const cos = Math.cos(rad)
-    const profile = new Int32Array(h)
-
-    for (let y = 0; y < h; y++) {
-      for (let x = 0; x < w; x++) {
-        const nx = Math.round(x * cos - y * sin + (h * sin) / 2)
-        const ny = Math.round(x * sin + y * cos - (w * sin) / 2)
-        if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
-          if (binary[ny * w + nx] === 0) profile[y]++
+  // Two-pass coarse-to-fine: 21 candidates at 2° + 17 candidates at 0.25° around winner
+  const scoreCandidates = (candidates: number[]): number => {
+    let bestAngle = 0
+    let bestScore = -1
+    for (const deg of candidates) {
+      const rad = (deg * Math.PI) / 180
+      const sin = Math.sin(rad)
+      const cos = Math.cos(rad)
+      const profile = new Int32Array(h)
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          const nx = Math.round(x * cos - y * sin + (h * sin) / 2)
+          const ny = Math.round(x * sin + y * cos - (w * sin) / 2)
+          if (nx >= 0 && nx < w && ny >= 0 && ny < h) {
+            if (binary[ny * w + nx] === 0) profile[y]++
+          }
         }
       }
+      let mean = 0, count = 0
+      for (const v of profile) { if (v > 0) { mean += v; count++ } }
+      if (count === 0) continue
+      mean /= count
+      let variance = 0
+      for (const v of profile) { if (v > 0) variance += (v - mean) ** 2 }
+      variance /= count
+      if (variance > bestScore) { bestScore = variance; bestAngle = deg }
     }
-
-    let mean = 0, count = 0
-    for (const v of profile) { if (v > 0) { mean += v; count++ } }
-    if (count === 0) continue
-    mean /= count
-    let variance = 0
-    for (const v of profile) { if (v > 0) variance += (v - mean) ** 2 }
-    variance /= count
-
-    if (variance > bestScore) { bestScore = variance; bestAngle = rad }
+    return bestAngle
   }
 
-  return -bestAngle
+  // Pass 1: coarse sweep ±20° at 2° steps (21 candidates)
+  const coarse: number[] = []
+  for (let deg = -20; deg <= 20; deg += 2) coarse.push(deg)
+  const coarseWinner = scoreCandidates(coarse)
+
+  // Pass 2: fine sweep ±2° around coarse winner at 0.25° steps (17 candidates)
+  const fine: number[] = []
+  for (let deg = coarseWinner - 2; deg <= coarseWinner + 2; deg += 0.25) {
+    fine.push(Math.round(deg * 100) / 100)
+  }
+  const fineWinner = scoreCandidates(fine)
+
+  return -(fineWinner * Math.PI) / 180
 }

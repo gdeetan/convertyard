@@ -40,7 +40,6 @@
     "tailwind-merge": "^3.3.0",
     "tesseract.js": "^7.0.0",
     "wasm-vips": "^0.0.17",
-    "xlsx": "^0.18.5",
     "zod": "^3.25.51",
     "zustand": "^5.0.5"
   },
@@ -60,6 +59,7 @@
     "tailwindcss": "^4.1.8",
     "tsx": "^4.22.4",
     "typescript": "^5.8.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.8",
+    "xlsx": "^0.18.5"
   }
 }
