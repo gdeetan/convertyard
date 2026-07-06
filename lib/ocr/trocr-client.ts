@@ -13,27 +13,26 @@ const TROCR_BASE = 'Xenova/trocr-base-handwritten'
 const TROCR_SMALL = 'Xenova/trocr-small-handwritten'
 
 type ImageToTextPipeline = Awaited<ReturnType<typeof pipeline<'image-to-text'>>>
-let pipelineInstance: ImageToTextPipeline | null = null
+let pipelinePromise: Promise<ImageToTextPipeline> | null = null
 
 export interface TrOcrLineResult {
   text: string
   confidence: number
 }
 
-export async function getTrOcrPipeline(
+async function loadPipeline(
   onProgress?: (pct: number) => void
 ): Promise<ImageToTextPipeline> {
-  if (pipelineInstance) return pipelineInstance
-
   const attempts = [
     { model: TROCR_BASE, dtype: 'q8' },
     { model: TROCR_BASE, dtype: 'fp16' },
     { model: TROCR_SMALL, dtype: 'q8' },
   ]
+  const errors: unknown[] = []
 
   for (const { model, dtype } of attempts) {
     try {
-      pipelineInstance = await pipeline('image-to-text', model, {
+      const instance = await pipeline('image-to-text', model, {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         dtype: dtype as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -44,14 +43,29 @@ export async function getTrOcrPipeline(
         },
       })
       console.log(`[TrOCR] Loaded ${model} (${dtype})`)
-      return pipelineInstance
+      return instance
     } catch (e) {
       console.warn(`[TrOCR] Failed ${model} (${dtype}):`, e)
-      pipelineInstance = null
+      errors.push(e)
     }
   }
 
-  throw new Error('TrOCR: all model variants failed to load')
+  throw new Error(
+    `TrOCR: all model variants failed.\n` +
+    errors.map((e, i) => `  [${attempts[i].model} ${attempts[i].dtype}]: ${e}`).join('\n')
+  )
+}
+
+export async function getTrOcrPipeline(
+  onProgress?: (pct: number) => void
+): Promise<ImageToTextPipeline> {
+  if (!pipelinePromise) {
+    pipelinePromise = loadPipeline(onProgress).catch(e => {
+      pipelinePromise = null  // allow retry on next call after failure
+      throw e
+    })
+  }
+  return pipelinePromise
 }
 
 export async function recognizeLineWithTrOCR(
