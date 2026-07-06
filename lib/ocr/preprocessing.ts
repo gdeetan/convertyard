@@ -1,5 +1,5 @@
 // Canvas-based image preprocessing for handwriting OCR.
-// Pipeline: grayscale → gaussian blur → perspective correction → contrast stretch
+// Pipeline: grayscale → gaussian blur → perspective correction → CLAHE
 //           → Sauvola adaptive binarization → ruled-line removal → deskew → upscale
 
 const MIN_WIDTH_PX = 1500
@@ -40,18 +40,11 @@ export async function preprocessForOcr(blob: Blob): Promise<Blob> {
     workH = corrected.h
   }
 
-  // 4. Contrast stretch — remap [p2, p98] → [0, 255]
-  const sorted = workGray.slice().sort((a, b) => a - b)
-  const lo = sorted[Math.floor(workGray.length * 0.02)]
-  const hi = sorted[Math.floor(workGray.length * 0.98)]
-  const range = hi - lo || 1
-  const stretched = new Uint8Array(workGray.length)
-  for (let i = 0; i < workGray.length; i++) {
-    stretched[i] = Math.min(255, Math.max(0, Math.round(((workGray[i] - lo) / range) * 255)))
-  }
+  // 4. CLAHE — tile-based adaptive contrast normalization
+  const clahe = applyCLAHE(workGray, workW, workH)
 
   // 5. Sauvola adaptive binarization
-  const binary = sauvolaBinarize(stretched, workW, workH)
+  const binary = sauvolaBinarize(clahe, workW, workH)
 
   // 6. Ruled-line removal
   removeRuledLines(binary, workW, workH)
@@ -380,6 +373,78 @@ function otsuThreshold(gray: Uint8Array): number {
     if (v > maxVar) { maxVar = v; thresh = t }
   }
   return thresh
+}
+
+// ── CLAHE (Contrast Limited Adaptive Histogram Equalization) ──────────────────
+//
+// Divides the image into an 8×8 tile grid. Per tile: builds a histogram,
+// clips bins at clipLimit to prevent noise amplification, then builds a CDF.
+// Each pixel is mapped using bilinear interpolation between the 4 surrounding
+// tile CDFs — produces smooth transitions with no tile boundary artifacts.
+// Handles uneven lighting (shadow on one side) that global stretch cannot fix.
+
+function applyCLAHE(gray: Uint8Array, w: number, h: number): Uint8Array {
+  const TILE_COLS = 8
+  const TILE_ROWS = 8
+  const tileW = Math.ceil(w / TILE_COLS)
+  const tileH = Math.ceil(h / TILE_ROWS)
+
+  // Build per-tile CDFs
+  const cdfs: Uint8Array[][] = Array.from({ length: TILE_ROWS }, () => [])
+  for (let tr = 0; tr < TILE_ROWS; tr++) {
+    for (let tc = 0; tc < TILE_COLS; tc++) {
+      const x0 = tc * tileW
+      const y0 = tr * tileH
+      const x1 = Math.min(x0 + tileW, w)
+      const y1 = Math.min(y0 + tileH, h)
+      const n = (x1 - x0) * (y1 - y0)
+
+      const hist = new Float64Array(256)
+      for (let y = y0; y < y1; y++) {
+        for (let x = x0; x < x1; x++) hist[gray[y * w + x]]++
+      }
+
+      // Clip excess and redistribute uniformly
+      const clipLimit = 4.0 * (n / 256)
+      let excess = 0
+      for (let i = 0; i < 256; i++) {
+        if (hist[i] > clipLimit) { excess += hist[i] - clipLimit; hist[i] = clipLimit }
+      }
+      const add = excess / 256
+      for (let i = 0; i < 256; i++) hist[i] += add
+
+      // Normalize CDF to [0, 255]
+      const cdf = new Uint8Array(256)
+      let cum = 0
+      for (let i = 0; i < 256; i++) {
+        cum += hist[i]
+        cdf[i] = Math.min(255, Math.round((cum / n) * 255))
+      }
+      cdfs[tr][tc] = cdf
+    }
+  }
+
+  // Apply with bilinear interpolation between tile CDFs
+  const out = new Uint8Array(gray.length)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const v = gray[y * w + x]
+      // Position in tile grid relative to tile centers
+      const tx = (x - tileW * 0.5) / tileW
+      const ty = (y - tileH * 0.5) / tileH
+      const tc0 = Math.max(0, Math.min(TILE_COLS - 2, Math.floor(tx)))
+      const tr0 = Math.max(0, Math.min(TILE_ROWS - 2, Math.floor(ty)))
+      const fx = Math.max(0, Math.min(1, tx - tc0))
+      const fy = Math.max(0, Math.min(1, ty - tr0))
+      out[y * w + x] = Math.round(
+        cdfs[tr0][tc0][v]     * (1 - fx) * (1 - fy) +
+        cdfs[tr0][tc0 + 1][v] * fx       * (1 - fy) +
+        cdfs[tr0 + 1][tc0][v] * (1 - fx) * fy       +
+        cdfs[tr0 + 1][tc0 + 1][v] * fx   * fy
+      )
+    }
+  }
+  return out
 }
 
 // ── Projection profile deskew ─────────────────────────────────────────────────
