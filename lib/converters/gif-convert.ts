@@ -21,6 +21,20 @@ function encodeFilterComplex(fps: number, outputWidth: number): string {
   return `[0:v]fps=${fps}${scale}[x];[x][1:v]paletteuse=dither=bayer`
 }
 
+// Static image variants: no fps filter. A single still image has no framerate;
+// applying fps=N yields 0 output frames (0.04s implicit duration × N fps < 1),
+// which produces an empty palette and a 0-byte GIF.
+function staticPalettegenVf(outputWidth: number): string {
+  const scale = outputWidth > 0 ? `scale=${outputWidth}:-1:flags=lanczos,` : ''
+  return `${scale}palettegen=stats_mode=full`
+}
+
+function staticEncodeFilterComplex(outputWidth: number): string {
+  return outputWidth > 0
+    ? `[0:v]scale=${outputWidth}:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer`
+    : `[0:v][1:v]paletteuse=dither=bayer`
+}
+
 // Single file → GIF. Handles static images and animated sources (WebP, GIF).
 // ffmpeg reads all frames from animated sources automatically.
 async function singleToGif(file: File, opts: ToolOptions): Promise<File> {
@@ -39,13 +53,13 @@ async function singleToGif(file: File, opts: ToolOptions): Promise<File> {
 
   await ffmpeg.exec([
     '-i', inputName,
-    '-vf', palettegenVf(fps, outputWidth),
+    '-vf', staticPalettegenVf(outputWidth),
     'palette.png',
   ])
   await ffmpeg.exec([
     '-i', inputName,
     '-i', 'palette.png',
-    '-filter_complex', encodeFilterComplex(fps, outputWidth),
+    '-filter_complex', staticEncodeFilterComplex(outputWidth),
     '-loop', String(loop),
     outputName,
   ])
