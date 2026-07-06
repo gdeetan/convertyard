@@ -23,7 +23,7 @@ export const config: ToolConfig = {
       label: 'Recognition engine',
       choices: [
         { value: 'standard', label: 'Standard — all languages, no download' },
-        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~77MB download' },
+        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, up to ~320MB download' },
       ],
       default: 'standard',
       conditionalHints: {
@@ -103,7 +103,7 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'What is the difference between Standard and AI-Enhanced mode?',
-      a: 'Standard mode uses Tesseract OCR — it works for all 12 languages and starts immediately, but was originally designed for printed text. AI-Enhanced mode uses TrOCR, a transformer model trained specifically on handwritten text — it handles cursive and mixed styles much better, but only supports English and downloads a ~77MB model on first use (stored in your browser permanently after that).',
+      a: 'Standard mode uses Tesseract OCR — it works for all 12 languages and starts immediately, but was originally designed for printed text. AI-Enhanced mode uses TrOCR, a transformer model trained specifically on handwritten text — it handles cursive and mixed styles much better, but only supports English and downloads up to ~320MB on first use (stored in your browser permanently after that).',
     },
     {
       q: 'Does it work on cursive handwriting?',
