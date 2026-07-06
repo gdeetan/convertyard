@@ -174,10 +174,14 @@ self.onmessage = async (e: MessageEvent) => {
         encodeOpts.Q = quality
         encodeOpts.effort = typeof opts.effort === 'number' ? opts.effort : 4
         if (opts.lossless === true) encodeOpts.lossless = true
-        // Tile large images to cap encoder peak memory — libheif OOMs on >~8MP in WASM without tiling
-        if (image.width > 1024 || image.height > 1024) {
-          encodeOpts['tile-width'] = 512
-          encodeOpts['tile-height'] = 512
+        // libheif in wasm-vips OOMs on large images (no tiling API available in this build).
+        // Auto-downscale to 4096px max so the AV1 encoder stays within the WASM heap.
+        const AVIF_MAX_DIM = 4096
+        if (image.width > AVIF_MAX_DIM || image.height > AVIF_MAX_DIM) {
+          const scale = AVIF_MAX_DIM / Math.max(image.width, image.height)
+          const scaled = image.resize(scale)
+          image.delete()
+          image = scaled
         }
       } else if (outputFormat === 'png') {
         // Map quality (1-100) to vips compression (0-9, higher = smaller/slower)
