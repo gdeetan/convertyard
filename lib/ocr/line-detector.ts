@@ -64,10 +64,24 @@ export async function detectLines(binarizedBlob: Blob): Promise<LineBox[]> {
   }
   if (inBand && H - bandStart >= 4) bands.push({ y0: bandStart, y1: H })
 
+  // Filter non-text bands: pens, rulers, horizontal objects have very high
+  // per-row black pixel density (> 25% of width) across the entire band.
+  const textBands = bands.filter(({ y0, y1 }) => {
+    let total = 0
+    for (let y = y0; y < y1; y++) total += profile[y]
+    return total / Math.max(1, y1 - y0) < W * 0.25
+  })
+
+  // Split bands that are too tall — they likely contain 2+ merged lines.
+  // Find the lowest-density row in the middle portion of the band and split there.
+  const heights = textBands.map(b => b.y1 - b.y0).sort((a, b) => a - b)
+  const medianH = heights[Math.floor(heights.length / 2)] ?? H
+  const splitBands = splitOversized(textBands, smoothed, medianH)
+
   // Stage 2: Per band → tight x-extent bounding box via connected components
   const lineBoxes: LineBox[] = []
 
-  for (const { y0, y1 } of bands) {
+  for (const { y0, y1 } of splitBands) {
     let minX = W, maxX = 0
     for (let y = y0; y < y1; y++) {
       for (let x = 0; x < W; x++) {
@@ -95,4 +109,43 @@ export async function detectLines(binarizedBlob: Blob): Promise<LineBox[]> {
   }
 
   return lineBoxes
+}
+
+// Split any band taller than 2× the median band height by finding the
+// lowest-density row in the middle 60% of the band.
+function splitOversized(
+  bands: Array<{ y0: number; y1: number }>,
+  smoothed: Float32Array,
+  medianH: number
+): Array<{ y0: number; y1: number }> {
+  const maxH = Math.round(medianH * 2.0)
+  const result: Array<{ y0: number; y1: number }> = []
+
+  for (const band of bands) {
+    const bh = band.y1 - band.y0
+    if (bh <= maxH) {
+      result.push(band)
+      continue
+    }
+    // Search the middle 60% of the band for the row with minimum density
+    const s = band.y0 + Math.round(bh * 0.2)
+    const e = band.y1 - Math.round(bh * 0.2)
+    let minVal = Infinity
+    let splitRow = Math.floor((band.y0 + band.y1) / 2)
+    for (let y = s; y <= e; y++) {
+      if (smoothed[y] < minVal) { minVal = smoothed[y]; splitRow = y }
+    }
+    // Only split if the minimum is meaningfully lower than the band average
+    let bandSum = 0
+    for (let y = band.y0; y < band.y1; y++) bandSum += smoothed[y]
+    const bandAvg = bandSum / bh
+    if (minVal < bandAvg * 0.65 && splitRow > band.y0 + 4 && splitRow < band.y1 - 4) {
+      result.push({ y0: band.y0, y1: splitRow })
+      result.push({ y0: splitRow, y1: band.y1 })
+    } else {
+      result.push(band)
+    }
+  }
+
+  return result
 }

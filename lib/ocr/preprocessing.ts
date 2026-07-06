@@ -178,11 +178,17 @@ function detectDocumentCorners(
   const moved = detected.filter((c, i) => c[0] !== origins[i][0] || c[1] !== origins[i][1]).length
   if (moved < 3) return null
 
-  // Require detected quad to cover 20–95% of the image — skip if already flat/cropped
+  // Top corners must be above bottom corners
+  if (tl[1] >= bl[1] || tr[1] >= br[1]) return null
+
+  // Require detected quad to cover 20% of the image in each dimension
   const spanX = Math.min(tr[0] - tl[0], br[0] - bl[0])
   const spanY = Math.min(bl[1] - tl[1], br[1] - tr[1])
   if (spanX < w * 0.2 || spanY < h * 0.2) return null
-  if (spanX > w * 0.95 && spanY > h * 0.95) return null
+
+  // Skip if either dimension spans > 85% — image is already flat enough.
+  // Using OR means flat photos (where one span is large) don't get incorrectly warped.
+  if (spanX > w * 0.85 || spanY > h * 0.85) return null
 
   return [tl, tr, br, bl]
 }
