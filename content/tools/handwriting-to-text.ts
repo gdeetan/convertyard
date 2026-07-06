@@ -13,7 +13,7 @@ export const config: ToolConfig = {
 
   limitationNote: {
     summary: 'AI-Enhanced mode significantly improves cursive accuracy',
-    body: 'Standard mode uses Tesseract OCR with image preprocessing (contrast, deskew, binarization) — best for printed-style handwriting in all 12 languages. AI-Enhanced mode uses TrOCR (a transformer model trained on handwriting) for much higher accuracy on cursive and mixed styles — English only, downloads ~77MB once and caches in your browser. Inference takes ~1–2 seconds per line.',
+    body: 'Standard mode uses Tesseract OCR with image preprocessing (contrast, deskew, binarization) — best for printed-style handwriting in all 12 languages. AI-Enhanced mode uses TrOCR (a transformer model trained on handwriting) for much higher accuracy on cursive and mixed styles — English only, downloads up to ~320MB once and caches in your browser. Quality mode (default) uses beam search for higher accuracy; Fast mode is quicker at ~1–2 seconds per line.',
   },
 
   options: [
@@ -28,7 +28,7 @@ export const config: ToolConfig = {
       default: 'standard',
       conditionalHints: {
         standard: 'Tesseract OCR with image preprocessing. Works with all 12 languages. Best for printed-style or neat handwriting.',
-        'ai-enhanced': 'TrOCR transformer model trained on handwriting. Much higher accuracy on cursive and mixed styles. Downloads ~77MB on first use — stored in your browser, not re-downloaded. ~1–2 seconds per line.',
+        'ai-enhanced': 'TrOCR transformer model trained on handwriting. Much higher accuracy on cursive and mixed styles. Downloads up to ~320MB on first use — cached in your browser permanently. Quality mode uses beam search for best accuracy; Fast mode is quicker.',
       },
     },
     {
@@ -45,6 +45,20 @@ export const config: ToolConfig = {
         mixed: 'Auto-detects layout. Best default choice for most documents.',
         print: 'Optimises segmentation for separate, upright letters.',
         cursive: 'Optimises segmentation for flowing, joined script.',
+      },
+    },
+    {
+      type: 'radio',
+      name: 'qualityMode',
+      label: 'AI accuracy mode',
+      choices: [
+        { value: 'quality', label: 'Quality — beam search, slower' },
+        { value: 'fast', label: 'Fast — greedy, quicker' },
+      ],
+      default: 'quality',
+      conditionalHints: {
+        quality: 'Evaluates 4 candidate readings per word — catches ambiguous letter pairs (a/o, l/1, u/n, m/n). Adds ~3× processing time per line. AI-Enhanced mode only.',
+        fast: 'Single greedy pass — 1–2s per line. Use when speed matters more than accuracy. AI-Enhanced mode only.',
       },
     },
     {
@@ -94,6 +108,10 @@ export const config: ToolConfig = {
     {
       q: 'Does it work on cursive handwriting?',
       a: 'With Standard mode, accuracy on cursive is lower and you should expect to correct errors. With AI-Enhanced mode (English), cursive accuracy improves significantly — transformer models understand joined strokes in a way traditional OCR cannot.',
+    },
+    {
+      q: 'Why is AI-Enhanced Quality mode slower?',
+      a: 'Quality mode uses beam search — it evaluates 4 candidate readings per token and picks the most likely sequence. This catches ambiguous letter pairs that greedy decoding misses (a/o, l/1, u/n), but takes roughly 3× longer per line. For a 10-line page: Quality takes ~20–30s, Fast takes ~5–10s. Switch to Fast mode if speed matters more than accuracy.',
     },
     {
       q: 'Why is AI-Enhanced mode English-only?',
