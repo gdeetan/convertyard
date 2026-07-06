@@ -174,6 +174,11 @@ self.onmessage = async (e: MessageEvent) => {
         encodeOpts.Q = quality
         encodeOpts.effort = typeof opts.effort === 'number' ? opts.effort : 4
         if (opts.lossless === true) encodeOpts.lossless = true
+        // Tile large images to cap encoder peak memory — libheif OOMs on >~8MP in WASM without tiling
+        if (image.width > 1024 || image.height > 1024) {
+          encodeOpts['tile-width'] = 512
+          encodeOpts['tile-height'] = 512
+        }
       } else if (outputFormat === 'png') {
         // Map quality (1-100) to vips compression (0-9, higher = smaller/slower)
         encodeOpts.compression = Math.min(9, Math.round((100 - quality) * 9 / 100))
