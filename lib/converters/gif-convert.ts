@@ -6,9 +6,17 @@ function normaliseExt(ext: string): string {
   return ext === 'jpeg' ? 'jpg' : ext
 }
 
-function scaleFilter(outputWidth: number): string {
-  // scale=-1:-1 is invalid in ffmpeg; omit scale entirely when no resize needed
-  return outputWidth > 0 ? `scale=${outputWidth}:-1:flags=lanczos,` : ''
+// Build -vf filter string for palettegen pass (filters separated by commas)
+function palettegenVf(fps: number, outputWidth: number): string {
+  const scale = outputWidth > 0 ? `,scale=${outputWidth}:-1:flags=lanczos` : ''
+  return `fps=${fps}${scale},palettegen=stats_mode=full`
+}
+
+// Build -filter_complex string for encode pass.
+// Output label [x] attaches directly to the last filter — no trailing comma.
+function encodeFilterComplex(fps: number, outputWidth: number): string {
+  const scale = outputWidth > 0 ? `,scale=${outputWidth}:-1:flags=lanczos` : ''
+  return `fps=${fps}${scale}[x];[x][1:v]paletteuse=dither=bayer`
 }
 
 // Single file → GIF. Handles static images and animated sources (WebP, GIF).
@@ -24,18 +32,18 @@ async function singleToGif(file: File, opts: ToolOptions): Promise<File> {
   await ffmpeg.writeFile(inputName, await fetchFile(file))
 
   const fps = typeof opts.framerate === 'number' ? opts.framerate : 15
-  const sw = scaleFilter(typeof opts.outputWidth === 'number' ? opts.outputWidth : 0)
+  const outputWidth = typeof opts.outputWidth === 'number' ? opts.outputWidth : 0
   const loop = typeof opts.loop === 'number' ? opts.loop : 0
 
   await ffmpeg.exec([
     '-i', inputName,
-    '-vf', `fps=${fps},${sw}palettegen=stats_mode=full`,
+    '-vf', palettegenVf(fps, outputWidth),
     'palette.png',
   ])
   await ffmpeg.exec([
     '-i', inputName,
     '-i', 'palette.png',
-    '-filter_complex', `fps=${fps},${sw}[x];[x][1:v]paletteuse=dither=bayer`,
+    '-filter_complex', encodeFilterComplex(fps, outputWidth),
     '-loop', String(loop),
     outputName,
   ])
@@ -57,7 +65,7 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
 
   const ext = normaliseExt(files[0].name.split('.').pop()?.toLowerCase() ?? 'jpg')
   const fps = typeof opts.framerate === 'number' ? opts.framerate : 10
-  const sw = scaleFilter(typeof opts.outputWidth === 'number' ? opts.outputWidth : 0)
+  const outputWidth = typeof opts.outputWidth === 'number' ? opts.outputWidth : 0
   const loop = typeof opts.loop === 'number' ? opts.loop : 0
 
   const frameNames: string[] = []
@@ -73,14 +81,14 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
   await ffmpeg.exec([
     '-framerate', String(fps),
     '-i', inputPattern,
-    '-vf', `fps=${fps},${sw}palettegen=stats_mode=full`,
+    '-vf', palettegenVf(fps, outputWidth),
     'palette.png',
   ])
   await ffmpeg.exec([
     '-framerate', String(fps),
     '-i', inputPattern,
     '-i', 'palette.png',
-    '-filter_complex', `fps=${fps},${sw}[x];[x][1:v]paletteuse=dither=bayer`,
+    '-filter_complex', encodeFilterComplex(fps, outputWidth),
     '-loop', String(loop),
     'output.gif',
   ])
