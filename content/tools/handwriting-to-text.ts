@@ -13,7 +13,7 @@ export const config: ToolConfig = {
 
   limitationNote: {
     summary: 'AI-Enhanced mode significantly improves cursive accuracy',
-    body: 'Standard mode uses Tesseract OCR with image preprocessing (contrast, deskew, binarization) — best for printed-style handwriting in all 12 languages. AI-Enhanced mode uses TrOCR (a transformer model trained on handwriting) for much higher accuracy on cursive and mixed styles — English only, downloads ~320MB once and caches in your browser. Inference takes ~2–3 seconds per line.',
+    body: 'Standard mode uses Tesseract OCR with image preprocessing (contrast, deskew, binarization) — best for printed-style handwriting in all 12 languages. AI-Enhanced mode uses TrOCR (a transformer model trained on handwriting) for much higher accuracy on cursive and mixed styles — English only, downloads ~80MB once and caches in your browser. Inference takes ~2–3 seconds per line.',
   },
 
   options: [
@@ -23,12 +23,12 @@ export const config: ToolConfig = {
       label: 'Recognition engine',
       choices: [
         { value: 'standard', label: 'Standard — all languages, no download' },
-        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~320MB download' },
+        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~80MB download' },
       ],
       default: 'standard',
       conditionalHints: {
         standard: 'Tesseract OCR with image preprocessing. Works with all 12 languages. Best for printed-style or neat handwriting.',
-        'ai-enhanced': 'TrOCR transformer model trained on handwriting. Much higher accuracy on cursive and mixed styles. Downloads ~320MB on first use — stored in your browser, not re-downloaded. ~2–3 seconds per line.',
+        'ai-enhanced': 'TrOCR transformer model trained on handwriting. Much higher accuracy on cursive and mixed styles. Downloads ~80MB on first use — stored in your browser, not re-downloaded. ~2–3 seconds per line.',
       },
     },
     {
@@ -80,7 +80,7 @@ export const config: ToolConfig = {
       default: 'text',
       conditionalHints: {
         text: 'One .txt file per image.',
-        json: 'JSON output with per-line text and confidence scores. Lines below 70% confidence are flagged for review.',
+        json: 'JSON output with per-line text and a quality flag. Short or empty lines are automatically flagged for review.',
         combined: 'All images merged into one .txt file.',
       },
     },
@@ -89,7 +89,7 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'What is the difference between Standard and AI-Enhanced mode?',
-      a: 'Standard mode uses Tesseract OCR — it works for all 12 languages and starts immediately, but was originally designed for printed text. AI-Enhanced mode uses TrOCR, a transformer model trained specifically on handwritten text — it handles cursive and mixed styles much better, but only supports English and downloads a ~320MB model on first use (stored in your browser permanently after that).',
+      a: 'Standard mode uses Tesseract OCR — it works for all 12 languages and starts immediately, but was originally designed for printed text. AI-Enhanced mode uses TrOCR, a transformer model trained specifically on handwritten text — it handles cursive and mixed styles much better, but only supports English and downloads an ~80MB model on first use (stored in your browser permanently after that).',
     },
     {
       q: 'Does it work on cursive handwriting?',
@@ -109,7 +109,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'What is the JSON output format?',
-      a: 'JSON mode outputs per-line text with a confidence score (0–1). Lines below 0.7 are flagged so you know which ones to review. Available in both Standard and AI-Enhanced modes.',
+      a: 'JSON mode outputs per-line text with a quality flag. Lines that are empty or very short — likely missed by the OCR engine — are flagged for review. Available in both Standard and AI-Enhanced modes.',
     },
     {
       q: 'Can it handle filled-in paper forms?',

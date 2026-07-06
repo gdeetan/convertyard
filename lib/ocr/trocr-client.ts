@@ -1,5 +1,5 @@
 // TrOCR-based handwriting recognition via @huggingface/transformers.
-// Model: Xenova/trocr-base-handwritten (quantized ONNX, ~80–320MB depending on variant, cached in IndexedDB)
+// Model: Xenova/trocr-base-handwritten (quantized ONNX q8, ~80MB, cached in IndexedDB after first download)
 // Processes one line-image at a time; caller must supply pre-cropped line blobs.
 
 import { pipeline, env } from '@huggingface/transformers'
