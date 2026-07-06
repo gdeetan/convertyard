@@ -56,6 +56,7 @@ export const config: ToolConfig = {
         { value: 'fast', label: 'Fast — greedy, quicker' },
       ],
       default: 'quality',
+      dependsOn: { name: 'recognitionEngine', value: 'ai-enhanced' },
       conditionalHints: {
         quality: 'Evaluates 4 candidate readings per word — catches ambiguous letter pairs (a/o, l/1, u/n, m/n). Adds ~3× processing time per line. AI-Enhanced mode only.',
         fast: 'Single greedy pass — 1–2s per line. Use when speed matters more than accuracy. AI-Enhanced mode only.',
