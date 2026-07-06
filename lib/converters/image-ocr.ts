@@ -132,6 +132,7 @@ export async function imageOcrConvert(
   const mode = (opts.outputMode as OcrMode | undefined) ?? 'text'
   const engine = (opts.recognitionEngine as string | undefined) ?? 'standard'
   const style = (opts.handwritingStyle as string | undefined) ?? 'mixed'
+  const quality = (opts.qualityMode as string | undefined) !== 'fast'
   const useAi = engine === 'ai-enhanced' && lang === 'eng'
   const isPng = (f: File) => f.type === 'image/png' || /\.png$/i.test(f.name)
 
@@ -170,7 +171,8 @@ export async function imageOcrConvert(
         const lineBlobs = await cropLinesToBlobs(blob, lineBoxes)
         const { text: aiText, lines: aiLines } = await recognizeWithTrOCR(
           lineBlobs,
-          p => onProgress?.(i, 35 + Math.round(p * 0.55))
+          p => onProgress?.(i, 35 + Math.round(p * 0.55)),
+          quality
         )
         text = aiText
         confidence = aiLines.length > 0
