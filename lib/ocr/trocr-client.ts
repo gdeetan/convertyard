@@ -1,5 +1,5 @@
 // TrOCR-based handwriting recognition via @huggingface/transformers.
-// Model: Xenova/trocr-base-handwritten (~320MB, cached in IndexedDB after first download)
+// Model: Xenova/trocr-base-handwritten (quantized ONNX, ~80–320MB depending on variant, cached in IndexedDB)
 // Processes one line-image at a time; caller must supply pre-cropped line blobs.
 
 import { pipeline, env } from '@huggingface/transformers'
@@ -22,14 +22,19 @@ export async function getTrOcrPipeline(
 ): Promise<ImageToTextPipeline> {
   if (pipelineInstance) return pipelineInstance
 
-  pipelineInstance = await pipeline('image-to-text', MODEL_ID, {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    progress_callback: (info: any) => {
-      if (onProgress && typeof info?.progress === 'number') {
-        onProgress(Math.round(info.progress))
-      }
-    },
-  })
+  try {
+    pipelineInstance = await pipeline('image-to-text', MODEL_ID, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      progress_callback: (info: any) => {
+        if (onProgress && typeof info?.progress === 'number') {
+          onProgress(Math.round(info.progress))
+        }
+      },
+    })
+  } catch (e) {
+    pipelineInstance = null
+    throw e
+  }
   return pipelineInstance
 }
 
@@ -42,7 +47,8 @@ export async function recognizeLineWithTrOCR(
     const result = await pipe(url)
     const output = Array.isArray(result) ? result[0] : result
     const text = (output as { generated_text?: string }).generated_text?.trim() ?? ''
-    // Heuristic confidence: very short or empty outputs are likely missed lines
+    // Length-based confidence proxy — TrOCR pipeline does not expose beam-search scores.
+    // Not a true probability: "aaa" gets 0.9. Use only for flagging likely misses (empty/very short).
     const confidence = text.length >= 3 ? 0.9 : text.length > 0 ? 0.5 : 0.0
     return { text, confidence }
   } finally {

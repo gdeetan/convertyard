@@ -17,7 +17,8 @@ export async function detectLines(binarizedBlob: Blob): Promise<LineBox[]> {
   const W = bmp.width
   const H = bmp.height
   const canvas = new OffscreenCanvas(W, H)
-  const ctx = canvas.getContext('2d')!
+  const ctx = canvas.getContext('2d')
+  if (!ctx) return []
   ctx.drawImage(bmp, 0, 0)
   bmp.close()
 
@@ -61,7 +62,7 @@ export async function detectLines(binarizedBlob: Blob): Promise<LineBox[]> {
       if (y - bandStart >= 4) bands.push({ y0: bandStart, y1: y })
     }
   }
-  if (inBand) bands.push({ y0: bandStart, y1: H })
+  if (inBand && H - bandStart >= 4) bands.push({ y0: bandStart, y1: H })
 
   // Stage 2: Per band → tight x-extent bounding box via connected components
   const lineBoxes: LineBox[] = []
