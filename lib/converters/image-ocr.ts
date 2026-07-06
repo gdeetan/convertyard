@@ -193,7 +193,7 @@ export async function imageOcrConvert(
           )
           results.push(new File([jsonContent], `${baseName}.json`, { type: 'application/json' }))
           onProgress?.(i, 100)
-          continue
+          continue // json in AI mode: emitted above — skip shared switch
         }
       } else {
         // Standard path: enhanced Tesseract with OEM/PSM tuning
@@ -243,8 +243,17 @@ export async function imageOcrConvert(
           break
         }
         case 'json': {
+          // Standard mode: single-line envelope matching AI path schema for consistent parsing
           const jsonContent = JSON.stringify(
-            { text: text.trim(), confidence: (confidence! / 100).toFixed(2) },
+            {
+              lines: [
+                {
+                  text: text.trim(),
+                  confidence: Math.round(confidence! / 100 * 10) / 10,
+                  flagged: confidence! < 70,
+                },
+              ],
+            },
             null,
             2
           )
