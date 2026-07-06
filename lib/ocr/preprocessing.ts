@@ -147,7 +147,7 @@ function detectDocumentCorners(
   }
 
   const edgeThresh = 60
-  const scanDist = Math.min(w, h) * 0.6
+  const scanDist = Math.hypot(w, h) * 0.45
   const d = 1 / Math.sqrt(2)
 
   const findCorner = (
@@ -172,6 +172,11 @@ function detectDocumentCorners(
   const tr = findCorner(w - 1, 0,     -d,  d)
   const br = findCorner(w - 1, h - 1, -d, -d)
   const bl = findCorner(0,     h - 1,  d, -d)
+
+  const origins: [number, number][] = [[0, 0], [w - 1, 0], [w - 1, h - 1], [0, h - 1]]
+  const detected = [tl, tr, br, bl]
+  const moved = detected.filter((c, i) => c[0] !== origins[i][0] || c[1] !== origins[i][1]).length
+  if (moved < 3) return null
 
   // Require detected quad to cover 20–95% of the image — skip if already flat/cropped
   const spanX = Math.min(tr[0] - tl[0], br[0] - bl[0])
