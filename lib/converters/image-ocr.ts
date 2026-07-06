@@ -165,37 +165,45 @@ export async function imageOcrConvert(
 
       if (useAi) {
         // AI path: geometry-based line detection → TrOCR per line
-        onProgress?.(i, 25)
-        const lineBoxes = await detectLines(blob)
-        onProgress?.(i, 35)
-        const lineBlobs = await cropLinesToBlobs(blob, lineBoxes)
-        const { text: aiText, lines: aiLines } = await recognizeWithTrOCR(
-          lineBlobs,
-          p => onProgress?.(i, 35 + Math.round(p * 0.55)),
-          quality
-        )
-        text = aiText
-        confidence = aiLines.length > 0
-          ? Math.round(aiLines.reduce((s, l) => s + l.confidence, 0) / aiLines.length * 100)
-          : 0
-
-        if (mode === 'json') {
-          onProgress?.(i, 90)
-          const baseName = file.name.replace(/\.[^.]+$/, '')
-          const jsonContent = JSON.stringify(
-            {
-              lines: aiLines.map(l => ({
-                text: l.text,
-                confidence: l.confidence,
-                flagged: l.confidence < 0.7,
-              })),
-            },
-            null,
-            2
+        // Falls back to Tesseract if TrOCR model fails to load (e.g. ONNX incompatibility).
+        try {
+          onProgress?.(i, 25)
+          const lineBoxes = await detectLines(blob)
+          onProgress?.(i, 35)
+          const lineBlobs = await cropLinesToBlobs(blob, lineBoxes)
+          const { text: aiText, lines: aiLines } = await recognizeWithTrOCR(
+            lineBlobs,
+            p => onProgress?.(i, 35 + Math.round(p * 0.55)),
+            quality
           )
-          results.push(new File([jsonContent], `${baseName}.json`, { type: 'application/json' }))
-          onProgress?.(i, 100)
-          continue // json in AI mode: emitted above — skip shared switch
+          text = aiText
+          confidence = aiLines.length > 0
+            ? Math.round(aiLines.reduce((s, l) => s + l.confidence, 0) / aiLines.length * 100)
+            : 0
+
+          if (mode === 'json') {
+            onProgress?.(i, 90)
+            const baseName = file.name.replace(/\.[^.]+$/, '')
+            const jsonContent = JSON.stringify(
+              {
+                lines: aiLines.map(l => ({
+                  text: l.text,
+                  confidence: l.confidence,
+                  flagged: l.confidence < 0.7,
+                })),
+              },
+              null,
+              2
+            )
+            results.push(new File([jsonContent], `${baseName}.json`, { type: 'application/json' }))
+            onProgress?.(i, 100)
+            continue // json in AI mode: emitted above — skip shared switch
+          }
+        } catch (trocErr) {
+          console.warn('[TrOCR] Model unavailable, falling back to Tesseract:', trocErr)
+          onProgress?.(i, 30)
+          const result = await recognizePage(blob, lang, { oem: 1, psm: psmForStyle(style) })
+          ;({ text, confidence } = result)
         }
       } else {
         // Standard path: enhanced Tesseract with OEM/PSM tuning

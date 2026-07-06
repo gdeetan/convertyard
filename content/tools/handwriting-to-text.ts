@@ -13,7 +13,7 @@ export const config: ToolConfig = {
 
   limitationNote: {
     summary: 'AI-Enhanced mode significantly improves cursive accuracy',
-    body: 'Standard mode uses Tesseract OCR with image preprocessing (contrast, deskew, binarization) — best for printed-style handwriting in all 12 languages. AI-Enhanced mode uses TrOCR (a transformer model trained on handwriting) for much higher accuracy on cursive and mixed styles — English only, downloads up to ~320MB once and caches in your browser. Quality mode (default) uses beam search for higher accuracy; Fast mode is quicker at ~1–2 seconds per line.',
+    body: 'Standard mode uses Tesseract OCR with image preprocessing (contrast, deskew, binarization) — best for printed-style handwriting in all 12 languages. AI-Enhanced mode uses TrOCR (a transformer model trained on handwriting) for much higher accuracy on cursive and mixed styles — English only, downloads ~400MB once and caches in your browser. Quality mode (default) uses beam search for higher accuracy; Fast mode is quicker at ~1–2 seconds per line.',
   },
 
   options: [
@@ -23,12 +23,12 @@ export const config: ToolConfig = {
       label: 'Recognition engine',
       choices: [
         { value: 'standard', label: 'Standard — all languages, no download' },
-        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, up to ~320MB download' },
+        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~400MB download' },
       ],
       default: 'standard',
       conditionalHints: {
         standard: 'Tesseract OCR with image preprocessing. Works with all 12 languages. Best for printed-style or neat handwriting.',
-        'ai-enhanced': 'TrOCR transformer model trained on handwriting. Much higher accuracy on cursive and mixed styles. Downloads up to ~320MB on first use — cached in your browser permanently. Quality mode uses beam search for best accuracy; Fast mode is quicker.',
+        'ai-enhanced': 'TrOCR transformer model trained on handwriting. Much higher accuracy on cursive and mixed styles. Downloads ~400MB on first use — cached in your browser permanently. Quality mode uses beam search for best accuracy; Fast mode is quicker.',
       },
     },
     {
@@ -104,7 +104,7 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'What is the difference between Standard and AI-Enhanced mode?',
-      a: 'Standard mode uses Tesseract OCR — it works for all 12 languages and starts immediately, but was originally designed for printed text. AI-Enhanced mode uses TrOCR, a transformer model trained specifically on handwritten text — it handles cursive and mixed styles much better, but only supports English and downloads up to ~320MB on first use (stored in your browser permanently after that).',
+      a: 'Standard mode uses Tesseract OCR — it works for all 12 languages and starts immediately, but was originally designed for printed text. AI-Enhanced mode uses TrOCR, a transformer model trained specifically on handwritten text — it handles cursive and mixed styles much better, but only supports English and downloads ~400MB on first use (stored in your browser permanently after that).',
     },
     {
       q: 'Does it work on cursive handwriting?',
