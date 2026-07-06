@@ -1,5 +1,6 @@
 // TrOCR-based handwriting recognition via @huggingface/transformers.
-// Model: Xenova/trocr-base-handwritten (quantized ONNX q8, ~80MB, cached in IndexedDB after first download)
+// Model: Xenova/trocr-small-handwritten (quantized ONNX q8, ~77MB, cached in IndexedDB after first download)
+// Note: trocr-base uses 4-bit NBits quantization incompatible with ONNX Runtime in transformers.js 4.2.x
 // Processes one line-image at a time; caller must supply pre-cropped line blobs.
 
 import { pipeline, env } from '@huggingface/transformers'
@@ -7,7 +8,7 @@ import { pipeline, env } from '@huggingface/transformers'
 env.allowRemoteModels = true
 env.useBrowserCache = true
 
-const MODEL_ID = 'Xenova/trocr-base-handwritten'
+const MODEL_ID = 'Xenova/trocr-small-handwritten'
 
 type ImageToTextPipeline = Awaited<ReturnType<typeof pipeline<'image-to-text'>>>
 let pipelineInstance: ImageToTextPipeline | null = null
