@@ -7,15 +7,17 @@ function normaliseExt(ext: string): string {
 }
 
 // Two-pass helpers for image sequences (sequenceToGif only).
-// fps filter is valid here because -framerate sets explicit input rate.
-function palettegenVf(fps: number, outputWidth: number): string {
-  const scale = outputWidth > 0 ? `,scale=${outputWidth}:-1:flags=lanczos` : ''
-  return `fps=${fps}${scale},palettegen=stats_mode=full`
+// -framerate on the input already sets the rate; no fps filter needed inside
+// the filtergraph — adding it caused exit code 1 in ffmpeg.wasm.
+function palettegenVf(outputWidth: number): string {
+  const scale = outputWidth > 0 ? `scale=${outputWidth}:-1:flags=lanczos,` : ''
+  return `${scale}palettegen=stats_mode=full`
 }
 
-function encodeFilterComplex(fps: number, outputWidth: number): string {
-  const scale = outputWidth > 0 ? `,scale=${outputWidth}:-1:flags=lanczos` : ''
-  return `[0:v]fps=${fps}${scale}[x];[x][1:v]paletteuse=dither=bayer`
+function encodeFilterComplex(outputWidth: number): string {
+  return outputWidth > 0
+    ? `[0:v]scale=${outputWidth}:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer`
+    : `[0:v][1:v]paletteuse=dither=bayer`
 }
 
 // Single file → GIF. Uses a one-pass split-palette filtergraph.
@@ -86,7 +88,7 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
   const ret1 = await ffmpeg.exec([
     '-framerate', String(fps),
     '-i', inputPattern,
-    '-vf', palettegenVf(fps, outputWidth),
+    '-vf', palettegenVf(outputWidth),
     'palette.png',
   ])
   if (ret1 !== 0) throw new Error(`FFmpeg palette pass exited with code ${ret1}`)
@@ -95,7 +97,7 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
     '-framerate', String(fps),
     '-i', inputPattern,
     '-i', 'palette.png',
-    '-filter_complex', encodeFilterComplex(fps, outputWidth),
+    '-filter_complex', encodeFilterComplex(outputWidth),
     '-loop', String(loop),
     'output.gif',
   ])
