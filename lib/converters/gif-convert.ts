@@ -6,37 +6,24 @@ function normaliseExt(ext: string): string {
   return ext === 'jpeg' ? 'jpg' : ext
 }
 
-// Build -vf filter string for palettegen pass (filters separated by commas)
+// Two-pass helpers for image sequences (sequenceToGif only).
+// fps filter is valid here because -framerate sets explicit input rate.
 function palettegenVf(fps: number, outputWidth: number): string {
   const scale = outputWidth > 0 ? `,scale=${outputWidth}:-1:flags=lanczos` : ''
   return `fps=${fps}${scale},palettegen=stats_mode=full`
 }
 
-// Build -filter_complex string for encode pass.
-// [0:v] explicitly routes the first input's video stream — required when
-// there are multiple inputs (-i image -i palette.png) so ffmpeg doesn't
-// misroute streams and produce an empty output.
 function encodeFilterComplex(fps: number, outputWidth: number): string {
   const scale = outputWidth > 0 ? `,scale=${outputWidth}:-1:flags=lanczos` : ''
   return `[0:v]fps=${fps}${scale}[x];[x][1:v]paletteuse=dither=bayer`
 }
 
-// Static image variants: no fps filter. A single still image has no framerate;
-// applying fps=N yields 0 output frames (0.04s implicit duration × N fps < 1),
-// which produces an empty palette and a 0-byte GIF.
-function staticPalettegenVf(outputWidth: number): string {
-  const scale = outputWidth > 0 ? `scale=${outputWidth}:-1:flags=lanczos,` : ''
-  return `${scale}palettegen=stats_mode=full`
-}
-
-function staticEncodeFilterComplex(outputWidth: number): string {
-  return outputWidth > 0
-    ? `[0:v]scale=${outputWidth}:-1:flags=lanczos[x];[x][1:v]paletteuse=dither=bayer`
-    : `[0:v][1:v]paletteuse=dither=bayer`
-}
-
-// Single file → GIF. Handles static images and animated sources (WebP, GIF).
-// ffmpeg reads all frames from animated sources automatically.
+// Single file → GIF. Uses a one-pass split-palette filtergraph.
+// Two-pass with a separate palette.png file is unreliable for static images
+// in ffmpeg.wasm: the palette pass can silently produce 0 frames (static PNG
+// has ~0.04s implicit duration, so fps=N yields <1 frame), and exec() never
+// throws on non-zero exit — it resolves with the return code, leaving an empty
+// output.gif with no error raised.
 async function singleToGif(file: File, opts: ToolOptions): Promise<File> {
   const ffmpeg = await getFFmpeg()
   const { fetchFile } = await import('@ffmpeg/util')
@@ -47,29 +34,30 @@ async function singleToGif(file: File, opts: ToolOptions): Promise<File> {
 
   await ffmpeg.writeFile(inputName, await fetchFile(file))
 
-  const fps = typeof opts.framerate === 'number' ? opts.framerate : 15
   const outputWidth = typeof opts.outputWidth === 'number' ? opts.outputWidth : 0
   const loop = typeof opts.loop === 'number' ? opts.loop : 0
 
-  await ffmpeg.exec([
+  // split[s0][s1] copies the input stream — s0 feeds palettegen, s1 feeds
+  // paletteuse. One pass, no intermediate file, works for any frame count.
+  const scale = outputWidth > 0 ? `scale=${outputWidth}:-1:flags=lanczos,` : ''
+  const vf = `${scale}split[s0][s1];[s0]palettegen=stats_mode=full[p];[s1][p]paletteuse=dither=bayer`
+
+  const ret = await ffmpeg.exec([
     '-i', inputName,
-    '-vf', staticPalettegenVf(outputWidth),
-    'palette.png',
-  ])
-  await ffmpeg.exec([
-    '-i', inputName,
-    '-i', 'palette.png',
-    '-filter_complex', staticEncodeFilterComplex(outputWidth),
+    '-vf', vf,
     '-loop', String(loop),
     outputName,
   ])
 
-  const data = await ffmpeg.readFile(outputName)
+  if (ret !== 0) throw new Error(`FFmpeg exited with code ${ret}`)
+
+  const data = await ffmpeg.readFile(outputName) as Uint8Array
+  if (data.length === 0) throw new Error('FFmpeg produced empty GIF output')
+
   const blob = new Blob([data], { type: 'image/gif' })
 
   await ffmpeg.deleteFile(inputName).catch(() => {})
   await ffmpeg.deleteFile(outputName).catch(() => {})
-  await ffmpeg.deleteFile('palette.png').catch(() => {})
 
   return new File([blob], file.name.replace(/\.[^.]+$/, '.gif'), { type: 'image/gif' })
 }
@@ -94,13 +82,15 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
   const inputPattern = `frame%04d.${ext}`
 
   // Two-pass: global palette from the full sequence, then encode all frames
-  await ffmpeg.exec([
+  const ret1 = await ffmpeg.exec([
     '-framerate', String(fps),
     '-i', inputPattern,
     '-vf', palettegenVf(fps, outputWidth),
     'palette.png',
   ])
-  await ffmpeg.exec([
+  if (ret1 !== 0) throw new Error(`FFmpeg palette pass exited with code ${ret1}`)
+
+  const ret2 = await ffmpeg.exec([
     '-framerate', String(fps),
     '-i', inputPattern,
     '-i', 'palette.png',
@@ -108,8 +98,11 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
     '-loop', String(loop),
     'output.gif',
   ])
+  if (ret2 !== 0) throw new Error(`FFmpeg encode pass exited with code ${ret2}`)
 
-  const data = await ffmpeg.readFile('output.gif')
+  const data = await ffmpeg.readFile('output.gif') as Uint8Array
+  if (data.length === 0) throw new Error('FFmpeg produced empty GIF output')
+
   const blob = new Blob([data], { type: 'image/gif' })
 
   for (const name of frameNames) await ffmpeg.deleteFile(name).catch(() => {})
