@@ -4,8 +4,49 @@
 
 const MIN_WIDTH_PX = 1500
 
-export async function preprocessForOcr(blob: Blob): Promise<Blob> {
-  if (typeof OffscreenCanvas === 'undefined') return blob
+// Render a grayscale pixel array to a deskewed+upscaled canvas blob.
+function renderGrayToBlob(
+  pixels: Uint8Array,
+  w: number, h: number,
+  finalW: number, finalH: number,
+  angle: number, scale: number
+): Promise<Blob> {
+  const needsRotate = Math.abs(angle) > 0.01
+  const workCanvas = new OffscreenCanvas(w, h)
+  const wctx = workCanvas.getContext('2d')!
+  const imgData = wctx.createImageData(w, h)
+  for (let i = 0; i < pixels.length; i++) {
+    const v = pixels[i]
+    imgData.data[i * 4] = v
+    imgData.data[i * 4 + 1] = v
+    imgData.data[i * 4 + 2] = v
+    imgData.data[i * 4 + 3] = 255
+  }
+  wctx.putImageData(imgData, 0, 0)
+
+  const out = new OffscreenCanvas(finalW, finalH)
+  const octx = out.getContext('2d')!
+  octx.fillStyle = '#ffffff'
+  octx.fillRect(0, 0, finalW, finalH)
+  if (needsRotate) {
+    octx.translate(finalW / 2, finalH / 2)
+    octx.rotate(angle)
+    octx.scale(scale, scale)
+    octx.drawImage(workCanvas, -w / 2, -h / 2)
+  } else {
+    octx.scale(scale, scale)
+    octx.drawImage(workCanvas, 0, 0)
+  }
+  return out.convertToBlob({ type: 'image/png' })
+}
+
+// Core pipeline — returns both binarized output (for line detection) and
+// CLAHE grayscale output (for TrOCR inference, preserves natural pixel distribution).
+async function preprocessCore(blob: Blob): Promise<{
+  binary: Blob
+  grayscale: Blob
+} | null> {
+  if (typeof OffscreenCanvas === 'undefined') return null
 
   const bmp = await createImageBitmap(blob)
   const { width: origW, height: origH } = bmp
@@ -67,35 +108,28 @@ export async function preprocessForOcr(blob: Blob): Promise<Blob> {
   const finalW = Math.round(outW * scale)
   const finalH = Math.round(outH * scale)
 
-  const out = new OffscreenCanvas(finalW, finalH)
-  const octx = out.getContext('2d')!
-  octx.fillStyle = '#ffffff'
-  octx.fillRect(0, 0, finalW, finalH)
+  // Render both outputs with the same deskew + upscale transform
+  const [binaryBlob, grayscaleBlob] = await Promise.all([
+    renderGrayToBlob(binary, workW, workH, finalW, finalH, angle, scale),
+    renderGrayToBlob(clahe, workW, workH, finalW, finalH, angle, scale),
+  ])
 
-  // Write binarized pixels to an intermediate canvas for rotation/upscale
-  const workCanvas = new OffscreenCanvas(workW, workH)
-  const wctx = workCanvas.getContext('2d')!
-  const binData = wctx.createImageData(workW, workH)
-  for (let i = 0; i < binary.length; i++) {
-    const v = binary[i]
-    binData.data[i * 4] = v
-    binData.data[i * 4 + 1] = v
-    binData.data[i * 4 + 2] = v
-    binData.data[i * 4 + 3] = 255
-  }
-  wctx.putImageData(binData, 0, 0)
+  return { binary: binaryBlob, grayscale: grayscaleBlob }
+}
 
-  if (needsRotate) {
-    octx.translate(finalW / 2, finalH / 2)
-    octx.rotate(angle)
-    octx.scale(scale, scale)
-    octx.drawImage(workCanvas, -workW / 2, -workH / 2)
-  } else {
-    octx.scale(scale, scale)
-    octx.drawImage(workCanvas, 0, 0)
-  }
+export async function preprocessForOcr(blob: Blob): Promise<Blob> {
+  const result = await preprocessCore(blob)
+  return result?.binary ?? blob
+}
 
-  return out.convertToBlob({ type: 'image/png' })
+// Returns both the binarized image (for line detection) and the CLAHE grayscale
+// image (for TrOCR inference). The grayscale preserves natural pixel intensity
+// distribution that TrOCR was trained on — feeding binarized input causes
+// distribution mismatch and hallucinations.
+export async function preprocessForOcrDual(blob: Blob): Promise<{ binary: Blob; grayscale: Blob }> {
+  const result = await preprocessCore(blob)
+  if (!result) return { binary: blob, grayscale: blob }
+  return result
 }
 
 // ── Gaussian blur (3×3 kernel) ────────────────────────────────────────────────

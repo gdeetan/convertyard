@@ -1,5 +1,5 @@
 import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
-import { preprocessForOcr } from '@/lib/ocr/preprocessing'
+import { preprocessForOcr, preprocessForOcrDual } from '@/lib/ocr/preprocessing'
 import { recognizeWithTrOCR } from '@/lib/ocr/trocr-client'
 import { detectLines } from '@/lib/ocr/line-detector'
 import type { ConversionResult, ToolOptions } from '@/lib/types'
@@ -38,25 +38,53 @@ async function compositePng(blob: Blob): Promise<Blob> {
 // ── Line cropping for TrOCR ───────────────────────────────────────────────────
 
 async function cropLinesToBlobs(
-  preprocessedBlob: Blob,
+  binaryBlob: Blob,
+  grayscaleBlob: Blob,
   lines: Array<{ x: number; y: number; w: number; h: number }>
 ): Promise<Blob[]> {
   if (lines.length === 0 || typeof OffscreenCanvas === 'undefined') return []
-  const bmp = await createImageBitmap(preprocessedBlob)
+  // Binary bitmap used only for blank-line detection (clean 0/255 signal).
+  // Grayscale bitmap is what TrOCR receives — preserves natural pixel distribution
+  // that the model was trained on (binarized input causes hallucinations).
+  const [binBmp, grayBmp] = await Promise.all([
+    createImageBitmap(binaryBlob),
+    createImageBitmap(grayscaleBlob),
+  ])
+  const imgW = binBmp.width
+  const imgH = binBmp.height
   const blobs: Blob[] = []
+
   for (const { x, y, w, h } of lines) {
     if (w <= 0 || h <= 0) continue
-    const c = new OffscreenCanvas(w, h)
-    const cCtx = c.getContext('2d')!
-    cCtx.drawImage(bmp, x, y, w, h, 0, 0, w, h)
-    // Skip near-blank crops (pen remnants, noise) — TrOCR outputs "000" on sparse crops.
-    const pixels = cCtx.getImageData(0, 0, w, h).data
+
+    // Blank-line check on binary — raised to 1.5% to filter noise/pen-remnant crops
+    // that cause TrOCR to hallucinate "000" or unrelated words.
+    const check = new OffscreenCanvas(w, h)
+    const checkCtx = check.getContext('2d')!
+    checkCtx.drawImage(binBmp, x, y, w, h, 0, 0, w, h)
+    const pixels = checkCtx.getImageData(0, 0, w, h).data
     let blackCount = 0
     for (let p = 0; p < pixels.length; p += 4) { if (pixels[p] < 128) blackCount++ }
-    if (blackCount / (w * h) < 0.004) continue
+    if (blackCount / (w * h) < 0.015) continue
+
+    // Crop grayscale with horizontal padding (3% each side) for TrOCR input.
+    // Tight crops starting at ink confuse encoder position embeddings on first/last chars.
+    const hPad = Math.round(w * 0.03)
+    const cropX = Math.max(0, x - hPad)
+    const cropW = Math.min(imgW, x + w + hPad) - cropX
+    const cropH = h
+    const cropY = Math.max(0, Math.min(imgH - cropH, y))
+
+    const c = new OffscreenCanvas(cropW, cropH)
+    const cCtx = c.getContext('2d')!
+    cCtx.fillStyle = '#ffffff'
+    cCtx.fillRect(0, 0, cropW, cropH)
+    cCtx.drawImage(grayBmp, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH)
     blobs.push(await c.convertToBlob({ type: 'image/png' }))
   }
-  bmp.close()
+
+  binBmp.close()
+  grayBmp.close()
   return blobs
 }
 
@@ -162,21 +190,21 @@ export async function imageOcrConvert(
         blob = await compositePng(blob)
       }
 
-      // Preprocessing: grayscale, contrast, binarize, deskew, upscale
-      onProgress?.(i, 20)
-      blob = await preprocessForOcr(blob)
-
       let text: string
       let confidence: number
 
       if (useAi) {
-        // AI path: geometry-based line detection → TrOCR per line
-        // Falls back to Tesseract if TrOCR model fails to load (e.g. ONNX incompatibility).
+        // AI path: dual preprocessing — binary for line detection, grayscale for TrOCR.
+        // Feeding binarized images to TrOCR causes distribution mismatch and hallucinations;
+        // the model was trained on natural grayscale handwriting scans.
+        // Falls back to Tesseract if TrOCR model fails to load.
+        onProgress?.(i, 20)
+        const { binary: binBlob, grayscale: grayBlob } = await preprocessForOcrDual(blob)
         try {
           onProgress?.(i, 25)
-          const lineBoxes = await detectLines(blob)
+          const lineBoxes = await detectLines(binBlob)
           onProgress?.(i, 35)
-          const lineBlobs = await cropLinesToBlobs(blob, lineBoxes)
+          const lineBlobs = await cropLinesToBlobs(binBlob, grayBlob, lineBoxes)
           const { text: aiText, lines: aiLines } = await recognizeWithTrOCR(
             lineBlobs,
             p => onProgress?.(i, 35 + Math.round(p * 0.55)),
@@ -208,13 +236,15 @@ export async function imageOcrConvert(
         } catch (trocErr) {
           console.warn('[TrOCR] Model unavailable, falling back to Tesseract:', trocErr)
           onProgress?.(i, 30)
-          const result = await recognizePage(blob, lang, { oem: 1, psm: psmForStyle(style) })
+          const result = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
           ;({ text, confidence } = result)
         }
       } else {
-        // Standard path: enhanced Tesseract with OEM/PSM tuning
+        // Standard path: preprocess → Tesseract with OEM/PSM tuning
+        onProgress?.(i, 20)
+        const preprocessed = await preprocessForOcr(blob)
         onProgress?.(i, 30)
-        const result = await recognizePage(blob, lang, {
+        const result = await recognizePage(preprocessed, lang, {
           oem: 1,
           psm: psmForStyle(style),
         });

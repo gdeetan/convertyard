@@ -1,17 +1,19 @@
 // TrOCR-based handwriting recognition via @huggingface/transformers.
-// Model: Xenova/trocr-small-handwritten loaded with dtype:'fp32'.
+// Model cascade: trocr-base fp32 → trocr-small fp32.
 //
 // Why fp32: Xenova updated trocr model files on the hub to use MatMulNBits (4-bit quant).
 // Those files are missing required scale tensors, causing ONNX Runtime to fail with
 // "TransposeDQWeightsForMatMulNBits Missing required scale" on q8, fp16, and default dtype.
-// dtype:'fp32' loads encoder_model.onnx + decoder_model_merged.onnx (no quantization nodes)
-// which are unaffected. ~400MB one-time download, cached in IndexedDB after first load.
+// dtype:'fp32' loads encoder_model.onnx + decoder_model_merged.onnx (no quantization nodes).
+// trocr-base fp32 is tried first (~800MB, significantly higher accuracy than small).
+// trocr-small fp32 is the fallback (~400MB). Both cached in IndexedDB after first load.
 
 import { pipeline, env } from '@huggingface/transformers'
 
 env.allowRemoteModels = true
 env.useBrowserCache = true
 
+const TROCR_BASE = 'Xenova/trocr-base-handwritten'
 const TROCR_SMALL = 'Xenova/trocr-small-handwritten'
 
 type ImageToTextPipeline = Awaited<ReturnType<typeof pipeline<'image-to-text'>>>
@@ -25,18 +27,31 @@ export interface TrOcrLineResult {
 async function loadPipeline(
   onProgress?: (pct: number) => void
 ): Promise<ImageToTextPipeline> {
-  const instance = await pipeline('image-to-text', TROCR_SMALL, {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    dtype: 'fp32' as any,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    progress_callback: (info: any) => {
-      if (onProgress && typeof info?.progress === 'number') {
-        onProgress(Math.round(info.progress))
-      }
-    },
-  })
-  console.log('[TrOCR] Loaded trocr-small (fp32)')
-  return instance
+  const attempts = [
+    { model: TROCR_BASE, label: 'trocr-base (fp32)' },
+    { model: TROCR_SMALL, label: 'trocr-small (fp32)' },
+  ]
+
+  for (const { model, label } of attempts) {
+    try {
+      const instance = await pipeline('image-to-text', model, {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        dtype: 'fp32' as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        progress_callback: (info: any) => {
+          if (onProgress && typeof info?.progress === 'number') {
+            onProgress(Math.round(info.progress))
+          }
+        },
+      })
+      console.log(`[TrOCR] Loaded ${label}`)
+      return instance
+    } catch (e) {
+      console.warn(`[TrOCR] Failed ${label}:`, e)
+    }
+  }
+
+  throw new Error('TrOCR: all model variants failed to load')
 }
 
 export async function getTrOcrPipeline(
@@ -51,6 +66,14 @@ export async function getTrOcrPipeline(
   return pipelinePromise
 }
 
+// Returns true for degenerate TrOCR outputs: single character repeated 4+ times
+// with no spaces. These are hallucinations on near-blank or corrupted crops.
+function isDegenerate(text: string): boolean {
+  const stripped = text.replace(/\s/g, '')
+  if (stripped.length < 4) return false
+  return new Set(stripped).size === 1
+}
+
 export async function recognizeLineWithTrOCR(
   lineBlob: Blob,
   pipe: ImageToTextPipeline,
@@ -62,9 +85,12 @@ export async function recognizeLineWithTrOCR(
     const result = await (pipe as any)(url, {
       num_beams: quality ? 4 : 1,
       max_new_tokens: 128,
+      repetition_penalty: 1.3,
+      no_repeat_ngram_size: 3,
     })
     const output = Array.isArray(result) ? result[0] : result
-    const text = (output as { generated_text?: string }).generated_text?.trim() ?? ''
+    const raw = (output as { generated_text?: string }).generated_text?.trim() ?? ''
+    const text = isDegenerate(raw) ? '' : raw
     // Length-based confidence proxy — TrOCR pipeline does not expose beam-search scores.
     const confidence = text.length >= 3 ? 0.9 : text.length > 0 ? 0.5 : 0.0
     return { text, confidence }
@@ -85,7 +111,7 @@ export async function recognizeWithTrOCR(
     onProgress?.(50 + Math.round(((i + 1) / lineBlobs.length) * 50))
   }
   return {
-    text: lines.map(l => l.text).join('\n'),
+    text: lines.map(l => l.text).filter(Boolean).join('\n'),
     lines,
   }
 }
