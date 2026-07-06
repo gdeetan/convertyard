@@ -40,11 +40,10 @@ async function singleToGif(file: File, opts: ToolOptions): Promise<File> {
 }
 
 // Multiple static images → one animated GIF (each file = one frame in order).
-// Uses a concat filter_complex so each input is independently scaled and
-// format-normalized before joining. The image-sequence pattern (-i frame%04d)
-// approach fails with "Internal bug" in paletteuse when any two frames differ
-// in dimensions or pixel format (pal8 vs rgba etc.), because ffmpeg reconfigures
-// the filter graph at the source — before scale/format filters can normalize.
+// Uses the concat demuxer (a text list with explicit per-frame duration) so every
+// frame gets a proper PTS. A per-input filter_complex concat approach fails because
+// static PNGs have near-zero implicit duration: concat cannot offset frames
+// correctly and the -r flag at output conflicts with PTS-based GIF frame delays.
 async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
   const ffmpeg = await getFFmpeg()
   const { fetchFile } = await import('@ffmpeg/util')
@@ -53,7 +52,7 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
   const outputWidth = typeof opts.outputWidth === 'number' ? opts.outputWidth : 0
   const loop = typeof opts.loop === 'number' ? opts.loop : 0
 
-  // Get first frame dimensions to set the target canvas size.
+  // Get first frame dimensions for target canvas size.
   const bmp = await createImageBitmap(files[0])
   const fw = bmp.width
   const fh = bmp.height
@@ -61,31 +60,34 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
   const targetW = outputWidth > 0 ? outputWidth : fw
   const targetH = outputWidth > 0 ? Math.round(fh * (outputWidth / fw)) : fh
 
-  // Write all frames individually (not as a %04d sequence pattern).
-  const ext = files[0].name.split('.').pop()?.toLowerCase() ?? 'png'
+  // Write all frames individually.
   const frameNames: string[] = []
   for (let i = 0; i < files.length; i++) {
+    const ext = files[i].name.split('.').pop()?.toLowerCase() ?? 'png'
     const name = `frame${String(i).padStart(4, '0')}.${ext}`
     frameNames.push(name)
     await ffmpeg.writeFile(name, await fetchFile(files[i]))
   }
 
-  // Build filter_complex: scale+format each input independently, then concat,
-  // then split → palettegen + paletteuse in one pass.
-  const perInput = frameNames.map((_, i) =>
-    `[${i}:v]scale=${targetW}:${targetH}:flags=lanczos,format=rgb24,setpts=PTS-STARTPTS[v${i}]`
-  )
-  const concatIn = frameNames.map((_, i) => `[v${i}]`).join('')
-  const concat = `${concatIn}concat=n=${files.length}:v=1:a=0[seq]`
-  const palFilter = `[seq]split[s0][s1];[s0]palettegen=stats_mode=full[p];[s1][p]paletteuse=dither=bayer[gif]`
-  const filterComplex = [...perInput, concat, palFilter].join(';')
+  // Write concat demuxer list. Each entry gets an explicit duration so ffmpeg
+  // assigns correct PTS to every frame. The final entry has no duration (concat
+  // demuxer uses the last entry as a "hold" frame to close the last segment).
+  const frameDuration = 1 / fps
+  let concatList = ''
+  for (const name of frameNames) {
+    concatList += `file '${name}'\nduration ${frameDuration}\n`
+  }
+  concatList += `file '${frameNames[frameNames.length - 1]}'\n`
+  await ffmpeg.writeFile('concat.txt', new TextEncoder().encode(concatList))
 
-  const inputs = frameNames.flatMap(name => ['-i', name])
+  const fc = `scale=${targetW}:${targetH}:flags=lanczos,format=rgb24,split[s0][s1];[s0]palettegen=stats_mode=full[p];[s1][p]paletteuse=dither=bayer[gif]`
+
   const ret = await ffmpeg.exec([
-    ...inputs,
-    '-filter_complex', filterComplex,
+    '-f', 'concat',
+    '-safe', '0',
+    '-i', 'concat.txt',
+    '-filter_complex', fc,
     '-map', '[gif]',
-    '-r', String(fps),
     '-loop', String(loop),
     'output.gif',
   ])
@@ -97,6 +99,7 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
 
   const blob = new Blob([data], { type: 'image/gif' })
   for (const name of frameNames) await ffmpeg.deleteFile(name).catch(() => {})
+  await ffmpeg.deleteFile('concat.txt').catch(() => {})
   await ffmpeg.deleteFile('output.gif').catch(() => {})
 
   return new File([blob], files[0].name.replace(/\.[^.]+$/, '.gif'), { type: 'image/gif' })
