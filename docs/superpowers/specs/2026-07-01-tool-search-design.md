@@ -29,7 +29,7 @@ Add a live text-search input above the category tabs in the homepage tool grid. 
 - Placeholder: `"Search 60+ tools…"`
 
 ### Active search (query length ≥ 1)
-- Searches ALL tools in `tool-catalog.ts` (not just the 19 popular ones), filtering to `status: 'live'` only
+- Searches ALL tools in `tool-catalog.ts` (not just the 19 popular ones), filtering to `status: 'live'` onlyyes
 - Match logic: case-insensitive substring on `title + " " + description`
 - Category tabs dim (`opacity-40 pointer-events-none`) — search overrides them
 - Each matching card shows a small category label above the tool name

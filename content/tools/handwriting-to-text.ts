@@ -6,14 +6,14 @@ export const config: ToolConfig = {
   title: 'Handwriting to Text Converter',
   subtitle: 'Transcribe handwritten notes and forms into digital text.',
   category: 'image-to-text',
-  accepts: ['image/jpeg', 'image/png', 'image/webp'],
-  acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
+  accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'],
+  acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'],
   outputExt: '.txt',
   convertFn: (files, opts, onProgress) => imageOcrConvert(files, opts, onProgress),
 
   limitationNote: {
     summary: 'AI-Enhanced mode significantly improves cursive accuracy',
-    body: 'Standard mode uses Tesseract OCR with image preprocessing (contrast, deskew, binarization) — best for printed-style handwriting in all 12 languages. AI-Enhanced mode uses TrOCR (a transformer model trained on handwriting) for much higher accuracy on cursive and mixed styles — English only, downloads ~77MB once and caches in your browser.',
+    body: 'Standard mode uses Tesseract OCR with image preprocessing (contrast, deskew, binarization) — best for printed-style handwriting in all 12 languages. AI-Enhanced mode uses TrOCR (a transformer model trained on handwriting) for much higher accuracy on cursive and mixed styles — English only, downloads ~80MB once and caches in your browser. Inference takes ~2–3 seconds per line.',
   },
 
   options: [
@@ -23,12 +23,12 @@ export const config: ToolConfig = {
       label: 'Recognition engine',
       choices: [
         { value: 'standard', label: 'Standard — all languages, no download' },
-        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~77MB download' },
+        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~80MB download' },
       ],
       default: 'standard',
       conditionalHints: {
         standard: 'Tesseract OCR with image preprocessing. Works with all 12 languages. Best for printed-style or neat handwriting.',
-        'ai-enhanced': 'TrOCR transformer model trained on handwriting. Much higher accuracy on cursive and mixed styles. Downloads ~77MB on first use — stored in your browser, not re-downloaded.',
+        'ai-enhanced': 'TrOCR transformer model trained on handwriting. Much higher accuracy on cursive and mixed styles. Downloads ~80MB on first use — stored in your browser, not re-downloaded. ~2–3 seconds per line.',
       },
     },
     {
@@ -74,11 +74,13 @@ export const config: ToolConfig = {
       label: 'Output format',
       choices: [
         { value: 'text', label: 'Plain text (.txt)' },
+        { value: 'json', label: 'JSON with confidence (.json)' },
         { value: 'combined', label: 'Combined single file' },
       ],
       default: 'text',
       conditionalHints: {
         text: 'One .txt file per image.',
+        json: 'JSON output with per-line text and a quality flag. Short or empty lines are automatically flagged for review.',
         combined: 'All images merged into one .txt file.',
       },
     },
@@ -87,23 +89,31 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'What is the difference between Standard and AI-Enhanced mode?',
-      a: 'Standard mode uses Tesseract OCR — it works for all 12 languages and starts immediately, but was originally designed for printed text. AI-Enhanced mode uses TrOCR, a transformer model trained specifically on handwritten text — it handles cursive and mixed styles much better, but only supports English and downloads a ~77MB model on first use (stored in your browser permanently after that).',
+      a: 'Standard mode uses Tesseract OCR — it works for all 12 languages and starts immediately, but was originally designed for printed text. AI-Enhanced mode uses TrOCR, a transformer model trained specifically on handwritten text — it handles cursive and mixed styles much better, but only supports English and downloads an ~80MB model on first use (stored in your browser permanently after that).',
     },
     {
       q: 'Does it work on cursive handwriting?',
       a: 'With Standard mode, accuracy on cursive is lower and you should expect to correct errors. With AI-Enhanced mode (English), cursive accuracy improves significantly — transformer models understand joined strokes in a way traditional OCR cannot.',
     },
     {
+      q: 'Why is AI-Enhanced mode slower than before?',
+      a: 'The AI model was upgraded from a small to a base model for better accuracy. It now takes roughly 2–3 seconds per line of text instead of ~1 second. The model still downloads once and is cached permanently in your browser.',
+    },
+    {
       q: 'Why is AI-Enhanced mode English-only?',
       a: 'The TrOCR model used is trained on English handwriting datasets. Multilingual handwriting models are available but require 500MB+ downloads, which is impractical for browser use.',
     },
     {
-      q: 'Can it handle filled-in paper forms?',
-      a: 'Yes. Printed form labels extract cleanly in both modes. Handwritten answers in the blanks extract with variable accuracy — AI-Enhanced mode improves the handwritten portions.',
+      q: 'Can it handle angled or skewed photos?',
+      a: 'Yes. The preprocessing pipeline automatically detects the document boundary and corrects perspective warp (the trapezoid effect from phone photos taken at an angle). It also corrects rotation up to ±20°.',
     },
     {
-      q: 'My handwriting is messy — should I bother?',
-      a: 'Try AI-Enhanced mode. Even imperfect output is often faster to correct than typing from scratch. The longer the document, the more time you save.',
+      q: 'What is the JSON output format?',
+      a: 'JSON mode outputs per-line text with a quality flag. Lines that are empty or very short — likely missed by the OCR engine — are flagged for review. Available in both Standard and AI-Enhanced modes.',
+    },
+    {
+      q: 'Can it handle filled-in paper forms?',
+      a: 'Yes. Printed form labels extract cleanly in both modes. Handwritten answers in the blanks extract with variable accuracy — AI-Enhanced mode improves the handwritten portions.',
     },
     {
       q: 'Are my files uploaded anywhere?',

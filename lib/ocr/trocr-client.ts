@@ -1,43 +1,56 @@
 // TrOCR-based handwriting recognition via @huggingface/transformers.
-// Model: Xenova/trocr-small-handwritten (~77MB, cached in IndexedDB after first download)
+// Model: Xenova/trocr-base-handwritten (quantized ONNX q8, ~80MB, cached in IndexedDB after first download)
 // Processes one line-image at a time; caller must supply pre-cropped line blobs.
 
 import { pipeline, env } from '@huggingface/transformers'
 
-// Keep transformers models in the browser cache only (no remote model fetch once cached)
 env.allowRemoteModels = true
 env.useBrowserCache = true
 
-const MODEL_ID = 'Xenova/trocr-small-handwritten'
+const MODEL_ID = 'Xenova/trocr-base-handwritten'
 
 type ImageToTextPipeline = Awaited<ReturnType<typeof pipeline<'image-to-text'>>>
 let pipelineInstance: ImageToTextPipeline | null = null
+
+export interface TrOcrLineResult {
+  text: string
+  confidence: number
+}
 
 export async function getTrOcrPipeline(
   onProgress?: (pct: number) => void
 ): Promise<ImageToTextPipeline> {
   if (pipelineInstance) return pipelineInstance
 
-  pipelineInstance = await pipeline('image-to-text', MODEL_ID, {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    progress_callback: (info: any) => {
-      if (onProgress && typeof info?.progress === 'number') {
-        onProgress(Math.round(info.progress))
-      }
-    },
-  })
+  try {
+    pipelineInstance = await pipeline('image-to-text', MODEL_ID, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      progress_callback: (info: any) => {
+        if (onProgress && typeof info?.progress === 'number') {
+          onProgress(Math.round(info.progress))
+        }
+      },
+    })
+  } catch (e) {
+    pipelineInstance = null
+    throw e
+  }
   return pipelineInstance
 }
 
 export async function recognizeLineWithTrOCR(
   lineBlob: Blob,
   pipe: ImageToTextPipeline
-): Promise<string> {
+): Promise<TrOcrLineResult> {
   const url = URL.createObjectURL(lineBlob)
   try {
     const result = await pipe(url)
     const output = Array.isArray(result) ? result[0] : result
-    return (output as { generated_text?: string }).generated_text?.trim() ?? ''
+    const text = (output as { generated_text?: string }).generated_text?.trim() ?? ''
+    // Length-based confidence proxy — TrOCR pipeline does not expose beam-search scores.
+    // Not a true probability: "aaa" gets 0.9. Use only for flagging likely misses (empty/very short).
+    const confidence = text.length >= 3 ? 0.9 : text.length > 0 ? 0.5 : 0.0
+    return { text, confidence }
   } finally {
     URL.revokeObjectURL(url)
   }
@@ -46,12 +59,15 @@ export async function recognizeLineWithTrOCR(
 export async function recognizeWithTrOCR(
   lineBlobs: Blob[],
   onProgress?: (pct: number) => void
-): Promise<string> {
+): Promise<{ text: string; lines: TrOcrLineResult[] }> {
   const pipe = await getTrOcrPipeline(p => onProgress?.(Math.round(p * 0.5)))
-  const lines: string[] = []
+  const lines: TrOcrLineResult[] = []
   for (let i = 0; i < lineBlobs.length; i++) {
     lines.push(await recognizeLineWithTrOCR(lineBlobs[i], pipe))
     onProgress?.(50 + Math.round(((i + 1) / lineBlobs.length) * 50))
   }
-  return lines.join('\n')
+  return {
+    text: lines.map(l => l.text).join('\n'),
+    lines,
+  }
 }
