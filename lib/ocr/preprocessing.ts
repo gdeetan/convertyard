@@ -27,14 +27,17 @@ export async function preprocessForOcr(blob: Blob): Promise<Blob> {
     gray[i] = Math.round(0.299 * r + 0.587 * g + 0.114 * b)
   }
 
+  // 1b. Gaussian denoising — reduces sensor noise before binarization
+  const denoised = gaussianBlur(gray, width, height)
+
   // 2. Contrast stretch — remap [p2, p98] → [0, 255]
-  const sorted = gray.slice().sort((a, b) => a - b)
-  const lo = sorted[Math.floor(gray.length * 0.02)]
-  const hi = sorted[Math.floor(gray.length * 0.98)]
+  const sorted = denoised.slice().sort((a, b) => a - b)
+  const lo = sorted[Math.floor(denoised.length * 0.02)]
+  const hi = sorted[Math.floor(denoised.length * 0.98)]
   const range = hi - lo || 1
-  const stretched = new Uint8Array(gray.length)
-  for (let i = 0; i < gray.length; i++) {
-    stretched[i] = Math.min(255, Math.max(0, Math.round(((gray[i] - lo) / range) * 255)))
+  const stretched = new Uint8Array(denoised.length)
+  for (let i = 0; i < denoised.length; i++) {
+    stretched[i] = Math.min(255, Math.max(0, Math.round(((denoised[i] - lo) / range) * 255)))
   }
 
   // 3. Sauvola adaptive binarization — per-block local threshold handles uneven lighting
@@ -89,6 +92,27 @@ export async function preprocessForOcr(blob: Blob): Promise<Blob> {
   }
 
   return out.convertToBlob({ type: 'image/png' })
+}
+
+// ── Gaussian blur (3×3 kernel) ────────────────────────────────────────────────
+
+function gaussianBlur(gray: Uint8Array, w: number, h: number): Uint8Array {
+  const kernel = [1, 2, 1, 2, 4, 2, 1, 2, 1]
+  const out = new Uint8Array(gray.length)
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      let sum = 0, ki = 0
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          sum += gray[(y + dy) * w + (x + dx)] * kernel[ki++]
+        }
+      }
+      out[y * w + x] = Math.round(sum / 16)
+    }
+  }
+  for (let x = 0; x < w; x++) { out[x] = gray[x]; out[(h - 1) * w + x] = gray[(h - 1) * w + x] }
+  for (let y = 0; y < h; y++) { out[y * w] = gray[y * w]; out[y * w + w - 1] = gray[y * w + w - 1] }
+  return out
 }
 
 // ── Sauvola adaptive binarization ────────────────────────────────────────────
@@ -197,7 +221,10 @@ function otsuThreshold(gray: Uint8Array): number {
 // ── Projection profile deskew ─────────────────────────────────────────────────
 
 function estimateSkewAngle(binary: Uint8Array, w: number, h: number): number {
-  const candidates = [-5, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 5]
+  const candidates: number[] = []
+  for (let deg = -20; deg <= 20; deg += 0.25) {
+    candidates.push(Math.round(deg * 100) / 100)
+  }
   let bestAngle = 0
   let bestScore = -1
 
