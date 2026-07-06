@@ -1,7 +1,7 @@
 // TrOCR-based handwriting recognition via @huggingface/transformers.
-// Model cascade: trocr-base q8 → trocr-base fp16 → trocr-small q8
-// trocr-base uses 4-bit NBits quantization incompatible with transformers.js 4.2.x,
-// so we try q8 and fp16 ONNX exports first, then fall back to trocr-small.
+// Model cascade: trocr-base q8 → trocr-base fp16 → trocr-small (default dtype)
+// trocr-base uses NBits quantization incompatible with transformers.js 4.2.x ONNX Runtime.
+// trocr-small fallback omits dtype so the library picks a compatible format (as it did originally).
 // Whichever variant loads is cached in IndexedDB after first download.
 
 import { pipeline, env } from '@huggingface/transformers'
@@ -23,36 +23,37 @@ export interface TrOcrLineResult {
 async function loadPipeline(
   onProgress?: (pct: number) => void
 ): Promise<ImageToTextPipeline> {
-  const attempts = [
+  const attempts: Array<{ model: string; dtype?: string }> = [
     { model: TROCR_BASE, dtype: 'q8' },
     { model: TROCR_BASE, dtype: 'fp16' },
-    { model: TROCR_SMALL, dtype: 'q8' },
+    { model: TROCR_SMALL },  // no dtype — use library default (same as original working code)
   ]
   const errors: unknown[] = []
 
   for (const { model, dtype } of attempts) {
     try {
-      const instance = await pipeline('image-to-text', model, {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        dtype: dtype as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const opts: Record<string, any> = {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         progress_callback: (info: any) => {
           if (onProgress && typeof info?.progress === 'number') {
             onProgress(Math.round(info.progress))
           }
         },
-      })
-      console.log(`[TrOCR] Loaded ${model} (${dtype})`)
+      }
+      if (dtype) opts.dtype = dtype
+      const instance = await pipeline('image-to-text', model, opts)
+      console.log(`[TrOCR] Loaded ${model}${dtype ? ` (${dtype})` : ' (default)'}`)
       return instance
     } catch (e) {
-      console.warn(`[TrOCR] Failed ${model} (${dtype}):`, e)
+      console.warn(`[TrOCR] Failed ${model}${dtype ? ` (${dtype})` : ' (default)'}:`, e)
       errors.push(e)
     }
   }
 
   throw new Error(
     `TrOCR: all model variants failed.\n` +
-    errors.map((e, i) => `  [${attempts[i].model} ${attempts[i].dtype}]: ${e}`).join('\n')
+    errors.map((e, i) => `  [${attempts[i].model} ${attempts[i].dtype ?? 'default'}]: ${e}`).join('\n')
   )
 }
 
