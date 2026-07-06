@@ -80,18 +80,31 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
   concatList += `file '${frameNames[frameNames.length - 1]}'\n`
   await ffmpeg.writeFile('concat.txt', new TextEncoder().encode(concatList))
 
-  const fc = `scale=${targetW}:${targetH}:flags=lanczos,format=rgb24,split[s0][s1];[s0]palettegen=stats_mode=full[p];[s1][p]paletteuse=dither=bayer[gif]`
+  const scaleVf = `scale=${targetW}:${targetH}:flags=lanczos`
 
-  const ret = await ffmpeg.exec([
-    '-f', 'concat',
-    '-safe', '0',
-    '-i', 'concat.txt',
-    '-filter_complex', fc,
-    '-map', '[gif]',
+  // Pass 1: generate a global palette from all frames.
+  // Two-pass is reliable here because the concat demuxer gives every frame an
+  // explicit PTS — unlike single-image inputs where duration is ~0.04s and
+  // palettegen can produce 0 frames. The split/paletteuse single-pass approach
+  // fails in ffmpeg.wasm: split does not buffer [s1] long enough for palettegen
+  // to finish, so paletteuse only sees 1 frame.
+  const ret1 = await ffmpeg.exec([
+    '-f', 'concat', '-safe', '0', '-i', 'concat.txt',
+    '-vf', `${scaleVf},palettegen=stats_mode=full`,
+    'palette.png',
+  ])
+  if (ret1 !== 0) throw new Error(`FFmpeg palette generation exited with code ${ret1}`)
+
+  // Pass 2: apply palette to produce the animated GIF.
+  const ret2 = await ffmpeg.exec([
+    '-f', 'concat', '-safe', '0', '-i', 'concat.txt',
+    '-i', 'palette.png',
+    '-filter_complex', `[0:v]${scaleVf}[v];[v][1:v]paletteuse=dither=bayer[out]`,
+    '-map', '[out]',
     '-loop', String(loop),
     'output.gif',
   ])
-  if (ret !== 0) throw new Error(`FFmpeg sequence encode exited with code ${ret}`)
+  if (ret2 !== 0) throw new Error(`FFmpeg sequence encode exited with code ${ret2}`)
 
   const raw = await ffmpeg.readFile('output.gif')
   const data = new Uint8Array(raw as ArrayBuffer)
@@ -100,6 +113,7 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
   const blob = new Blob([data], { type: 'image/gif' })
   for (const name of frameNames) await ffmpeg.deleteFile(name).catch(() => {})
   await ffmpeg.deleteFile('concat.txt').catch(() => {})
+  await ffmpeg.deleteFile('palette.png').catch(() => {})
   await ffmpeg.deleteFile('output.gif').catch(() => {})
 
   return new File([blob], files[0].name.replace(/\.[^.]+$/, '.gif'), { type: 'image/gif' })
