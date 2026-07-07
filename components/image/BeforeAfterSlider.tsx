@@ -9,25 +9,40 @@ interface BeforeAfterSliderProps {
 
 export function BeforeAfterSlider({ before, after, label }: BeforeAfterSliderProps) {
   const [position, setPosition] = useState(50)
-  const [dragging, setDragging] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
+  const dragging = useRef(false)
+  const rafRef = useRef<number>(0)
 
   const updatePosition = useCallback((clientX: number) => {
-    if (!containerRef.current) return
-    const rect = containerRef.current.getBoundingClientRect()
-    const pct = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100))
-    setPosition(pct)
+    cancelAnimationFrame(rafRef.current)
+    rafRef.current = requestAnimationFrame(() => {
+      if (!containerRef.current) return
+      const rect = containerRef.current.getBoundingClientRect()
+      const pct = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100))
+      setPosition(pct)
+    })
   }, [])
 
   return (
     <div
       ref={containerRef}
       className="relative overflow-hidden rounded-lg cursor-col-resize select-none touch-none"
-      onMouseMove={(e) => dragging && updatePosition(e.clientX)}
-      onMouseDown={(e) => { setDragging(true); updatePosition(e.clientX) }}
-      onMouseUp={() => setDragging(false)}
-      onMouseLeave={() => setDragging(false)}
-      onTouchMove={(e) => updatePosition(e.touches[0].clientX)}
+      role="slider"
+      tabIndex={0}
+      aria-label="Before/After comparison slider"
+      aria-valuenow={Math.round(position)}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      onMouseMove={(e) => dragging.current && updatePosition(e.clientX)}
+      onMouseDown={(e) => { dragging.current = true; updatePosition(e.clientX) }}
+      onMouseUp={() => { dragging.current = false }}
+      onMouseLeave={() => { dragging.current = false }}
+      onTouchMove={(e) => { dragging.current = true; updatePosition(e.touches[0].clientX) }}
+      onTouchEnd={() => { dragging.current = false }}
+      onKeyDown={(e) => {
+        if (e.key === 'ArrowLeft') setPosition(p => Math.max(0, p - 5))
+        if (e.key === 'ArrowRight') setPosition(p => Math.min(100, p + 5))
+      }}
     >
       <img src={after} className="w-full block" alt="Upscaled" draggable={false} />
       <div
@@ -36,8 +51,7 @@ export function BeforeAfterSlider({ before, after, label }: BeforeAfterSliderPro
       >
         <img
           src={before}
-          className="block"
-          style={{ width: containerRef.current?.offsetWidth ?? '100%' }}
+          className="absolute top-0 left-0 w-full block"
           alt="Original"
           draggable={false}
         />
