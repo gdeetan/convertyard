@@ -100,12 +100,33 @@ export interface CompressionMeta {
   message?: string
 }
 
+// ── OCR metadata ────────────────────────────────────────────��────────────────
+
+export interface OcrWordMeta {
+  text: string
+  corrected?: string       // present only if the corrector changed it
+  confidence: number       // 0–100 engine confidence; -1 if unavailable (TrOCR)
+  bbox?: { x0: number; y0: number; x1: number; y1: number }
+}
+
+export interface OcrResultMeta {
+  kind: 'ocr'
+  words: OcrWordMeta[]
+  lines: string[]          // final line strings after correction
+  sourceIndex: number      // index into input files array
+}
+
 // ── Conversion result ────────────────────────────────────────────────────────
 
 // Each index in the result array corresponds to the same index in the input
 // files array. An Error value means that file failed; File means success.
 // { file, meta } variant carries compression metadata for target-size mode.
-export type ConversionResult = File | Error | { file: File; meta: CompressionMeta }
+// { file, ocrMeta } variant carries OCR word/line metadata for review panel.
+export type ConversionResult =
+  | File
+  | Error
+  | { file: File; meta: CompressionMeta }
+  | { file: File; ocrMeta: OcrResultMeta }
 
 // ── Tool config ──────────────────────────────────────────────────────────────
 
@@ -138,6 +159,11 @@ export interface ToolConfig {
     options: ToolOptions
     onChange: (name: string, value: unknown) => void
   }>
+  reviewPanel?: React.ComponentType<{
+    files: File[]
+    results: ConversionResult[]
+    onResultEdit: (index: number, newFile: File) => void
+  }>
   advancedOptions?: ToolOption[]
   presetBar?: React.ComponentType<{ onApply: (values: ToolOptions) => void }>
   faq: FAQItem[]
@@ -161,6 +187,7 @@ export interface FileEntry {
   progress: number  // 0-100
   result?: File
   resultMeta?: CompressionMeta
+  ocrMeta?: OcrResultMeta
   error?: string
 }
 
