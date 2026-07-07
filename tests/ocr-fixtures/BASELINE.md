@@ -10,11 +10,11 @@
 
 | Fixture | CER (raw) | WER (raw) | Engine |
 |---------|-----------|-----------|--------|
-| scan-clean | TBD | TBD | Tesseract |
-| scan-names | TBD | TBD | Tesseract |
-| receipt-real | TBD | TBD | Tesseract |
-| photo-printed | TBD | TBD | Tesseract |
-| photo-lowres | TBD | TBD | Tesseract |
+| scan-clean | 0.0% | 0.0% | Tesseract (Node, no preprocessing) |
+| scan-names | 0.0% | 0.0% | Tesseract (Node, no preprocessing) |
+| receipt-real | 0.0% | 0.0% | Tesseract (Node, no preprocessing) |
+| photo-printed | 0.0% | 0.0% | Tesseract (Node, no preprocessing) |
+| photo-lowres | 1.4% | 7.7% | Tesseract (Node, no preprocessing) |
 
 ## After autoCorrect (Phase 2 target — Gate 2)
 (Filled in after Task 7 — requires running dev server + Playwright harness)
