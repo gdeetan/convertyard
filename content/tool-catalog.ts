@@ -123,7 +123,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   // AI Tools — all coming soon
   { slug: 'alt-text-generator',  title: 'Alt Text Generator',  description: 'Generate descriptive alt text for any image.', category: 'ai-tools', status: 'live', badge: 'AI' },
   { slug: 'image-upscaler',      title: 'Image Upscaler',      description: 'Upscale images 2×–4× with AI.', category: 'ai-tools', status: 'live', badge: 'AI' },
-  { slug: 'transcription',       title: 'Transcription',       description: 'Transcribe audio and video in your browser.', category: 'ai-tools', status: 'coming-soon', badge: 'AI' },
+  { slug: 'transcription',       title: 'Transcribe Audio & Video',       description: 'Transcribe audio and video in your browser. 50+ languages, no upload.', category: 'ai-tools', status: 'live', badge: 'AI' },
   { slug: 'image-description',   title: 'Image Description',   description: 'Generate captions for images with AI.', category: 'ai-tools', status: 'coming-soon', badge: 'AI' },
 ]
 

@@ -24,6 +24,7 @@ import { config as mp3ToMp4 } from './tools/mp3-to-mp4'
 import { config as backgroundRemover } from './tools/background-remover'
 import { config as altTextGenerator } from './tools/alt-text-generator'
 import { config as imageUpscaler } from './tools/image-upscaler'
+import { config as transcription } from './tools/transcription'
 import { config as rotatePdf } from './tools/rotate-pdf'
 import { config as reorderPdfPages } from './tools/reorder-pdf-pages'
 import { config as redactPdf } from './tools/redact-pdf'
@@ -67,6 +68,7 @@ export const tools: ToolConfig[] = [
   backgroundRemover,
   altTextGenerator,
   imageUpscaler,
+  transcription,
   rotatePdf,
   reorderPdfPages,
   redactPdf,
