@@ -90,6 +90,7 @@ export function transcribeAudio(
         onProgress?.(d.progress as number)
       } else if (d.type === 'transcribe-result') {
         worker.removeEventListener('message', handler)
+        worker.removeEventListener('error', errorHandler)
         const result = d.result
         // Transform Whisper result into TranscriptionResult format
         const output: TranscriptionResult = {
@@ -105,11 +106,19 @@ export function transcribeAudio(
         resolve(output)
       } else if (d.type === 'error' && d.id === id) {
         worker.removeEventListener('message', handler)
+        worker.removeEventListener('error', errorHandler)
         reject(new Error(d.message as string))
       }
     }
 
+    const errorHandler = (e: ErrorEvent) => {
+      worker.removeEventListener('message', handler)
+      worker.removeEventListener('error', errorHandler)
+      reject(new Error(e.message ?? 'Worker error'))
+    }
+
     worker.addEventListener('message', handler)
+    worker.addEventListener('error', errorHandler, { once: true })
     worker.postMessage({
       type: 'transcribe',
       id,
