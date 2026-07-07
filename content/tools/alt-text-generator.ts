@@ -51,7 +51,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['background-remover', 'compress-image', 'image-resizer'],
+  relatedTools: ['image-description', 'background-remover', 'compress-image', 'image-resizer', 'transcription'],
   relatedArticles: ['alt-text-guide', 'import-alt-text-csv-to-cms'],
 
   meta: {
