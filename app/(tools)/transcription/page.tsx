@@ -83,6 +83,28 @@ export default function TranscriptionPage() {
   const [language, setLanguage] = useState<string>('')
   const [outputFormat, setOutputFormat] = useState<OutputFormat>('txt')
   const processingRef = useRef(false)
+  const pendingProgress = useRef<Map<number, number>>(new Map())
+  const rafPending = useRef(false)
+
+  const flushProgress = useCallback(() => {
+    rafPending.current = false
+    setEntries(prev => {
+      const next = [...prev]
+      pendingProgress.current.forEach((pct, i) => {
+        if (next[i]) next[i] = { ...next[i], progress: pct }
+      })
+      pendingProgress.current.clear()
+      return next
+    })
+  }, [])
+
+  const onFileProgress = useCallback((i: number, pct: number) => {
+    pendingProgress.current.set(i, pct)
+    if (!rafPending.current) {
+      rafPending.current = true
+      requestAnimationFrame(flushProgress)
+    }
+  }, [flushProgress])
 
   const updateEntry = useCallback((index: number, patch: Partial<FileEntry>) => {
     setEntries((prev) => {
@@ -105,10 +127,11 @@ export default function TranscriptionPage() {
     if (processingRef.current || entries.length === 0) return
     processingRef.current = true
 
-    const { transcribeBatch } = await import('@/lib/converters/transcription')
-
     setPhase('loading-model')
     setModelProgress(0)
+    await new Promise<void>(resolve => setTimeout(resolve, 50))  // let banner render
+
+    const { transcribeBatch } = await import('@/lib/converters/transcription')
 
     // Reset all to pending
     setEntries((prev) => prev.map((e) => ({ ...e, status: 'pending' as const, progress: 0, text: undefined, error: undefined })))
@@ -121,10 +144,10 @@ export default function TranscriptionPage() {
         { quality, language: language || null, outputFormat },
         (pct) => {
           setModelProgress(pct)
-          if (pct >= 100) setPhase('processing')
         },
         (fileIndex, pct) => {
-          updateEntry(fileIndex, { status: 'processing', progress: pct })
+          onFileProgress(fileIndex, pct)
+          updateEntry(fileIndex, { status: 'processing' })
         },
         (fileIndex, text) => {
           updateEntry(fileIndex, { text, status: 'done', progress: 100 })
@@ -153,7 +176,7 @@ export default function TranscriptionPage() {
     } finally {
       processingRef.current = false
     }
-  }, [entries, quality, language, outputFormat, updateEntry])
+  }, [entries, quality, language, outputFormat, onFileProgress, updateEntry])
 
   const handleReset = () => {
     setEntries([])
