@@ -181,6 +181,9 @@ export function upscaleImage(
         { type: 'infer', id, modelType, buffer, mimeType, opts: { outputFormat } },
         [buffer]
       )
-    }).catch(reject)
+    }).catch((err) => {
+      worker.removeEventListener('message', handler)
+      reject(err)
+    })
   })
 }
