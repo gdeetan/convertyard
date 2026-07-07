@@ -171,6 +171,11 @@ async function runUpscaler(
   // result is a RawImage with .data, .width, .height, .channels
   const { width, height, channels, data } = result
 
+  // Validate channels before processing
+  if (channels !== 3 && channels !== 4) {
+    throw new Error(`Unsupported image channels: ${channels}. Expected 3 (RGB) or 4 (RGBA).`)
+  }
+
   let rgbaData: Uint8ClampedArray
   if (channels === 4) {
     // Ensure plain ArrayBuffer (not SharedArrayBuffer) for ImageData
@@ -192,7 +197,10 @@ async function runUpscaler(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ctx.putImageData(new ImageData(rgbaData as any, width, height), 0, 0)
 
-  const outMime = outputFormat ?? mimeType
+  // Sanitize output MIME type — convertToBlob only reliably supports jpeg, png, webp
+  const SAFE_OUTPUT_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+  const rawMime = outputFormat ?? mimeType
+  const outMime = SAFE_OUTPUT_MIMES.has(rawMime) ? rawMime : 'image/png'
   const resultBlob = await canvas.convertToBlob({ type: outMime, quality: 0.92 })
   const resultBuffer = await resultBlob.arrayBuffer()
 
