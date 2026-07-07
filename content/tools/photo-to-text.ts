@@ -82,6 +82,14 @@ export const config: ToolConfig = {
       a: 'Yes. Books typically extract cleanly. Curved pages near the spine can cause some character errors — photograph the page as flat as possible for best results.',
     },
     {
+      q: 'What does "Fix common OCR errors" do?',
+      a: 'After OCR finishes, a dictionary pass checks each low-confidence word using known OCR confusion pairs (rn→m, O→0, l→1, etc.). Only alphabetic, low-confidence words can be corrected — tokens with digits, prices, or IDs are never touched. English only. Every change appears in the review panel where you can revert it.',
+    },
+    {
+      q: 'Can I edit the text before downloading?',
+      a: 'Yes. After conversion a review panel shows the source image alongside the extracted text. Uncertain words are underlined in amber; auto-corrected words have a blue dotted underline. Tap any blue word to revert it, or edit the text directly, then click "Apply changes".',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. OCR runs entirely in your browser. Your photos never leave your device.',
     },
