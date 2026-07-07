@@ -2,7 +2,8 @@ import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 import { preprocessForOcr, preprocessForOcrDual } from '@/lib/ocr/preprocessing'
 import { recognizeWithTrOCR } from '@/lib/ocr/trocr-client'
 import { detectLines } from '@/lib/ocr/line-detector'
-import type { ConversionResult, ToolOptions } from '@/lib/types'
+import { correctWords } from '@/lib/ocr/correction-client'
+import type { ConversionResult, OcrWordMeta, OcrResultMeta, ToolOptions } from '@/lib/types'
 import * as XLSX from 'xlsx'
 
 // ── HEIC decode ───────────────────────────────────────────────────────────────
@@ -97,7 +98,23 @@ function psmForStyle(style: string): number {
 
 // ── Structured output parsers ─────────────────────────────────────────────────
 
+// Digit-context repair for structured modes — applied before regex parsing.
+// Only substitutes within tokens that already look numeric (price/phone/date).
+// Never uses dictionary correction on these modes.
+function repairDigitTokens(text: string): string {
+  return text.replace(/\b[\dOlSsBb]{2,}(?:[.,]\d{1,2})?\b/g, token =>
+    token.replace(/O/g, '0').replace(/l/g, '1').replace(/S/g, '5').replace(/B/g, '8')
+  )
+}
+
+function repairEmail(text: string): string {
+  return text
+    .replace(/(\S+)\s+at\s+(\S+\.\S+)/gi, '$1@$2')
+    .replace(/(\.\w{1,4}),(\w{2,3})\b/g, '$1.$2')
+}
+
 function parseReceiptText(text: string, filename: string): string {
+  text = repairDigitTokens(text)
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
   const dateMatch = text.match(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/)
   const totalMatch = text.match(/(?:total|amount|due|sum)[^\d]*(\$?[\d,]+\.\d{2})/i)
@@ -112,6 +129,7 @@ function parseReceiptText(text: string, filename: string): string {
 }
 
 function parseBusinessCardText(text: string, filename: string): string {
+  text = repairDigitTokens(repairEmail(text))
   const emailMatch = text.match(/[\w.+-]+@[\w-]+\.\w+/)
   const phoneMatch = text.match(/[\+\d\s\-\(\)]{7,20}/)
   const urlMatch = text.match(/(?:https?:\/\/)?(?:www\.)?[\w-]+\.\w{2,}(?:\/\S*)?/)
@@ -172,6 +190,7 @@ export async function imageOcrConvert(
 
   const results: ConversionResult[] = []
   const combinedParts: string[] = []
+  const combinedWords: OcrWordMeta[][] = []
 
   for (let i = 0; i < files.length; i++) {
     onProgress?.(i, 5)
@@ -192,6 +211,7 @@ export async function imageOcrConvert(
 
       let text: string
       let confidence: number
+      let pageWords: OcrWordMeta[] = []
 
       if (useAi) {
         // AI path: dual preprocessing — binary for line detection, grayscale for TrOCR.
@@ -214,6 +234,14 @@ export async function imageOcrConvert(
           confidence = aiLines.length > 0
             ? Math.round(aiLines.reduce((s, l) => s + l.confidence, 0) / aiLines.length * 100)
             : 0
+
+          // TrOCR has no word bboxes; split lines into words with confidence: -1 marker
+          pageWords = aiLines.flatMap(l =>
+            l.text.split(/\s+/).filter(Boolean).map(w => ({
+              text: w,
+              confidence: -1 as const,
+            }))
+          )
 
           if (mode === 'json') {
             onProgress?.(i, 90)
@@ -238,6 +266,10 @@ export async function imageOcrConvert(
           onProgress?.(i, 30)
           const result = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
           ;({ text, confidence } = result)
+          const rawWords = result.words ?? []
+          pageWords = rawWords.length > 5000
+            ? rawWords.map(w => ({ text: w.text, confidence: w.confidence }))
+            : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox }))
         }
       } else {
         // Standard path: preprocess → Tesseract with OEM/PSM tuning
@@ -249,18 +281,57 @@ export async function imageOcrConvert(
           psm: psmForStyle(style),
         });
         ({ text, confidence } = result)
+        // Collect word metadata; drop bboxes above 5000-word threshold to cap memory
+        const rawWords = result.words ?? []
+        pageWords = rawWords.length > 5000
+          ? rawWords.map(w => ({ text: w.text, confidence: w.confidence }))
+          : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox }))
       }
 
       onProgress?.(i, 90)
 
+      // Apply dictionary correction for English text-output modes
+      const doCorrect = opts.autoCorrect === true
+        && lang === 'eng'
+        && (mode === 'text' || mode === 'markdown' || mode === 'combined')
+      if (doCorrect && pageWords.length > 0) {
+        try {
+          pageWords = await correctWords(pageWords, useAi)
+          // Rebuild text from corrected words, preserving line structure
+          const lines = text.split('\n')
+          let wi = 0
+          text = lines.map(line => {
+            const tokens = line.split(/(\s+)/)
+            return tokens.map(token => {
+              if (/^\s+$/.test(token) || token === '') return token
+              const corrected = pageWords[wi]?.corrected ?? pageWords[wi]?.text ?? token
+              wi++
+              return corrected
+            }).join('')
+          }).join('\n')
+        } catch (corrErr) {
+          console.warn('[correction] Correction failed, using raw OCR output:', corrErr)
+        }
+      }
+
       const baseName = file.name.replace(/\.[^.]+$/, '')
       let outFile: File
+
+      // Helper: build OcrResultMeta for text-output modes
+      const makeOcrMeta = (): OcrResultMeta => ({
+        kind: 'ocr',
+        words: pageWords,
+        lines: text.split('\n').filter(l => l.trim().length > 0),
+        sourceIndex: i,
+      })
 
       switch (mode) {
         case 'markdown': {
           const mdContent = `# ${baseName}\n\nConfidence: ${confidence!.toFixed(0)}%\n\n${text.trim()}`
           outFile = new File([mdContent], `${baseName}.md`, { type: 'text/markdown' })
-          break
+          results.push({ file: outFile, ocrMeta: makeOcrMeta() })
+          onProgress?.(i, 100)
+          continue
         }
         case 'receipt-csv': {
           const header = i === 0 ? 'filename,vendor,date,total,raw_text\n' : ''
@@ -292,13 +363,18 @@ export async function imageOcrConvert(
           // Standard mode: single-line envelope matching AI path schema for consistent parsing
           const jsonContent = JSON.stringify(
             {
-              lines: [
-                {
-                  text: text.trim(),
-                  confidence: Math.round(confidence! / 100 * 10) / 10,
-                  flagged: confidence! < 70,
-                },
-              ],
+              lines: pageWords.length > 0
+                ? pageWords.map(w => ({
+                    text: w.text,
+                    ...(w.corrected ? { corrected: w.corrected } : {}),
+                    confidence: Math.round(w.confidence),
+                    flagged: w.confidence !== -1 && w.confidence < 70,
+                  }))
+                : [{
+                    text: text.trim(),
+                    confidence: Math.round(confidence! / 100 * 10) / 10,
+                    flagged: confidence! < 70,
+                  }],
             },
             null,
             2
@@ -308,13 +384,16 @@ export async function imageOcrConvert(
         }
         case 'combined': {
           combinedParts.push(`=== ${file.name} ===\n${text.trim()}`)
+          combinedWords.push(pageWords)
           onProgress?.(i, 100)
           results.push(new File([''], `${file.name}.placeholder`))
           continue
         }
         default: {
           outFile = new File([text.trim()], `${baseName}.txt`, { type: 'text/plain' })
-          break
+          results.push({ file: outFile, ocrMeta: makeOcrMeta() })
+          onProgress?.(i, 100)
+          continue
         }
       }
 
@@ -329,9 +408,19 @@ export async function imageOcrConvert(
   if (mode === 'combined' && combinedParts.length > 0) {
     const merged = combinedParts.join('\n\n---\n\n')
     const combinedFile = new File([merged], 'extracted-text.txt', { type: 'text/plain' })
+    const allWords = combinedWords.flat()
+    const combinedResult: ConversionResult = {
+      file: combinedFile,
+      ocrMeta: {
+        kind: 'ocr',
+        words: allWords,
+        lines: merged.split('\n').filter(l => l.trim().length > 0),
+        sourceIndex: 0,
+      },
+    }
     return results.map((r, i) => {
       if (r instanceof File && r.name.endsWith('.placeholder')) {
-        return i === 0 ? combinedFile : new File([''], 'combined-in-first-file.skip')
+        return i === 0 ? combinedResult : new File([''], 'combined-in-first-file.skip')
       }
       return r
     })

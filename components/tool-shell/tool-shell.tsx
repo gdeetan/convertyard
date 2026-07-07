@@ -12,7 +12,7 @@ import { ResultList } from './result-list'
 import { FAQAccordion } from './faq-accordion'
 import { RelatedToolsStrip } from './related-tools-strip'
 import { RelatedArticlesStrip } from './related-articles-strip'
-import type { ToolConfig, FileEntry, ToolPhase, ToolOptions, ToolCategory, CompressionMeta, ConversionResult } from '@/lib/types'
+import type { ToolConfig, FileEntry, ToolPhase, ToolOptions, ToolCategory, CompressionMeta, OcrResultMeta, ConversionResult } from '@/lib/types'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { sizeTargets } from '@/content/size-target-registry'
 import { useRecentTools } from '@/lib/hooks/use-recent-tools'
@@ -40,11 +40,12 @@ interface ToolShellProps {
 type Action =
   | { type: 'ADD_FILES'; files: File[] }
   | { type: 'SET_PROGRESS'; fileIndex: number; pct: number }
-  | { type: 'SET_RESULT'; fileIndex: number; result: File; resultMeta?: CompressionMeta }
+  | { type: 'SET_RESULT'; fileIndex: number; result: File; resultMeta?: CompressionMeta; ocrMeta?: OcrResultMeta }
   | { type: 'SET_ERROR'; fileIndex: number; error: string }
   | { type: 'START_CONVERTING' }
   | { type: 'FINISH' }
   | { type: 'RESET' }
+  | { type: 'EDIT_RESULT'; fileIndex: number; newFile: File }
 
 interface State {
   entries: FileEntry[]
@@ -90,6 +91,17 @@ function reducer(state: State, action: Action): State {
           progress: 100,
           result: action.result,
           resultMeta: action.resultMeta,
+          ocrMeta: action.ocrMeta,
+        }
+      }
+      return { ...state, entries }
+    }
+    case 'EDIT_RESULT': {
+      const entries = [...state.entries]
+      if (entries[action.fileIndex]?.result) {
+        entries[action.fileIndex] = {
+          ...entries[action.fileIndex],
+          result: action.newFile,
         }
       }
       return { ...state, entries }
@@ -213,6 +225,8 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions 
         dispatch({ type: 'SET_ERROR', fileIndex: i, error: r.message })
       } else if (r instanceof File) {
         dispatch({ type: 'SET_RESULT', fileIndex: i, result: r })
+      } else if ('ocrMeta' in r) {
+        dispatch({ type: 'SET_RESULT', fileIndex: i, result: r.file, ocrMeta: r.ocrMeta })
       } else {
         dispatch({ type: 'SET_RESULT', fileIndex: i, result: r.file, resultMeta: r.meta })
       }
@@ -396,6 +410,19 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions 
                 files={entries.map(e => e.file)}
                 results={entries.map(e => e.result ?? null)}
                 options={options}
+              />
+            )}
+            {config.reviewPanel && (
+              <config.reviewPanel
+                files={entries.map(e => e.file)}
+                results={entries.map(e =>
+                  e.ocrMeta
+                    ? { file: e.result!, ocrMeta: e.ocrMeta }
+                    : e.result ?? new Error(e.error ?? 'unknown error')
+                )}
+                onResultEdit={(index, newFile) =>
+                  dispatch({ type: 'EDIT_RESULT', fileIndex: index, newFile })
+                }
               />
             )}
             <ResultList entries={entries} zipName={zipName} />

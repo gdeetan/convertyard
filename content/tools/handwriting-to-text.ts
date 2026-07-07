@@ -1,5 +1,6 @@
 import { imageOcrConvert } from '@/lib/converters/image-ocr'
 import type { ToolConfig } from '@/lib/types'
+import { OcrReviewPanel } from '@/components/ocr-review'
 
 export const config: ToolConfig = {
   slug: 'handwriting-to-text',
@@ -10,10 +11,11 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'],
   outputExt: '.txt',
   convertFn: (files, opts, onProgress) => imageOcrConvert(files, opts, onProgress),
+  reviewPanel: OcrReviewPanel,
 
   limitationNote: {
     summary: 'AI-Enhanced mode significantly improves cursive accuracy',
-    body: 'Standard mode uses Tesseract OCR with image preprocessing (contrast, deskew, binarization) — best for printed-style handwriting in all 12 languages. AI-Enhanced mode uses TrOCR (a transformer model trained on handwriting) for much higher accuracy on cursive and mixed styles — English only, downloads ~400MB once and caches in your browser. Quality mode (default) uses beam search for higher accuracy; Fast mode is quicker at ~1–2 seconds per line.',
+    body: 'Standard mode uses Tesseract OCR with image preprocessing (contrast, deskew, binarization) — best for printed-style handwriting in all 12 languages. AI-Enhanced mode uses TrOCR (a transformer model trained on handwriting) for much higher accuracy on cursive and mixed styles — English only, downloads ~400MB once and caches in your browser. Quality mode (default) uses beam search for higher accuracy; Fast mode is quicker at ~1–2 seconds per line. For English output, "Fix common OCR errors" (on by default) applies a dictionary pass to catch classic mistakes like rn→m or O→0 — only low-confidence words are touched, and every change is shown in the review panel below where you can revert any correction before downloading.',
   },
 
   options: [
@@ -99,6 +101,14 @@ export const config: ToolConfig = {
         combined: 'All images merged into one .txt file.',
       },
     },
+    {
+      type: 'toggle' as const,
+      name: 'autoCorrect',
+      label: 'Fix common OCR errors',
+      hint: 'English only. Fixes classic OCR mistakes (rn→m, O→0, etc.) using a dictionary. Only touches low-confidence words — everything is revertible in the review panel.',
+      default: true,
+      dependsOn: { name: 'language', value: 'eng' },
+    },
   ],
 
   faq: [
@@ -129,6 +139,14 @@ export const config: ToolConfig = {
     {
       q: 'Can it handle filled-in paper forms?',
       a: 'Yes. Printed form labels extract cleanly in both modes. Handwritten answers in the blanks extract with variable accuracy — AI-Enhanced mode improves the handwritten portions.',
+    },
+    {
+      q: 'What does "Fix common OCR errors" do?',
+      a: 'After OCR completes, a dictionary pass checks each low-confidence word against a 370,000-word English dictionary. Only alphabetic words below 85% confidence are candidates. It looks for matches via known OCR confusion pairs — rn→m, O→0, l→1, S→5, etc. Tokens with digits, prices, IDs, or any mixed alphanumeric content are never touched. English only.',
+    },
+    {
+      q: 'Can I edit the extracted text before downloading?',
+      a: 'Yes. After conversion, a review panel appears below your results. Words with low OCR confidence are underlined in amber; auto-corrected words have a blue dotted underline. Tap a blue-underlined word to see the original and revert it in one tap. Click "Apply changes" to lock in your edits — the download then uses the edited version.',
     },
     {
       q: 'Are my files uploaded anywhere?',

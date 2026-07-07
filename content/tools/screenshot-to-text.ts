@@ -1,5 +1,6 @@
 import { imageOcrConvert } from '@/lib/converters/image-ocr'
 import type { ToolConfig } from '@/lib/types'
+import { OcrReviewPanel } from '@/components/ocr-review'
 
 export const config: ToolConfig = {
   slug: 'screenshot-to-text',
@@ -10,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.png', '.jpg', '.jpeg', '.webp'],
   outputExt: '.txt',
   convertFn: (files, opts, onProgress) => imageOcrConvert(files, opts, onProgress),
+  reviewPanel: OcrReviewPanel,
 
   limitationNote: {
     summary: 'OCR is CPU-intensive',
@@ -55,6 +57,14 @@ export const config: ToolConfig = {
         markdown: 'One .md file per screenshot with the filename as heading.',
         combined: 'All screenshots merged into a single .txt with --- separators.',
       },
+    },
+    {
+      type: 'toggle' as const,
+      name: 'autoCorrect',
+      label: 'Fix common OCR errors',
+      hint: 'English only. Fixes classic OCR mistakes (rn→m, O→0, etc.) using a dictionary. Only touches low-confidence words — everything is revertible in the review panel.',
+      default: true,
+      dependsOn: { name: 'language', value: 'eng' },
     },
   ],
 

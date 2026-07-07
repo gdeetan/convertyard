@@ -1,5 +1,6 @@
 import { imageOcrConvert } from '@/lib/converters/image-ocr'
 import type { ToolConfig } from '@/lib/types'
+import { OcrReviewPanel } from '@/components/ocr-review'
 
 export const config: ToolConfig = {
   slug: 'heic-to-text',
@@ -10,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.heic', '.heif'],
   outputExt: '.txt',
   convertFn: (files, opts, onProgress) => imageOcrConvert(files, opts, onProgress),
+  reviewPanel: OcrReviewPanel,
 
   limitationNote: {
     summary: 'HEIC decode adds processing time',
@@ -51,6 +53,14 @@ export const config: ToolConfig = {
         text: 'One .txt file per HEIC photo.',
         combined: 'All photos merged into one .txt file.',
       },
+    },
+    {
+      type: 'toggle' as const,
+      name: 'autoCorrect',
+      label: 'Fix common OCR errors',
+      hint: 'English only. Fixes classic OCR mistakes (rn→m, O→0, etc.) using a dictionary. Only touches low-confidence words — everything is revertible in the review panel.',
+      default: true,
+      dependsOn: { name: 'language', value: 'eng' },
     },
   ],
 

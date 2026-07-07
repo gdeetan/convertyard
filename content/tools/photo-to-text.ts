@@ -1,5 +1,6 @@
 import { imageOcrConvert } from '@/lib/converters/image-ocr'
 import type { ToolConfig } from '@/lib/types'
+import { OcrReviewPanel } from '@/components/ocr-review'
 
 export const config: ToolConfig = {
   slug: 'photo-to-text',
@@ -10,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'],
   outputExt: '.txt',
   convertFn: (files, opts, onProgress) => imageOcrConvert(files, opts, onProgress),
+  reviewPanel: OcrReviewPanel,
 
   limitationNote: {
     summary: 'Works best on clear, well-lit photos',
@@ -56,6 +58,14 @@ export const config: ToolConfig = {
         combined: 'All photos merged into one .txt file.',
       },
     },
+    {
+      type: 'toggle' as const,
+      name: 'autoCorrect',
+      label: 'Fix common OCR errors',
+      hint: 'English only. Fixes classic OCR mistakes (rn→m, O→0, etc.) using a dictionary. Only touches low-confidence words — everything is revertible in the review panel.',
+      default: true,
+      dependsOn: { name: 'language', value: 'eng' },
+    },
   ],
 
   faq: [
@@ -70,6 +80,14 @@ export const config: ToolConfig = {
     {
       q: 'Can it read text from a photo of a book?',
       a: 'Yes. Books typically extract cleanly. Curved pages near the spine can cause some character errors — photograph the page as flat as possible for best results.',
+    },
+    {
+      q: 'What does "Fix common OCR errors" do?',
+      a: 'After OCR finishes, a dictionary pass checks each low-confidence word using known OCR confusion pairs (rn→m, O→0, l→1, etc.). Only alphabetic, low-confidence words can be corrected — tokens with digits, prices, or IDs are never touched. English only. Every change appears in the review panel where you can revert it.',
+    },
+    {
+      q: 'Can I edit the text before downloading?',
+      a: 'Yes. After conversion a review panel shows the source image alongside the extracted text. Uncertain words are underlined in amber; auto-corrected words have a blue dotted underline. Tap any blue word to revert it, or edit the text directly, then click "Apply changes".',
     },
     {
       q: 'Are my files uploaded anywhere?',

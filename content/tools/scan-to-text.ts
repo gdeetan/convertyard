@@ -1,5 +1,6 @@
 import { imageOcrConvert } from '@/lib/converters/image-ocr'
 import type { ToolConfig } from '@/lib/types'
+import { OcrReviewPanel } from '@/components/ocr-review'
 
 export const config: ToolConfig = {
   slug: 'scan-to-text',
@@ -10,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp'],
   outputExt: '.txt',
   convertFn: (files, opts, onProgress) => imageOcrConvert(files, opts, onProgress),
+  reviewPanel: OcrReviewPanel,
 
   limitationNote: {
     summary: 'OCR is CPU-intensive',
@@ -53,6 +55,14 @@ export const config: ToolConfig = {
         text: 'One .txt file per scanned page.',
         combined: 'All pages merged into one .txt in filename order. Name files 001.tiff, 002.tiff, etc. for correct page order.',
       },
+    },
+    {
+      type: 'toggle' as const,
+      name: 'autoCorrect',
+      label: 'Fix common OCR errors',
+      hint: 'English only. Fixes classic OCR mistakes (rn→m, O→0, etc.) using a dictionary. Only touches low-confidence words — everything is revertible in the review panel.',
+      default: true,
+      dependsOn: { name: 'language', value: 'eng' },
     },
   ],
 
