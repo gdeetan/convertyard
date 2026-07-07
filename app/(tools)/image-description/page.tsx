@@ -120,6 +120,10 @@ export default function ImageDescriptionPage() {
     if (processingRef.current || entries.length === 0) return
     processingRef.current = true
 
+    // Capture file list BEFORE any awaits (avoids stale closure if files drop during 50ms gap)
+    const filesToProcess = entries.map(e => e.file)
+
+    setEditingIndex(null)
     setPhase('loading-model')
     setModelProgress(0)
     await new Promise<void>((resolve) => setTimeout(resolve, 50)) // let banner render
@@ -141,7 +145,7 @@ export default function ImageDescriptionPage() {
 
     try {
       const results = await generateDescriptionBatch(
-        entries.map((e) => e.file),
+        filesToProcess,
         length,
         (pct) => {
           setModelProgress(pct)
