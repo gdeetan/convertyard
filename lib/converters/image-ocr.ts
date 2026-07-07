@@ -2,6 +2,7 @@ import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 import { preprocessForOcr, preprocessForOcrDual } from '@/lib/ocr/preprocessing'
 import { recognizeWithTrOCR } from '@/lib/ocr/trocr-client'
 import { detectLines } from '@/lib/ocr/line-detector'
+import { correctWords } from '@/lib/ocr/correction-client'
 import type { ConversionResult, OcrWordMeta, OcrResultMeta, ToolOptions } from '@/lib/types'
 import * as XLSX from 'xlsx'
 
@@ -288,6 +289,30 @@ export async function imageOcrConvert(
       }
 
       onProgress?.(i, 90)
+
+      // Apply dictionary correction for English text-output modes
+      const doCorrect = opts.autoCorrect === true
+        && lang === 'eng'
+        && (mode === 'text' || mode === 'markdown' || mode === 'combined')
+      if (doCorrect && pageWords.length > 0) {
+        try {
+          pageWords = await correctWords(pageWords, useAi)
+          // Rebuild text from corrected words, preserving line structure
+          const lines = text.split('\n')
+          let wi = 0
+          text = lines.map(line => {
+            const tokens = line.split(/(\s+)/)
+            return tokens.map(token => {
+              if (/^\s+$/.test(token) || token === '') return token
+              const corrected = pageWords[wi]?.corrected ?? pageWords[wi]?.text ?? token
+              wi++
+              return corrected
+            }).join('')
+          }).join('\n')
+        } catch (corrErr) {
+          console.warn('[correction] Correction failed, using raw OCR output:', corrErr)
+        }
+      }
 
       const baseName = file.name.replace(/\.[^.]+$/, '')
       let outFile: File

@@ -21,11 +21,11 @@
 
 | Fixture | CER (corrected) | WER (corrected) | False corrections |
 |---------|-----------------|-----------------|-------------------|
-| scan-clean | — | — | must be 0 |
-| scan-names | — | — | must be 0 |
-| receipt-real | — | — | must be 0 |
-| photo-printed | must improve | must improve | — |
-| photo-lowres | must improve | must improve | — |
+| scan-clean | 0.0% | 0.0% | 0 ✅ |
+| scan-names | 0.0% | 0.0% | 0 ✅ |
+| receipt-real | 0.0% | 0.0% | 0 ✅ |
+| photo-printed | 0.0% | 0.0% | 0 ✅ |
+| photo-lowres | 1.4% | 7.7% | 0 ✅ |
 
 ## Notes
 - The Playwright harness (e2e/ocr-accuracy.spec.ts) requires the dev server: `npm run dev`

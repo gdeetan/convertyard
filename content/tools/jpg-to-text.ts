@@ -56,6 +56,14 @@ export const config: ToolConfig = {
         combined: 'All images merged into a single .txt file with --- separators.',
       },
     },
+    {
+      type: 'toggle' as const,
+      name: 'autoCorrect',
+      label: 'Fix common OCR errors',
+      hint: 'English only. Fixes classic OCR mistakes (rn→m, O→0, etc.) using a dictionary. Only touches low-confidence words — everything is revertible in the review panel.',
+      default: true,
+      dependsOn: { name: 'language', value: 'eng' },
+    },
   ],
 
   faq: [
