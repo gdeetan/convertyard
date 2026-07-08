@@ -174,84 +174,54 @@ function parseBusinessCardText(text: string, filename: string): string {
 // Spatially reconstruct a table grid from word bounding boxes.
 // Returns a 2D array (rows × cols) of cell strings.
 function parseTableFromWords(words: OcrWordMeta[]): string[][] {
+  // Strip pipe characters that OCR reads from table gridlines; skip pipe-only words.
   const cleanWord = (t: string) => t.replace(/\|/g, '').trim()
   const boxed = words.filter(w => w.bbox && cleanWord(w.text).length > 0)
   if (boxed.length === 0) return []
 
+  // Median word height — unit for all spatial tolerances
   const heights = boxed.map(w => w.bbox!.y1 - w.bbox!.y0).sort((a, b) => a - b)
   const medianH = heights[Math.floor(heights.length / 2)]
 
-  // Group words into row bands by Y-center.
-  // Tesseract's lineIndex is unreliable for tables (may map to cells/columns,
-  // not rows) so we use spatial clustering instead.
+  // Column separator threshold: must be larger than normal in-cell word spacing
+  // (≈ 0.5 × charH) so words within a merged cell (e.g. "Hard Floor Results")
+  // don't vote for column boundaries between themselves.
+  const minGapPx = Math.max(8, medianH * 0.8)
+  const clusterTol = medianH * 1.0
+
+  // Group into row bands by Y-center (avoids cascading merges from y1 drift)
   const byCenter = [...boxed].sort((a, b) =>
     (a.bbox!.y0 + a.bbox!.y1) / 2 - (b.bbox!.y0 + b.bbox!.y1) / 2
   )
   const bands: OcrWordMeta[][] = []
-  let lastCY = -Infinity
+  let lastCenterY = -Infinity
   for (const w of byCenter) {
     const cy = (w.bbox!.y0 + w.bbox!.y1) / 2
-    if (cy > lastCY + medianH * 0.6) { bands.push([]); lastCY = cy }
-    bands[bands.length - 1].push(w)
-  }
-  for (const b of bands) b.sort((a, b) => a.bbox!.x0 - b.bbox!.x0)
-
-  // Per-row gap threshold using bimodal split.
-  //
-  // Sort each row's inter-word gaps and find the biggest jump between consecutive
-  // sorted values. If jump ≥ 30% of max gap → two distinct modes exist
-  // (word-spacing vs column-separator) → threshold at the midpoint of that jump.
-  //
-  // Unimodal rows (all gaps similar size) need two guards:
-  // • max gap < medianH×0.25 → all gaps are tiny word spaces → never split (Infinity)
-  // • otherwise compare average gap to medianH×0.5:
-  //     large uniform gaps → every gap is a column separator (threshold = 0)
-  //     small uniform gaps → all words belong in one cell (threshold = Infinity)
-  //
-  // Without guard 1, a product-name row like "Dyson Gen5 Outsize" (three words,
-  // gaps ~5px, all equal) would be marked unimodal→threshold=0, splitting each
-  // word into its own column.
-  function rowThreshold(band: OcrWordMeta[]): number {
-    if (band.length < 2) return Infinity
-    const gaps = band.slice(0, -1)
-      .map((w, i) => band[i + 1].bbox!.x0 - w.bbox!.x1)
-      .filter(g => g >= 0)
-    if (gaps.length === 0) return Infinity
-    const s = [...gaps].sort((a, b) => a - b)
-    const maxG = s[s.length - 1]
-
-    if (maxG < medianH * 0.25) return Infinity   // guard 1: all tiny → never split
-
-    let bigJump = 0, ji = 1
-    for (let i = 1; i < s.length; i++) {
-      const j = s[i] - s[i - 1]
-      if (j > bigJump) { bigJump = j; ji = i }
+    if (cy > lastCenterY + medianH * 0.6) {
+      bands.push([w])
+      lastCenterY = cy
+    } else {
+      bands[bands.length - 1].push(w)
     }
-
-    if (bigJump / maxG < 0.3) {                  // unimodal
-      const avg = s.reduce((a, b) => a + b, 0) / s.length
-      return avg >= medianH * 0.5 ? 0 : Infinity // large→col seps, small→in-cell
-    }
-
-    return (s[ji - 1] + s[ji]) / 2               // bimodal: split at jump midpoint
   }
+  for (const band of bands) band.sort((a, b) => a.bbox!.x0 - b.bbox!.x0)
 
-  // Vote for column boundaries: each row contributes gap midpoints for gaps ≥ threshold.
-  const gapMids: number[] = []
+  // Vote on column boundaries: each row contributes the midpoint of every gap ≥ minGapPx.
+  // Spanning header words (small in-cell gaps < minGapPx) cast no votes,
+  // so they never create spurious column boundaries.
+  const gapXs: number[] = []
   for (const band of bands) {
-    const thresh = rowThreshold(band)
-    for (let i = 1; i < band.length; i++) {
-      const gap = band[i].bbox!.x0 - band[i - 1].bbox!.x1
-      if (gap >= thresh) {
-        gapMids.push((band[i - 1].bbox!.x1 + band[i].bbox!.x0) / 2)
+    for (let i = 0; i < band.length - 1; i++) {
+      const gapW = band[i + 1].bbox!.x0 - band[i].bbox!.x1
+      if (gapW >= minGapPx) {
+        gapXs.push((band[i].bbox!.x1 + band[i + 1].bbox!.x0) / 2)
       }
     }
   }
-  gapMids.sort((a, b) => a - b)
+  gapXs.sort((a, b) => a - b)
 
-  const clusterTol = medianH * 1.0
   const clusters: { x: number; count: number }[] = []
-  for (const gx of gapMids) {
+  for (const gx of gapXs) {
     const last = clusters[clusters.length - 1]
     if (last && gx - last.x <= clusterTol) {
       last.x = (last.x * last.count + gx) / (last.count + 1)
@@ -269,20 +239,22 @@ function parseTableFromWords(words: OcrWordMeta[]): string[][] {
 
   const numCols = colBoundaries.length + 1
 
-  // Build grid. Words with a gap < row threshold stay in the same cell even if a
-  // column boundary falls between their x positions (handles spanning header cells).
+  // Build grid. Key: if the gap from the previous word is < minGapPx, the word
+  // stays in the same active cell even if a column boundary lies between them.
+  // This keeps "Hard Floor Results" as one cell rather than splitting across 3 columns.
   return bands.map(band => {
     const row = Array<string>(numCols).fill('')
-    const thresh = rowThreshold(band)
     let cellCol = 0
     for (let i = 0; i < band.length; i++) {
       const w = band[i]
       const text = cleanWord(w.text)
       if (!text) continue
       const gap = i === 0 ? Infinity : w.bbox!.x0 - band[i - 1].bbox!.x1
-      if (gap >= thresh) {
+      if (gap >= minGapPx) {
+        // Large gap → word starts a new cell at the column its x0 falls in
         cellCol = Math.min(colBoundaries.filter(b => b <= w.bbox!.x0).length, numCols - 1)
       }
+      // Small gap → append to current cell (cellCol unchanged)
       row[cellCol] = row[cellCol] ? row[cellCol] + ' ' + text : text
     }
     return row
