@@ -9,6 +9,7 @@ import '@tensorflow/tfjs-backend-webgl'
 import '@tensorflow/tfjs-backend-cpu'
 import * as tf from '@tensorflow/tfjs-core'
 import Upscaler from 'upscaler'
+import { detectFlatOutputMismatch, normalizeTensorShape, rgbaFromTensorFloats } from './upscaler-render'
 // @ts-ignore
 import x2 from '@upscalerjs/esrgan-slim/2x'
 // @ts-ignore
@@ -34,18 +35,13 @@ type IncomingMsg = LoadMsg | InferMsg
 // ── TF.js init ────────────────────────────────────────────────────────────────
 
 let _tfReady = false
+type UpscalerBackend = 'webgpu' | 'webgl' | 'cpu'
+let activeBackend: UpscalerBackend | null = null
 
 async function initTf() {
   if (_tfReady) return
+  await ensureBackend(['webgpu', 'webgl', 'cpu'])
   _tfReady = true
-  const hasWebGPU = typeof navigator !== 'undefined' && 'gpu' in navigator
-  if (hasWebGPU) {
-    const ok = await tf.setBackend('webgpu').catch(() => false)
-    if (ok) { await tf.ready(); return }
-  }
-  const ok = await tf.setBackend('webgl').catch(() => false)
-  if (!ok) await tf.setBackend('cpu')
-  await tf.ready()
 }
 
 // ── Model instances ────────────────────────────────────────────────────────────
@@ -76,6 +72,68 @@ const TILE_PX = 256
 // Only the inner region is blitted to the output — eliminates seam artifacts.
 const OVERLAP = 8
 
+async function ensureBackend(order: UpscalerBackend[]): Promise<UpscalerBackend> {
+  const hasWebGPU = typeof navigator !== 'undefined' && 'gpu' in navigator
+
+  for (const backend of order) {
+    if (backend === 'webgpu' && !hasWebGPU) continue
+    if (activeBackend === backend && tf.getBackend() === backend) {
+      await tf.ready()
+      return backend
+    }
+    const ok = await tf.setBackend(backend).catch(() => false)
+    if (!ok) continue
+    await tf.ready()
+    if (activeBackend !== backend) resetUpscalerInstances()
+    activeBackend = backend
+    return backend
+  }
+
+  throw new Error(`Unable to initialize any TF backend (${order.join(' -> ')})`)
+}
+
+function resetUpscalerInstances() {
+  for (const scale of Object.keys(instances) as UpscaleScale[]) {
+    const instance = instances[scale]
+    if (instance && typeof instance.dispose === 'function') {
+      try {
+        instance.dispose()
+      } catch {
+        // Ignore disposal failures during backend switches.
+      }
+    }
+    delete instances[scale]
+    delete readyMap[scale]
+  }
+}
+
+function fallbackOrderFor(backend: UpscalerBackend | null): UpscalerBackend[] {
+  switch (backend) {
+    case 'webgpu':
+      return ['webgl', 'cpu']
+    case 'webgl':
+      return ['cpu']
+    default:
+      return []
+  }
+}
+
+async function upscaleTileToRgba(scale: UpscaleScale, tileData: ImageData) {
+  const upscaler = instances[scale]
+  if (!upscaler) throw new Error(`Model ${scale} not loaded`)
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const tensor: any = await upscaler.upscale(tileData, { output: 'tensor' })
+  const shape = Array.from(tensor.shape as number[])
+  const { width, height } = normalizeTensorShape(shape)
+  const clipped = tensor.clipByValue(0, 1)
+  tensor.dispose()
+  const floats = await clipped.data() as Float32Array
+  clipped.dispose()
+  const rgba = rgbaFromTensorFloats(floats, shape)
+  return { width, height, rgba }
+}
+
 async function runInference(
   id: string,
   scale: UpscaleScale,
@@ -83,8 +141,7 @@ async function runInference(
   mimeType: string,
   outputFormat?: string
 ) {
-  const upscaler = instances[scale]
-  if (!upscaler) throw new Error(`Model ${scale} not loaded`)
+  if (!instances[scale]) throw new Error(`Model ${scale} not loaded`)
 
   const rawMime = outputFormat ?? mimeType
   const outMime = SAFE_MIMES.has(rawMime) ? rawMime : 'image/png'
@@ -129,27 +186,34 @@ async function runInference(
       tileCanvas.getContext('2d')!.drawImage(bitmap, extX, extY, extW, extH, 0, 0, extW, extH)
       const tileData = tileCanvas.getContext('2d')!.getImageData(0, 0, extW, extH)
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tensor: any = await upscaler.upscale(tileData, { output: 'tensor' })
-
-      // tf.browser.toPixels has a known bug with OffscreenCanvas in WebGL worker
-      // context (reads from wrong framebuffer → solid purple output). Download
-      // the float data to CPU and build RGBA manually instead.
-      const outH: number = tensor.shape[0]
-      const outW: number = tensor.shape[1]
-      const clipped = tensor.clipByValue(0, 1)
-      tensor.dispose()
-      const floats = await clipped.data() as Float32Array
-      clipped.dispose()
-      const rgba = new Uint8ClampedArray(outW * outH * 4)
-      for (let i = 0; i < outW * outH; i++) {
-        rgba[i * 4 + 0] = floats[i * 3 + 0] * 255
-        rgba[i * 4 + 1] = floats[i * 3 + 1] * 255
-        rgba[i * 4 + 2] = floats[i * 3 + 2] * 255
-        rgba[i * 4 + 3] = 255
+      let rendered = await upscaleTileToRgba(scale, tileData)
+      if (detectFlatOutputMismatch(tileData.data, rendered.rgba)) {
+        let recovered = false
+        for (const backend of fallbackOrderFor(activeBackend)) {
+          self.postMessage({
+            type: 'log',
+            id,
+            message: `Upscaler tile fallback: ${activeBackend ?? 'unknown'} -> ${backend}`,
+          })
+          await ensureBackend([backend])
+          await loadModel(scale)
+          rendered = await upscaleTileToRgba(scale, tileData)
+          if (!detectFlatOutputMismatch(tileData.data, rendered.rgba)) {
+            recovered = true
+            break
+          }
+        }
+        if (!recovered) {
+          throw new Error(`Upscaler produced flat output on ${activeBackend ?? 'unknown'} backend`)
+        }
       }
-      const tileOut = new OffscreenCanvas(outW, outH)
-      tileOut.getContext('2d')!.putImageData(new ImageData(rgba, outW, outH), 0, 0)
+
+      const tileOut = new OffscreenCanvas(rendered.width, rendered.height)
+      tileOut.getContext('2d')!.putImageData(
+        new ImageData(new Uint8ClampedArray(rendered.rgba), rendered.width, rendered.height),
+        0,
+        0
+      )
 
       // Blit only the inner (non-overlap) region — seams eliminated
       outCtx.drawImage(

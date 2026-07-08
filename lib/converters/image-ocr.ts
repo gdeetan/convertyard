@@ -1,11 +1,14 @@
 import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 import { preprocessForOcr, preprocessForOcrDual } from '@/lib/ocr/preprocessing'
-import { recognizeWithTrOCR, type TrOcrLineResult } from '@/lib/ocr/trocr-client'
-import { normalizeOcrText, recognizeWithFlorenceOcr } from '@/lib/ocr/florence-ocr-client'
 import { detectLines } from '@/lib/ocr/line-detector'
 import { correctWords } from '@/lib/ocr/correction-client'
 import type { ConversionResult, OcrWordMeta, OcrResultMeta, ToolOptions } from '@/lib/types'
 import * as XLSX from 'xlsx'
+
+interface TrOcrLineResult {
+  text: string
+  confidence: number
+}
 
 // ── HEIC decode ───────────────────────────────────────────────────────────────
 
@@ -342,6 +345,7 @@ export async function imageOcrConvert(
 
         let usedFlorence = false
         try {
+          const { recognizeWithFlorenceOcr } = await import('@/lib/ocr/florence-ocr-client')
           onProgress?.(i, 22)
           const florenceText = await recognizeWithFlorenceOcr(
             grayBlob,
@@ -365,6 +369,7 @@ export async function imageOcrConvert(
 
         if (!usedFlorence) {
           try {
+            const { recognizeWithTrOCR } = await import('@/lib/ocr/trocr-client')
             onProgress?.(i, 57)
             const lineBoxes = await detectLines(binBlob)
             onProgress?.(i, 62)
@@ -485,6 +490,7 @@ export async function imageOcrConvert(
         }
       }
 
+      const { normalizeOcrText } = await import('@/lib/ocr/florence-ocr-client')
       text = normalizeOcrText(text)
 
       onProgress?.(i, 90)
