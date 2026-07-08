@@ -1,9 +1,10 @@
 /// <reference lib="webworker" />
 
 // Web Worker for image upscaling.
-// TF.js WebGL backend runs on GPU via OffscreenCanvas — keeps main thread free
-// for large images. Falls back to CPU backend when WebGL is unavailable (Safari <16.4).
+// TF.js backend priority: WebGPU (Chrome 113+, 2-3× faster) → WebGL → CPU.
+// OffscreenCanvas used for GPU context in workers.
 
+import '@tensorflow/tfjs-backend-webgpu'
 import '@tensorflow/tfjs-backend-webgl'
 import '@tensorflow/tfjs-backend-cpu'
 import * as tf from '@tensorflow/tfjs-core'
@@ -37,7 +38,11 @@ let _tfReady = false
 async function initTf() {
   if (_tfReady) return
   _tfReady = true
-  // TF.js 4.x auto-uses OffscreenCanvas for WebGL context in workers
+  const hasWebGPU = typeof navigator !== 'undefined' && 'gpu' in navigator
+  if (hasWebGPU) {
+    const ok = await tf.setBackend('webgpu').catch(() => false)
+    if (ok) { await tf.ready(); return }
+  }
   const ok = await tf.setBackend('webgl').catch(() => false)
   if (!ok) await tf.setBackend('cpu')
   await tf.ready()
@@ -67,6 +72,9 @@ const SCALE_NUM: Record<UpscaleScale, number> = { '2x': 2, '3x': 3, '4x': 4, '8x
 // Tiles are processed one at a time. 256px input → max 2048px output tile at 8×,
 // keeping peak tensor memory ~50 MB regardless of source image size.
 const TILE_PX = 256
+// Overlap on each side of a tile so the model has context across boundaries.
+// Only the inner region is blitted to the output — eliminates seam artifacts.
+const OVERLAP = 8
 
 async function runInference(
   id: string,
@@ -105,24 +113,40 @@ async function runInference(
       const tw = Math.min(TILE_PX, srcW - sx)
       const th = Math.min(TILE_PX, srcH - sy)
 
-      // Extract tile as ImageData
-      const tileCanvas = new OffscreenCanvas(tw, th)
-      tileCanvas.getContext('2d')!.drawImage(bitmap, sx, sy, tw, th, 0, 0, tw, th)
-      const tileData = tileCanvas.getContext('2d')!.getImageData(0, 0, tw, th)
+      // Overlap padding — skip at image edges to avoid out-of-bounds reads
+      const padL = sx > 0 ? OVERLAP : 0
+      const padT = sy > 0 ? OVERLAP : 0
+      const padR = sx + tw < srcW ? OVERLAP : 0
+      const padB = sy + th < srcH ? OVERLAP : 0
 
-      // Upscale tile — no patchSize; tile is already small enough for GPU
+      const extX = sx - padL
+      const extY = sy - padT
+      const extW = tw + padL + padR
+      const extH = th + padT + padB
+
+      // Extract overlapping tile as ImageData
+      const tileCanvas = new OffscreenCanvas(extW, extH)
+      tileCanvas.getContext('2d')!.drawImage(bitmap, extX, extY, extW, extH, 0, 0, extW, extH)
+      const tileData = tileCanvas.getContext('2d')!.getImageData(0, 0, extW, extH)
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tensor: any = await upscaler.upscale(tileData, { output: 'tensor' })
 
-      // Render tensor to a small OffscreenCanvas, draw onto output, dispose immediately
-      // ESRGAN can produce values slightly above 1.0; clip before toPixels which enforces [0,1]
+      // ESRGAN can produce values slightly above 1.0; clip before toPixels
       const clipped = tensor.clipByValue(0, 1)
       tensor.dispose()
       const tileOut = new OffscreenCanvas(clipped.shape[1], clipped.shape[0])
       await tf.browser.toPixels(clipped, tileOut as unknown as HTMLCanvasElement)
       clipped.dispose()
 
-      outCtx.drawImage(tileOut as unknown as CanvasImageSource, sx * scaleFactor, sy * scaleFactor)
+      // Blit only the inner (non-overlap) region — seams eliminated
+      outCtx.drawImage(
+        tileOut as unknown as CanvasImageSource,
+        padL * scaleFactor, padT * scaleFactor,
+        tw * scaleFactor, th * scaleFactor,
+        sx * scaleFactor, sy * scaleFactor,
+        tw * scaleFactor, th * scaleFactor
+      )
 
       done++
       self.postMessage({ type: 'infer-progress', id, progress: 10 + Math.round((done / total) * 80) })
