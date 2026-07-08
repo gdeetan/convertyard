@@ -186,7 +186,7 @@ function parseTableFromWords(words: OcrWordMeta[]): string[][] {
   // Column separator threshold: must be larger than normal in-cell word spacing
   // (≈ 0.5 × charH) so words within a merged cell (e.g. "Hard Floor Results")
   // don't vote for column boundaries between themselves.
-  const minGapPx = Math.max(8, medianH * 0.8)
+  const minGapPx = Math.max(12, medianH * 1.5)
   const clusterTol = medianH * 1.0
 
   // Group into row bands by Y-center (avoids cascading merges from y1 drift)
@@ -454,9 +454,10 @@ export async function imageOcrConvert(
         onProgress?.(i, 20)
         const preprocessed = await preprocessForOcr(blob)
         onProgress?.(i, 30)
+        const tableMode = mode === 'excel' || mode === 'table-csv'
         const result = await recognizePage(preprocessed, lang, {
           oem: 1,
-          psm: psmForStyle(style),
+          psm: tableMode ? 6 : psmForStyle(style),
         });
         ({ text, confidence } = result)
         // Collect word metadata; drop bboxes above 5000-word threshold to cap memory
@@ -464,6 +465,24 @@ export async function imageOcrConvert(
         pageWords = rawWords.length > 5000
           ? rawWords.map(w => ({ text: w.text, confidence: w.confidence, lineIndex: w.lineIndex }))
           : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox, lineIndex: w.lineIndex }))
+      }
+
+      // For table/excel modes: AI engines (Florence, TrOCR) produce no bbox data,
+      // so spatial grid reconstruction never runs. Run a Tesseract pass here to
+      // get word positions — Tesseract always returns bboxes regardless of engine.
+      if (useAi && (mode === 'excel' || mode === 'table-csv')) {
+        try {
+          const layoutBlob = await preprocessForOcr(blob)
+          const layoutResult = await recognizePage(layoutBlob, lang, { oem: 1, psm: 6 })
+          const rawLayout = layoutResult.words ?? []
+          if (rawLayout.some(w => w.bbox)) {
+            pageWords = rawLayout.map(w => ({
+              text: w.text, confidence: w.confidence, bbox: w.bbox, lineIndex: w.lineIndex,
+            }))
+          }
+        } catch (layoutErr) {
+          console.warn('[image-to-excel] Tesseract layout pass failed, using AI words:', layoutErr)
+        }
       }
 
       text = normalizeOcrText(text)
