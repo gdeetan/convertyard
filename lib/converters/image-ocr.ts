@@ -2,7 +2,7 @@ import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 import { preprocessForOcr, preprocessForOcrDual } from '@/lib/ocr/preprocessing'
 import { recognizeWithTrOCR, type TrOcrLineResult } from '@/lib/ocr/trocr-client'
 import { normalizeOcrText, recognizeWithFlorenceOcr } from '@/lib/ocr/florence-ocr-client'
-import { decidePrimaryAiRoute } from '@/lib/ocr/ai-route'
+import { detectLines } from '@/lib/ocr/line-detector'
 import { correctWords } from '@/lib/ocr/correction-client'
 import type { ConversionResult, OcrWordMeta, OcrResultMeta, ToolOptions } from '@/lib/types'
 import * as XLSX from 'xlsx'
@@ -338,95 +338,96 @@ export async function imageOcrConvert(
       if (useAi) {
         onProgress?.(i, 20)
         const { binary: binBlob, grayscale: grayBlob } = await preprocessForOcrDual(blob)
-        const routeDecision = await decidePrimaryAiRoute(style, binBlob)
-        console.info(
-          `[AI Route] primary=${routeDecision.route} lines=${routeDecision.stats.lineCount} avgWidth=${routeDecision.stats.avgWidthRatio.toFixed(2)} style=${style}`
-        )
-
         let trocrLines: TrOcrLineResult[] | null = null
 
-        const runFlorence = async (): Promise<boolean> => {
-          try {
-            onProgress?.(i, 22)
-            const florenceText = await recognizeWithFlorenceOcr(
-              grayBlob,
-              file.name,
-              p => onProgress?.(i, 22 + Math.round(p * 0.35))
-            )
-            if (!florenceText.trim()) {
-              console.warn('[Florence-2] Empty OCR result — falling back to TrOCR')
-              return false
-            }
-
+        let usedFlorence = false
+        try {
+          onProgress?.(i, 22)
+          const florenceText = await recognizeWithFlorenceOcr(
+            grayBlob,
+            file.name,
+            p => onProgress?.(i, 22 + Math.round(p * 0.35))
+          )
+          if (florenceText.trim()) {
             text = florenceText
             confidence = 90
             pageWords = florenceText.split(/\s+/).filter(Boolean).map(w => ({
               text: w,
               confidence: -1 as const,
             }))
-            return true
-          } catch (florenceErr) {
-            console.warn('[Florence-2] OCR failed, falling back to TrOCR:', florenceErr)
-            return false
+            usedFlorence = true
+          } else {
+            console.warn('[Florence-2] Empty OCR result — falling back to TrOCR')
           }
+        } catch (florenceErr) {
+          console.warn('[Florence-2] OCR failed, falling back to TrOCR:', florenceErr)
         }
 
-        const runTrocr = async (): Promise<boolean> => {
+        if (!usedFlorence) {
           try {
             onProgress?.(i, 57)
-            const lineBlobs = await cropLinesToBlobs(binBlob, grayBlob, routeDecision.lineBoxes)
-            if (lineBlobs.length === 0) return false
-
+            const lineBoxes = await detectLines(binBlob)
             onProgress?.(i, 62)
+            const lineBlobs = await cropLinesToBlobs(binBlob, grayBlob, lineBoxes)
             const { text: aiText, lines: aiLines } = await recognizeWithTrOCR(
               lineBlobs,
               p => onProgress?.(i, 62 + Math.round(p * 0.25)),
               quality
             )
-            if (!aiText.trim()) {
-              console.warn('[TrOCR] No text extracted from line crops — falling back to Tesseract')
-              return false
-            }
-
             trocrLines = aiLines
             text = aiText
             confidence = aiLines.length > 0
               ? Math.round(aiLines.reduce((s, l) => s + l.confidence, 0) / aiLines.length * 100)
               : 0
+
             pageWords = aiLines.flatMap(l =>
               l.text.split(/\s+/).filter(Boolean).map(w => ({
                 text: w,
                 confidence: -1 as const,
               }))
             )
-            return true
+
+            let usedTesseractFallback = false
+            if (!text.trim()) {
+              console.warn('[TrOCR] No text extracted from line crops — falling back to Tesseract')
+              onProgress?.(i, 80)
+              const fallback = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
+              text = fallback.text
+              confidence = fallback.confidence
+              const rawWords = fallback.words ?? []
+              pageWords = rawWords.length > 5000
+                ? rawWords.map(w => ({ text: w.text, confidence: w.confidence, lineIndex: w.lineIndex }))
+                : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox, lineIndex: w.lineIndex }))
+              usedTesseractFallback = true
+            }
+
+            if (mode === 'json' && !usedTesseractFallback) {
+              onProgress?.(i, 90)
+              const baseName = file.name.replace(/\.[^.]+$/, '')
+              const jsonContent = JSON.stringify(
+                {
+                  lines: aiLines.map(l => ({
+                    text: l.text,
+                    confidence: l.confidence,
+                    flagged: l.confidence < 0.7,
+                  })),
+                },
+                null,
+                2
+              )
+              results.push(new File([jsonContent], `${baseName}.json`, { type: 'application/json' }))
+              onProgress?.(i, 100)
+              continue
+            }
           } catch (trocErr) {
             console.warn('[TrOCR] Model unavailable, falling back to Tesseract:', trocErr)
-            return false
-          }
-        }
-
-        const runTesseract = async () => {
-          onProgress?.(i, 80)
-          const result = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
-          ;({ text, confidence } = result)
-          const rawWords = result.words ?? []
-          pageWords = rawWords.length > 5000
-            ? rawWords.map(w => ({ text: w.text, confidence: w.confidence, lineIndex: w.lineIndex }))
-            : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox, lineIndex: w.lineIndex }))
-        }
-
-        const primarySucceeded = routeDecision.route === 'trocr'
-          ? await runTrocr()
-          : await runFlorence()
-
-        if (!primarySucceeded) {
-          const secondarySucceeded = routeDecision.route === 'trocr'
-            ? await runFlorence()
-            : await runTrocr()
-
-          if (!secondarySucceeded) {
-            await runTesseract()
+            onProgress?.(i, 65)
+            const result = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
+            ;({ text, confidence } = result)
+            const rawWords = result.words ?? []
+            pageWords = rawWords.length > 5000
+              ? rawWords.map(w => ({ text: w.text, confidence: w.confidence, lineIndex: w.lineIndex }))
+              : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox, lineIndex: w.lineIndex }))
           }
         }
 
