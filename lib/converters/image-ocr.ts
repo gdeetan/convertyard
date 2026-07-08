@@ -160,10 +160,15 @@ function extractReceiptFields(text: string): { vendor: string; date: string; tot
 function parseReceiptText(text: string, filename: string): string {
   text = repairDigitTokens(text)
   const { vendor, date, total } = extractReceiptFields(text)
-  const csvRow = [filename, vendor, date, total, text.replace(/\n/g, ' | ')].map(cell =>
-    `"${cell.replace(/"/g, '""')}"`
-  ).join(',')
-  return csvRow
+  const esc = (v: string) => `"${v.replace(/"/g, '""')}"`
+  return [
+    'Field,Value',
+    `Filename,${esc(filename)}`,
+    `Vendor,${esc(vendor)}`,
+    `Date,${esc(date)}`,
+    `Total,${esc(total)}`,
+    `Raw Text,${esc(text.trim())}`,
+  ].join('\n')
 }
 
 function formatReceiptAsText(text: string): string {
@@ -561,9 +566,8 @@ export async function imageOcrConvert(
         case 'receipt-csv': {
           const fmt = (opts.receiptFormat as string | undefined) ?? 'txt'
           if (fmt === 'csv') {
-            const header = i === 0 ? 'filename,vendor,date,total,raw_text\n' : ''
-            const row = parseReceiptText(text, file.name)
-            outFile = new File([header + row + '\n'], `${baseName}-receipt.csv`, { type: 'text/csv' })
+            const csv = parseReceiptText(text, file.name)
+            outFile = new File([csv], `${baseName}-receipt.csv`, { type: 'text/csv' })
           } else {
             const formatted = formatReceiptAsText(text)
             outFile = new File([formatted], `${baseName}-receipt.txt`, { type: 'text/plain' })
