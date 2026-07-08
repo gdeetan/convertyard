@@ -174,16 +174,22 @@ function parseBusinessCardText(text: string, filename: string): string {
 // Spatially reconstruct a table grid from word bounding boxes.
 // Returns a 2D array (rows × cols) of cell strings.
 function parseTableFromWords(words: OcrWordMeta[]): string[][] {
-  const boxed = words.filter(w => w.bbox && w.text.trim())
+  // Strip pipe characters that OCR reads from table gridlines; skip pipe-only words.
+  const cleanWord = (t: string) => t.replace(/\|/g, '').trim()
+  const boxed = words.filter(w => w.bbox && cleanWord(w.text).length > 0)
   if (boxed.length === 0) return []
 
-  // Median word height — used as the unit for all spatial tolerances
+  // Median word height — unit for all spatial tolerances
   const heights = boxed.map(w => w.bbox!.y1 - w.bbox!.y0).sort((a, b) => a - b)
   const medianH = heights[Math.floor(heights.length / 2)]
 
-  // Group into row bands by Y-center.
-  // Using Y-center (not y0) avoids cascading merges when one band's y1
-  // reaches into the next row's y0 range.
+  // Column separator threshold: must be larger than normal in-cell word spacing
+  // (≈ 0.5 × charH) so words within a merged cell (e.g. "Hard Floor Results")
+  // don't vote for column boundaries between themselves.
+  const minGapPx = Math.max(8, medianH * 0.8)
+  const clusterTol = medianH * 1.0
+
+  // Group into row bands by Y-center (avoids cascading merges from y1 drift)
   const byCenter = [...boxed].sort((a, b) =>
     (a.bbox!.y0 + a.bbox!.y1) / 2 - (b.bbox!.y0 + b.bbox!.y1) / 2
   )
@@ -200,15 +206,9 @@ function parseTableFromWords(words: OcrWordMeta[]): string[][] {
   }
   for (const band of bands) band.sort((a, b) => a.bbox!.x0 - b.bbox!.x0)
 
-  // Find column boundaries by voting on inter-word gaps across rows.
-  // Each row casts a "vote" at the X midpoint of every gap between adjacent words.
-  // Real column separators receive votes from many rows; spanning header cells
-  // (e.g. "Hard Floor Results") have no gap at those positions and don't pollute
-  // the result — unlike the x-projection approach which collapses when headers
-  // span multiple columns.
-  const minGapPx = Math.max(3, medianH * 0.2)
-  const clusterTol = medianH * 0.8  // gaps within this distance → same column boundary
-
+  // Vote on column boundaries: each row contributes the midpoint of every gap ≥ minGapPx.
+  // Spanning header words (small in-cell gaps < minGapPx) cast no votes,
+  // so they never create spurious column boundaries.
   const gapXs: number[] = []
   for (const band of bands) {
     for (let i = 0; i < band.length - 1; i++) {
@@ -231,22 +231,31 @@ function parseTableFromWords(words: OcrWordMeta[]): string[][] {
     }
   }
 
-  // Require a gap to appear in at least 20% of rows (min 2) to be a column boundary.
-  // This filters out one-off gaps from headers or merged cells.
   const minVotes = Math.max(2, Math.floor(bands.length * 0.2))
   const colBoundaries = clusters
     .filter(c => c.count >= minVotes)
     .map(c => c.x)
     .sort((a, b) => a - b)
 
-  // Build 2D grid: assign each word to (row, col) via its x0 vs boundaries
   const numCols = colBoundaries.length + 1
+
+  // Build grid. Key: if the gap from the previous word is < minGapPx, the word
+  // stays in the same active cell even if a column boundary lies between them.
+  // This keeps "Hard Floor Results" as one cell rather than splitting across 3 columns.
   return bands.map(band => {
     const row = Array<string>(numCols).fill('')
-    for (const w of band) {
-      const col = colBoundaries.filter(b => b <= w.bbox!.x0).length
-      const idx = Math.min(col, numCols - 1)
-      row[idx] = row[idx] ? row[idx] + ' ' + w.text.trim() : w.text.trim()
+    let cellCol = 0
+    for (let i = 0; i < band.length; i++) {
+      const w = band[i]
+      const text = cleanWord(w.text)
+      if (!text) continue
+      const gap = i === 0 ? Infinity : w.bbox!.x0 - band[i - 1].bbox!.x1
+      if (gap >= minGapPx) {
+        // Large gap → word starts a new cell at the column its x0 falls in
+        cellCol = Math.min(colBoundaries.filter(b => b <= w.bbox!.x0).length, numCols - 1)
+      }
+      // Small gap → append to current cell (cellCol unchanged)
+      row[cellCol] = row[cellCol] ? row[cellCol] + ' ' + text : text
     }
     return row
   })
