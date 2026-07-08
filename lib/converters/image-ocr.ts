@@ -144,19 +144,38 @@ function repairEmail(text: string): string {
     .replace(/(\.\w{1,4}),(\w{2,3})\b/g, '$1.$2')
 }
 
-function parseReceiptText(text: string, filename: string): string {
+function extractReceiptFields(text: string): { vendor: string; date: string; total: string } {
   text = repairDigitTokens(text)
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
   const dateMatch = text.match(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/)
   const totalMatch = text.match(/(?:total|amount|due|sum)[^\d]*(\$?[\d,]+\.\d{2})/i)
     ?? text.match(/\$?[\d,]+\.\d{2}/)
-  const vendor = lines[0] ?? ''
-  const date = dateMatch?.[0] ?? ''
-  const total = totalMatch?.[1] ?? totalMatch?.[0] ?? ''
+  return {
+    vendor: lines[0] ?? '',
+    date: dateMatch?.[0] ?? '',
+    total: totalMatch?.[1] ?? totalMatch?.[0] ?? '',
+  }
+}
+
+function parseReceiptText(text: string, filename: string): string {
+  text = repairDigitTokens(text)
+  const { vendor, date, total } = extractReceiptFields(text)
   const csvRow = [filename, vendor, date, total, text.replace(/\n/g, ' | ')].map(cell =>
     `"${cell.replace(/"/g, '""')}"`
   ).join(',')
   return csvRow
+}
+
+function formatReceiptAsText(text: string): string {
+  text = repairDigitTokens(text)
+  const { vendor, date, total } = extractReceiptFields(text)
+  const divider = '─'.repeat(32)
+  const header = [
+    vendor ? `Vendor: ${vendor}` : null,
+    date   ? `Date:   ${date}` : null,
+    total  ? `Total:  ${total}` : null,
+  ].filter(Boolean).join('\n')
+  return `${header}\n\n${divider}\n${text.trim()}\n${divider}`
 }
 
 function parseBusinessCardText(text: string, filename: string): string {
@@ -460,9 +479,10 @@ export async function imageOcrConvert(
         const preprocessed = await preprocessForOcr(blob)
         onProgress?.(i, 30)
         const tableMode = mode === 'excel' || mode === 'table-csv'
+        const receiptMode = mode === 'receipt-csv'
         const result = await recognizePage(preprocessed, lang, {
           oem: 1,
-          psm: tableMode ? 6 : psmForStyle(style),
+          psm: tableMode ? 6 : receiptMode ? 4 : psmForStyle(style),
         });
         ({ text, confidence } = result)
         // Collect word metadata; drop bboxes above 5000-word threshold to cap memory
@@ -539,10 +559,15 @@ export async function imageOcrConvert(
           continue
         }
         case 'receipt-csv': {
-          const header = i === 0 ? 'filename,vendor,date,total,raw_text\n' : ''
-          const row = parseReceiptText(text, file.name)
-          const csv = header + row + '\n'
-          outFile = new File([csv], `${baseName}-receipt.csv`, { type: 'text/csv' })
+          const fmt = (opts.receiptFormat as string | undefined) ?? 'txt'
+          if (fmt === 'csv') {
+            const header = i === 0 ? 'filename,vendor,date,total,raw_text\n' : ''
+            const row = parseReceiptText(text, file.name)
+            outFile = new File([header + row + '\n'], `${baseName}-receipt.csv`, { type: 'text/csv' })
+          } else {
+            const formatted = formatReceiptAsText(text)
+            outFile = new File([formatted], `${baseName}-receipt.txt`, { type: 'text/plain' })
+          }
           break
         }
         case 'card-csv': {

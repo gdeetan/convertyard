@@ -4,11 +4,11 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'receipt-to-text',
   title: 'Receipt to Text Converter',
-  subtitle: 'Extract receipt data into CSV for expense reports. Batch up to 500.',
+  subtitle: 'Extract receipt text and key fields. Download as readable text or CSV. Batch up to 500.',
   category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
-  outputExt: '.csv',
+  outputExt: '.txt',
   convertFn: (files, opts, onProgress) =>
     imageOcrConvert(files, { ...opts, outputMode: 'receipt-csv' }, onProgress),
 
@@ -27,12 +27,26 @@ export const config: ToolConfig = {
         'ai-enhanced': 'Florence-2 + TrOCR: processes the full receipt at once, better on faded or printed thermal text. Downloads ~262MB on first use — shared with the Image Description tool so may already be cached. English only.',
       },
     },
+    {
+      type: 'radio',
+      name: 'receiptFormat',
+      label: 'Output format',
+      choices: [
+        { value: 'txt', label: 'Formatted text (.txt)' },
+        { value: 'csv', label: 'CSV for spreadsheets (.csv)' },
+      ],
+      default: 'txt',
+      conditionalHints: {
+        txt: 'Receipt-style layout: vendor, date, and total at the top, then the full extracted text below.',
+        csv: 'One row per receipt with filename, vendor, date, total, and raw text columns. Import into Excel, QuickBooks, or Xero.',
+      },
+    },
   ],
 
   faq: [
     {
       q: 'What fields does it extract?',
-      a: 'Vendor name (first text line), date (first date pattern found), and total amount (last dollar figure or labeled total). The full raw text is also included in the CSV so you can pull any other field manually.',
+      a: 'Vendor name (first text line), date (first date pattern found), and total amount (last dollar figure or labeled total). In text mode, the full raw OCR text follows below. In CSV mode, all fields appear as columns in one row per receipt.',
     },
     {
       q: 'Does it work on thermal receipt paper photos?',
@@ -40,7 +54,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Can I import the CSV into QuickBooks, FreshBooks, or Xero?',
-      a: 'The CSV format is generic and imports into any accounting tool that accepts CSV. Map the vendor, date, and total columns to your tool\'s field names.',
+      a: 'Yes — choose CSV output format. The file has filename, vendor, date, total, and raw text columns. Map vendor, date, and total to your accounting tool\'s field names.',
     },
     {
       q: 'How reliable is the extracted data — should I verify before submitting an expense report?',
@@ -57,6 +71,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'Receipt to Text Converter — ConvertYard',
-    description: 'Extract vendor, date, and total from receipt photos into CSV. Batch up to 500 receipts locally — no uploads, no account, no subscription.',
+    description: 'Extract vendor, date, and total from receipt photos. Download as formatted text or CSV. Batch up to 500 receipts locally — no uploads, no account.',
   },
 }
