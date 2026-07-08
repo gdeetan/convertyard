@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "scan-clean",
+      "image": "scan-clean.png",
+      "transcript": "scan-clean.txt",
+      "category": "clean-print",
+      "notes": "Clean scanned printed text baseline."
+    },
+    {
+      "id": "photo-printed",
+      "image": "photo-printed.jpg",
+      "transcript": "photo-printed.txt",
+      "category": "camera-photo",
+      "notes": "Phone photo of printed text for layout and camera artifact baseline."
+    },
+    {
+      "id": "photo-lowres",
+      "image": "photo-lowres.jpg",
+      "transcript": "photo-lowres.txt",
+      "category": "low-contrast",
+      "notes": "Low-resolution photo baseline."
+    },
+    {
+      "id": "scan-names",
+      "image": "scan-names.png",
+      "transcript": "scan-names.txt",
+      "category": "form-fill",
+      "notes": "Mixed names and short form-like tokens."
+    },
+    {
+      "id": "mixed-cursive-note-01",
+      "image": "mixed-cursive-note-01.jpg",
+      "transcript": "mixed-cursive-note-01.txt",
+      "category": "mixed-print-cursive",
+      "notes": "Real mixed print + cursive note sample."
+    },
+    {
+      "id": "mixed-cursive-note-02",
+      "image": "mixed-cursive-note-02.jpg",
+      "transcript": "mixed-cursive-note-02.txt",
+      "category": "mixed-print-cursive",
+      "notes": "Real mixed print + cursive note sample."
+    },
+    {
+      "id": "mixed-cursive-note-03",
+      "image": "mixed-cursive-note-03.jpg",
+      "transcript": "mixed-cursive-note-03.txt",
+      "category": "mixed-print-cursive",
+      "notes": "Real mixed print + cursive note sample."
+    },
+    {
+      "id": "messy-cursive-letter-01",
+      "image": "messy-cursive-letter-01.jpg",
+      "transcript": "messy-cursive-letter-01.txt",
+      "category": "messy-cursive",
+      "active": false,
+      "notes": "TODO: add a real messy cursive sample."
+    },
+    {
+      "id": "notebook-page-01",
+      "image": "notebook-page-01.jpg",
+      "transcript": "notebook-page-01.txt",
+      "category": "notebook-paper",
+      "active": false,
+      "notes": "TODO: add a ruled notebook page sample."
+    },
+    {
+      "id": "low-contrast-note-01",
+      "image": "low-contrast-note-01.jpg",
+      "transcript": "low-contrast-note-01.txt",
+      "category": "low-contrast",
+      "active": false,
+      "notes": "TODO: add a low-contrast handwriting sample."
+    },
+    {
+      "id": "camera-photo-note-01",
+      "image": "camera-photo-note-01.jpg",
+      "transcript": "camera-photo-note-01.txt",
+      "category": "camera-photo",
+      "active": false,
+      "notes": "TODO: add a phone photo of a handwritten note."
+    },
+    {
+      "id": "form-fill-handwriting-01",
+      "image": "form-fill-handwriting-01.jpg",
+      "transcript": "form-fill-handwriting-01.txt",
+      "category": "form-fill",
+      "active": false,
+      "notes": "TODO: add a filled form with printed labels and handwritten answers."
+    }
+  ]
+}

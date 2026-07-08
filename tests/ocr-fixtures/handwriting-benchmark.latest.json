@@ -1,0 +1,130 @@
+{
+  "mode": "json",
+  "generatedAt": "2026-07-08T07:18:32.665Z",
+  "manifestVersion": 1,
+  "summary": {
+    "fixtureCount": 7,
+    "average": {
+      "cer": 0.1251007759159835,
+      "wer": 0.42485889542501665,
+      "lineBreakAccuracy": 0.3179539758487127
+    },
+    "routeCounts": {
+      "florence": 7
+    },
+    "byCategory": {
+      "clean-print": {
+        "fixtureCount": 1,
+        "average": {
+          "cer": 0.012987012987012988,
+          "wer": 0.07407407407407407,
+          "lineBreakAccuracy": 0.6666666666666667
+        }
+      },
+      "camera-photo": {
+        "fixtureCount": 1,
+        "average": {
+          "cer": 0.024096385542168676,
+          "wer": 0.17857142857142858,
+          "lineBreakAccuracy": 0.5
+        }
+      },
+      "low-contrast": {
+        "fixtureCount": 1,
+        "average": {
+          "cer": 0.32432432432432434,
+          "wer": 0.9230769230769231,
+          "lineBreakAccuracy": 0
+        }
+      },
+      "form-fill": {
+        "fixtureCount": 1,
+        "average": {
+          "cer": 0.3008849557522124,
+          "wer": 1.2352941176470589,
+          "lineBreakAccuracy": 0
+        }
+      },
+      "mixed-print-cursive": {
+        "fixtureCount": 3,
+        "average": {
+          "cer": 0.07113758426872206,
+          "wer": 0.18766524153521055,
+          "lineBreakAccuracy": 0.35300372142477404
+        }
+      }
+    }
+  },
+  "results": [
+    {
+      "fixture": "scan-clean",
+      "category": "clean-print",
+      "route": "florence",
+      "predicted": "The quick brown fox jumps over the lazy dog.\nThis is a simple test of optical character recognition.\nThe year is 2014 and technology continues to advanced.",
+      "groundTruth": "The quick brown fox jumps over the lazy dog.\nThis is a simple test of optical character recognition.\nThe year is 2024 and technology continues to advance.",
+      "cer": 0.012987012987012988,
+      "wer": 0.07407407407407407,
+      "lineBreakAccuracy": 0.6666666666666667
+    },
+    {
+      "fixture": "photo-printed",
+      "category": "camera-photo",
+      "route": "florence",
+      "predicted": "Meeting Notes - Project Alpha\nDate October 15, 2024\nAction Items:\n1. Review the proposal by Friday\n2. Schedule follow - up with the team\n3. Update the project timeline",
+      "groundTruth": "Meeting Notes — Project Alpha\nDate: October 15, 2024\nAction items:\n1. Review the proposal by Friday\n2. Schedule follow-up with the team\n3. Update the project timeline",
+      "cer": 0.024096385542168676,
+      "wer": 0.17857142857142858,
+      "lineBreakAccuracy": 0.5
+    },
+    {
+      "fixture": "photo-lowres",
+      "category": "low-contrast",
+      "route": "florence",
+      "predicted": "Inoxox 8102\nCERT. Aene Corp.\nAmount Due. $3.00.\nDate Date Nov. 30. 2020.",
+      "groundTruth": "Invoice #1042\nClient: Acme Corp\nAmount Due: $320.00\nDue Date: Nov 30, 2024",
+      "cer": 0.32432432432432434,
+      "wer": 0.9230769230769231,
+      "lineBreakAccuracy": 0
+    },
+    {
+      "fixture": "scan-names",
+      "category": "form-fill",
+      "route": "florence",
+      "predicted": "iPhone 15, SKI X3 - 47/7, D. Kremelu\nOrder 8828 - 1 - 19.99.\nShipping to: OBrien, 80 11\nTracking: FX - 991 - D1 - L1",
+      "groundTruth": "iPhone 15, SKU X9-4471, Dr. Nkemelu\nOrder #88234 — $149.99\nShipping to: O'Brien, CO 80211\nTracking: FX-9921-DELTA",
+      "cer": 0.3008849557522124,
+      "wer": 1.2352941176470589,
+      "lineBreakAccuracy": 0
+    },
+    {
+      "fixture": "mixed-cursive-note-01",
+      "category": "mixed-print-cursive",
+      "route": "florence",
+      "predicted": "Hey Reddit!\nThis is my normal handwriting. I've\ngotten a lot of comments about it over the\nyears which I un gateful for. but don't\nalways understand the compiliners as I\nfeel my writing 15 out of a lary wlf -\npunt, half - exclusive.\nI had my writing utensils VERY aguly\nand press down VERY wand. My paper is\n1 wways turned 90 to the left and I am\niglet - handed.\nSOME TIMES 1 PREFER MY ALL - CAPS\nWRITING FOR USTS & NOTES. IT MAKES ME\nTHINK OF COMIC BOOKS!\nAnd this is my best attempt\nat paper curive. Of needs work.\naway, thanks for reading!\n- Traddington Bear\nP.S. THIS IS WRITTEN WITH A MICRON 05.",
+      "groundTruth": "Hey Credit!\nThis is my normal handwitting. I've\ngotten a lot of commeys about it over the\nyears which I un grave ful for. but don't\n1ways understand the compiiments as I\nfeel my witing 15 out of a lazy ulf -\npunt, had - cuisine.\nI wld my witting utensils VERY tghtly\nand press down VERY wnd. My paper is\nwways turned 90º to the left and I am\nnget - haded.\nSOME TIMES I PREFER MY ALL - CAPS\nWRITING FOR LUSTS E NOTES. IT MAKES ME\nTHINK OF COMIC BOOKS!\nand this is my best attempt\nat proper cuisine. It needs work...\naway, thanks for reading!\nTeddington Bear\nP.S. THIS IS WRITTEN WITH A MICRON 05.",
+      "cer": 0.09243697478991597,
+      "wer": 0.24369747899159663,
+      "lineBreakAccuracy": 0.21052631578947367
+    },
+    {
+      "fixture": "mixed-cursive-note-02",
+      "category": "mixed-print-cursive",
+      "route": "florence",
+      "predicted": "Blince people seem to dig my diffe Hi Reddit: Pennamship styles, I thoughtt c\nshare a few more variations. Just in case you're cu this is my everyday handwriting. SOMETHING. Sometime\nike to smith things up with bowpoint pens - havent notched. my favorite pens are ballpoint pens. emockt, cheap. and tatatly cunderat\nEVEN THOUGH ITS WAY FASTER TO TYPE NOWADAYS\nlove to handmade my notes and lette\ncan practice my penmanship from time to time. People have\nif aop fons - d actually just come up with them as\nArwayus, its been fum shavings\npennamsip with you all. Thanks for all the\nHappy Handwitting\neellehcor",
+      "groundTruth": "Since people seem to dig my differt Hireddit. Pernmanship styles, I thought c\nshare a few more variations, just in case youre c this is my everyday handwriting. SOMetime like to smith things up with cursive -\nhvent notched. my favorite pens are ballpoint pens - emcath, my cheap, and totally sunderat\nEVEN THOUGH IT'S WAY FASTER TO TYPE NOWADAYS\nlove to hardware my notes and lette\ncan practice my penmanship from time to time. People have\nif aop fons - d actually put come up with them as\nanyuous, its been fun shavings\npannaniship with you all. Thanks for all the\nHappy Handwitting\nvellehcor",
+      "cer": 0.10961214165261383,
+      "wer": 0.26666666666666666,
+      "lineBreakAccuracy": 0.18181818181818177
+    },
+    {
+      "fixture": "mixed-cursive-note-03",
+      "category": "mixed-print-cursive",
+      "route": "florence",
+      "predicted": "ay theaddest day of your future\nse than the happiest day of vou\nay the most you wish for",
+      "groundTruth": "ay theaddest day of your future\nse than the happiest day of you\nay the most you wish for",
+      "cer": 0.011363636363636364,
+      "wer": 0.05263157894736842,
+      "lineBreakAccuracy": 0.6666666666666667
+    }
+  ]
+}
