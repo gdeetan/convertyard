@@ -133,7 +133,7 @@ async function loadUpscaler4x() {
   await ensureHfAuth()
   const { pipeline } = await import('@huggingface/transformers')
   const cb = makeProgressCallback('upscaler-4x')
-  upscaler4xPipeline = await pipeline('image-to-image', 'Xenova/swin2SR-realworld-sr-x4-large', {
+  upscaler4xPipeline = await pipeline('image-to-image', 'Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr', {
     progress_callback: cb,
   })
 }

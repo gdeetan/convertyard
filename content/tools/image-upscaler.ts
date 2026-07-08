@@ -29,8 +29,8 @@ export const config: ToolConfig = {
       label: 'Upscale factor',
       default: '4x',
       choices: [
-        { value: '2x', label: '2× (faster, ~50 MB model)' },
-        { value: '4x', label: '4× (best quality, ~200 MB model)' },
+        { value: '2x', label: '2× (faster)' },
+        { value: '4x', label: '4× (best quality)' },
       ],
     },
     {
@@ -66,7 +66,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Does it work offline?',
-      a: 'Yes, after the first model download (~200 MB for 4×, ~50 MB for 2×). Models are cached in your browser. Subsequent uses work completely offline.',
+      a: 'Yes, after the first model download (~20 MB per model, cached after first use). Subsequent uses work completely offline.',
     },
     {
       q: 'How many files can I process at once?',
