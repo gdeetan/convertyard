@@ -40,7 +40,9 @@ let activeBackend: UpscalerBackend | null = null
 
 async function initTf() {
   if (_tfReady) return
-  await ensureBackend(['webgpu', 'webgl', 'cpu'])
+  // WebGPU produces incorrect tensor output for ESRGAN (values compressed into ~0.05 range).
+  // WebGL is fast and correct; CPU is the safe fallback.
+  await ensureBackend(['webgl', 'cpu'])
   _tfReady = true
 }
 
