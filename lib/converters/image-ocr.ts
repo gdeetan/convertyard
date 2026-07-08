@@ -4,6 +4,7 @@ import { detectLines } from '@/lib/ocr/line-detector'
 import { correctWords } from '@/lib/ocr/correction-client'
 import type { ConversionResult, OcrWordMeta, OcrResultMeta, ToolOptions } from '@/lib/types'
 import * as XLSX from 'xlsx'
+import { detectColumnBoundaries } from '@/lib/ocr/column-detector'
 
 interface TrOcrLineResult {
   text: string
@@ -321,9 +322,9 @@ function parseTableFromWords(words: OcrWordMeta[], forcedColBoundaries?: number[
   })
 }
 
-function parseTableText(text: string, words?: OcrWordMeta[]): string {
+function parseTableText(text: string, words?: OcrWordMeta[], forcedColBoundaries?: number[]): string {
   const grid = words && words.some(w => w.bbox)
-    ? parseTableFromWords(words)
+    ? parseTableFromWords(words, forcedColBoundaries)
     : text.split('\n')
         .map(line => line.split(/\t|  +/).map(cell => cell.trim()))
         .filter(row => row.some(cell => cell.length > 0))
@@ -332,9 +333,9 @@ function parseTableText(text: string, words?: OcrWordMeta[]): string {
   ).join('\n')
 }
 
-function parseToExcel(text: string, sheetName: string, words?: OcrWordMeta[]): Uint8Array {
+function parseToExcel(text: string, sheetName: string, words?: OcrWordMeta[], forcedColBoundaries?: number[]): Uint8Array {
   const rows = words && words.some(w => w.bbox)
-    ? parseTableFromWords(words)
+    ? parseTableFromWords(words, forcedColBoundaries)
     : text.split('\n')
         .map(line => line.split(/\t|  +/).map(cell => cell.trim()))
         .filter(row => row.some(cell => cell.length > 0))
@@ -394,6 +395,7 @@ export async function imageOcrConvert(
       let text = ''
       let confidence = 0
       let pageWords: OcrWordMeta[] = []
+      let binaryPreprocessed: Blob | undefined
 
       if (useAi) {
         onProgress?.(i, 20)
@@ -514,11 +516,11 @@ export async function imageOcrConvert(
       } else {
         // Standard path: preprocess → Tesseract with OEM/PSM tuning
         onProgress?.(i, 20)
-        const preprocessed = await preprocessForOcr(blob, mode === 'receipt-csv' ? 2500 : undefined)
+        binaryPreprocessed = await preprocessForOcr(blob, mode === 'receipt-csv' ? 2500 : undefined)
         onProgress?.(i, 30)
         const tableMode = mode === 'excel' || mode === 'table-csv'
         const receiptMode = mode === 'receipt-csv'
-        const result = await recognizePage(preprocessed, lang, {
+        const result = await recognizePage(binaryPreprocessed, lang, {
           oem: 1,
           psm: tableMode ? 6 : receiptMode ? 4 : psmForStyle(style),
           ...(receiptMode ? { dpi: 300, preserveSpaces: true } : {}),
@@ -546,6 +548,26 @@ export async function imageOcrConvert(
           }
         } catch (layoutErr) {
           console.warn('[image-to-excel] Tesseract layout pass failed, using AI words:', layoutErr)
+        }
+      }
+
+      // Detect column boundaries from image pixels for table/excel modes.
+      // Tries Hough gridline detection first, then vertical projection profile.
+      // If neither finds signal, parseTableFromWords uses word-gap voting.
+      let detectedColBoundaries: number[] | undefined
+      if (mode === 'excel' || mode === 'table-csv') {
+        try {
+          const layoutBlobForCols = useAi
+            ? await preprocessForOcr(blob)
+            : (binaryPreprocessed ?? await preprocessForOcr(blob))
+          const bmp = await createImageBitmap(layoutBlobForCols)
+          const W = bmp.width
+          const H = bmp.height
+          bmp.close()
+          const cols = await detectColumnBoundaries(layoutBlobForCols, W, H)
+          if (cols) detectedColBoundaries = cols
+        } catch (colErr) {
+          console.warn('[column-detector] Detection failed, using word-gap voting:', colErr)
         }
       }
 
@@ -616,12 +638,12 @@ export async function imageOcrConvert(
           break
         }
         case 'table-csv': {
-          const csv = parseTableText(text, pageWords)
+          const csv = parseTableText(text, pageWords, detectedColBoundaries)
           outFile = new File([csv], `${baseName}.csv`, { type: 'text/csv' })
           break
         }
         case 'excel': {
-          const xlsxBytes = parseToExcel(text, baseName, pageWords)
+          const xlsxBytes = parseToExcel(text, baseName, pageWords, detectedColBoundaries)
           outFile = new File([xlsxBytes as unknown as Uint8Array<ArrayBuffer>], `${baseName}.xlsx`, {
             type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           })
