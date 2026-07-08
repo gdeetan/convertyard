@@ -371,7 +371,8 @@ export async function imageOcrConvert(
           `[AI Route] primary=${routeDecision.route} lines=${routeDecision.stats.lineCount} avgWidth=${routeDecision.stats.avgWidthRatio.toFixed(2)} style=${style}`
         )
 
-        let trocrLines: TrOcrLineResult[] | null = null
+        let trocrLines: TrOcrLineResult[] = []
+        let usedTrocr = false
 
         const runFlorence = async (): Promise<boolean> => {
           try {
@@ -417,6 +418,7 @@ export async function imageOcrConvert(
             }
 
             trocrLines = aiLines
+            usedTrocr = true
             text = aiText
             confidence = aiLines.length > 0
               ? Math.round(aiLines.reduce((s, l) => s + l.confidence, 0) / aiLines.length * 100)
@@ -458,13 +460,12 @@ export async function imageOcrConvert(
           }
         }
 
-        if (mode === 'json' && trocrLines) {
+        if (mode === 'json' && usedTrocr) {
           onProgress?.(i, 90)
           const baseName = file.name.replace(/\.[^.]+$/, '')
-          const capturedLines = trocrLines as TrOcrLineResult[]
           const jsonContent = JSON.stringify(
             {
-              lines: capturedLines.map(l => ({
+              lines: trocrLines.map(l => ({
                 text: l.text,
                 confidence: l.confidence,
                 flagged: l.confidence < 0.7,
