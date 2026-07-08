@@ -171,19 +171,87 @@ function parseBusinessCardText(text: string, filename: string): string {
     .map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',')
 }
 
-function parseTableText(text: string): string {
-  const rows = text.split('\n')
-    .map(line => line.split(/\t|  +/).map(cell => cell.trim()))
-    .filter(row => row.some(cell => cell.length > 0))
-  return rows.map(row =>
+// Spatially reconstruct a table grid from word bounding boxes.
+// Returns a 2D array (rows × cols) of cell strings.
+function parseTableFromWords(words: OcrWordMeta[]): string[][] {
+  const boxed = words.filter(w => w.bbox && w.text.trim())
+  if (boxed.length === 0) return []
+
+  // Median word height for tolerances
+  const heights = boxed.map(w => w.bbox!.y1 - w.bbox!.y0).sort((a, b) => a - b)
+  const medianH = heights[Math.floor(heights.length / 2)]
+  const rowTol = medianH * 0.4
+  const minGapPx = Math.max(4, medianH * 0.4)
+
+  // Group into row bands by Y position
+  const sorted = [...boxed].sort((a, b) => a.bbox!.y0 - b.bbox!.y0)
+  const bands: OcrWordMeta[][] = []
+  let bandY1 = -Infinity
+  for (const w of sorted) {
+    if (w.bbox!.y0 > bandY1 + rowTol) {
+      bands.push([])
+      bandY1 = w.bbox!.y1
+    } else {
+      bandY1 = Math.max(bandY1, w.bbox!.y1)
+    }
+    bands[bands.length - 1].push(w)
+  }
+  for (const band of bands) band.sort((a, b) => a.bbox!.x0 - b.bbox!.x0)
+
+  // Find column boundaries via x-projection: locate empty vertical strips
+  const xMax = Math.ceil(Math.max(...boxed.map(w => w.bbox!.x1)))
+  const occupied = new Uint8Array(xMax + 1)
+  for (const w of boxed) {
+    const x0 = Math.floor(w.bbox!.x0)
+    const x1 = Math.ceil(w.bbox!.x1)
+    for (let x = x0; x <= x1; x++) occupied[x] = 1
+  }
+
+  const colBoundaries: number[] = []
+  let gapStart = -1
+  for (let x = 0; x <= xMax; x++) {
+    if (!occupied[x]) {
+      if (gapStart < 0) gapStart = x
+    } else {
+      if (gapStart >= 0 && x - gapStart >= minGapPx) {
+        colBoundaries.push((gapStart + x) / 2)
+      }
+      gapStart = -1
+    }
+  }
+
+  // Build 2D grid
+  const numCols = colBoundaries.length + 1
+  const grid: string[][] = bands.map(band => {
+    const row = Array<string>(numCols).fill('')
+    for (const w of band) {
+      const col = colBoundaries.filter(b => b <= w.bbox!.x0).length
+      const idx = Math.min(col, numCols - 1)
+      row[idx] = row[idx] ? row[idx] + ' ' + w.text.trim() : w.text.trim()
+    }
+    return row
+  })
+
+  return grid
+}
+
+function parseTableText(text: string, words?: OcrWordMeta[]): string {
+  const grid = words && words.some(w => w.bbox)
+    ? parseTableFromWords(words)
+    : text.split('\n')
+        .map(line => line.split(/\t|  +/).map(cell => cell.trim()))
+        .filter(row => row.some(cell => cell.length > 0))
+  return grid.map(row =>
     row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',')
   ).join('\n')
 }
 
-function parseToExcel(text: string, sheetName: string): Uint8Array {
-  const rows = text.split('\n')
-    .map(line => line.split(/\t|  +/).map(cell => cell.trim()))
-    .filter(row => row.some(cell => cell.length > 0))
+function parseToExcel(text: string, sheetName: string, words?: OcrWordMeta[]): Uint8Array {
+  const rows = words && words.some(w => w.bbox)
+    ? parseTableFromWords(words)
+    : text.split('\n')
+        .map(line => line.split(/\t|  +/).map(cell => cell.trim()))
+        .filter(row => row.some(cell => cell.length > 0))
   const ws = XLSX.utils.aoa_to_sheet(rows)
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31))
@@ -412,12 +480,12 @@ export async function imageOcrConvert(
           break
         }
         case 'table-csv': {
-          const csv = parseTableText(text)
+          const csv = parseTableText(text, pageWords)
           outFile = new File([csv], `${baseName}.csv`, { type: 'text/csv' })
           break
         }
         case 'excel': {
-          const xlsxBytes = parseToExcel(text, baseName)
+          const xlsxBytes = parseToExcel(text, baseName, pageWords)
           outFile = new File([xlsxBytes as unknown as Uint8Array<ArrayBuffer>], `${baseName}.xlsx`, {
             type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           })
