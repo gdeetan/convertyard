@@ -115,9 +115,12 @@ async function runInference(
       const tensor: any = await upscaler.upscale(tileData, { output: 'tensor' })
 
       // Render tensor to a small OffscreenCanvas, draw onto output, dispose immediately
-      const tileOut = new OffscreenCanvas(tensor.shape[1], tensor.shape[0])
-      await tf.browser.toPixels(tensor, tileOut as unknown as HTMLCanvasElement)
+      // ESRGAN can produce values slightly above 1.0; clip before toPixels which enforces [0,1]
+      const clipped = tensor.clipByValue(0, 1)
       tensor.dispose()
+      const tileOut = new OffscreenCanvas(clipped.shape[1], clipped.shape[0])
+      await tf.browser.toPixels(clipped, tileOut as unknown as HTMLCanvasElement)
+      clipped.dispose()
 
       outCtx.drawImage(tileOut as unknown as CanvasImageSource, sx * scaleFactor, sy * scaleFactor)
 
