@@ -1,8 +1,8 @@
 import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 import { preprocessForOcr, preprocessForOcrDual } from '@/lib/ocr/preprocessing'
-import { recognizeWithTrOCR } from '@/lib/ocr/trocr-client'
+import { recognizeWithTrOCR, type TrOcrLineResult } from '@/lib/ocr/trocr-client'
 import { normalizeOcrText, recognizeWithFlorenceOcr } from '@/lib/ocr/florence-ocr-client'
-import { detectLines } from '@/lib/ocr/line-detector'
+import { decidePrimaryAiRoute } from '@/lib/ocr/ai-route'
 import { correctWords } from '@/lib/ocr/correction-client'
 import type { ConversionResult, OcrWordMeta, OcrResultMeta, ToolOptions } from '@/lib/types'
 import * as XLSX from 'xlsx'
@@ -181,39 +181,36 @@ function parseTableFromWords(words: OcrWordMeta[]): string[][] {
   const heights = boxed.map(w => w.bbox!.y1 - w.bbox!.y0).sort((a, b) => a - b)
   const medianH = heights[Math.floor(heights.length / 2)]
 
-  // Row grouping: prefer Tesseract's own lineIndex (accurate, no tuning needed).
-  // Fall back to Y-center clustering when lineIndex is absent (AI/TrOCR paths).
-  let bands: OcrWordMeta[][]
-  if (boxed.some(w => w.lineIndex !== undefined)) {
-    const lineMap = new Map<number, OcrWordMeta[]>()
-    for (const w of boxed) {
-      const li = w.lineIndex!
-      if (!lineMap.has(li)) lineMap.set(li, [])
-      lineMap.get(li)!.push(w)
-    }
-    bands = [...lineMap.entries()]
-      .sort(([a], [b]) => a - b)
-      .map(([, ws]) => ws.sort((a, b) => a.bbox!.x0 - b.bbox!.x0))
-  } else {
-    const byCenter = [...boxed].sort((a, b) =>
-      (a.bbox!.y0 + a.bbox!.y1) / 2 - (b.bbox!.y0 + b.bbox!.y1) / 2
-    )
-    bands = []
-    let lastCY = -Infinity
-    for (const w of byCenter) {
-      const cy = (w.bbox!.y0 + w.bbox!.y1) / 2
-      if (cy > lastCY + medianH * 0.6) { bands.push([]); lastCY = cy }
-      bands[bands.length - 1].push(w)
-    }
-    for (const b of bands) b.sort((a, b) => a.bbox!.x0 - b.bbox!.x0)
+  // Group words into row bands by Y-center.
+  // Tesseract's lineIndex is unreliable for tables (may map to cells/columns,
+  // not rows) so we use spatial clustering instead.
+  const byCenter = [...boxed].sort((a, b) =>
+    (a.bbox!.y0 + a.bbox!.y1) / 2 - (b.bbox!.y0 + b.bbox!.y1) / 2
+  )
+  const bands: OcrWordMeta[][] = []
+  let lastCY = -Infinity
+  for (const w of byCenter) {
+    const cy = (w.bbox!.y0 + w.bbox!.y1) / 2
+    if (cy > lastCY + medianH * 0.6) { bands.push([]); lastCY = cy }
+    bands[bands.length - 1].push(w)
   }
+  for (const b of bands) b.sort((a, b) => a.bbox!.x0 - b.bbox!.x0)
 
-  // Per-row bimodal gap threshold.
-  // Sort each row's inter-word gaps; find the biggest absolute jump in the sorted list.
-  // If that jump is ≥ 30% of the max gap, the row has two distinct modes
-  // (in-cell word spaces vs. column separator gaps) and the threshold sits at the jump.
-  // If the distribution is unimodal (all gaps similar — e.g. a sub-header row where
-  // every word is its own column), threshold = 0 so every gap counts as a separator.
+  // Per-row gap threshold using bimodal split.
+  //
+  // Sort each row's inter-word gaps and find the biggest jump between consecutive
+  // sorted values. If jump ≥ 30% of max gap → two distinct modes exist
+  // (word-spacing vs column-separator) → threshold at the midpoint of that jump.
+  //
+  // Unimodal rows (all gaps similar size) need two guards:
+  // • max gap < medianH×0.25 → all gaps are tiny word spaces → never split (Infinity)
+  // • otherwise compare average gap to medianH×0.5:
+  //     large uniform gaps → every gap is a column separator (threshold = 0)
+  //     small uniform gaps → all words belong in one cell (threshold = Infinity)
+  //
+  // Without guard 1, a product-name row like "Dyson Gen5 Outsize" (three words,
+  // gaps ~5px, all equal) would be marked unimodal→threshold=0, splitting each
+  // word into its own column.
   function rowThreshold(band: OcrWordMeta[]): number {
     if (band.length < 2) return Infinity
     const gaps = band.slice(0, -1)
@@ -222,17 +219,24 @@ function parseTableFromWords(words: OcrWordMeta[]): string[][] {
     if (gaps.length === 0) return Infinity
     const s = [...gaps].sort((a, b) => a - b)
     const maxG = s[s.length - 1]
-    if (maxG <= 0) return 0
+
+    if (maxG < medianH * 0.25) return Infinity   // guard 1: all tiny → never split
+
     let bigJump = 0, ji = 1
     for (let i = 1; i < s.length; i++) {
       const j = s[i] - s[i - 1]
       if (j > bigJump) { bigJump = j; ji = i }
     }
-    if (bigJump / maxG < 0.3) return 0   // unimodal → all gaps are column separators
-    return (s[ji - 1] + s[ji]) / 2       // bimodal → threshold at midpoint of jump
+
+    if (bigJump / maxG < 0.3) {                  // unimodal
+      const avg = s.reduce((a, b) => a + b, 0) / s.length
+      return avg >= medianH * 0.5 ? 0 : Infinity // large→col seps, small→in-cell
+    }
+
+    return (s[ji - 1] + s[ji]) / 2               // bimodal: split at jump midpoint
   }
 
-  // Vote on column boundaries: each row contributes gap midpoints for gaps ≥ its threshold.
+  // Vote for column boundaries: each row contributes gap midpoints for gaps ≥ threshold.
   const gapMids: number[] = []
   for (const band of bands) {
     const thresh = rowThreshold(band)
@@ -265,9 +269,8 @@ function parseTableFromWords(words: OcrWordMeta[]): string[][] {
 
   const numCols = colBoundaries.length + 1
 
-  // Build grid using per-row threshold for cell splitting.
-  // Words separated by a gap < threshold share a cell even if a column boundary
-  // lies between their x0 positions (handles merged/spanning header cells).
+  // Build grid. Words with a gap < row threshold stay in the same cell even if a
+  // column boundary falls between their x positions (handles spanning header cells).
   return bands.map(band => {
     const row = Array<string>(numCols).fill('')
     const thresh = rowThreshold(band)
@@ -363,94 +366,115 @@ export async function imageOcrConvert(
       if (useAi) {
         onProgress?.(i, 20)
         const { binary: binBlob, grayscale: grayBlob } = await preprocessForOcrDual(blob)
+        const routeDecision = await decidePrimaryAiRoute(style, binBlob)
+        console.info(
+          `[AI Route] primary=${routeDecision.route} lines=${routeDecision.stats.lineCount} avgWidth=${routeDecision.stats.avgWidthRatio.toFixed(2)} style=${style}`
+        )
 
-        // Primary: Florence-2 full-page OCR — handles decorated/colored backgrounds
-        // without needing line segmentation. Falls back to TrOCR if empty.
-        let usedFlorence = false
-        try {
-          onProgress?.(i, 22)
-          const florenceText = await recognizeWithFlorenceOcr(
-            grayBlob,
-            file.name,
-            p => onProgress?.(i, 22 + Math.round(p * 0.35))
-          )
-          if (florenceText.trim()) {
+        let trocrLines: TrOcrLineResult[] | null = null
+
+        const runFlorence = async (): Promise<boolean> => {
+          try {
+            onProgress?.(i, 22)
+            const florenceText = await recognizeWithFlorenceOcr(
+              grayBlob,
+              file.name,
+              p => onProgress?.(i, 22 + Math.round(p * 0.35))
+            )
+            if (!florenceText.trim()) {
+              console.warn('[Florence-2] Empty OCR result — falling back to TrOCR')
+              return false
+            }
+
             text = florenceText
             confidence = 90
             pageWords = florenceText.split(/\s+/).filter(Boolean).map(w => ({
               text: w,
               confidence: -1 as const,
             }))
-            usedFlorence = true
-          } else {
-            console.warn('[Florence-2] Empty OCR result — falling back to TrOCR')
+            return true
+          } catch (florenceErr) {
+            console.warn('[Florence-2] OCR failed, falling back to TrOCR:', florenceErr)
+            return false
           }
-        } catch (florenceErr) {
-          console.warn('[Florence-2] OCR failed, falling back to TrOCR:', florenceErr)
         }
 
-        if (!usedFlorence) {
-          // TrOCR line-by-line pipeline
+        const runTrocr = async (): Promise<boolean> => {
           try {
             onProgress?.(i, 57)
-            const lineBoxes = await detectLines(binBlob)
+            const lineBlobs = await cropLinesToBlobs(binBlob, grayBlob, routeDecision.lineBoxes)
+            if (lineBlobs.length === 0) return false
+
             onProgress?.(i, 62)
-            const lineBlobs = await cropLinesToBlobs(binBlob, grayBlob, lineBoxes)
             const { text: aiText, lines: aiLines } = await recognizeWithTrOCR(
               lineBlobs,
               p => onProgress?.(i, 62 + Math.round(p * 0.25)),
               quality
             )
+            if (!aiText.trim()) {
+              console.warn('[TrOCR] No text extracted from line crops — falling back to Tesseract')
+              return false
+            }
+
+            trocrLines = aiLines
             text = aiText
             confidence = aiLines.length > 0
               ? Math.round(aiLines.reduce((s, l) => s + l.confidence, 0) / aiLines.length * 100)
               : 0
-
             pageWords = aiLines.flatMap(l =>
               l.text.split(/\s+/).filter(Boolean).map(w => ({
                 text: w,
                 confidence: -1 as const,
               }))
             )
-
-            let usedTesseractFallback = false
-            if (!text.trim()) {
-              console.warn('[TrOCR] No text extracted from line crops — falling back to Tesseract')
-              onProgress?.(i, 80)
-              const fallback = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
-              text = fallback.text
-              confidence = fallback.confidence
-              usedTesseractFallback = true
-            }
-
-            if (mode === 'json' && !usedTesseractFallback) {
-              onProgress?.(i, 90)
-              const baseName = file.name.replace(/\.[^.]+$/, '')
-              const jsonContent = JSON.stringify(
-                {
-                  lines: aiLines.map(l => ({
-                    text: l.text,
-                    confidence: l.confidence,
-                    flagged: l.confidence < 0.7,
-                  })),
-                },
-                null,
-                2
-              )
-              results.push(new File([jsonContent], `${baseName}.json`, { type: 'application/json' }))
-              onProgress?.(i, 100)
-              continue // json in AI mode: emitted above — skip shared switch
-            }
+            return true
           } catch (trocErr) {
             console.warn('[TrOCR] Model unavailable, falling back to Tesseract:', trocErr)
-            onProgress?.(i, 65)
-            const result = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
-            ;({ text, confidence } = result)
-            const rawWords = result.words ?? []
-            pageWords = rawWords.length > 5000
-              ? rawWords.map(w => ({ text: w.text, confidence: w.confidence, lineIndex: w.lineIndex }))
-              : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox, lineIndex: w.lineIndex }))
+            return false
           }
+        }
+
+        const runTesseract = async () => {
+          onProgress?.(i, 80)
+          const result = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
+          ;({ text, confidence } = result)
+          const rawWords = result.words ?? []
+          pageWords = rawWords.length > 5000
+            ? rawWords.map(w => ({ text: w.text, confidence: w.confidence, lineIndex: w.lineIndex }))
+            : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox, lineIndex: w.lineIndex }))
+        }
+
+        const primarySucceeded = routeDecision.route === 'trocr'
+          ? await runTrocr()
+          : await runFlorence()
+
+        if (!primarySucceeded) {
+          const secondarySucceeded = routeDecision.route === 'trocr'
+            ? await runFlorence()
+            : await runTrocr()
+
+          if (!secondarySucceeded) {
+            await runTesseract()
+          }
+        }
+
+        if (mode === 'json' && trocrLines) {
+          onProgress?.(i, 90)
+          const baseName = file.name.replace(/\.[^.]+$/, '')
+          const jsonContent = JSON.stringify(
+            {
+              lines: trocrLines.map(l => ({
+                text: l.text,
+                confidence: l.confidence,
+                flagged: l.confidence < 0.7,
+              })),
+            },
+            null,
+            2
+          )
+          results.push(new File([jsonContent], `${baseName}.json`, { type: 'application/json' }))
+          onProgress?.(i, 100)
+          continue
         }
       } else {
         // Standard path: preprocess → Tesseract with OEM/PSM tuning
