@@ -56,24 +56,28 @@ export async function generateDescriptionBatch(
 }
 
 export function resultsToCSV(results: DescriptionResult[]): string {
+  const escape = (s: string) => {
+    // RFC 4180: quote if contains comma, quote, newline, or carriage return
+    // Escape quotes by doubling them
+    const escaped = s.replace(/"/g, '""')
+    const needsQuotes =
+      s.includes(',') ||
+      s.includes('"') ||
+      s.includes('\n') ||
+      s.includes('\r')
+    return needsQuotes ? `"${escaped}"` : s
+  }
+
   const rows = [['filename', 'description']]
 
   for (const r of results) {
     let descriptionCell: string
     if (r.error) {
-      descriptionCell = `"(error) ${r.error}"`
+      descriptionCell = escape(`(error) ${r.error}`)
     } else {
-      // RFC 4180: quote if contains comma, quote, newline, or carriage return
-      // Escape quotes by doubling them
-      const escaped = r.description.replace(/"/g, '""')
-      const needsQuotes =
-        r.description.includes(',') ||
-        r.description.includes('"') ||
-        r.description.includes('\n') ||
-        r.description.includes('\r')
-      descriptionCell = needsQuotes ? `"${escaped}"` : r.description
+      descriptionCell = escape(r.description)
     }
-    rows.push([r.filename, descriptionCell])
+    rows.push([escape(r.filename), descriptionCell])
   }
 
   return rows.map((r) => r.join(',')).join('\n')
