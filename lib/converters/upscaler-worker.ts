@@ -132,12 +132,24 @@ async function runInference(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tensor: any = await upscaler.upscale(tileData, { output: 'tensor' })
 
-      // ESRGAN can produce values slightly above 1.0; clip before toPixels
+      // tf.browser.toPixels has a known bug with OffscreenCanvas in WebGL worker
+      // context (reads from wrong framebuffer → solid purple output). Download
+      // the float data to CPU and build RGBA manually instead.
+      const outH: number = tensor.shape[0]
+      const outW: number = tensor.shape[1]
       const clipped = tensor.clipByValue(0, 1)
       tensor.dispose()
-      const tileOut = new OffscreenCanvas(clipped.shape[1], clipped.shape[0])
-      await tf.browser.toPixels(clipped, tileOut as unknown as HTMLCanvasElement)
+      const floats = await clipped.data() as Float32Array
       clipped.dispose()
+      const rgba = new Uint8ClampedArray(outW * outH * 4)
+      for (let i = 0; i < outW * outH; i++) {
+        rgba[i * 4 + 0] = floats[i * 3 + 0] * 255
+        rgba[i * 4 + 1] = floats[i * 3 + 1] * 255
+        rgba[i * 4 + 2] = floats[i * 3 + 2] * 255
+        rgba[i * 4 + 3] = 255
+      }
+      const tileOut = new OffscreenCanvas(outW, outH)
+      tileOut.getContext('2d')!.putImageData(new ImageData(rgba, outW, outH), 0, 0)
 
       // Blit only the inner (non-overlap) region — seams eliminated
       outCtx.drawImage(
