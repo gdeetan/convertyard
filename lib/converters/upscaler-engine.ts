@@ -1,39 +1,26 @@
-// All imports are dynamic — this module is imported from tool configs that Next.js
-// analyzes at build time. Static TF.js/UpscalerJS imports would fail SSR.
+// Worker client for image upscaling.
+// Delegates all TF.js/UpscalerJS work to upscaler-worker.ts so the main
+// thread stays responsive during inference on large images.
 
 export type UpscaleScale = '2x' | '3x' | '4x' | '8x'
 
-// ── TF.js init ────────────────────────────────────────────────────────────────
+// ── Singleton worker ───────────────────────────────────────────────────────────
 
-let _tfReady = false
+let workerInstance: Worker | null = null
 
-async function initTf() {
-  if (_tfReady) return
-  _tfReady = true
-  await import('@tensorflow/tfjs-backend-webgl')
-  const tf = await import('@tensorflow/tfjs-core')
-  // Prefer WebGL (GPU); silently fall back to CPU if WebGL unavailable
-  const ok = await tf.setBackend('webgl').catch(() => false)
-  if (!ok) await tf.setBackend('cpu')
-  await tf.ready()
-}
-
-// ── Model import map (static strings — required for webpack bundle analysis) ──
-
-async function importModel(scale: UpscaleScale) {
-  switch (scale) {
-    case '2x': return (await import('@upscalerjs/esrgan-slim/2x')).default
-    case '3x': return (await import('@upscalerjs/esrgan-slim/3x')).default
-    case '4x': return (await import('@upscalerjs/esrgan-slim/4x')).default
-    case '8x': return (await import('@upscalerjs/esrgan-slim/8x')).default
+function getWorker(): Worker {
+  if (!workerInstance) {
+    workerInstance = new Worker(
+      new URL('./upscaler-worker.ts', import.meta.url),
+      { type: 'module' }
+    )
   }
+  return workerInstance
 }
 
-// ── Singleton Upscaler instances per scale ────────────────────────────────────
+// ── Model loading ──────────────────────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const instances: Partial<Record<UpscaleScale, any>> = {}
-const readyMap: Partial<Record<UpscaleScale, boolean>> = {}
+const readyMap:   Partial<Record<UpscaleScale, boolean>>       = {}
 const loadingMap: Partial<Record<UpscaleScale, Promise<void>>> = {}
 
 export function loadUpscalerModel(
@@ -43,93 +30,81 @@ export function loadUpscalerModel(
   if (readyMap[scale]) return Promise.resolve()
   if (loadingMap[scale]) return loadingMap[scale]!
 
-  const p = (async () => {
-    await initTf()
-    const Upscaler = (await import('upscaler')).default
-    const model = await importModel(scale)
-    instances[scale] = new Upscaler({ model })
-    onProgress?.(50)
-    // Warmup: loads weights and pre-compiles WebGL shaders
-    await instances[scale].warmup([{ patchSize: 64, padding: 2 }])
-    readyMap[scale] = true
-    delete loadingMap[scale]
-    onProgress?.(100)
-  })()
+  const p = new Promise<void>((resolve, reject) => {
+    const worker = getWorker()
+
+    const handler = (e: MessageEvent) => {
+      const d = e.data
+      if (d.type === 'model-progress' && d.scale === scale) {
+        onProgress?.(d.progress as number)
+      } else if (d.type === 'model-ready' && d.scale === scale) {
+        worker.removeEventListener('message', handler)
+        readyMap[scale] = true
+        delete loadingMap[scale]
+        onProgress?.(100)
+        resolve()
+      } else if (d.type === 'error' && !d.id) {
+        worker.removeEventListener('message', handler)
+        delete loadingMap[scale]
+        reject(new Error(d.message as string))
+      }
+    }
+
+    worker.addEventListener('message', handler)
+    worker.postMessage({ type: 'load', scale })
+  })
 
   loadingMap[scale] = p
   return p
 }
 
-// ── Image upscaling ───────────────────────────────────────────────────────────
+// ── Image upscaling ────────────────────────────────────────────────────────────
 
-const SAFE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
-
-export async function upscaleImageFile(
+export function upscaleImageFile(
   file: File,
   scale: UpscaleScale,
   outputFormat: string | null,
   onProgress?: (pct: number) => void
 ): Promise<File> {
-  const tf = await import('@tensorflow/tfjs-core')
-  const upscaler = instances[scale]
-  if (!upscaler) throw new Error(`Upscaler for ${scale} not loaded — call loadUpscalerModel first`)
-
-  const rawMime = outputFormat ?? file.type
-  const outMime = SAFE_MIMES.has(rawMime) ? rawMime : 'image/png'
-  const outExt = outMime.split('/')[1]!
-  const baseName = file.name.replace(/\.[^.]+$/, '')
-
-  // Load image element from file blob
-  const url = URL.createObjectURL(file)
-  const img = await loadImg(url)
-  URL.revokeObjectURL(url)
-
-  onProgress?.(10)
-
-  // GPU upscaling — TF.js WebGL operations are async (non-blocking)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tensor: any = await upscaler.upscale(img, {
-    output: 'tensor',
-    patchSize: 64,
-    padding: 2,
-    progress: (pct: number) => {
-      // UpscalerJS progress is 0–1
-      onProgress?.(10 + Math.round(pct * 75))
-    },
-  })
-
-  onProgress?.(85)
-
-  // Render tensor → canvas → Blob → File
-  const canvas = document.createElement('canvas')
-  canvas.width = tensor.shape[1]
-  canvas.height = tensor.shape[0]
-  await tf.browser.toPixels(tensor, canvas)
-  tensor.dispose()
-
-  onProgress?.(95)
-
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error('canvas.toBlob failed'))),
-      outMime,
-      0.92
-    )
-  })
-
-  onProgress?.(100)
-
-  return new File([blob], `${baseName}-${scale}.${outExt}`, { type: outMime })
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-function loadImg(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const img = new Image()
-    img.onload = () => resolve(img)
-    img.onerror = () => reject(new Error(`Failed to load image: ${src}`))
-    img.crossOrigin = 'anonymous'
-    img.src = src
+    const worker   = getWorker()
+    const id       = crypto.randomUUID()
+    const baseName = file.name.replace(/\.[^.]+$/, '')
+    const mimeType = file.type || 'image/jpeg'
+
+    const handler = (e: MessageEvent) => {
+      const d = e.data
+      if (d.id !== id) return
+
+      if (d.type === 'infer-progress') {
+        onProgress?.(d.progress as number)
+      } else if (d.type === 'infer-result') {
+        worker.removeEventListener('message', handler)
+        worker.removeEventListener('error', errorHandler)
+        const outMime = (d.outputMime as string) || mimeType
+        const outExt  = outMime.split('/')[1] ?? 'jpg'
+        resolve(new File([d.result as ArrayBuffer], `${baseName}-${scale}.${outExt}`, { type: outMime }))
+      } else if (d.type === 'error') {
+        worker.removeEventListener('message', handler)
+        worker.removeEventListener('error', errorHandler)
+        reject(new Error(d.message as string))
+      }
+    }
+
+    const errorHandler = (e: ErrorEvent) => {
+      worker.removeEventListener('message', handler)
+      worker.removeEventListener('error', errorHandler)
+      reject(new Error(e.message ?? 'Upscaler worker crash'))
+    }
+
+    worker.addEventListener('message', handler)
+    worker.addEventListener('error', errorHandler, { once: true })
+
+    file.arrayBuffer().then((buffer) => {
+      worker.postMessage(
+        { type: 'infer', id, scale, buffer, mimeType, outputFormat: outputFormat ?? undefined },
+        [buffer]
+      )
+    }).catch(reject)
   })
 }
