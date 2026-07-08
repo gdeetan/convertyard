@@ -126,10 +126,8 @@ async function upscaleTileToRgba(scale: UpscaleScale, tileData: ImageData) {
   const tensor: any = await upscaler.upscale(tileData, { output: 'tensor' })
   const shape = Array.from(tensor.shape as number[])
   const { width, height } = normalizeTensorShape(shape)
-  const clipped = tensor.clipByValue(0, 1)
+  const floats = await tensor.data() as Float32Array
   tensor.dispose()
-  const floats = await clipped.data() as Float32Array
-  clipped.dispose()
   const rgba = rgbaFromTensorFloats(floats, shape)
   return { width, height, rgba }
 }
