@@ -226,7 +226,7 @@ function parseBusinessCardText(text: string, filename: string): string {
 
 // Spatially reconstruct a table grid from word bounding boxes.
 // Returns a 2D array (rows × cols) of cell strings.
-function parseTableFromWords(words: OcrWordMeta[]): string[][] {
+function parseTableFromWords(words: OcrWordMeta[], forcedColBoundaries?: number[]): string[][] {
   // Strip pipe characters that OCR reads from table gridlines; skip pipe-only words.
   const cleanWord = (t: string) => t.replace(/\|/g, '').trim()
   const boxed = words.filter(w => w.bbox && cleanWord(w.text).length > 0)
@@ -259,36 +259,43 @@ function parseTableFromWords(words: OcrWordMeta[]): string[][] {
   }
   for (const band of bands) band.sort((a, b) => a.bbox!.x0 - b.bbox!.x0)
 
-  // Vote on column boundaries: each row contributes the midpoint of every gap ≥ minGapPx.
-  // Spanning header words (small in-cell gaps < minGapPx) cast no votes,
-  // so they never create spurious column boundaries.
-  const gapXs: number[] = []
-  for (const band of bands) {
-    for (let i = 0; i < band.length - 1; i++) {
-      const gapW = band[i + 1].bbox!.x0 - band[i].bbox!.x1
-      if (gapW >= minGapPx) {
-        gapXs.push((band[i].bbox!.x1 + band[i + 1].bbox!.x0) / 2)
+  // If pixel-level detection already found column boundaries, use them directly.
+  // Otherwise, fall back to word-gap voting.
+  let colBoundaries: number[]
+  if (forcedColBoundaries && forcedColBoundaries.length > 0) {
+    colBoundaries = [...forcedColBoundaries].sort((a, b) => a - b)
+  } else {
+    // Vote on column boundaries: each row contributes the midpoint of every gap ≥ minGapPx.
+    // Spanning header words (small in-cell gaps < minGapPx) cast no votes,
+    // so they never create spurious column boundaries.
+    const gapXs: number[] = []
+    for (const band of bands) {
+      for (let i = 0; i < band.length - 1; i++) {
+        const gapW = band[i + 1].bbox!.x0 - band[i].bbox!.x1
+        if (gapW >= minGapPx) {
+          gapXs.push((band[i].bbox!.x1 + band[i + 1].bbox!.x0) / 2)
+        }
       }
     }
-  }
-  gapXs.sort((a, b) => a - b)
+    gapXs.sort((a, b) => a - b)
 
-  const clusters: { x: number; count: number }[] = []
-  for (const gx of gapXs) {
-    const last = clusters[clusters.length - 1]
-    if (last && gx - last.x <= clusterTol) {
-      last.x = (last.x * last.count + gx) / (last.count + 1)
-      last.count++
-    } else {
-      clusters.push({ x: gx, count: 1 })
+    const clusters: { x: number; count: number }[] = []
+    for (const gx of gapXs) {
+      const last = clusters[clusters.length - 1]
+      if (last && gx - last.x <= clusterTol) {
+        last.x = (last.x * last.count + gx) / (last.count + 1)
+        last.count++
+      } else {
+        clusters.push({ x: gx, count: 1 })
+      }
     }
-  }
 
-  const minVotes = Math.max(2, Math.floor(bands.length * 0.2))
-  const colBoundaries = clusters
-    .filter(c => c.count >= minVotes)
-    .map(c => c.x)
-    .sort((a, b) => a - b)
+    const minVotes = Math.max(2, Math.floor(bands.length * 0.2))
+    colBoundaries = clusters
+      .filter(c => c.count >= minVotes)
+      .map(c => c.x)
+      .sort((a, b) => a - b)
+  }
 
   const numCols = colBoundaries.length + 1
 
