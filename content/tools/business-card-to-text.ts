@@ -61,6 +61,10 @@ export const config: ToolConfig = {
       a: 'Yes. The tool pre-processes PNG files to handle contrast issues. For best results with dark-background cards, photograph or scan at high resolution.',
     },
     {
+      q: 'How accurate is the contact information extraction?',
+      a: 'Phone numbers and email addresses are detected using pattern matching, so they tend to come out reliably even when the surrounding text has errors. The harder parts are names (especially non-Western names or unusual spellings) and titles, which OCR can misread if the font is stylised or the card has a coloured background. Before importing the CSV into your CRM or contacts app, it\'s worth scanning down the name column — correcting five names now saves hunting for a contact you can\'t find in six months.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. OCR runs entirely in your browser. Your files never leave your device.',
     },

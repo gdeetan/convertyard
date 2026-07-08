@@ -100,6 +100,10 @@ export const config: ToolConfig = {
       a: 'Yes, though multi-column layouts sometimes read across columns rather than down each one. For complex layouts, cropping to a single column before dropping gives cleaner results.',
     },
     {
+      q: 'Do I still need to review the output from screenshots?',
+      a: 'Screenshots are the most reliable input for OCR — the text is rendered at screen resolution rather than photographed, so you\'re not fighting blur, angles, or lighting. That said, some things still trip it up: small UI text (labels under 12px), light-grey placeholder text, monospace code with ambiguous characters like 0/O and 1/l/I, and anything in an unusual font. It\'s worth a quick look before you paste the result somewhere, but for most standard UI screenshots you won\'t need to fix much.',
+    },
+    {
       q: 'Are my screenshots uploaded anywhere?',
       a: 'No. OCR runs entirely in your browser using Tesseract.js and WebAssembly. Nothing is sent to any server.',
     },

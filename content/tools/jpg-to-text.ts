@@ -100,6 +100,10 @@ export const config: ToolConfig = {
       a: 'There is no hard limit. For large batches (50+ files), processing continues in the background — keep the tab open until it finishes.',
     },
     {
+      q: 'Should I check the output before using it?',
+      a: 'Yes, at least briefly. A clean, high-resolution scan of a typed document can hit 99% accuracy, but a heavily compressed or low-res JPG (common with old scans or attachments that were emailed multiple times) will have noticeably more errors. The most common mistakes are o/0 swaps, rn reading as m, and stray characters near image edges. The review panel underlines uncertain words in amber — that\'s the quickest way to spot the places that need a second look.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. OCR runs entirely in your browser using Tesseract.js and WebAssembly. Your files never leave your device.',
     },

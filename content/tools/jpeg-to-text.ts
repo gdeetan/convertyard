@@ -96,6 +96,10 @@ export const config: ToolConfig = {
       a: 'There is no hard limit. For large batches (50+ files), processing continues in the background — keep the tab open until it finishes.',
     },
     {
+      q: 'Is the output accurate enough to use directly?',
+      a: 'For most clean document scans, yes — but "most" is doing real work in that sentence. JPEG compression chews up fine details like thin serifs, punctuation, and small numbers. The higher the compression (the smaller the file), the more errors you\'ll see. It\'s worth doing a read-through of anything you plan to paste into a document, email, or form before you hit send. The review panel helps by flagging the words the engine had the most trouble with.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. OCR runs entirely in your browser. Your files never leave your device.',
     },

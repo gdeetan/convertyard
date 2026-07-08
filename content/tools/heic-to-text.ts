@@ -92,6 +92,10 @@ export const config: ToolConfig = {
       a: 'Yes — Settings > Camera > Formats > Most Compatible switches to JPG. But if you already have HEIC photos you want to extract text from, drop them here without converting.',
     },
     {
+      q: 'How accurate is the text extraction from iPhone photos?',
+      a: 'iPhone cameras are good enough that a well-framed photo of a document in decent light will come out pretty clean — typically 94–98% accurate on printed text. The weak spots are the same ones that fool your eye: text at a steep angle, a page half in shadow, or handwriting mixed with print. Before you use the extracted text for anything that matters (a form, a quote, a medical document), scan through the review panel\'s amber highlights. It won\'t take long and it catches the things you\'d otherwise miss.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. HEIC decode and OCR both run in your browser. Your photos never leave your device.',
     },

@@ -93,6 +93,11 @@ export const config: ToolConfig = {
       q: 'Does it handle faded or old documents?',
       a: 'Faded documents can reduce accuracy. For best results, scan at 300 DPI or higher with good contrast settings on your scanner.',
     },
+
+    {
+      q: 'How accurate is OCR on scanned documents?',
+      a: 'A clean scan at 300 DPI with good contrast — the kind most modern flatbed scanners produce by default — typically hits 97–99% accuracy on printed text. Accuracy drops with older documents that have yellowed pages, faded ink, or staining. If you\'re scanning something important (a contract, a medical record, historical pages with faded ink), treat the output as a first draft: use the review panel to check amber-underlined words, then do a final read-through before archiving or sharing the file.',
+    },
     {
       q: 'Are my files uploaded anywhere?',
       a: 'No. OCR runs entirely in your browser. Your scans never leave your device.',

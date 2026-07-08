@@ -65,6 +65,10 @@ export const config: ToolConfig = {
       a: 'Yes — invoices with line-item tables extract cleanly. Use the Receipt to Text tool if you specifically need structured vendor, date, and total fields in CSV format.',
     },
     {
+      q: 'Should I verify the spreadsheet data before using it in calculations?',
+      a: 'Yes. The text in a spreadsheet cell is one thing — a slightly wrong word in a product name is easy to spot. A slightly wrong number in a revenue column is not, and if that number feeds into formulas, the error compounds silently. Column alignment is the main thing to check: scan a few rows to make sure values didn\'t shift one column. For tables with totals or subtotals, compare a couple of those against the original image before you build anything on top of the data.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. OCR and spreadsheet creation both run in your browser. Your files never leave your device.',
     },

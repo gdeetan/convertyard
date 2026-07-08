@@ -149,6 +149,10 @@ export const config: ToolConfig = {
       a: 'Yes. After conversion, a review panel appears below your results. Words with low OCR confidence are underlined in amber; auto-corrected words have a blue dotted underline. Tap a blue-underlined word to see the original and revert it in one tap. Click "Apply changes" to lock in your edits — the download then uses the edited version.',
     },
     {
+      q: 'How accurate should I expect the output to be?',
+      a: 'Handwriting is the hardest thing OCR has to deal with, so the honest answer is: it varies. Neat, upright printing on a white background with AI-Enhanced mode can hit 90–95% accuracy. Casual cursive, mixed styles, or anything on a coloured or patterned background will be lower. Treat the output as a first draft — the review panel underlines low-confidence words in amber so you can focus your corrections quickly. If a word looks obviously wrong but isn\'t underlined, that usually means the engine was confident about the wrong reading, so a full read-through is still worth it for anything important.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. All OCR — including the AI model — runs entirely in your browser. Your files and the model never leave your device.',
     },

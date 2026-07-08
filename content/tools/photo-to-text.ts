@@ -104,6 +104,10 @@ export const config: ToolConfig = {
       a: 'Yes. After conversion a review panel shows the source image alongside the extracted text. Uncertain words are underlined in amber; auto-corrected words have a blue dotted underline. Tap any blue word to revert it, or edit the text directly, then click "Apply changes".',
     },
     {
+      q: 'How accurate is the extracted text?',
+      a: 'A sharp, well-lit photo of printed text will typically come out 95–99% accurate — at worst a missed comma or a lowercase "l" read as a "1". That said, photos are the hardest input for OCR: shadows across a page, a hand holding the corner, or text near the spine of a book all introduce errors. After conversion, low-confidence words are underlined in amber in the review panel. A 30-second scan of those highlighted words before you use the text is genuinely worth it.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. OCR runs entirely in your browser. Your photos never leave your device.',
     },

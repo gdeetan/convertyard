@@ -63,6 +63,10 @@ export const config: ToolConfig = {
       a: 'Yes. Drop as many images as you need — each produces its own .csv file, downloaded together as a ZIP. For tables spanning multiple images, combine the CSVs in your spreadsheet tool after export.',
     },
     {
+      q: 'How accurate is the extracted table data?',
+      a: 'Individual cell text is usually accurate, but the part worth checking is column alignment — specifically whether numbers stayed in the right column. Tables where values are close together or where the image has slight skew are the most likely to have a number drift one column left or right. Before you use the CSV in any analysis, spot-check a few rows against the original image. It takes 30 seconds and catches the kind of misalignment that would be annoying to find later.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. OCR runs entirely in your browser. Your images never leave your device.',
     },

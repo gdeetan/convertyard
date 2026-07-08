@@ -96,6 +96,10 @@ export const config: ToolConfig = {
       a: 'Text overlaid on solid or near-solid backgrounds extracts reliably. Very low-contrast overlays (white text on light background) may produce more errors.',
     },
     {
+      q: 'How reliable is the text extraction from PNG files?',
+      a: 'PNG is lossless, so if the text is rendered digitally (a screenshot, an exported slide, a UI mockup), you\'ll often get near-perfect results. Where accuracy dips is with decorative or script fonts, very small text under ~10px, and low-contrast colour combinations like grey text on a light background. If you\'re pulling text from a PNG that started life as a photo (not a render), treat it the same as a JPG — give the output a proofread before committing it anywhere.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. OCR runs entirely in your browser using Tesseract.js. Your files never leave your device.',
     },

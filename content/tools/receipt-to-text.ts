@@ -43,6 +43,10 @@ export const config: ToolConfig = {
       a: 'The CSV format is generic and imports into any accounting tool that accepts CSV. Map the vendor, date, and total columns to your tool\'s field names.',
     },
     {
+      q: 'How reliable is the extracted data — should I verify before submitting an expense report?',
+      a: 'Yes, always verify the totals. Thermal receipt paper (the shiny kind) is one of the hardest inputs for OCR: the ink fades, the contrast is often low, and the text is usually tiny. The tool does its best to find the vendor, date, and total, but a misread digit in an amount is easy to miss and easy to catch in 5 seconds. Totals and dates are the two things most worth a double-check before you submit anything to accounting.',
+    },
+    {
       q: 'Are my files uploaded anywhere?',
       a: 'No. OCR runs entirely in your browser. Your receipt photos never leave your device.',
     },
