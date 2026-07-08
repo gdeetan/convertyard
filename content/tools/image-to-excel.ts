@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'image-to-excel',
   title: 'Image to Excel Converter',
   subtitle: 'Extract tables from images into .xlsx spreadsheets. No retyping.',
-  category: 'images',
+  category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '.xlsx',
