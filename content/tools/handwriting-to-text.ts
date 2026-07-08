@@ -15,7 +15,7 @@ export const config: ToolConfig = {
 
   limitationNote: {
     summary: 'AI-Enhanced mode significantly improves cursive accuracy',
-    body: 'Standard mode uses Tesseract OCR with image preprocessing (contrast, deskew, binarization) — best for printed-style handwriting in all 12 languages. AI-Enhanced mode uses TrOCR (a transformer model trained on handwriting) for much higher accuracy on cursive and mixed styles — English only, downloads ~400MB once and caches in your browser. Quality mode (default) uses beam search for higher accuracy; Fast mode is quicker at ~1–2 seconds per line. For English output, "Fix common OCR errors" (on by default) applies a dictionary pass to catch classic mistakes like rn→m or O→0 — only low-confidence words are touched, and every change is shown in the review panel below where you can revert any correction before downloading.',
+    body: 'Standard mode uses Tesseract OCR with image preprocessing — best for printed-style handwriting in all 12 languages. AI-Enhanced mode uses Florence-2 (full-page) then falls back to TrOCR (line-by-line) for higher accuracy on cursive and decorated backgrounds — English only, downloads ~262MB once (shared with the Image Description tool). For English output, "Fix common OCR errors" applies a dictionary pass to catch classic mistakes like rn→m or O→0 — only low-confidence words are touched, shown in the review panel so you can revert before downloading.',
   },
 
   options: [
@@ -25,12 +25,12 @@ export const config: ToolConfig = {
       label: 'Recognition engine',
       choices: [
         { value: 'standard', label: 'Standard — all languages, no download' },
-        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~400MB download' },
+        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~262MB (may be cached)' },
       ],
       default: 'standard',
       conditionalHints: {
         standard: 'Tesseract OCR with image preprocessing. Works with all 12 languages. Best for printed-style or neat handwriting.',
-        'ai-enhanced': 'TrOCR transformer model trained on handwriting. Much higher accuracy on cursive and mixed styles. Downloads ~400MB on first use — cached in your browser permanently. Quality mode uses beam search for best accuracy; Fast mode is quicker.',
+        'ai-enhanced': 'Florence-2 + TrOCR: processes the full page at once (no line segmentation), handling decorated backgrounds and complex layouts. Falls back to TrOCR line-by-line for images Florence-2 misses. Downloads ~262MB on first use — shared with the Image Description tool so may already be cached.',
       },
     },
     {

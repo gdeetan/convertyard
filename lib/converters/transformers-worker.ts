@@ -16,7 +16,7 @@
 // Injected at build time — empty string when env var is not set
 declare const __HF_TOKEN__: string
 
-export type ModelType = 'bg-removal' | 'alt-text' | 'upscaler-4x' | 'upscaler-2x'
+export type ModelType = 'bg-removal' | 'alt-text' | 'upscaler-4x' | 'upscaler-2x' | 'ocr'
 
 interface LoadMsg { type: 'load'; modelType: ModelType }
 interface InferMsg {
@@ -99,12 +99,12 @@ async function loadBgModel() {
   })
 }
 
-async function loadAltModel() {
+async function loadAltModel(progressType: ModelType = 'alt-text') {
   if (altModel && altProcessor) return
   await ensureHfAuth()
 
   const { AutoModelForImageTextToText, AutoProcessor, env } = await import('@huggingface/transformers')
-  const cb = makeProgressCallback('alt-text')
+  const cb = makeProgressCallback(progressType)
   const MODEL_ID = 'onnx-community/Florence-2-base-ft'
   const R2_HOST = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
 
@@ -443,6 +443,65 @@ async function runAltText(
   self.postMessage({ type: 'infer-result', id, result: text })
 }
 
+// ── Inference: handwriting OCR (Florence-2 <OCR_WITH_REGION>) ────────────────
+//
+// Uses the same Florence-2 model as alt-text but with the OCR task token.
+// Returns JSON: { quad_boxes: number[][], labels: string[] }
+// The caller sorts regions by Y coordinate to reconstruct reading order.
+
+async function runOcr(id: string, buffer: ArrayBuffer, mimeType: string) {
+  const { RawImage } = await import('@huggingface/transformers')
+
+  const blob = new Blob([buffer], { type: mimeType })
+  const image = await RawImage.fromBlob(blob)
+
+  self.postMessage({ type: 'infer-progress', id, progress: 20 })
+
+  const taskToken = '<OCR_WITH_REGION>'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const processor = altProcessor as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const model = altModel as any
+
+  const inputs = await processor(image, taskToken)
+  self.postMessage({ type: 'infer-progress', id, progress: 50 })
+
+  const generatedIds = await model.generate({ ...inputs, max_new_tokens: 1024 })
+  const decoded: string[] = processor.batch_decode(generatedIds, { skip_special_tokens: false })
+  const raw = decoded[0] ?? ''
+
+  self.postMessage({ type: 'infer-progress', id, progress: 80 })
+
+  let result = ''
+  try {
+    const parsed = processor.post_process_generation(raw, taskToken, [image.height, image.width])
+    const regions = parsed?.[taskToken]
+    if (regions && Array.isArray(regions.labels) && regions.labels.length > 0) {
+      result = JSON.stringify({ quad_boxes: regions.quad_boxes ?? [], labels: regions.labels })
+    }
+  } catch {
+    // post_process_generation failed — try plain <OCR> as fallback
+  }
+
+  // Fallback: if OCR_WITH_REGION produced nothing, try plain OCR
+  if (!result) {
+    try {
+      const ocrToken = '<OCR>'
+      const inputs2 = await processor(image, ocrToken)
+      const ids2 = await model.generate({ ...inputs2, max_new_tokens: 512 })
+      const dec2: string[] = processor.batch_decode(ids2, { skip_special_tokens: false })
+      const parsed2 = processor.post_process_generation(dec2[0] ?? '', ocrToken, [image.height, image.width])
+      const ocrText = String(parsed2?.[ocrToken] ?? '').trim()
+      if (ocrText) result = JSON.stringify({ quad_boxes: [], labels: [ocrText] })
+    } catch {
+      // both failed — return empty
+    }
+  }
+
+  self.postMessage({ type: 'infer-progress', id, progress: 100 })
+  self.postMessage({ type: 'infer-result', id, result })
+}
+
 // ── Message router ────────────────────────────────────────────────────────────
 
 self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
@@ -451,7 +510,8 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
   if (msg.type === 'load') {
     try {
       if (msg.modelType === 'bg-removal') await loadBgModel()
-      else if (msg.modelType === 'alt-text') await loadAltModel()
+      else if (msg.modelType === 'alt-text') await loadAltModel('alt-text')
+      else if (msg.modelType === 'ocr') await loadAltModel('ocr')  // same Florence-2 model
       else if (msg.modelType === 'upscaler-4x') await loadUpscaler4x()
       else await loadUpscaler2x()
       self.postMessage({ type: 'model-ready', modelType: msg.modelType })
@@ -468,6 +528,8 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
         await runBgRemoval(id, buffer, mimeType, opts.outputFormat ?? 'png')
       } else if (modelType === 'alt-text') {
         await runAltText(id, buffer, mimeType, opts.maxTokens ?? 50, opts.contextHint, opts.filename)
+      } else if (modelType === 'ocr') {
+        await runOcr(id, buffer, mimeType)
       } else if (modelType === 'upscaler-4x' || modelType === 'upscaler-2x') {
         await runUpscaler(id, buffer, mimeType, modelType, opts.outputFormat)
       }

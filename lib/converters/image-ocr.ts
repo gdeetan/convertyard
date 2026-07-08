@@ -1,6 +1,7 @@
 import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 import { preprocessForOcr, preprocessForOcrDual } from '@/lib/ocr/preprocessing'
 import { recognizeWithTrOCR } from '@/lib/ocr/trocr-client'
+import { recognizeWithFlorenceOcr } from '@/lib/ocr/florence-ocr-client'
 import { detectLines } from '@/lib/ocr/line-detector'
 import { correctWords } from '@/lib/ocr/correction-client'
 import type { ConversionResult, OcrWordMeta, OcrResultMeta, ToolOptions } from '@/lib/types'
@@ -236,80 +237,101 @@ export async function imageOcrConvert(
         blob = await compositePng(blob)
       }
 
-      let text: string
-      let confidence: number
+      let text = ''
+      let confidence = 0
       let pageWords: OcrWordMeta[] = []
 
       if (useAi) {
-        // AI path: dual preprocessing — binary for line detection, grayscale for TrOCR.
-        // Feeding binarized images to TrOCR causes distribution mismatch and hallucinations;
-        // the model was trained on natural grayscale handwriting scans.
-        // Falls back to Tesseract if TrOCR model fails to load.
         onProgress?.(i, 20)
         const { binary: binBlob, grayscale: grayBlob } = await preprocessForOcrDual(blob)
-        try {
-          onProgress?.(i, 25)
-          const lineBoxes = await detectLines(binBlob)
-          onProgress?.(i, 35)
-          const lineBlobs = await cropLinesToBlobs(binBlob, grayBlob, lineBoxes)
-          const { text: aiText, lines: aiLines } = await recognizeWithTrOCR(
-            lineBlobs,
-            p => onProgress?.(i, 35 + Math.round(p * 0.55)),
-            quality
-          )
-          text = aiText
-          confidence = aiLines.length > 0
-            ? Math.round(aiLines.reduce((s, l) => s + l.confidence, 0) / aiLines.length * 100)
-            : 0
 
-          // TrOCR has no word bboxes; split lines into words with confidence: -1 marker
-          pageWords = aiLines.flatMap(l =>
-            l.text.split(/\s+/).filter(Boolean).map(w => ({
+        // Primary: Florence-2 full-page OCR — handles decorated/colored backgrounds
+        // without needing line segmentation. Falls back to TrOCR if empty.
+        let usedFlorence = false
+        try {
+          onProgress?.(i, 22)
+          const florenceText = await recognizeWithFlorenceOcr(
+            grayBlob,
+            file.name,
+            p => onProgress?.(i, 22 + Math.round(p * 0.35))
+          )
+          if (florenceText.trim()) {
+            text = florenceText
+            confidence = 90
+            pageWords = florenceText.split(/\s+/).filter(Boolean).map(w => ({
               text: w,
               confidence: -1 as const,
             }))
-          )
-
-          // TrOCR returned nothing — either no lines were detected (noisy/decorated background
-          // caused the density filter to drop all bands) or every crop was degenerate.
-          // Fall back to Tesseract so the user gets output rather than an empty file.
-          let usedTesseractFallback = false
-          if (!text.trim()) {
-            console.warn('[TrOCR] No text extracted from line crops — falling back to Tesseract')
-            onProgress?.(i, 70)
-            const fallback = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
-            text = fallback.text
-            confidence = fallback.confidence
-            usedTesseractFallback = true
+            usedFlorence = true
+          } else {
+            console.warn('[Florence-2] Empty OCR result — falling back to TrOCR')
           }
+        } catch (florenceErr) {
+          console.warn('[Florence-2] OCR failed, falling back to TrOCR:', florenceErr)
+        }
 
-          if (mode === 'json' && !usedTesseractFallback) {
-            onProgress?.(i, 90)
-            const baseName = file.name.replace(/\.[^.]+$/, '')
-            const jsonContent = JSON.stringify(
-              {
-                lines: aiLines.map(l => ({
-                  text: l.text,
-                  confidence: l.confidence,
-                  flagged: l.confidence < 0.7,
-                })),
-              },
-              null,
-              2
+        if (!usedFlorence) {
+          // TrOCR line-by-line pipeline
+          try {
+            onProgress?.(i, 57)
+            const lineBoxes = await detectLines(binBlob)
+            onProgress?.(i, 62)
+            const lineBlobs = await cropLinesToBlobs(binBlob, grayBlob, lineBoxes)
+            const { text: aiText, lines: aiLines } = await recognizeWithTrOCR(
+              lineBlobs,
+              p => onProgress?.(i, 62 + Math.round(p * 0.25)),
+              quality
             )
-            results.push(new File([jsonContent], `${baseName}.json`, { type: 'application/json' }))
-            onProgress?.(i, 100)
-            continue // json in AI mode: emitted above — skip shared switch
+            text = aiText
+            confidence = aiLines.length > 0
+              ? Math.round(aiLines.reduce((s, l) => s + l.confidence, 0) / aiLines.length * 100)
+              : 0
+
+            pageWords = aiLines.flatMap(l =>
+              l.text.split(/\s+/).filter(Boolean).map(w => ({
+                text: w,
+                confidence: -1 as const,
+              }))
+            )
+
+            let usedTesseractFallback = false
+            if (!text.trim()) {
+              console.warn('[TrOCR] No text extracted from line crops — falling back to Tesseract')
+              onProgress?.(i, 80)
+              const fallback = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
+              text = fallback.text
+              confidence = fallback.confidence
+              usedTesseractFallback = true
+            }
+
+            if (mode === 'json' && !usedTesseractFallback) {
+              onProgress?.(i, 90)
+              const baseName = file.name.replace(/\.[^.]+$/, '')
+              const jsonContent = JSON.stringify(
+                {
+                  lines: aiLines.map(l => ({
+                    text: l.text,
+                    confidence: l.confidence,
+                    flagged: l.confidence < 0.7,
+                  })),
+                },
+                null,
+                2
+              )
+              results.push(new File([jsonContent], `${baseName}.json`, { type: 'application/json' }))
+              onProgress?.(i, 100)
+              continue // json in AI mode: emitted above — skip shared switch
+            }
+          } catch (trocErr) {
+            console.warn('[TrOCR] Model unavailable, falling back to Tesseract:', trocErr)
+            onProgress?.(i, 65)
+            const result = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
+            ;({ text, confidence } = result)
+            const rawWords = result.words ?? []
+            pageWords = rawWords.length > 5000
+              ? rawWords.map(w => ({ text: w.text, confidence: w.confidence }))
+              : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox }))
           }
-        } catch (trocErr) {
-          console.warn('[TrOCR] Model unavailable, falling back to Tesseract:', trocErr)
-          onProgress?.(i, 30)
-          const result = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
-          ;({ text, confidence } = result)
-          const rawWords = result.words ?? []
-          pageWords = rawWords.length > 5000
-            ? rawWords.map(w => ({ text: w.text, confidence: w.confidence }))
-            : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox }))
         }
       } else {
         // Standard path: preprocess → Tesseract with OEM/PSM tuning

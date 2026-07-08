@@ -133,6 +133,42 @@ export function generateAltText(
   })
 }
 
+// ── Handwriting OCR (Florence-2) ──────────────────────────────────────────────
+
+export function recognizeHandwritingOcr(
+  file: File,
+  onProgress?: (pct: number) => void
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const worker = getWorker()
+    const id = crypto.randomUUID()
+
+    const handler = (e: MessageEvent) => {
+      const d = e.data
+      if (d.id !== id) return
+
+      if (d.type === 'infer-progress') {
+        onProgress?.(d.progress as number)
+      } else if (d.type === 'infer-result') {
+        worker.removeEventListener('message', handler)
+        resolve((d.result as string) ?? '')
+      } else if (d.type === 'error') {
+        worker.removeEventListener('message', handler)
+        reject(new Error(d.message as string))
+      }
+    }
+
+    worker.addEventListener('message', handler)
+
+    file.arrayBuffer().then((buffer) => {
+      worker.postMessage(
+        { type: 'infer', id, modelType: 'ocr', buffer, mimeType: file.type, opts: {} },
+        [buffer]
+      )
+    }).catch(reject)
+  })
+}
+
 // ── Upscaling ──────────────────────────────────────────────────────────────────
 
 export function loadUpscaler(
