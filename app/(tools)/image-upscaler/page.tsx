@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useRef, useState, useCallback } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { ToolShell } from '@/components/tool-shell/tool-shell'
 import { BeforeAfterSlider } from '@/components/image/BeforeAfterSlider'
 import { config } from '@/content/tools/image-upscaler'
@@ -18,10 +18,8 @@ function PreviewPanel({
   results: (File | null)[]
   options: ToolOptions
 }) {
-  // No results yet — show nothing
   const hasAnyResult = results.some((r) => r !== null)
   if (!hasAnyResult) return null
-
   return <PreviewPanelInner files={files} results={results} />
 }
 
@@ -32,7 +30,6 @@ function PreviewPanelInner({
   files: File[]
   results: (File | null)[]
 }) {
-  // Pairs where we have both original + result
   const pairs = files
     .map((f, i) => ({ file: f, result: results[i] }))
     .filter((p): p is { file: File; result: File } => p.result !== null)
@@ -40,7 +37,6 @@ function PreviewPanelInner({
   const visible = pairs.slice(0, MAX_PREVIEW)
   const extra = pairs.length - MAX_PREVIEW
 
-  // Object URLs — created per pair, revoked on unmount or change
   const [urls, setUrls] = useState<Array<{ before: string; after: string }>>([])
 
   useEffect(() => {
@@ -83,7 +79,6 @@ function PreviewPanelInner({
 // ── Page ────────────────────────────────────────────────────────────────────
 
 function ImageUpscalerPage() {
-  const [modelProgress, setModelProgress] = useState<number | null>(null)
   const [modelReady, setModelReady] = useState(false)
   const loaded = useRef(false)
 
@@ -91,20 +86,10 @@ function ImageUpscalerPage() {
     if (loaded.current) return
     loaded.current = true
 
-    import('@/lib/converters/transformers-client').then(({ loadUpscaler }) => {
-      // Pre-load the 4x model (default scale) so it's ready when user drops files
-      loadUpscaler('4x', (pct) => {
-        setModelProgress(pct)
-      })
-        .then(() => {
-          setModelReady(true)
-          setModelProgress(null)
-        })
-        .catch(() => {
-          // Let convertFn surface the error on first conversion attempt
-          setModelReady(true)
-          setModelProgress(null)
-        })
+    import('@/lib/converters/upscaler-engine').then(({ loadUpscalerModel }) => {
+      loadUpscalerModel('4x')
+        .then(() => setModelReady(true))
+        .catch(() => setModelReady(true)) // Surface error on first conversion attempt
     })
   }, [])
 
@@ -122,32 +107,8 @@ function ImageUpscalerPage() {
               className="h-2 w-2 animate-pulse rounded-full bg-primary shrink-0"
               aria-hidden="true"
             />
-            <span className="flex-1 min-w-0">
-              {modelProgress !== null && modelProgress > 0
-                ? `Downloading AI model… ${modelProgress}% (~200 MB, one-time)`
-                : 'Loading AI model…'}
-            </span>
-            {modelProgress !== null && modelProgress > 0 && (
-              <span
-                className="shrink-0 font-medium text-primary"
-                aria-live="polite"
-              >
-                {modelProgress}%
-              </span>
-            )}
+            <span>Loading AI model…</span>
           </div>
-          {modelProgress !== null && modelProgress > 0 && (
-            <div className="mx-4 sm:mx-6 mt-1 h-1 rounded-full bg-bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-300"
-                style={{ width: `${modelProgress}%` }}
-                role="progressbar"
-                aria-valuenow={modelProgress}
-                aria-valuemin={0}
-                aria-valuemax={100}
-              />
-            </div>
-          )}
         </div>
       )}
       <ToolShell config={configWithPreview} />
