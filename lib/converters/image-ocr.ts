@@ -461,9 +461,10 @@ export async function imageOcrConvert(
         if (mode === 'json' && trocrLines) {
           onProgress?.(i, 90)
           const baseName = file.name.replace(/\.[^.]+$/, '')
+          const capturedLines = trocrLines as TrOcrLineResult[]
           const jsonContent = JSON.stringify(
             {
-              lines: trocrLines.map(l => ({
+              lines: capturedLines.map(l => ({
                 text: l.text,
                 confidence: l.confidence,
                 flagged: l.confidence < 0.7,
