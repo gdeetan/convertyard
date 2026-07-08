@@ -16,7 +16,7 @@
 // Injected at build time — empty string when env var is not set
 declare const __HF_TOKEN__: string
 
-export type ModelType = 'bg-removal' | 'alt-text'
+export type ModelType = 'bg-removal' | 'alt-text' | 'upscaler-4x' | 'upscaler-2x'
 
 interface LoadMsg { type: 'load'; modelType: ModelType }
 interface InferMsg {
@@ -35,6 +35,8 @@ let bgModel: unknown = null
 let bgProcessor: unknown = null
 let altModel: unknown = null
 let altProcessor: unknown = null
+let upscaler4xPipeline: unknown = null
+let upscaler2xPipeline: unknown = null
 
 // ── Aggregated download progress tracker ──────────────────────────────────────
 
@@ -122,6 +124,91 @@ async function loadAltModel() {
   } catch {
     await tryLoad(false)  // HF Hub fallback (uses __HF_TOKEN__)
   }
+}
+
+// ── Model loaders: upscalers ──────────────────────────────────────────────────
+
+async function loadUpscaler4x() {
+  if (upscaler4xPipeline) return
+  await ensureHfAuth()
+  const { pipeline } = await import('@huggingface/transformers')
+  const cb = makeProgressCallback('upscaler-4x')
+  upscaler4xPipeline = await pipeline('image-to-image', 'Xenova/swin2SR-realworld-sr-x4-large', {
+    progress_callback: cb,
+  })
+}
+
+async function loadUpscaler2x() {
+  if (upscaler2xPipeline) return
+  await ensureHfAuth()
+  const { pipeline } = await import('@huggingface/transformers')
+  const cb = makeProgressCallback('upscaler-2x')
+  upscaler2xPipeline = await pipeline('image-to-image', 'Xenova/swin2SR-classical-sr-x2-64', {
+    progress_callback: cb,
+  })
+}
+
+// ── Inference: upscaling ──────────────────────────────────────────────────────
+
+async function runUpscaler(
+  id: string,
+  buffer: ArrayBuffer,
+  mimeType: string,
+  modelType: 'upscaler-4x' | 'upscaler-2x',
+  outputFormat?: string
+) {
+  const blob = new Blob([buffer], { type: mimeType })
+
+  self.postMessage({ type: 'infer-progress', id, progress: 15 })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pipe = (modelType === 'upscaler-4x' ? upscaler4xPipeline : upscaler2xPipeline) as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const result = await pipe(blob) as any
+
+  self.postMessage({ type: 'infer-progress', id, progress: 85 })
+
+  // result is a RawImage with .data, .width, .height, .channels
+  const { width, height, channels, data } = result
+
+  // Validate channels before processing
+  if (channels !== 3 && channels !== 4) {
+    throw new Error(`Unsupported image channels: ${channels}. Expected 3 (RGB) or 4 (RGBA).`)
+  }
+
+  let rgbaData: Uint8ClampedArray
+  if (channels === 4) {
+    // Ensure plain ArrayBuffer (not SharedArrayBuffer) for ImageData
+    const buf = (data.buffer as ArrayBuffer).slice(0)
+    rgbaData = new Uint8ClampedArray(buf)
+  } else {
+    // channels === 3 (RGB) → add alpha=255
+    rgbaData = new Uint8ClampedArray(width * height * 4)
+    for (let i = 0; i < width * height; i++) {
+      rgbaData[i * 4 + 0] = data[i * 3 + 0]
+      rgbaData[i * 4 + 1] = data[i * 3 + 1]
+      rgbaData[i * 4 + 2] = data[i * 3 + 2]
+      rgbaData[i * 4 + 3] = 255
+    }
+  }
+
+  const canvas = new OffscreenCanvas(width, height)
+  const ctx = canvas.getContext('2d')!
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ctx.putImageData(new ImageData(rgbaData as any, width, height), 0, 0)
+
+  // Sanitize output MIME type — convertToBlob only reliably supports jpeg, png, webp
+  const SAFE_OUTPUT_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+  const rawMime = outputFormat ?? mimeType
+  const outMime = SAFE_OUTPUT_MIMES.has(rawMime) ? rawMime : 'image/png'
+  const resultBlob = await canvas.convertToBlob({ type: outMime, quality: 0.92 })
+  const resultBuffer = await resultBlob.arrayBuffer()
+
+  self.postMessage({ type: 'infer-progress', id, progress: 100 })
+  self.postMessage(
+    { type: 'infer-result', id, result: resultBuffer, outputMime: outMime },
+    [resultBuffer]
+  )
 }
 
 // ── Inference: background removal ─────────────────────────────────────────────
@@ -310,7 +397,9 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
   if (msg.type === 'load') {
     try {
       if (msg.modelType === 'bg-removal') await loadBgModel()
-      else await loadAltModel()
+      else if (msg.modelType === 'alt-text') await loadAltModel()
+      else if (msg.modelType === 'upscaler-4x') await loadUpscaler4x()
+      else await loadUpscaler2x()
       self.postMessage({ type: 'model-ready', modelType: msg.modelType })
     } catch (err) {
       self.postMessage({ type: 'error', message: (err as Error).message })
@@ -323,8 +412,10 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
     try {
       if (modelType === 'bg-removal') {
         await runBgRemoval(id, buffer, mimeType, opts.outputFormat ?? 'png')
-      } else {
+      } else if (modelType === 'alt-text') {
         await runAltText(id, buffer, mimeType, opts.maxTokens ?? 50, opts.contextHint, opts.filename)
+      } else if (modelType === 'upscaler-4x' || modelType === 'upscaler-2x') {
+        await runUpscaler(id, buffer, mimeType, modelType, opts.outputFormat)
       }
     } catch (err) {
       self.postMessage({ type: 'error', id, message: (err as Error).message })

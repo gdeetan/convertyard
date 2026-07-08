@@ -79,7 +79,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['png-to-jpg', 'jpg-to-webp', 'jpg-to-avif', 'compress-image'],
+  relatedTools: ['image-upscaler', 'png-to-jpg', 'jpg-to-webp', 'jpg-to-avif', 'compress-image'],
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'batch-convert-images'],
 
   meta: {

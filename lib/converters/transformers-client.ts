@@ -132,3 +132,67 @@ export function generateAltText(
     }).catch(reject)
   })
 }
+
+// ── Upscaling ──────────────────────────────────────────────────────────────────
+
+export function loadUpscaler(
+  scale: '2x' | '4x',
+  onProgress: (pct: number) => void
+): Promise<void> {
+  const modelType = scale === '4x' ? 'upscaler-4x' : 'upscaler-2x'
+  return loadTransformersModel(modelType, onProgress)
+}
+
+export function upscaleImage(
+  file: File,
+  scale: '2x' | '4x',
+  outputFormat: string | null,
+  onProgress?: (pct: number) => void
+): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const worker = getWorker()
+    const id = crypto.randomUUID()
+    const modelType = scale === '4x' ? 'upscaler-4x' : 'upscaler-2x'
+    const baseName = file.name.replace(/\.[^.]+$/, '')
+    const mimeType = file.type || 'image/jpeg'
+
+    const handler = (e: MessageEvent) => {
+      const d = e.data
+      if (d.id !== id) return
+
+      if (d.type === 'infer-progress') {
+        onProgress?.(d.progress as number)
+      } else if (d.type === 'infer-result') {
+        worker.removeEventListener('message', handler)
+        worker.removeEventListener('error', errorHandler)
+        const outMime = d.outputMime as string || mimeType
+        const outExt = outMime.split('/')[1] ?? 'jpg'
+        const resultFile = new File([d.result as ArrayBuffer], `${baseName}-${scale}.${outExt}`, { type: outMime })
+        resolve(resultFile)
+      } else if (d.type === 'error') {
+        worker.removeEventListener('message', handler)
+        worker.removeEventListener('error', errorHandler)
+        reject(new Error(d.message as string))
+      }
+    }
+
+    const errorHandler = (e: ErrorEvent) => {
+      worker.removeEventListener('message', handler)
+      worker.removeEventListener('error', errorHandler)
+      reject(new Error(e.message ?? 'Worker crash during upscale'))
+    }
+
+    worker.addEventListener('message', handler)
+    worker.addEventListener('error', errorHandler, { once: true })
+
+    file.arrayBuffer().then((buffer) => {
+      worker.postMessage(
+        { type: 'infer', id, modelType, buffer, mimeType, opts: { outputFormat } },
+        [buffer]
+      )
+    }).catch((err) => {
+      worker.removeEventListener('message', handler)
+      reject(err)
+    })
+  })
+}
