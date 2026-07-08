@@ -177,52 +177,71 @@ function parseTableFromWords(words: OcrWordMeta[]): string[][] {
   const boxed = words.filter(w => w.bbox && w.text.trim())
   if (boxed.length === 0) return []
 
-  // Median word height for tolerances
+  // Median word height — used as the unit for all spatial tolerances
   const heights = boxed.map(w => w.bbox!.y1 - w.bbox!.y0).sort((a, b) => a - b)
   const medianH = heights[Math.floor(heights.length / 2)]
-  const rowTol = medianH * 0.4
-  const minGapPx = Math.max(4, medianH * 0.4)
 
-  // Group into row bands by Y position
-  const sorted = [...boxed].sort((a, b) => a.bbox!.y0 - b.bbox!.y0)
+  // Group into row bands by Y-center.
+  // Using Y-center (not y0) avoids cascading merges when one band's y1
+  // reaches into the next row's y0 range.
+  const byCenter = [...boxed].sort((a, b) =>
+    (a.bbox!.y0 + a.bbox!.y1) / 2 - (b.bbox!.y0 + b.bbox!.y1) / 2
+  )
   const bands: OcrWordMeta[][] = []
-  let bandY1 = -Infinity
-  for (const w of sorted) {
-    if (w.bbox!.y0 > bandY1 + rowTol) {
-      bands.push([])
-      bandY1 = w.bbox!.y1
+  let lastCenterY = -Infinity
+  for (const w of byCenter) {
+    const cy = (w.bbox!.y0 + w.bbox!.y1) / 2
+    if (cy > lastCenterY + medianH * 0.6) {
+      bands.push([w])
+      lastCenterY = cy
     } else {
-      bandY1 = Math.max(bandY1, w.bbox!.y1)
+      bands[bands.length - 1].push(w)
     }
-    bands[bands.length - 1].push(w)
   }
   for (const band of bands) band.sort((a, b) => a.bbox!.x0 - b.bbox!.x0)
 
-  // Find column boundaries via x-projection: locate empty vertical strips
-  const xMax = Math.ceil(Math.max(...boxed.map(w => w.bbox!.x1)))
-  const occupied = new Uint8Array(xMax + 1)
-  for (const w of boxed) {
-    const x0 = Math.floor(w.bbox!.x0)
-    const x1 = Math.ceil(w.bbox!.x1)
-    for (let x = x0; x <= x1; x++) occupied[x] = 1
-  }
+  // Find column boundaries by voting on inter-word gaps across rows.
+  // Each row casts a "vote" at the X midpoint of every gap between adjacent words.
+  // Real column separators receive votes from many rows; spanning header cells
+  // (e.g. "Hard Floor Results") have no gap at those positions and don't pollute
+  // the result — unlike the x-projection approach which collapses when headers
+  // span multiple columns.
+  const minGapPx = Math.max(3, medianH * 0.2)
+  const clusterTol = medianH * 0.8  // gaps within this distance → same column boundary
 
-  const colBoundaries: number[] = []
-  let gapStart = -1
-  for (let x = 0; x <= xMax; x++) {
-    if (!occupied[x]) {
-      if (gapStart < 0) gapStart = x
-    } else {
-      if (gapStart >= 0 && x - gapStart >= minGapPx) {
-        colBoundaries.push((gapStart + x) / 2)
+  const gapXs: number[] = []
+  for (const band of bands) {
+    for (let i = 0; i < band.length - 1; i++) {
+      const gapW = band[i + 1].bbox!.x0 - band[i].bbox!.x1
+      if (gapW >= minGapPx) {
+        gapXs.push((band[i].bbox!.x1 + band[i + 1].bbox!.x0) / 2)
       }
-      gapStart = -1
+    }
+  }
+  gapXs.sort((a, b) => a - b)
+
+  const clusters: { x: number; count: number }[] = []
+  for (const gx of gapXs) {
+    const last = clusters[clusters.length - 1]
+    if (last && gx - last.x <= clusterTol) {
+      last.x = (last.x * last.count + gx) / (last.count + 1)
+      last.count++
+    } else {
+      clusters.push({ x: gx, count: 1 })
     }
   }
 
-  // Build 2D grid
+  // Require a gap to appear in at least 20% of rows (min 2) to be a column boundary.
+  // This filters out one-off gaps from headers or merged cells.
+  const minVotes = Math.max(2, Math.floor(bands.length * 0.2))
+  const colBoundaries = clusters
+    .filter(c => c.count >= minVotes)
+    .map(c => c.x)
+    .sort((a, b) => a - b)
+
+  // Build 2D grid: assign each word to (row, col) via its x0 vs boundaries
   const numCols = colBoundaries.length + 1
-  const grid: string[][] = bands.map(band => {
+  return bands.map(band => {
     const row = Array<string>(numCols).fill('')
     for (const w of band) {
       const col = colBoundaries.filter(b => b <= w.bbox!.x0).length
@@ -231,8 +250,6 @@ function parseTableFromWords(words: OcrWordMeta[]): string[][] {
     }
     return row
   })
-
-  return grid
 }
 
 function parseTableText(text: string, words?: OcrWordMeta[]): string {
