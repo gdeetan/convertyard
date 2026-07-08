@@ -149,6 +149,23 @@ async function loadUpscaler2x() {
 }
 
 // ── Inference: upscaling ──────────────────────────────────────────────────────
+//
+// Swin2SR causes ONNX integer overflow on images larger than ~512px.
+// Images above UPSCALE_MAX_DIRECT are split into UPSCALE_TILE×UPSCALE_TILE
+// chunks, each upscaled independently, then stitched into the output canvas.
+
+const UPSCALE_MAX_DIRECT = 512  // Process without tiling if both dims ≤ this
+const UPSCALE_TILE = 256        // Tile size for large images (input pixels)
+
+function buildTileGrid(dim: number, tileSize: number): Array<{ start: number; len: number }> {
+  const tiles: Array<{ start: number; len: number }> = []
+  let pos = 0
+  while (pos < dim) {
+    tiles.push({ start: pos, len: Math.min(tileSize, dim - pos) })
+    pos += tileSize
+  }
+  return tiles
+}
 
 async function runUpscaler(
   id: string,
@@ -157,58 +174,95 @@ async function runUpscaler(
   modelType: 'upscaler-4x' | 'upscaler-2x',
   outputFormat?: string
 ) {
-  const blob = new Blob([buffer], { type: mimeType })
-
-  self.postMessage({ type: 'infer-progress', id, progress: 15 })
-
+  const scale = modelType === 'upscaler-4x' ? 4 : 2
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const pipe = (modelType === 'upscaler-4x' ? upscaler4xPipeline : upscaler2xPipeline) as any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await pipe(blob) as any
 
-  self.postMessage({ type: 'infer-progress', id, progress: 85 })
-
-  // result is a RawImage with .data, .width, .height, .channels
-  const { width, height, channels, data } = result
-
-  // Validate channels before processing
-  if (channels !== 3 && channels !== 4) {
-    throw new Error(`Unsupported image channels: ${channels}. Expected 3 (RGB) or 4 (RGBA).`)
-  }
-
-  let rgbaData: Uint8ClampedArray
-  if (channels === 4) {
-    // Ensure plain ArrayBuffer (not SharedArrayBuffer) for ImageData
-    const buf = (data.buffer as ArrayBuffer).slice(0)
-    rgbaData = new Uint8ClampedArray(buf)
-  } else {
-    // channels === 3 (RGB) → add alpha=255
-    rgbaData = new Uint8ClampedArray(width * height * 4)
-    for (let i = 0; i < width * height; i++) {
-      rgbaData[i * 4 + 0] = data[i * 3 + 0]
-      rgbaData[i * 4 + 1] = data[i * 3 + 1]
-      rgbaData[i * 4 + 2] = data[i * 3 + 2]
-      rgbaData[i * 4 + 3] = 255
-    }
-  }
-
-  const canvas = new OffscreenCanvas(width, height)
-  const ctx = canvas.getContext('2d')!
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ctx.putImageData(new ImageData(rgbaData as any, width, height), 0, 0)
-
-  // Sanitize output MIME type — convertToBlob only reliably supports jpeg, png, webp
   const SAFE_OUTPUT_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
   const rawMime = outputFormat ?? mimeType
   const outMime = SAFE_OUTPUT_MIMES.has(rawMime) ? rawMime : 'image/png'
-  const resultBlob = await canvas.convertToBlob({ type: outMime, quality: 0.92 })
-  const resultBuffer = await resultBlob.arrayBuffer()
 
+  const blob = new Blob([buffer], { type: mimeType })
+  const bitmap = await createImageBitmap(blob)
+  const srcW = bitmap.width
+  const srcH = bitmap.height
+
+  self.postMessage({ type: 'infer-progress', id, progress: 10 })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function rawToRgba(result: any): { rgba: Uint8ClampedArray; width: number; height: number } {
+    const { width, height, channels, data } = result
+    if (channels !== 3 && channels !== 4) {
+      throw new Error(`Unsupported image channels: ${channels}. Expected 3 (RGB) or 4 (RGBA).`)
+    }
+    let rgba: Uint8ClampedArray
+    if (channels === 4) {
+      rgba = new Uint8ClampedArray((data.buffer as ArrayBuffer).slice(0))
+    } else {
+      rgba = new Uint8ClampedArray(width * height * 4)
+      for (let i = 0; i < width * height; i++) {
+        rgba[i * 4] = data[i * 3]
+        rgba[i * 4 + 1] = data[i * 3 + 1]
+        rgba[i * 4 + 2] = data[i * 3 + 2]
+        rgba[i * 4 + 3] = 255
+      }
+    }
+    return { rgba, width, height }
+  }
+
+  if (srcW <= UPSCALE_MAX_DIRECT && srcH <= UPSCALE_MAX_DIRECT) {
+    // Small image — send directly to the pipeline
+    bitmap.close()
+    const result = await pipe(blob)
+    self.postMessage({ type: 'infer-progress', id, progress: 85 })
+    const { rgba, width, height } = rawToRgba(result)
+    const canvas = new OffscreenCanvas(width, height)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    canvas.getContext('2d')!.putImageData(new ImageData(rgba as any, width, height), 0, 0)
+    const resultBlob = await canvas.convertToBlob({ type: outMime, quality: 0.92 })
+    const resultBuffer = await resultBlob.arrayBuffer()
+    self.postMessage({ type: 'infer-progress', id, progress: 100 })
+    self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
+    return
+  }
+
+  // Large image — tile-based processing
+  const outCanvas = new OffscreenCanvas(srcW * scale, srcH * scale)
+  const outCtx = outCanvas.getContext('2d')!
+  const xTiles = buildTileGrid(srcW, UPSCALE_TILE)
+  const yTiles = buildTileGrid(srcH, UPSCALE_TILE)
+  const totalTiles = xTiles.length * yTiles.length
+  let done = 0
+
+  for (const yt of yTiles) {
+    for (const xt of xTiles) {
+      // Extract tile from source bitmap
+      const tileCanvas = new OffscreenCanvas(xt.len, yt.len)
+      tileCanvas.getContext('2d')!.drawImage(bitmap, xt.start, yt.start, xt.len, yt.len, 0, 0, xt.len, yt.len)
+      const tileBlob = await tileCanvas.convertToBlob({ type: 'image/png' })
+
+      // Upscale tile
+      const tileResult = await pipe(tileBlob)
+      const { rgba, width: rW, height: rH } = rawToRgba(tileResult)
+      const tileOut = new OffscreenCanvas(rW, rH)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      tileOut.getContext('2d')!.putImageData(new ImageData(rgba as any, rW, rH), 0, 0)
+
+      // Place usable portion in output at the correct scaled position
+      const usableW = xt.len * scale
+      const usableH = yt.len * scale
+      outCtx.drawImage(tileOut, 0, 0, usableW, usableH, xt.start * scale, yt.start * scale, usableW, usableH)
+
+      done++
+      self.postMessage({ type: 'infer-progress', id, progress: 10 + Math.round((done / totalTiles) * 80) })
+    }
+  }
+
+  bitmap.close()
+  const resultBlob = await outCanvas.convertToBlob({ type: outMime, quality: 0.92 })
+  const resultBuffer = await resultBlob.arrayBuffer()
   self.postMessage({ type: 'infer-progress', id, progress: 100 })
-  self.postMessage(
-    { type: 'infer-result', id, result: resultBuffer, outputMime: outMime },
-    [resultBuffer]
-  )
+  self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
 }
 
 // ── Inference: background removal ─────────────────────────────────────────────
