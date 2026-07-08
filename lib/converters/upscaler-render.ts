@@ -33,18 +33,27 @@ export function rgbaFromTensorFloats(
     throw new Error(`Tensor data length mismatch: expected ${expectedLength}, got ${floats.length}`)
   }
 
+  const usesUnitRange = inferUnitRange(floats)
   const rgba = new Uint8ClampedArray(width * height * 4)
   for (let i = 0; i < width * height; i++) {
-    rgba[i * 4] = toByte(floats[i * 3])
-    rgba[i * 4 + 1] = toByte(floats[i * 3 + 1])
-    rgba[i * 4 + 2] = toByte(floats[i * 3 + 2])
+    rgba[i * 4] = toByte(floats[i * 3], usesUnitRange)
+    rgba[i * 4 + 1] = toByte(floats[i * 3 + 1], usesUnitRange)
+    rgba[i * 4 + 2] = toByte(floats[i * 3 + 2], usesUnitRange)
     rgba[i * 4 + 3] = 255
   }
   return rgba
 }
 
-function toByte(value: number): number {
-  return Math.min(255, Math.max(0, Math.round(value * 255)))
+function inferUnitRange(floats: Float32Array): boolean {
+  for (let i = 0; i < floats.length; i++) {
+    if (floats[i] > 1) return false
+  }
+  return true
+}
+
+function toByte(value: number, usesUnitRange: boolean): number {
+  const scaled = usesUnitRange ? value * 255 : value
+  return Math.min(255, Math.max(0, Math.round(scaled)))
 }
 
 export function sampleChannelVariance(

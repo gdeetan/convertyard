@@ -32,6 +32,25 @@ describe('normalizeTensorShape', () => {
 })
 
 describe('rgbaFromTensorFloats', () => {
+  it('keeps UpscalerJS 0..255 tensor values in-range instead of multiplying them again', () => {
+    const rgba = rgbaFromTensorFloats(
+      new Float32Array([
+        255, 0, 0,
+        0, 128, 0,
+        0, 0, 64,
+        255, 255, 255,
+      ]),
+      [2, 2, 3]
+    )
+
+    expect(Array.from(rgba)).toEqual([
+      255, 0, 0, 255,
+      0, 128, 0, 255,
+      0, 0, 64, 255,
+      255, 255, 255, 255,
+    ])
+  })
+
   it('converts rank-3 tensor floats into non-uniform RGBA output', () => {
     const rgba = rgbaFromTensorFloats(
       new Float32Array([
