@@ -66,10 +66,13 @@ export async function getTrOcrPipeline(
   return pipelinePromise
 }
 
-// Returns true for degenerate TrOCR outputs: single character repeated 4+ times
-// with no spaces. These are hallucinations on near-blank or corrupted crops.
+// Returns true for degenerate TrOCR outputs: hallucinations on near-blank crops.
+// Catches: empty strings, single-char outputs ("0","1","O" from noise), and
+// 4+ char outputs that are a single character repeated ("0000", "1111").
 function isDegenerate(text: string): boolean {
   const stripped = text.replace(/\s/g, '')
+  if (stripped.length === 0) return true
+  if (stripped.length === 1) return true  // "0","1","O" etc — noise from near-blank crops
   if (stripped.length < 4) return false
   return new Set(stripped).size === 1
 }

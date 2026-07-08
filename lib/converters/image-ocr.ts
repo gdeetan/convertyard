@@ -76,11 +76,38 @@ async function cropLinesToBlobs(
     const cropH = h
     const cropY = Math.max(0, Math.min(imgH - cropH, y))
 
-    const c = new OffscreenCanvas(cropW, cropH)
+    // Minimum height padding — TrOCR's ViT upscales very short crops poorly
+    // (a 20px crop becomes 384px = 19× stretch, destroying character shapes).
+    // Pad symmetrically with white to at least 64px instead of stretching.
+    const MIN_CROP_H = 64
+    const finalH = Math.max(cropH, MIN_CROP_H)
+    const yOffset = Math.floor((finalH - cropH) / 2)
+
+    const c = new OffscreenCanvas(cropW, finalH)
     const cCtx = c.getContext('2d')!
     cCtx.fillStyle = '#ffffff'
-    cCtx.fillRect(0, 0, cropW, cropH)
-    cCtx.drawImage(grayBmp, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH)
+    cCtx.fillRect(0, 0, cropW, finalH)
+    cCtx.drawImage(grayBmp, cropX, cropY, cropW, cropH, 0, yOffset, cropW, cropH)
+
+    // Per-crop local contrast stretch — handles faded ink and shadows the global
+    // CLAHE pass may have missed. Scan non-white pixels (< 240) for range; if
+    // the spread is > 20 levels, stretch to full 0–255 so TrOCR sees clean ink.
+    const imgData = cCtx.getImageData(0, 0, cropW, finalH)
+    const px = imgData.data
+    let lo = 255, hi = 0
+    for (let p = 0; p < px.length; p += 4) {
+      const v = px[p]
+      if (v < 240) { if (v < lo) lo = v; if (v > hi) hi = v }
+    }
+    if (hi - lo > 20) {
+      const range = hi - lo
+      for (let p = 0; p < px.length; p += 4) {
+        const s = Math.min(255, Math.round((px[p] - lo) / range * 255))
+        px[p] = px[p + 1] = px[p + 2] = s
+      }
+      cCtx.putImageData(imgData, 0, 0)
+    }
+
     blobs.push(await c.convertToBlob({ type: 'image/png' }))
   }
 
@@ -243,7 +270,20 @@ export async function imageOcrConvert(
             }))
           )
 
-          if (mode === 'json') {
+          // TrOCR returned nothing — either no lines were detected (noisy/decorated background
+          // caused the density filter to drop all bands) or every crop was degenerate.
+          // Fall back to Tesseract so the user gets output rather than an empty file.
+          let usedTesseractFallback = false
+          if (!text.trim()) {
+            console.warn('[TrOCR] No text extracted from line crops — falling back to Tesseract')
+            onProgress?.(i, 70)
+            const fallback = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
+            text = fallback.text
+            confidence = fallback.confidence
+            usedTesseractFallback = true
+          }
+
+          if (mode === 'json' && !usedTesseractFallback) {
             onProgress?.(i, 90)
             const baseName = file.name.replace(/\.[^.]+$/, '')
             const jsonContent = JSON.stringify(

@@ -66,10 +66,14 @@ export async function detectLines(binarizedBlob: Blob): Promise<LineBox[]> {
 
   // Filter non-text bands: pens, rulers, horizontal objects have very high
   // per-row black pixel density (> 25% of width) across the entire band.
+  // Tall bands (≥ 40px) are exempt — they're text lines, not pen strokes, even if
+  // a noisy/colored background inflates their density above the threshold.
   const densityBands = bands.filter(({ y0, y1 }) => {
+    const bh = y1 - y0
+    if (bh >= 40) return true
     let total = 0
     for (let y = y0; y < y1; y++) total += profile[y]
-    return total / Math.max(1, y1 - y0) < W * 0.25
+    return total / Math.max(1, bh) < W * 0.25
   })
 
   // Filter bands that are too short to be text lines.
@@ -109,10 +113,9 @@ export async function detectLines(binarizedBlob: Blob): Promise<LineBox[]> {
     }
   }
 
-  // Fallback: no lines detected → return full image as a single box
-  if (lineBoxes.length === 0) {
-    return [{ x: 0, y: 0, w: W, h: H }]
-  }
+  // No lines detected — return empty so the caller can fall back to Tesseract.
+  // The old behavior (return full image as one box) caused TrOCR to hallucinate
+  // when noisy/decorated backgrounds fooled the density filter into removing all bands.
 
   return lineBoxes
 }
