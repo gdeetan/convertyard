@@ -133,6 +133,17 @@ function psmForStyle(style: string): number {
 // Only substitutes within tokens that already look numeric (price/phone/date).
 // Never uses dictionary correction on these modes.
 function repairDigitTokens(text: string): string {
+  // Curly braces never appear in receipts — always OCR misreads of parentheses
+  text = text.replace(/\{/g, '(').replace(/\}/g, ')')
+  // Fix letter↔digit confusions inside parenthesised groups like (8.5%) → (B.Sh)
+  // S before h/% or before ) is almost always a misread 5 in numeric context.
+  // h immediately before ) in a numeric group is almost always a misread %.
+  text = text.replace(/\([^)]{1,10}\)/g, tok =>
+    tok.replace(/B/g, '8')
+       .replace(/S(?=[h%\d\)])/g, '5')
+       .replace(/h(?=\))/g, '%')
+  )
+  // Fix standalone numeric-looking tokens
   return text.replace(/\b[\dOlSsBb]{2,}(?:[.,]\d{1,2})?\b/g, token =>
     token.replace(/O/g, '0').replace(/l/g, '1').replace(/S/g, '5').replace(/B/g, '8')
   )
@@ -144,16 +155,31 @@ function repairEmail(text: string): string {
     .replace(/(\.\w{1,4}),(\w{2,3})\b/g, '$1.$2')
 }
 
+function extractReceiptTotal(text: string): string {
+  // Scan lines in reverse — the grand total is usually near the bottom.
+  // Prefer a line containing "total" but NOT "subtotal".
+  for (const line of text.split('\n').reverse()) {
+    if (/\btotal\b/i.test(line) && !/subtotal/i.test(line)) {
+      const m = line.match(/\$[\d,]+\.\d{2}/)
+      if (m) return m[0]
+    }
+  }
+  // Fallback: any labeled amount (amount due, balance, sum)
+  const labeled = text.match(/(?:amount\s*due|balance\s*due|amount|due|sum)[^\d$]*(\$[\d,]+\.\d{2})/i)
+  if (labeled) return labeled[1]
+  // Last resort: last dollar figure in the document
+  const all = text.match(/\$[\d,]+\.\d{2}/g)
+  return all?.[all.length - 1] ?? ''
+}
+
 function extractReceiptFields(text: string): { vendor: string; date: string; total: string } {
   text = repairDigitTokens(text)
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
   const dateMatch = text.match(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/)
-  const totalMatch = text.match(/(?:total|amount|due|sum)[^\d]*(\$?[\d,]+\.\d{2})/i)
-    ?? text.match(/\$?[\d,]+\.\d{2}/)
   return {
     vendor: lines[0] ?? '',
     date: dateMatch?.[0] ?? '',
-    total: totalMatch?.[1] ?? totalMatch?.[0] ?? '',
+    total: extractReceiptTotal(text),
   }
 }
 
