@@ -1,6 +1,6 @@
-import { loadUpscaler, upscaleImage } from './transformers-client'
+import { loadUpscalerModel, upscaleImageFile, type UpscaleScale } from './upscaler-engine'
 
-export type UpscaleScale = '2x' | '4x'
+export type { UpscaleScale }
 export type UpscaleOutputFormat = 'match' | 'image/jpeg' | 'image/png' | 'image/webp'
 
 interface UpscaleOptions {
@@ -14,16 +14,14 @@ export async function upscaleBatch(
   onModelProgress: (pct: number) => void,
   onFileProgress: (fileIndex: number, pct: number) => void
 ): Promise<(File | Error)[]> {
-  await loadUpscaler(options.scale, onModelProgress)
+  await loadUpscalerModel(options.scale, onModelProgress)
 
   const results: (File | Error)[] = []
   for (let i = 0; i < files.length; i++) {
-    const file = files[i]
-    const outputFormat =
-      options.outputFormat === 'match' ? null : options.outputFormat
+    const outputFormat = options.outputFormat === 'match' ? null : options.outputFormat
     try {
-      const result = await upscaleImage(
-        file,
+      const result = await upscaleImageFile(
+        files[i],
         options.scale,
         outputFormat,
         (pct) => onFileProgress(i, pct)
