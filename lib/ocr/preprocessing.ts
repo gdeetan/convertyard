@@ -3,6 +3,7 @@
 //           → Sauvola adaptive binarization → ruled-line removal → deskew → upscale
 
 const MIN_WIDTH_PX = 1500
+const MIN_WIDTH_PX_RECEIPT = 2500
 
 // Render a grayscale pixel array to a deskewed+upscaled canvas blob.
 function renderGrayToBlob(
@@ -40,9 +41,21 @@ function renderGrayToBlob(
   return out.convertToBlob({ type: 'image/png' })
 }
 
+// ── Unsharp masking ───────────────────────────────────────────────────────────
+// Sharpens after CLAHE to crisp up small characters before binarization.
+// amount=1.2 gives strong but not halation-inducing sharpening.
+function unsharpMask(gray: Uint8Array, w: number, h: number): Uint8Array {
+  const blurred = gaussianBlur(gray, w, h)
+  const out = new Uint8Array(gray.length)
+  for (let i = 0; i < gray.length; i++) {
+    out[i] = Math.max(0, Math.min(255, Math.round(gray[i] + 1.2 * (gray[i] - blurred[i]))))
+  }
+  return out
+}
+
 // Core pipeline — returns both binarized output (for line detection) and
 // CLAHE grayscale output (for TrOCR inference, preserves natural pixel distribution).
-async function preprocessCore(blob: Blob): Promise<{
+async function preprocessCore(blob: Blob, minWidth = MIN_WIDTH_PX): Promise<{
   binary: Blob
   grayscale: Blob
 } | null> {
@@ -84,8 +97,11 @@ async function preprocessCore(blob: Blob): Promise<{
   // 4. CLAHE — tile-based adaptive contrast normalization
   const clahe = applyCLAHE(workGray, workW, workH)
 
+  // 4b. Unsharp masking — crisps small characters before binarization
+  const sharpened = unsharpMask(clahe, workW, workH)
+
   // 5. Sauvola adaptive binarization
-  const binary = sauvolaBinarize(clahe, workW, workH)
+  const binary = sauvolaBinarize(sharpened, workW, workH)
 
   // 6. Ruled-line removal
   removeRuledLines(binary, workW, workH)
@@ -103,8 +119,8 @@ async function preprocessCore(blob: Blob): Promise<{
     ? Math.round(Math.abs(workW * sinA) + Math.abs(workH * cosA))
     : workH
 
-  // 8. Upscale to min 1500px
-  const scale = Math.max(1, MIN_WIDTH_PX / outW)
+  // 8. Upscale to minWidth
+  const scale = Math.max(1, minWidth / outW)
   const finalW = Math.round(outW * scale)
   const finalH = Math.round(outH * scale)
 
@@ -117,8 +133,8 @@ async function preprocessCore(blob: Blob): Promise<{
   return { binary: binaryBlob, grayscale: grayscaleBlob }
 }
 
-export async function preprocessForOcr(blob: Blob): Promise<Blob> {
-  const result = await preprocessCore(blob)
+export async function preprocessForOcr(blob: Blob, minWidth?: number): Promise<Blob> {
+  const result = await preprocessCore(blob, minWidth)
   return result?.binary ?? blob
 }
 
@@ -126,8 +142,8 @@ export async function preprocessForOcr(blob: Blob): Promise<Blob> {
 // image (for TrOCR inference). The grayscale preserves natural pixel intensity
 // distribution that TrOCR was trained on — feeding binarized input causes
 // distribution mismatch and hallucinations.
-export async function preprocessForOcrDual(blob: Blob): Promise<{ binary: Blob; grayscale: Blob }> {
-  const result = await preprocessCore(blob)
+export async function preprocessForOcrDual(blob: Blob, minWidth?: number): Promise<{ binary: Blob; grayscale: Blob }> {
+  const result = await preprocessCore(blob, minWidth)
   if (!result) return { binary: blob, grayscale: blob }
   return result
 }

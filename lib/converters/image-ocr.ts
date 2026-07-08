@@ -481,13 +481,14 @@ export async function imageOcrConvert(
       } else {
         // Standard path: preprocess → Tesseract with OEM/PSM tuning
         onProgress?.(i, 20)
-        const preprocessed = await preprocessForOcr(blob)
+        const preprocessed = await preprocessForOcr(blob, mode === 'receipt-csv' ? 2500 : undefined)
         onProgress?.(i, 30)
         const tableMode = mode === 'excel' || mode === 'table-csv'
         const receiptMode = mode === 'receipt-csv'
         const result = await recognizePage(preprocessed, lang, {
           oem: 1,
           psm: tableMode ? 6 : receiptMode ? 4 : psmForStyle(style),
+          ...(receiptMode ? { dpi: 300 } : {}),
         });
         ({ text, confidence } = result)
         // Collect word metadata; drop bboxes above 5000-word threshold to cap memory
