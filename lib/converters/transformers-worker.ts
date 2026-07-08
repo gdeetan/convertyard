@@ -16,7 +16,7 @@
 // Injected at build time — empty string when env var is not set
 declare const __HF_TOKEN__: string
 
-export type ModelType = 'bg-removal' | 'alt-text' | 'upscaler-4x' | 'upscaler-2x' | 'ocr'
+export type ModelType = 'bg-removal' | 'alt-text' | 'ocr'
 
 interface LoadMsg { type: 'load'; modelType: ModelType }
 interface InferMsg {
@@ -35,9 +35,6 @@ let bgModel: unknown = null
 let bgProcessor: unknown = null
 let altModel: unknown = null
 let altProcessor: unknown = null
-let upscaler4xPipeline: unknown = null
-let upscaler2xPipeline: unknown = null
-
 // ── Aggregated download progress tracker ──────────────────────────────────────
 
 function makeProgressCallback(modelType: ModelType) {
@@ -124,145 +121,6 @@ async function loadAltModel(progressType: ModelType = 'alt-text') {
   } catch {
     await tryLoad(false)  // HF Hub fallback (uses __HF_TOKEN__)
   }
-}
-
-// ── Model loaders: upscalers ──────────────────────────────────────────────────
-
-async function loadUpscaler4x() {
-  if (upscaler4xPipeline) return
-  await ensureHfAuth()
-  const { pipeline } = await import('@huggingface/transformers')
-  const cb = makeProgressCallback('upscaler-4x')
-  upscaler4xPipeline = await pipeline('image-to-image', 'Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr', {
-    progress_callback: cb,
-  })
-}
-
-async function loadUpscaler2x() {
-  if (upscaler2xPipeline) return
-  await ensureHfAuth()
-  const { pipeline } = await import('@huggingface/transformers')
-  const cb = makeProgressCallback('upscaler-2x')
-  upscaler2xPipeline = await pipeline('image-to-image', 'Xenova/swin2SR-classical-sr-x2-64', {
-    progress_callback: cb,
-  })
-}
-
-// ── Inference: upscaling ──────────────────────────────────────────────────────
-//
-// Swin2SR causes ONNX integer overflow on images larger than ~512px.
-// Images above UPSCALE_MAX_DIRECT are split into UPSCALE_TILE×UPSCALE_TILE
-// chunks, each upscaled independently, then stitched into the output canvas.
-
-const UPSCALE_MAX_DIRECT = 512  // Process without tiling if both dims ≤ this
-const UPSCALE_TILE = 256        // Tile size for large images (input pixels)
-
-function buildTileGrid(dim: number, tileSize: number): Array<{ start: number; len: number }> {
-  const tiles: Array<{ start: number; len: number }> = []
-  let pos = 0
-  while (pos < dim) {
-    tiles.push({ start: pos, len: Math.min(tileSize, dim - pos) })
-    pos += tileSize
-  }
-  return tiles
-}
-
-async function runUpscaler(
-  id: string,
-  buffer: ArrayBuffer,
-  mimeType: string,
-  modelType: 'upscaler-4x' | 'upscaler-2x',
-  outputFormat?: string
-) {
-  const scale = modelType === 'upscaler-4x' ? 4 : 2
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pipe = (modelType === 'upscaler-4x' ? upscaler4xPipeline : upscaler2xPipeline) as any
-
-  const SAFE_OUTPUT_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
-  const rawMime = outputFormat ?? mimeType
-  const outMime = SAFE_OUTPUT_MIMES.has(rawMime) ? rawMime : 'image/png'
-
-  const blob = new Blob([buffer], { type: mimeType })
-  const bitmap = await createImageBitmap(blob)
-  const srcW = bitmap.width
-  const srcH = bitmap.height
-
-  self.postMessage({ type: 'infer-progress', id, progress: 10 })
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function rawToRgba(result: any): { rgba: Uint8ClampedArray; width: number; height: number } {
-    const { width, height, channels, data } = result
-    if (channels !== 3 && channels !== 4) {
-      throw new Error(`Unsupported image channels: ${channels}. Expected 3 (RGB) or 4 (RGBA).`)
-    }
-    let rgba: Uint8ClampedArray
-    if (channels === 4) {
-      rgba = new Uint8ClampedArray((data.buffer as ArrayBuffer).slice(0))
-    } else {
-      rgba = new Uint8ClampedArray(width * height * 4)
-      for (let i = 0; i < width * height; i++) {
-        rgba[i * 4] = data[i * 3]
-        rgba[i * 4 + 1] = data[i * 3 + 1]
-        rgba[i * 4 + 2] = data[i * 3 + 2]
-        rgba[i * 4 + 3] = 255
-      }
-    }
-    return { rgba, width, height }
-  }
-
-  if (srcW <= UPSCALE_MAX_DIRECT && srcH <= UPSCALE_MAX_DIRECT) {
-    // Small image — send directly to the pipeline
-    bitmap.close()
-    const result = await pipe(blob)
-    self.postMessage({ type: 'infer-progress', id, progress: 85 })
-    const { rgba, width, height } = rawToRgba(result)
-    const canvas = new OffscreenCanvas(width, height)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    canvas.getContext('2d')!.putImageData(new ImageData(rgba as any, width, height), 0, 0)
-    const resultBlob = await canvas.convertToBlob({ type: outMime, quality: 0.92 })
-    const resultBuffer = await resultBlob.arrayBuffer()
-    self.postMessage({ type: 'infer-progress', id, progress: 100 })
-    self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
-    return
-  }
-
-  // Large image — tile-based processing
-  const outCanvas = new OffscreenCanvas(srcW * scale, srcH * scale)
-  const outCtx = outCanvas.getContext('2d')!
-  const xTiles = buildTileGrid(srcW, UPSCALE_TILE)
-  const yTiles = buildTileGrid(srcH, UPSCALE_TILE)
-  const totalTiles = xTiles.length * yTiles.length
-  let done = 0
-
-  for (const yt of yTiles) {
-    for (const xt of xTiles) {
-      // Extract tile from source bitmap
-      const tileCanvas = new OffscreenCanvas(xt.len, yt.len)
-      tileCanvas.getContext('2d')!.drawImage(bitmap, xt.start, yt.start, xt.len, yt.len, 0, 0, xt.len, yt.len)
-      const tileBlob = await tileCanvas.convertToBlob({ type: 'image/png' })
-
-      // Upscale tile
-      const tileResult = await pipe(tileBlob)
-      const { rgba, width: rW, height: rH } = rawToRgba(tileResult)
-      const tileOut = new OffscreenCanvas(rW, rH)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      tileOut.getContext('2d')!.putImageData(new ImageData(rgba as any, rW, rH), 0, 0)
-
-      // Place usable portion in output at the correct scaled position
-      const usableW = xt.len * scale
-      const usableH = yt.len * scale
-      outCtx.drawImage(tileOut, 0, 0, usableW, usableH, xt.start * scale, yt.start * scale, usableW, usableH)
-
-      done++
-      self.postMessage({ type: 'infer-progress', id, progress: 10 + Math.round((done / totalTiles) * 80) })
-    }
-  }
-
-  bitmap.close()
-  const resultBlob = await outCanvas.convertToBlob({ type: outMime, quality: 0.92 })
-  const resultBuffer = await resultBlob.arrayBuffer()
-  self.postMessage({ type: 'infer-progress', id, progress: 100 })
-  self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
 }
 
 // ── Inference: background removal ─────────────────────────────────────────────
@@ -512,8 +370,6 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
       if (msg.modelType === 'bg-removal') await loadBgModel()
       else if (msg.modelType === 'alt-text') await loadAltModel('alt-text')
       else if (msg.modelType === 'ocr') await loadAltModel('ocr')  // same Florence-2 model
-      else if (msg.modelType === 'upscaler-4x') await loadUpscaler4x()
-      else await loadUpscaler2x()
       self.postMessage({ type: 'model-ready', modelType: msg.modelType })
     } catch (err) {
       self.postMessage({ type: 'error', message: (err as Error).message })
@@ -530,8 +386,6 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
         await runAltText(id, buffer, mimeType, opts.maxTokens ?? 50, opts.contextHint, opts.filename)
       } else if (modelType === 'ocr') {
         await runOcr(id, buffer, mimeType)
-      } else if (modelType === 'upscaler-4x' || modelType === 'upscaler-2x') {
-        await runUpscaler(id, buffer, mimeType, modelType, opts.outputFormat)
       }
     } catch (err) {
       self.postMessage({ type: 'error', id, message: (err as Error).message })
