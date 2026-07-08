@@ -12,6 +12,23 @@ export const config: ToolConfig = {
   convertFn: (files, opts, onProgress) =>
     imageOcrConvert(files, { ...opts, outputMode: 'receipt-csv' }, onProgress),
 
+  options: [
+    {
+      type: 'radio',
+      name: 'recognitionEngine',
+      label: 'Recognition engine',
+      choices: [
+        { value: 'standard', label: 'Standard — no download' },
+        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~262MB (may be cached)' },
+      ],
+      default: 'standard',
+      conditionalHints: {
+        standard: 'Tesseract OCR with image preprocessing. Fast, no download needed.',
+        'ai-enhanced': 'Florence-2 + TrOCR: processes the full receipt at once, better on faded or printed thermal text. Downloads ~262MB on first use — shared with the Image Description tool so may already be cached. English only.',
+      },
+    },
+  ],
+
   faq: [
     {
       q: 'What fields does it extract?',

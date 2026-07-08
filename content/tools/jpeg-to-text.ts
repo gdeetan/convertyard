@@ -20,10 +20,24 @@ export const config: ToolConfig = {
 
   options: [
     {
+      type: 'radio',
+      name: 'recognitionEngine',
+      label: 'Recognition engine',
+      choices: [
+        { value: 'standard', label: 'Standard — all languages, no download' },
+        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~262MB (may be cached)' },
+      ],
+      default: 'standard',
+      conditionalHints: {
+        standard: 'Tesseract OCR with image preprocessing. Works with all languages. Best for clean, printed text.',
+        'ai-enhanced': 'Florence-2 + TrOCR: processes the full page at once without line segmentation, then falls back to TrOCR for lines Florence-2 misses. Downloads ~262MB on first use — shared with the Image Description tool so may already be cached. English only.',
+      },
+    },
+    {
       type: 'dropdown',
       name: 'language',
       label: 'Language',
-      hint: 'Choose the language in your image.',
+      hint: 'Choose the language in your image. Standard engine only — AI-Enhanced uses English.',
       choices: [
         { value: 'eng', label: 'English' },
         { value: 'fra', label: 'French' },
