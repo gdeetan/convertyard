@@ -107,6 +107,7 @@ export interface OcrWordMeta {
   corrected?: string       // present only if the corrector changed it
   confidence: number       // 0–100 engine confidence; -1 if unavailable (TrOCR)
   bbox?: { x0: number; y0: number; x1: number; y1: number }
+  lineIndex?: number       // Tesseract line index for reliable row grouping in table mode
 }
 
 export interface OcrResultMeta {

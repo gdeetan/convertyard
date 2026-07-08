@@ -174,54 +174,80 @@ function parseBusinessCardText(text: string, filename: string): string {
 // Spatially reconstruct a table grid from word bounding boxes.
 // Returns a 2D array (rows × cols) of cell strings.
 function parseTableFromWords(words: OcrWordMeta[]): string[][] {
-  // Strip pipe characters that OCR reads from table gridlines; skip pipe-only words.
   const cleanWord = (t: string) => t.replace(/\|/g, '').trim()
   const boxed = words.filter(w => w.bbox && cleanWord(w.text).length > 0)
   if (boxed.length === 0) return []
 
-  // Median word height — unit for all spatial tolerances
   const heights = boxed.map(w => w.bbox!.y1 - w.bbox!.y0).sort((a, b) => a - b)
   const medianH = heights[Math.floor(heights.length / 2)]
 
-  // Column separator threshold: must be larger than normal in-cell word spacing
-  // (≈ 0.5 × charH) so words within a merged cell (e.g. "Hard Floor Results")
-  // don't vote for column boundaries between themselves.
-  const minGapPx = Math.max(8, medianH * 0.8)
-  const clusterTol = medianH * 1.0
-
-  // Group into row bands by Y-center (avoids cascading merges from y1 drift)
-  const byCenter = [...boxed].sort((a, b) =>
-    (a.bbox!.y0 + a.bbox!.y1) / 2 - (b.bbox!.y0 + b.bbox!.y1) / 2
-  )
-  const bands: OcrWordMeta[][] = []
-  let lastCenterY = -Infinity
-  for (const w of byCenter) {
-    const cy = (w.bbox!.y0 + w.bbox!.y1) / 2
-    if (cy > lastCenterY + medianH * 0.6) {
-      bands.push([w])
-      lastCenterY = cy
-    } else {
+  // Row grouping: prefer Tesseract's own lineIndex (accurate, no tuning needed).
+  // Fall back to Y-center clustering when lineIndex is absent (AI/TrOCR paths).
+  let bands: OcrWordMeta[][]
+  if (boxed.some(w => w.lineIndex !== undefined)) {
+    const lineMap = new Map<number, OcrWordMeta[]>()
+    for (const w of boxed) {
+      const li = w.lineIndex!
+      if (!lineMap.has(li)) lineMap.set(li, [])
+      lineMap.get(li)!.push(w)
+    }
+    bands = [...lineMap.entries()]
+      .sort(([a], [b]) => a - b)
+      .map(([, ws]) => ws.sort((a, b) => a.bbox!.x0 - b.bbox!.x0))
+  } else {
+    const byCenter = [...boxed].sort((a, b) =>
+      (a.bbox!.y0 + a.bbox!.y1) / 2 - (b.bbox!.y0 + b.bbox!.y1) / 2
+    )
+    bands = []
+    let lastCY = -Infinity
+    for (const w of byCenter) {
+      const cy = (w.bbox!.y0 + w.bbox!.y1) / 2
+      if (cy > lastCY + medianH * 0.6) { bands.push([]); lastCY = cy }
       bands[bands.length - 1].push(w)
     }
+    for (const b of bands) b.sort((a, b) => a.bbox!.x0 - b.bbox!.x0)
   }
-  for (const band of bands) band.sort((a, b) => a.bbox!.x0 - b.bbox!.x0)
 
-  // Vote on column boundaries: each row contributes the midpoint of every gap ≥ minGapPx.
-  // Spanning header words (small in-cell gaps < minGapPx) cast no votes,
-  // so they never create spurious column boundaries.
-  const gapXs: number[] = []
+  // Per-row bimodal gap threshold.
+  // Sort each row's inter-word gaps; find the biggest absolute jump in the sorted list.
+  // If that jump is ≥ 30% of the max gap, the row has two distinct modes
+  // (in-cell word spaces vs. column separator gaps) and the threshold sits at the jump.
+  // If the distribution is unimodal (all gaps similar — e.g. a sub-header row where
+  // every word is its own column), threshold = 0 so every gap counts as a separator.
+  function rowThreshold(band: OcrWordMeta[]): number {
+    if (band.length < 2) return Infinity
+    const gaps = band.slice(0, -1)
+      .map((w, i) => band[i + 1].bbox!.x0 - w.bbox!.x1)
+      .filter(g => g >= 0)
+    if (gaps.length === 0) return Infinity
+    const s = [...gaps].sort((a, b) => a - b)
+    const maxG = s[s.length - 1]
+    if (maxG <= 0) return 0
+    let bigJump = 0, ji = 1
+    for (let i = 1; i < s.length; i++) {
+      const j = s[i] - s[i - 1]
+      if (j > bigJump) { bigJump = j; ji = i }
+    }
+    if (bigJump / maxG < 0.3) return 0   // unimodal → all gaps are column separators
+    return (s[ji - 1] + s[ji]) / 2       // bimodal → threshold at midpoint of jump
+  }
+
+  // Vote on column boundaries: each row contributes gap midpoints for gaps ≥ its threshold.
+  const gapMids: number[] = []
   for (const band of bands) {
-    for (let i = 0; i < band.length - 1; i++) {
-      const gapW = band[i + 1].bbox!.x0 - band[i].bbox!.x1
-      if (gapW >= minGapPx) {
-        gapXs.push((band[i].bbox!.x1 + band[i + 1].bbox!.x0) / 2)
+    const thresh = rowThreshold(band)
+    for (let i = 1; i < band.length; i++) {
+      const gap = band[i].bbox!.x0 - band[i - 1].bbox!.x1
+      if (gap >= thresh) {
+        gapMids.push((band[i - 1].bbox!.x1 + band[i].bbox!.x0) / 2)
       }
     }
   }
-  gapXs.sort((a, b) => a - b)
+  gapMids.sort((a, b) => a - b)
 
+  const clusterTol = medianH * 1.0
   const clusters: { x: number; count: number }[] = []
-  for (const gx of gapXs) {
+  for (const gx of gapMids) {
     const last = clusters[clusters.length - 1]
     if (last && gx - last.x <= clusterTol) {
       last.x = (last.x * last.count + gx) / (last.count + 1)
@@ -239,22 +265,21 @@ function parseTableFromWords(words: OcrWordMeta[]): string[][] {
 
   const numCols = colBoundaries.length + 1
 
-  // Build grid. Key: if the gap from the previous word is < minGapPx, the word
-  // stays in the same active cell even if a column boundary lies between them.
-  // This keeps "Hard Floor Results" as one cell rather than splitting across 3 columns.
+  // Build grid using per-row threshold for cell splitting.
+  // Words separated by a gap < threshold share a cell even if a column boundary
+  // lies between their x0 positions (handles merged/spanning header cells).
   return bands.map(band => {
     const row = Array<string>(numCols).fill('')
+    const thresh = rowThreshold(band)
     let cellCol = 0
     for (let i = 0; i < band.length; i++) {
       const w = band[i]
       const text = cleanWord(w.text)
       if (!text) continue
       const gap = i === 0 ? Infinity : w.bbox!.x0 - band[i - 1].bbox!.x1
-      if (gap >= minGapPx) {
-        // Large gap → word starts a new cell at the column its x0 falls in
+      if (gap >= thresh) {
         cellCol = Math.min(colBoundaries.filter(b => b <= w.bbox!.x0).length, numCols - 1)
       }
-      // Small gap → append to current cell (cellCol unchanged)
       row[cellCol] = row[cellCol] ? row[cellCol] + ' ' + text : text
     }
     return row
@@ -423,8 +448,8 @@ export async function imageOcrConvert(
             ;({ text, confidence } = result)
             const rawWords = result.words ?? []
             pageWords = rawWords.length > 5000
-              ? rawWords.map(w => ({ text: w.text, confidence: w.confidence }))
-              : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox }))
+              ? rawWords.map(w => ({ text: w.text, confidence: w.confidence, lineIndex: w.lineIndex }))
+              : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox, lineIndex: w.lineIndex }))
           }
         }
       } else {
@@ -440,8 +465,8 @@ export async function imageOcrConvert(
         // Collect word metadata; drop bboxes above 5000-word threshold to cap memory
         const rawWords = result.words ?? []
         pageWords = rawWords.length > 5000
-          ? rawWords.map(w => ({ text: w.text, confidence: w.confidence }))
-          : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox }))
+          ? rawWords.map(w => ({ text: w.text, confidence: w.confidence, lineIndex: w.lineIndex }))
+          : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox, lineIndex: w.lineIndex }))
       }
 
       text = normalizeOcrText(text)

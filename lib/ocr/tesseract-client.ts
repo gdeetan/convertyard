@@ -5,6 +5,7 @@ export interface OcrWord {
   text: string
   confidence: number
   bbox: { x0: number; y0: number; x1: number; y1: number }
+  lineIndex: number
 }
 
 export interface OcrLineBbox {
@@ -63,6 +64,7 @@ export async function recognizePage(
     const { data } = await worker.recognize(image, {}, { blocks: true })
     const words: OcrWord[] = []
     const lines: OcrLineBbox[] = []
+    let lineIndex = 0
     for (const block of data.blocks ?? []) {
       for (const para of block.paragraphs ?? []) {
         for (const line of para.lines ?? []) {
@@ -72,8 +74,10 @@ export async function recognizePage(
               text: w.text,
               confidence: w.confidence,
               bbox: w.bbox,
+              lineIndex,
             })
           }
+          lineIndex++
         }
       }
     }
