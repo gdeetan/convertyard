@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { buildEditableOcrText } from '@/lib/ocr/review-text'
 import { cn } from '@/lib/utils/cn'
 import type { ConversionResult, OcrResultMeta } from '@/lib/types'
 
@@ -22,6 +23,10 @@ function flaggedCount(meta: OcrResultMeta): number {
   return meta.words.filter(w =>
     (w.confidence !== -1 && w.confidence < 60) || w.corrected !== undefined
   ).length
+}
+
+function tokenizeLine(line: string): string[] {
+  return line.split(/(\s+)/)
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -190,6 +195,7 @@ export function OcrReviewPanel({ files, results, onResultEdit }: OcrReviewPanelP
 
   const effectiveWords = getEffectiveWords(activeIndex)
   const isApplied = applied.has(activeIndex)
+  const renderedLines = activeMeta.lines.length > 0 ? activeMeta.lines : [buildEditableOcrText(activeMeta)]
 
   return (
     <div className="rounded-xl border border-border bg-bg-elevated overflow-hidden">
@@ -271,25 +277,40 @@ export function OcrReviewPanel({ files, results, onResultEdit }: OcrReviewPanelP
             aria-label="Extracted text — editable"
             aria-multiline="true"
           >
-            {effectiveWords.map((w, wi) => {
-              const isFlagged = w.confidence !== -1 && w.confidence < 60 && !w.corrected
-              const isCorrected = w.corrected !== undefined
+            {(() => {
+              let wordIndex = 0
+              return renderedLines.map((line, lineIndex) => (
+                <div key={lineIndex}>
+                  {tokenizeLine(line).map((token, tokenIndex) => {
+                    if (!token || /^\s+$/.test(token)) {
+                      return <span key={`ws-${lineIndex}-${tokenIndex}`}>{token}</span>
+                    }
 
-              if (!isFlagged && !isCorrected) {
-                return <span key={wi}>{w.text} </span>
-              }
+                    const word = effectiveWords[wordIndex]
+                    const display = word?.corrected ?? word?.text ?? token
+                    const isFlagged = !!word && word.confidence !== -1 && word.confidence < 60 && !word.corrected
+                    const isCorrected = !!word && word.corrected !== undefined
+                    const currentWordIndex = wordIndex
+                    wordIndex++
 
-              return (
-                <AnnotatedWord
-                  key={wi}
-                  word={w}
-                  wordIndex={wi}
-                  isFlagged={isFlagged}
-                  isCorrected={isCorrected}
-                  onPopoverOpen={handleWordClick}
-                />
-              )
-            })}
+                    if (!word || (!isFlagged && !isCorrected)) {
+                      return <span key={`word-${lineIndex}-${tokenIndex}`}>{display}</span>
+                    }
+
+                    return (
+                      <AnnotatedWord
+                        key={`word-${lineIndex}-${tokenIndex}`}
+                        word={word}
+                        wordIndex={currentWordIndex}
+                        isFlagged={isFlagged}
+                        isCorrected={isCorrected}
+                        onPopoverOpen={handleWordClick}
+                      />
+                    )
+                  })}
+                </div>
+              ))
+            })()}
           </div>
 
           {/* aria-live for screen readers */}

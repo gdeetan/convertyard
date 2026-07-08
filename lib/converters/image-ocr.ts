@@ -1,7 +1,7 @@
 import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 import { preprocessForOcr, preprocessForOcrDual } from '@/lib/ocr/preprocessing'
 import { recognizeWithTrOCR } from '@/lib/ocr/trocr-client'
-import { recognizeWithFlorenceOcr } from '@/lib/ocr/florence-ocr-client'
+import { normalizeOcrText, recognizeWithFlorenceOcr } from '@/lib/ocr/florence-ocr-client'
 import { detectLines } from '@/lib/ocr/line-detector'
 import { correctWords } from '@/lib/ocr/correction-client'
 import type { ConversionResult, OcrWordMeta, OcrResultMeta, ToolOptions } from '@/lib/types'
@@ -349,6 +349,8 @@ export async function imageOcrConvert(
           ? rawWords.map(w => ({ text: w.text, confidence: w.confidence }))
           : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox }))
       }
+
+      text = normalizeOcrText(text)
 
       onProgress?.(i, 90)
 

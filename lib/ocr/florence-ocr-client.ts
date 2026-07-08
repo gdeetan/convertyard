@@ -1,23 +1,121 @@
 import { loadTransformersModel, recognizeHandwritingOcr } from '@/lib/converters/transformers-client'
 
-interface OcrRegions {
+export interface OcrRegions {
   quad_boxes: number[][]
   labels: string[]
 }
 
-// Sort regions into reading order (top → bottom, left → right within similar rows).
-// Florence-2 quad_boxes: [x0,y0, x1,y1, x2,y2, x3,y3] (clockwise from top-left).
-// Uses y0 (index 1) as the primary sort key.
-function sortRegionsToReadingOrder(regions: OcrRegions): string[] {
+interface RegionItem {
+  label: string
+  topY: number
+  leftX: number
+  bottomY: number
+  height: number
+}
+
+function normalizeLineText(line: string): string {
+  return line
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\s+([,.:;!?])/g, '$1')
+    .replace(/([(\[{])\s+/g, '$1')
+    .replace(/\s+([)\]}])/g, '$1')
+    .replace(/\s*-\s*/g, ' - ')
+    .replace(/[ \t]+/g, ' ')
+    .trim()
+}
+
+export function normalizeOcrText(text: string): string {
+  const normalizedLines = text
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map(line => normalizeLineText(line))
+
+  const compact: string[] = []
+  let blankRun = 0
+  for (const line of normalizedLines) {
+    if (!line) {
+      blankRun++
+      if (blankRun === 1 && compact.length > 0) compact.push('')
+      continue
+    }
+    blankRun = 0
+    compact.push(line)
+  }
+
+  while (compact[0] === '') compact.shift()
+  while (compact[compact.length - 1] === '') compact.pop()
+
+  return compact.join('\n')
+}
+
+function toRegionItems(regions: OcrRegions): RegionItem[] {
+  return regions.labels.map((label, i) => {
+    const box = regions.quad_boxes[i] ?? []
+    const ys = [box[1], box[3], box[5], box[7]].filter((v): v is number => typeof v === 'number')
+    const xs = [box[0], box[2], box[4], box[6]].filter((v): v is number => typeof v === 'number')
+    const topY = ys.length ? Math.min(...ys) : 0
+    const bottomY = ys.length ? Math.max(...ys) : topY
+    const leftX = xs.length ? Math.min(...xs) : 0
+
+    return {
+      label,
+      topY,
+      leftX,
+      bottomY,
+      height: Math.max(1, bottomY - topY),
+    }
+  })
+}
+
+// Sort regions into reading order with simple row clustering.
+export function sortRegionsToReadingOrder(regions: OcrRegions): string[] {
   if (!regions.labels.length) return []
 
-  const items = regions.labels.map((label, i) => {
-    const box = regions.quad_boxes[i] ?? []
-    return { label, topY: box[1] ?? 0, leftX: box[0] ?? 0 }
-  })
+  const items = toRegionItems(regions).sort((a, b) => a.topY - b.topY || a.leftX - b.leftX)
+  const rows: RegionItem[][] = []
 
-  items.sort((a, b) => a.topY - b.topY || a.leftX - b.leftX)
-  return items.map(r => r.label)
+  for (const item of items) {
+    const row = rows[rows.length - 1]
+    if (!row) {
+      rows.push([item])
+      continue
+    }
+
+    const avgTop = row.reduce((sum, curr) => sum + curr.topY, 0) / row.length
+    const avgHeight = row.reduce((sum, curr) => sum + curr.height, 0) / row.length
+    const sameRowThreshold = Math.max(12, avgHeight * 0.65)
+
+    if (Math.abs(item.topY - avgTop) <= sameRowThreshold) {
+      row.push(item)
+    } else {
+      rows.push([item])
+    }
+  }
+
+  const out: string[] = []
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i].sort((a, b) => a.leftX - b.leftX)
+    const rowText = normalizeLineText(row.map(item => item.label).join(' '))
+    if (rowText) out.push(rowText)
+
+    const next = rows[i + 1]
+    if (!next) continue
+
+    const rowBottom = Math.max(...row.map(item => item.bottomY))
+    const nextTop = Math.min(...next.map(item => item.topY))
+    const avgHeight = row.reduce((sum, curr) => sum + curr.height, 0) / row.length
+    if ((nextTop - rowBottom) > Math.max(28, avgHeight * 1.6)) {
+      out.push('')
+    }
+  }
+
+  return out
+}
+
+export function buildFlorenceReadingText(regions: OcrRegions): string {
+  if (!regions.labels?.length) return ''
+  if (!regions.quad_boxes?.length) return normalizeOcrText(regions.labels.join('\n'))
+  return normalizeOcrText(sortRegionsToReadingOrder(regions).join('\n'))
 }
 
 export async function recognizeWithFlorenceOcr(
@@ -34,16 +132,9 @@ export async function recognizeWithFlorenceOcr(
 
   try {
     const regions: OcrRegions = JSON.parse(raw)
-    if (!regions.labels?.length) return ''
-
-    // If regions have no bounding boxes (plain <OCR> fallback path), join as-is
-    if (!regions.quad_boxes?.length) {
-      return regions.labels.join('\n')
-    }
-
-    return sortRegionsToReadingOrder(regions).join('\n')
+    return buildFlorenceReadingText(regions)
   } catch {
     // JSON parse failed — treat raw as plain text
-    return raw.trim()
+    return normalizeOcrText(raw.trim())
   }
 }
