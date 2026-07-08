@@ -488,7 +488,7 @@ export async function imageOcrConvert(
         const result = await recognizePage(preprocessed, lang, {
           oem: 1,
           psm: tableMode ? 6 : receiptMode ? 4 : psmForStyle(style),
-          ...(receiptMode ? { dpi: 300 } : {}),
+          ...(receiptMode ? { dpi: 300, preserveSpaces: true } : {}),
         });
         ({ text, confidence } = result)
         // Collect word metadata; drop bboxes above 5000-word threshold to cap memory

@@ -82,13 +82,17 @@ async function preprocessCore(blob: Blob, minWidth = MIN_WIDTH_PX): Promise<{
   // 2. Gaussian denoising — reduces sensor noise before binarization
   const denoised = gaussianBlur(gray, origW, origH)
 
+  // 2b. Background illumination normalization — flattens shadows and gradients
+  //     so perspective corner detection isn't confused by shadow edges
+  const normalized = normalizeIllumination(denoised, origW, origH)
+
   // 3. Perspective correction — flatten trapezoid warp from angled photos
-  let workGray = denoised
+  let workGray = normalized
   let workW = origW
   let workH = origH
-  const corners = detectDocumentCorners(denoised, origW, origH)
+  const corners = detectDocumentCorners(normalized, origW, origH)
   if (corners) {
-    const corrected = applyPerspectiveCorrection(denoised, origW, origH, corners)
+    const corrected = applyPerspectiveCorrection(normalized, origW, origH, corners)
     workGray = corrected.data
     workW = corrected.w
     workH = corrected.h
@@ -146,6 +150,58 @@ export async function preprocessForOcrDual(blob: Blob, minWidth?: number): Promi
   const result = await preprocessCore(blob, minWidth)
   if (!result) return { binary: blob, grayscale: blob }
   return result
+}
+
+// ── Separable box blur (O(n) regardless of radius) ───────────────────────────
+
+function boxBlur(src: Uint8Array, w: number, h: number, radius: number): Uint8Array {
+  const size = 2 * radius + 1
+  const tmp = new Uint8Array(src.length)
+
+  // Horizontal pass
+  for (let y = 0; y < h; y++) {
+    let sum = 0
+    for (let x = -radius; x <= radius; x++) {
+      sum += src[y * w + Math.max(0, Math.min(w - 1, x))]
+    }
+    for (let x = 0; x < w; x++) {
+      tmp[y * w + x] = Math.round(sum / size)
+      sum += src[y * w + Math.min(w - 1, x + radius + 1)]
+            - src[y * w + Math.max(0, x - radius)]
+    }
+  }
+
+  // Vertical pass
+  const out = new Uint8Array(src.length)
+  for (let x = 0; x < w; x++) {
+    let sum = 0
+    for (let y = -radius; y <= radius; y++) {
+      sum += tmp[Math.max(0, Math.min(h - 1, y)) * w + x]
+    }
+    for (let y = 0; y < h; y++) {
+      out[y * w + x] = Math.round(sum / size)
+      sum += tmp[Math.min(h - 1, y + radius + 1) * w + x]
+            - tmp[Math.max(0, y - radius) * w + x]
+    }
+  }
+  return out
+}
+
+// ── Background illumination normalization ─────────────────────────────────────
+// Estimates scene background via a large box blur (radius ≈ 12% of shorter
+// dimension). Divides each pixel by its local background estimate and rescales
+// to a 200-brightness target. Flattens shadows, gradients, and uneven lighting
+// before perspective detection and CLAHE run — corner detection benefits because
+// shadow edges no longer compete with document edges.
+function normalizeIllumination(gray: Uint8Array, w: number, h: number): Uint8Array {
+  const radius = Math.max(20, Math.round(Math.min(w, h) * 0.12))
+  const bg = boxBlur(gray, w, h, radius)
+  const out = new Uint8Array(gray.length)
+  for (let i = 0; i < gray.length; i++) {
+    const bgVal = Math.max(1, bg[i])
+    out[i] = Math.min(255, Math.round((gray[i] / bgVal) * 200))
+  }
+  return out
 }
 
 // ── Gaussian blur (3×3 kernel) ────────────────────────────────────────────────

@@ -26,6 +26,8 @@ export interface OcrOptions {
   psm?: number
   /** DPI hint so Tesseract sizes character height expectations correctly. Default: unset */
   dpi?: number
+  /** Preserve inter-word spacing — helps with tabular layouts like item/price columns. Default: false */
+  preserveSpaces?: boolean
 }
 
 let workerInstance: Tesseract.Worker | null = null
@@ -33,7 +35,7 @@ let currentLang: string | null = null
 let currentOpts: string | null = null
 
 async function getWorker(lang: string, opts: OcrOptions): Promise<Tesseract.Worker> {
-  const optsKey = `${lang}:oem${opts.oem ?? 1}:psm${opts.psm ?? 3}:dpi${opts.dpi ?? 0}`
+  const optsKey = `${lang}:oem${opts.oem ?? 1}:psm${opts.psm ?? 3}:dpi${opts.dpi ?? 0}:sp${opts.preserveSpaces ? 1 : 0}`
   if (workerInstance && currentLang === lang && currentOpts === optsKey) return workerInstance
   if (workerInstance) {
     await workerInstance.terminate()
@@ -45,6 +47,7 @@ async function getWorker(lang: string, opts: OcrOptions): Promise<Tesseract.Work
       tessedit_ocr_engine_mode: opts.oem ?? 1,
       tessedit_pageseg_mode: opts.psm ?? 3,
       ...(opts.dpi ? { user_defined_dpi: opts.dpi } : {}),
+      ...(opts.preserveSpaces ? { preserve_interword_spaces: 1 } : {}),
     } as Record<string, unknown>)
     currentLang = lang
     currentOpts = optsKey
