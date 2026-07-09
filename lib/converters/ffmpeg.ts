@@ -1,6 +1,29 @@
 import { fetchFile } from '@ffmpeg/util'
 import { getFFmpeg } from './ffmpeg-client'
+import { probeVideoTrack } from './media-probe'
 import type { ToolOptions, ConversionResult } from '@/lib/types'
+
+function toError(err: unknown): Error {
+  if (err instanceof Error) return err
+  if (typeof err === 'string' && err.trim()) return new Error(err)
+  if (typeof err === 'object' && err !== null) {
+    const maybeMessage = Reflect.get(err, 'message')
+    if (typeof maybeMessage === 'string' && maybeMessage.trim()) {
+      return new Error(maybeMessage)
+    }
+  }
+  return new Error('Conversion failed')
+}
+
+function explainMp4ToWebpError(error: Error): Error {
+  if (
+    error.message.includes('Output file #0 does not contain any stream') ||
+    error.message.includes('ErrnoError: FS error')
+  ) {
+    return new Error('This MP4 has no video track. MP4 to WebP only works on video clips, not audio-only MP4/M4A files.')
+  }
+  return error
+}
 
 export async function mp4ToMp3(
   files: File[],
@@ -49,7 +72,7 @@ export async function mp4ToMp3(
       results.push(new File([data], `${baseName}.mp3`, { type: 'audio/mpeg' }))
       onProgress?.(i, 100)
     } catch (err) {
-      results.push(err instanceof Error ? err : new Error('Conversion failed'))
+      results.push(toError(err))
     }
   }
 
@@ -164,7 +187,7 @@ export async function mp3ToMp4(
       results.push(new File([data], `${baseName}.mp4`, { type: 'video/mp4' }))
       onProgress?.(i, 100)
     } catch (err) {
-      results.push(err instanceof Error ? err : new Error('Conversion failed'))
+      results.push(toError(err))
     }
   }
 
@@ -238,7 +261,127 @@ export async function gifToMp4(
       results.push(new File([data], `${baseName}.mp4`, { type: 'video/mp4' }))
       onProgress?.(i, 100)
     } catch (err) {
-      results.push(err instanceof Error ? err : new Error('Conversion failed'))
+      results.push(toError(err))
+    }
+  }
+
+  return results
+}
+
+const WEBP_CROP_FILTERS: Record<string, string | null> = {
+  original: null,
+  square: "crop='min(iw,ih)':'min(iw,ih)'",
+  '16:9': "crop='if(gte(iw/ih,16/9),ih*16/9,iw)':'if(gte(iw/ih,16/9),ih,iw*9/16)'",
+  '4:3': "crop='if(gte(iw/ih,4/3),ih*4/3,iw)':'if(gte(iw/ih,4/3),ih,iw*3/4)'",
+}
+
+function buildAnimatedWebpScale(maxDimension: number): string | null {
+  if (!Number.isFinite(maxDimension) || maxDimension <= 0) return null
+  return `scale='if(gte(iw,ih),${maxDimension},-2)':'if(gte(iw,ih),-2,${maxDimension})':flags=lanczos:force_original_aspect_ratio=decrease`
+}
+
+function buildAnimatedWebpFilter(options: ToolOptions): string {
+  const filters: string[] = []
+  const cropPreset = typeof options.cropPreset === 'string' ? options.cropPreset : 'original'
+  const cropFilter = WEBP_CROP_FILTERS[cropPreset] ?? WEBP_CROP_FILTERS.original
+  if (cropFilter) filters.push(cropFilter)
+
+  const fps = typeof options.fps === 'number' && options.fps > 0 ? options.fps : 12
+  filters.push(`fps=${fps}`)
+
+  const maxDimension = typeof options.maxDimension === 'number' ? options.maxDimension : 0
+  const scaleFilter = buildAnimatedWebpScale(maxDimension)
+  if (scaleFilter) filters.push(scaleFilter)
+
+  return filters.join(',')
+}
+
+export async function mp4ToWebp(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+
+  const quality = typeof options.quality === 'number' ? options.quality : 80
+  const loopCount = typeof options.loopCount === 'number' ? options.loopCount : 0
+  const startTime = typeof options.startTime === 'number' && options.startTime > 0 ? options.startTime : null
+  const endTime = typeof options.endTime === 'number' && options.endTime > 0 ? options.endTime : null
+  const filterGraph = buildAnimatedWebpFilter(options)
+
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    let logTail = ''
+
+    try {
+      const file = files[i]
+      const hasVideoTrack = await probeVideoTrack(file)
+      if (hasVideoTrack === false) {
+        results.push(new Error('This MP4 has no video track. MP4 to WebP only works on video clips, not audio-only MP4/M4A files.'))
+        continue
+      }
+
+      const ffmpeg = await getFFmpeg()
+      const ext = file.name.split('.').pop() ?? 'mp4'
+      const inputName = `video_in_${i}.${ext}`
+      const outputName = `video_out_${i}.webp`
+
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      const logLines: string[] = []
+      const logHandler = ({ message }: { message: string }) => {
+        if (!message) return
+        logLines.push(message)
+        if (logLines.length > 20) logLines.shift()
+        logTail = logLines.join(' | ')
+      }
+      ffmpeg.on('progress', progressHandler)
+      ffmpeg.on('log', logHandler)
+
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        const trimArgs: string[] = []
+        if (startTime !== null) trimArgs.push('-ss', String(startTime))
+        if (endTime !== null) trimArgs.push('-to', String(endTime))
+
+        await ffmpeg.exec([
+          ...trimArgs,
+          '-i', inputName,
+          '-an',
+          '-vf', filterGraph,
+          '-c:v', 'libwebp',
+          '-lossless', '0',
+          '-compression_level', '4',
+          '-q:v', String(quality),
+          '-loop', String(loopCount),
+          '-preset', 'picture',
+          '-vsync', '0',
+          outputName,
+        ])
+
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        ffmpeg.off('log', logHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+
+      if (!data) throw new Error('Conversion produced no output')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      results.push(new File([data], `${baseName}.webp`, { type: 'image/webp' }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      let error = toError(err)
+      if (logTail && !error.message.includes(logTail)) {
+        error.message = `${error.message} | ffmpeg: ${logTail}`
+      }
+      error = explainMp4ToWebpError(error)
+      results.push(error)
     }
   }
 
