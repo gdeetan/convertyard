@@ -385,7 +385,14 @@ async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, pr
   const { RawImage } = await import('@huggingface/transformers')
 
   const blob = new Blob([buffer], { type: mimeType })
-  const image = await RawImage.fromBlob(blob)
+  let image = await RawImage.fromBlob(blob)
+
+  // Cap at 1008px longest side — full-resolution screenshots overflow ORT's int32 buffer math
+  const MAX_PX = 1008
+  if (image.width > MAX_PX || image.height > MAX_PX) {
+    const scale = MAX_PX / Math.max(image.width, image.height)
+    image = await image.resize(Math.round(image.width * scale), Math.round(image.height * scale))
+  }
 
   self.postMessage({ type: 'infer-progress', id, progress: 15 })
 
