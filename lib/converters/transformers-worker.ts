@@ -387,8 +387,8 @@ async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, pr
   const blob = new Blob([buffer], { type: mimeType })
   let image = await RawImage.fromBlob(blob)
 
-  // Cap at 1008px longest side — full-resolution screenshots overflow ORT's int32 buffer math
-  const MAX_PX = 1008
+  // 1344px gives enough detail to read dense tables; the int32 overflow was a q4f16 issue (fixed).
+  const MAX_PX = 1344
   if (image.width > MAX_PX || image.height > MAX_PX) {
     const scale = MAX_PX / Math.max(image.width, image.height)
     image = await image.resize(Math.round(image.width * scale), Math.round(image.height * scale))
@@ -422,6 +422,7 @@ async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, pr
   const outputs = await model.generate({
     ...inputs,
     max_new_tokens: 2048,
+    repetition_penalty: 1.3,
   })
 
   self.postMessage({ type: 'infer-progress', id, progress: 85 })
