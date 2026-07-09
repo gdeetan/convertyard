@@ -37,6 +37,7 @@ let altModel: unknown = null
 let altProcessor: unknown = null
 let vlmModel: unknown = null
 let vlmProcessor: unknown = null
+let vlmDevice: 'webgpu' | 'wasm' = 'wasm'
 // ── Aggregated download progress tracker ──────────────────────────────────────
 
 function makeProgressCallback(modelType: ModelType) {
@@ -140,6 +141,7 @@ async function loadTableVlmModel() {
   } catch {
     device = 'wasm'
   }
+  vlmDevice = device
 
   // WebGPU: split dtypes keep model ~1.8 GB; WASM: q8 avoids OOM
   const dtype = device === 'webgpu'
@@ -399,8 +401,8 @@ async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, pr
   const blob = new Blob([buffer], { type: mimeType })
   let image = await RawImage.fromBlob(blob)
 
-  // 1344px gives enough detail to read dense tables; the int32 overflow was a q4f16 issue (fixed).
-  const MAX_PX = 1344
+  // WebGPU can handle 1344px; WASM uses 756px to avoid std::bad_alloc from too many visual tokens.
+  const MAX_PX = vlmDevice === 'wasm' ? 756 : 1344
   if (image.width > MAX_PX || image.height > MAX_PX) {
     const scale = MAX_PX / Math.max(image.width, image.height)
     image = await image.resize(Math.round(image.width * scale), Math.round(image.height * scale))
@@ -433,7 +435,7 @@ async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, pr
 
   const outputs = await model.generate({
     ...inputs,
-    max_new_tokens: 2048,
+    max_new_tokens: vlmDevice === 'wasm' ? 1024 : 2048,
     repetition_penalty: 1.3,
   })
 

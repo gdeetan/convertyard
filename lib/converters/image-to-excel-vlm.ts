@@ -2,21 +2,37 @@ import { loadTransformersModel, extractTableWithVlm } from '@/lib/converters/tra
 import type { ConversionResult, ToolOptions } from '@/lib/types'
 import * as XLSX from 'xlsx'
 
-// Strip markdown code fences that some VLMs wrap output in
+// Strip markdown fences and any non-CSV preamble lines VLMs sometimes output.
+// A "CSV line" is one that contains a comma or tab (our two supported separators).
 function stripFences(raw: string): string {
-  return raw
+  let cleaned = raw
     .replace(/^```(?:csv)?\s*/i, '')
     .replace(/\s*```$/, '')
     .trim()
+
+  // Drop leading lines that have no delimiter — they are preamble text
+  const lines = cleaned.split('\n')
+  const firstCsvIdx = lines.findIndex(l => l.includes(',') || l.includes('\t'))
+  if (firstCsvIdx > 0) cleaned = lines.slice(firstCsvIdx).join('\n')
+
+  return cleaned.trim()
 }
 
-// Minimal CSV parser — handles quoted fields containing commas
+// CSV/TSV parser — auto-detects comma vs tab separator, handles quoted fields.
 function parseCsv(csv: string): string[][] {
   const rows: string[][] = []
   const lines = csv.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n')
 
-  for (const line of lines) {
-    if (!line.trim()) continue
+  const nonEmpty = lines.filter(l => l.trim())
+  if (nonEmpty.length === 0) return rows
+
+  // Auto-detect: if the first data line has more tabs than commas, use TSV mode
+  const firstLine = nonEmpty[0]
+  const tabCount = (firstLine.match(/\t/g) ?? []).length
+  const commaCount = (firstLine.match(/,/g) ?? []).length
+  const sep = tabCount > commaCount ? '\t' : ','
+
+  for (const line of nonEmpty) {
     const cells: string[] = []
     let i = 0
     while (i < line.length) {
@@ -35,9 +51,9 @@ function parseCsv(csv: string): string[][] {
           }
         }
         cells.push(cell)
-        if (line[i] === ',') i++
+        if (line[i] === sep) i++
       } else {
-        const end = line.indexOf(',', i)
+        const end = line.indexOf(sep, i)
         if (end === -1) {
           cells.push(line.slice(i).trim())
           break

@@ -172,14 +172,15 @@ export function recognizeHandwritingOcr(
 // ── Table extraction VLM ──────────────────────────────────────────────────────
 
 const TABLE_EXTRACTION_PROMPT =
-  'Read every cell in this table and output the data as CSV.\n' +
+  'Extract this table as CSV. Start your response with the very first CSV line — no preamble, no explanation, no markdown fences.\n' +
   'Rules:\n' +
-  '- Row 1: column headers, one per cell\n' +
-  '- Row 2+: one data row per line, values separated by commas\n' +
-  '- Quote any cell value that contains a comma\n' +
-  '- Use N/A for blank cells\n' +
+  '- Line 1: column headers, each header separated by a comma\n' +
+  '- Every subsequent line: one data row, values separated by commas\n' +
+  '- Every row must have exactly the same number of comma-separated values as the header line\n' +
+  '- If a cell value contains a comma, wrap that value in double-quotes\n' +
+  '- Empty cells: output nothing between the commas (e.g. value1,,value3)\n' +
   '- Do not repeat any row\n' +
-  'Output ONLY the raw CSV text. No markdown, no explanation, no extra text.'
+  'Output ONLY raw CSV. No markdown, no explanation, no extra text before or after.'
 
 export function extractTableWithVlm(
   blob: Blob,
