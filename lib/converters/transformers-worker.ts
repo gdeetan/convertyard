@@ -129,7 +129,7 @@ async function loadSmolVlmModel() {
   if (vlmModel && vlmProcessor) return
   await ensureHfAuth()
 
-  const { AutoModelForVision2Seq, AutoProcessor } = await import('@huggingface/transformers')
+  const { AutoModelForImageTextToText, AutoProcessor } = await import('@huggingface/transformers')
   const cb = makeProgressCallback('table-vlm')
   const MODEL_ID = 'HuggingFaceTB/SmolVLM-500M-Instruct'
 
@@ -142,13 +142,13 @@ async function loadSmolVlmModel() {
     device = 'wasm'
   }
 
-  // Fix 2: WASM dtype must be q8 (fp32 would OOM on most devices ~2GB activations)
+  // WASM dtype must be q8 (fp32 would OOM on most devices at ~2GB activations)
   const dtype = device === 'webgpu'
     ? { embed_tokens: 'fp16' as const, vision_encoder: 'fp16' as const, decoder_model_merged: 'q4' as const }
     : 'q8' as const
 
   vlmProcessor = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb })
-  vlmModel = await AutoModelForVision2Seq.from_pretrained(MODEL_ID, {
+  vlmModel = await AutoModelForImageTextToText.from_pretrained(MODEL_ID, {
     dtype,
     device,
     progress_callback: cb,
@@ -392,7 +392,7 @@ async function runOcr(id: string, buffer: ArrayBuffer, mimeType: string) {
   self.postMessage({ type: 'infer-result', id, result })
 }
 
-// ── Inference: table extraction via SmolVLM ───────────────────────────────────
+// ── Inference: table extraction (SmolVLM-500M) ────────────────────────────────
 
 async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, prompt: string) {
   const { RawImage } = await import('@huggingface/transformers')
@@ -432,8 +432,7 @@ async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, pr
 
   self.postMessage({ type: 'infer-progress', id, progress: 85 })
 
-  // Fix 1: transformers.js 4.x Tensor.slice() takes per-dimension [start, end] pairs.
-  // slice(null, [N, null]) = batch_dim=all, seq_dim=N to end → newly generated tokens only.
+  // transformers.js 4.x: slice(null, [N, null]) = all batches, seq_dim N to end (new tokens only)
   const newTokens = outputs.slice(null, [inputs.input_ids.dims[1], null])
   const decoded: string[] = processor.batch_decode(newTokens, { skip_special_tokens: true })
   const result = (decoded[0] ?? '').trim()
