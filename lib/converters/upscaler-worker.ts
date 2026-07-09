@@ -306,6 +306,27 @@ async function graphicScale(
       }
     }
 
+    // ── Unsharp mask: add fraction of discrete Laplacian to sharpen edges ───
+    // Reads from a frozen copy so no cascade effect between adjacent pixels.
+    // Alpha channel is untouched. Flat fills are unaffected (zero Laplacian).
+    const USM_STRENGTH = 0.35
+    const orig = new Uint8ClampedArray(outPx)
+    for (let ry = 0; ry < nOutRows; ry++) {
+      const prevRy = Math.max(0, ry - 1)
+      const nextRy = Math.min(nOutRows - 1, ry + 1)
+      for (let rx = 0; rx < targetW; rx++) {
+        const ci = (ry      * targetW + rx) * 4
+        const li = (ry      * targetW + Math.max(0, rx - 1)) * 4
+        const ri = (ry      * targetW + Math.min(targetW - 1, rx + 1)) * 4
+        const ti = (prevRy  * targetW + rx) * 4
+        const bi = (nextRy  * targetW + rx) * 4
+        for (let c = 0; c < 3; c++) {
+          const lap = 4 * orig[ci + c] - orig[li + c] - orig[ri + c] - orig[ti + c] - orig[bi + c]
+          outPx[ci + c] = Math.max(0, Math.min(255, orig[ci + c] + USM_STRENGTH * lap))
+        }
+      }
+    }
+
     outCtx.putImageData(outImg, 0, ty0)
     onProgress(Math.round((ty1 / targetH) * 90))
     await new Promise<void>(r => setTimeout(r, 0))  // yield between strips
