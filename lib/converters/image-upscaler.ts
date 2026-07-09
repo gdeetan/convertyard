@@ -1,11 +1,12 @@
-import { loadUpscalerModel, upscaleImageFile, type UpscaleScale } from './upscaler-engine'
+import { loadUpscalerModel, upscaleImageFile, type UpscaleScale, type ImageMode } from './upscaler-engine'
 
-export type { UpscaleScale }
+export type { UpscaleScale, ImageMode }
 export type UpscaleOutputFormat = 'match' | 'image/jpeg' | 'image/png' | 'image/webp'
 
 interface UpscaleOptions {
   scale: UpscaleScale
   outputFormat: UpscaleOutputFormat
+  imageMode: ImageMode
 }
 
 export async function upscaleBatch(
@@ -24,7 +25,8 @@ export async function upscaleBatch(
         files[i],
         options.scale,
         outputFormat,
-        (pct) => onFileProgress(i, pct)
+        (pct) => onFileProgress(i, pct),
+        options.imageMode
       )
       results.push(result)
     } catch (err) {

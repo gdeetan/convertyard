@@ -3,6 +3,7 @@
 // thread stays responsive during inference on large images.
 
 export type UpscaleScale = '2x' | '3x' | '4x' | '8x'
+export type ImageMode = 'auto' | 'photo' | 'graphic'
 
 // ── Singleton worker ───────────────────────────────────────────────────────────
 
@@ -64,7 +65,8 @@ export function upscaleImageFile(
   file: File,
   scale: UpscaleScale,
   outputFormat: string | null,
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number) => void,
+  imageMode: ImageMode = 'auto'
 ): Promise<File> {
   return new Promise((resolve, reject) => {
     const worker   = getWorker()
@@ -102,7 +104,7 @@ export function upscaleImageFile(
 
     file.arrayBuffer().then((buffer) => {
       worker.postMessage(
-        { type: 'infer', id, scale, buffer, mimeType, outputFormat: outputFormat ?? undefined },
+        { type: 'infer', id, scale, buffer, mimeType, outputFormat: outputFormat ?? undefined, imageMode },
         [buffer]
       )
     }).catch(reject)

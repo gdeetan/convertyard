@@ -20,6 +20,7 @@ import x4 from '@upscalerjs/esrgan-medium/4x'
 import x8 from '@upscalerjs/esrgan-medium/8x'
 
 export type UpscaleScale = '2x' | '3x' | '4x' | '8x'
+export type ImageMode = 'auto' | 'photo' | 'graphic'
 
 interface LoadMsg  { type: 'load';  scale: UpscaleScale }
 interface InferMsg {
@@ -29,6 +30,7 @@ interface InferMsg {
   buffer: ArrayBuffer
   mimeType: string
   outputFormat?: string
+  imageMode?: ImageMode
 }
 type IncomingMsg = LoadMsg | InferMsg
 
@@ -140,12 +142,33 @@ async function upscaleTileToRgba(scale: UpscaleScale, tileData: ImageData) {
   return { width, height, rgba }
 }
 
+// Detect whether an image is photorealistic or a graphic (illustration, infographic, etc.)
+// by sampling unique colours at 5-bit quantisation. Photos have high unique-colour ratios
+// (organic gradients everywhere); graphics have low ratios (large flat regions, few hues).
+function detectImageMode(bitmap: ImageBitmap): 'photo' | 'graphic' {
+  const SAMPLE = 200
+  const canvas = new OffscreenCanvas(SAMPLE, SAMPLE)
+  const ctx = canvas.getContext('2d')!
+  ctx.drawImage(bitmap, 0, 0, SAMPLE, SAMPLE)
+  const { data } = ctx.getImageData(0, 0, SAMPLE, SAMPLE)
+  const colors = new Set<number>()
+  for (let i = 0; i < data.length; i += 4) {
+    const r = data[i]     >> 3
+    const g = data[i + 1] >> 3
+    const b = data[i + 2] >> 3
+    colors.add((r << 10) | (g << 5) | b)
+  }
+  // Photos: ratio typically 0.2–0.8. Graphics: ratio typically 0.001–0.05.
+  return colors.size / (SAMPLE * SAMPLE) < 0.12 ? 'graphic' : 'photo'
+}
+
 async function runInference(
   id: string,
   scale: UpscaleScale,
   buffer: ArrayBuffer,
   mimeType: string,
-  outputFormat?: string
+  outputFormat?: string,
+  imageMode: ImageMode = 'auto'
 ) {
   if (!instances[scale]) throw new Error(`Model ${scale} not loaded`)
 
@@ -179,6 +202,31 @@ async function runInference(
       message: `Source scaled ${srcW}×${srcH} → ${workW}×${workH} to fit GPU canvas limit (output would have been ${srcW * scaleFactor}×${srcH * scaleFactor})`,
     })
   }
+
+  // Resolve auto-detection
+  const resolvedMode = imageMode === 'auto' ? detectImageMode(workBitmap) : imageMode
+  self.postMessage({ type: 'log', id, message: `Image mode: ${resolvedMode}${imageMode === 'auto' ? ' (auto-detected)' : ''}` })
+
+  // ── Graphic path: canvas bicubic ───────────────────────────────────────────
+  // Preserves flat colours and hard edges. Much better than ESRGAN for
+  // illustrations, infographics, icons, and text-heavy images.
+  if (resolvedMode === 'graphic') {
+    const out = new OffscreenCanvas(workW * scaleFactor, workH * scaleFactor)
+    const ctx = out.getContext('2d')!
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(workBitmap, 0, 0, workW * scaleFactor, workH * scaleFactor)
+    bitmap.close()
+    if (workBitmap !== bitmap) workBitmap.close()
+    self.postMessage({ type: 'infer-progress', id, progress: 90 })
+    const resultBlob   = await out.convertToBlob({ type: outMime, quality: 0.92 })
+    const resultBuffer = await resultBlob.arrayBuffer()
+    self.postMessage({ type: 'infer-progress', id, progress: 100 })
+    self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
+    return
+  }
+
+  // ── Photo path: ESRGAN tiling ──────────────────────────────────────────────
 
   // Allocate full output canvas at upscaled dimensions
   const out    = new OffscreenCanvas(workW * scaleFactor, workH * scaleFactor)
@@ -293,7 +341,7 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
 
   if (msg.type === 'infer') {
     try {
-      await runInference(msg.id, msg.scale, msg.buffer, msg.mimeType, msg.outputFormat)
+      await runInference(msg.id, msg.scale, msg.buffer, msg.mimeType, msg.outputFormat, msg.imageMode)
     } catch (err) {
       self.postMessage({ type: 'error', id: msg.id, message: (err as Error).message })
     }
