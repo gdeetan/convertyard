@@ -11,13 +11,13 @@ import * as tf from '@tensorflow/tfjs-core'
 import Upscaler from 'upscaler'
 import { detectFlatOutputMismatch, normalizeTensorShape, rgbaFromTensorFloats } from './upscaler-render'
 // @ts-ignore
-import x2 from '@upscalerjs/esrgan-slim/2x'
+import x2 from '@upscalerjs/esrgan-medium/2x'
 // @ts-ignore
-import x3 from '@upscalerjs/esrgan-slim/3x'
+import x3 from '@upscalerjs/esrgan-medium/3x'
 // @ts-ignore
-import x4 from '@upscalerjs/esrgan-slim/4x'
+import x4 from '@upscalerjs/esrgan-medium/4x'
 // @ts-ignore
-import x8 from '@upscalerjs/esrgan-slim/8x'
+import x8 from '@upscalerjs/esrgan-medium/8x'
 
 export type UpscaleScale = '2x' | '3x' | '4x' | '8x'
 
