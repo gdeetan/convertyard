@@ -169,3 +169,54 @@ export function recognizeHandwritingOcr(
   })
 }
 
+// ── Table extraction VLM ──────────────────────────────────────────────────────
+
+const TABLE_EXTRACTION_PROMPT =
+  'Extract all table data from this image as CSV. ' +
+  'First row must be column headers exactly as shown. ' +
+  'Each subsequent row is one data row. ' +
+  'Wrap any cell that contains a comma in double quotes. ' +
+  'Use "N/A" for empty or missing cells. ' +
+  'Output ONLY the CSV — no markdown code fences, no explanation, no extra text.'
+
+export function extractTableWithVlm(
+  blob: Blob,
+  onProgress?: (pct: number) => void
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const worker = getWorker()
+    const id = crypto.randomUUID()
+
+    const handler = (e: MessageEvent) => {
+      const d = e.data
+      if (d.id !== id) return
+
+      if (d.type === 'infer-progress') {
+        onProgress?.(d.progress as number)
+      } else if (d.type === 'infer-result') {
+        worker.removeEventListener('message', handler)
+        resolve(d.result as string)
+      } else if (d.type === 'error') {
+        worker.removeEventListener('message', handler)
+        reject(new Error(d.message as string))
+      }
+    }
+
+    worker.addEventListener('message', handler)
+
+    blob.arrayBuffer().then(buffer => {
+      worker.postMessage(
+        {
+          type: 'infer',
+          id,
+          modelType: 'table-vlm',
+          buffer,
+          mimeType: blob.type || 'image/png',
+          opts: { prompt: TABLE_EXTRACTION_PROMPT },
+        },
+        [buffer]
+      )
+    })
+  })
+}
+
