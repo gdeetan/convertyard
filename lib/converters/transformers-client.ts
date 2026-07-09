@@ -216,7 +216,7 @@ export function extractTableWithVlm(
         },
         [buffer]
       )
-    })
+    }).catch(reject)
   })
 }
 
