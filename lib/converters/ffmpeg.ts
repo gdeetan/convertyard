@@ -387,3 +387,79 @@ export async function mp4ToWebp(
 
   return results
 }
+
+function buildVideoToGifFilter(options: ToolOptions): string {
+  const fps = typeof options.fps === 'number' && options.fps > 0 ? options.fps : 12
+  const outputWidth = typeof options.outputWidth === 'number' ? options.outputWidth : 0
+  const scale = outputWidth > 0 ? `,scale=${outputWidth}:-2:flags=lanczos` : ''
+  return `fps=${fps}${scale},split[s0][s1];[s0]palettegen=stats_mode=full[p];[s1][p]paletteuse=dither=bayer`
+}
+
+export async function videoToGif(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+
+  const startTime = typeof options.startTime === 'number' && options.startTime > 0 ? options.startTime : null
+  const endTime = typeof options.endTime === 'number' && options.endTime > 0 ? options.endTime : null
+  const loop = typeof options.loop === 'number' ? options.loop : 0
+  const filterGraph = buildVideoToGifFilter(options)
+
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+
+    try {
+      const file = files[i]
+      const hasVideoTrack = await probeVideoTrack(file)
+      if (hasVideoTrack === false) {
+        results.push(new Error('This file has no video track. Video to GIF only works on video clips, not audio-only MP4/M4A files.'))
+        continue
+      }
+
+      const ffmpeg = await getFFmpeg()
+      const ext = file.name.split('.').pop() ?? 'mp4'
+      const inputName = `video_in_${i}.${ext}`
+      const outputName = `video_out_${i}.gif`
+
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        const trimArgs: string[] = []
+        if (startTime !== null) trimArgs.push('-ss', String(startTime))
+        if (endTime !== null) trimArgs.push('-to', String(endTime))
+
+        await ffmpeg.exec([
+          ...trimArgs,
+          '-i', inputName,
+          '-vf', filterGraph,
+          '-loop', String(loop),
+          outputName,
+        ])
+
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+
+      if (!data) throw new Error('Conversion produced no output')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      results.push(new File([data], `${baseName}.gif`, { type: 'image/gif' }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(toError(err))
+    }
+  }
+
+  return results
+}
