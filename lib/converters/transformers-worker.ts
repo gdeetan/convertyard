@@ -131,7 +131,7 @@ async function loadTableVlmModel() {
 
   const { Qwen2VLForConditionalGeneration, AutoProcessor } = await import('@huggingface/transformers')
   const cb = makeProgressCallback('table-vlm')
-  const MODEL_ID = 'onnx-community/Qwen2.5-VL-3B-Instruct-ONNX'
+  const MODEL_ID = 'onnx-community/Qwen2-VL-2B-Instruct'
 
   // Try WebGPU first (fast), fall back to WASM (slow but works everywhere)
   let device: 'webgpu' | 'wasm'
@@ -142,9 +142,8 @@ async function loadTableVlmModel() {
     device = 'wasm'
   }
 
-  // q4f16 = 4-bit weights + fp16 activations — standard onnx-community browser dtype.
-  // Per-component dicts (SmolVLM pattern) cause tensor size mismatches on Qwen2VL
-  // because its ONNX export uses different component file names/quantization levels.
+  // q4f16 on WebGPU = 4-bit weights + fp16 activations (~2.7 GB total).
+  // q8 on WASM maps to _quantized suffix files (~2.4 GB total).
   const dtype = device === 'webgpu' ? 'q4f16' as const : 'q8' as const
 
   vlmProcessor = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb })
@@ -392,7 +391,7 @@ async function runOcr(id: string, buffer: ArrayBuffer, mimeType: string) {
   self.postMessage({ type: 'infer-result', id, result })
 }
 
-// ── Inference: table extraction (Qwen2.5-VL-3B-Instruct-ONNX) ──────────────
+// ── Inference: table extraction (Qwen2-VL-2B-Instruct) ───────────────────────
 
 async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, prompt: string) {
   const { RawImage } = await import('@huggingface/transformers')
@@ -422,8 +421,7 @@ async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, pr
     add_generation_prompt: true,
   })
 
-  // padding: true required by Qwen2VL processor for correct attention mask generation
-  const inputs = await processor(text, [image], { padding: true })
+  const inputs = await processor(text, image)
   self.postMessage({ type: 'infer-progress', id, progress: 40 })
 
   const outputs = await model.generate({
