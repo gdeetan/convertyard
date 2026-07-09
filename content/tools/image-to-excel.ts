@@ -12,8 +12,8 @@ export const config: ToolConfig = {
   convertFn: imageToExcelVlm,
 
   limitationNote: {
-    summary: 'Uses a local AI model (~1.8 GB download on first use)',
-    body: 'Qwen2.5-VL-3B runs entirely in your browser via WebGPU. First use downloads ~1.8 GB which is then cached — subsequent conversions start immediately. Handles complex multi-column tables, merged headers, and N/A values accurately. Extremely dense nested tables may still need minor cleanup.',
+    summary: 'Model size depends on your browser',
+    body: 'Chrome/Edge with GPU: uses Qwen2.5-VL-3B-Instruct (~1.8 GB, one-time download, then cached) — accurate on complex tables. Safari/Firefox or no GPU: uses SmolVLM-500M (~200 MB) — results may need verification. All processing runs locally; files never leave your device.',
   },
 
   options: [],

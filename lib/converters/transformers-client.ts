@@ -4,6 +4,14 @@ import type { ModelType } from './transformers-worker'
 
 let workerInstance: Worker | null = null
 
+// ── VLM device tracking ────────────────────────────────────────────────────────
+
+let lastVlmDevice: 'webgpu' | 'wasm' = 'wasm'
+
+export function getVlmDevice(): 'webgpu' | 'wasm' {
+  return lastVlmDevice
+}
+
 function getWorker(): Worker {
   if (!workerInstance) {
     workerInstance = new Worker(
@@ -40,6 +48,8 @@ export function loadTransformersModel(
         delete loadingPromise[modelType]
         onProgress(100)
         resolve()
+      } else if (d.type === 'model-device' && d.modelType === modelType) {
+        lastVlmDevice = d.device as 'webgpu' | 'wasm'
       } else if (d.type === 'error' && !d.id) {
         worker.removeEventListener('message', handler)
         delete loadingPromise[modelType]

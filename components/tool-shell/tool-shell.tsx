@@ -33,6 +33,7 @@ interface ToolShellProps {
   embedded?: boolean
   onResults?: (results: File[]) => void
   initialOptions?: ToolOptions
+  notice?: React.ReactNode
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -151,7 +152,7 @@ function buildDefaultOptions(config: ToolConfig): ToolOptions {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export function ToolShell({ config, embedded = false, onResults, initialOptions }: ToolShellProps) {
+export function ToolShell({ config, embedded = false, onResults, initialOptions, notice }: ToolShellProps) {
   const [state, dispatch] = useReducer(reducer, {
     entries: [],
     phase: 'idle',
@@ -279,6 +280,9 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions 
           </div>
         </div>
       )}
+
+      {/* ── Optional notice banner ──────────────────────────────────────── */}
+      {notice && <div className="mb-4">{notice}</div>}
 
       {/* ── Main tool card ───────────────────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-bg-elevated p-6 shadow-sm">
