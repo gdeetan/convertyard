@@ -195,26 +195,98 @@ function detectImageMode(bitmap: ImageBitmap): 'photo' | 'graphic' {
   return (uniqueRatio < 0.15 || flatRatio > 0.30) ? 'graphic' : 'photo'
 }
 
-// Step-up canvas scaling for graphics: upscale in 2× passes rather than one
-// large pass. Each pass uses a narrower bicubic kernel → sharper result.
-// 2× → 1 pass. 3× → 2× then 1.5×. 4× → 2× twice. 8× → 2× three times.
-function graphicScale(src: ImageBitmap | OffscreenCanvas, targetW: number, targetH: number): OffscreenCanvas {
-  let cur: ImageBitmap | OffscreenCanvas = src
-  let curW = src instanceof ImageBitmap ? src.width  : src.width
-  let curH = src instanceof ImageBitmap ? src.height : src.height
+// Lanczos2 sinc weight — zero outside radius 2, smooth taper inside.
+function lanczos2W(x: number): number {
+  const ax = Math.abs(x)
+  if (ax === 0) return 1
+  if (ax >= 2) return 0
+  const pax = Math.PI * ax
+  return (Math.sin(pax) / pax) * (Math.sin(pax * 0.5) / (pax * 0.5))
+}
 
-  while (curW < targetW || curH < targetH) {
-    const nextW = Math.min(curW * 2, targetW)
-    const nextH = Math.min(curH * 2, targetH)
-    const step  = new OffscreenCanvas(nextW, nextH)
-    const sCtx  = step.getContext('2d')!
-    sCtx.imageSmoothingEnabled = true
-    sCtx.imageSmoothingQuality = 'high'
-    sCtx.drawImage(cur as CanvasImageSource, 0, 0, nextW, nextH)
-    cur = step; curW = nextW; curH = nextH
+// Separable Lanczos2 upscale for graphics.
+// Two-pass (horizontal then vertical) so the kernel is applied once per axis
+// instead of the full 2D cross-product — keeps complexity O(N·k) not O(N·k²).
+// Produces crisp text and sharp colour edges; much better than bicubic for
+// infographics and illustrations.
+async function graphicScale(
+  bitmap: ImageBitmap,
+  targetW: number,
+  targetH: number,
+  onProgress: (pct: number) => void
+): Promise<OffscreenCanvas> {
+  const srcW = bitmap.width
+  const srcH = bitmap.height
+
+  // Extract source pixels into a plain array
+  const srcCanvas = new OffscreenCanvas(srcW, srcH)
+  srcCanvas.getContext('2d')!.drawImage(bitmap, 0, 0)
+  const src = srcCanvas.getContext('2d')!.getImageData(0, 0, srcW, srcH).data
+
+  // ── Horizontal pass: (srcW × srcH) → (targetW × srcH) ──────────────────
+  // Pre-compute kernel weights per output column (reused for every row).
+  const hStart = new Int32Array(targetW)
+  const hWts: Float32Array[] = []
+  for (let tx = 0; tx < targetW; tx++) {
+    const sx  = (tx + 0.5) * srcW / targetW - 0.5
+    const x0  = Math.max(0, Math.ceil(sx - 2))
+    const x1  = Math.min(srcW - 1, Math.floor(sx + 2))
+    const ws  = new Float32Array(x1 - x0 + 1)
+    let wsum  = 0
+    for (let xi = x0; xi <= x1; xi++) { ws[xi - x0] = lanczos2W(sx - xi); wsum += ws[xi - x0] }
+    if (wsum > 0) for (let i = 0; i < ws.length; i++) ws[i] /= wsum
+    hStart[tx] = x0
+    hWts.push(ws)
   }
 
-  return cur as OffscreenCanvas
+  const inter = new Uint8ClampedArray(targetW * srcH * 4)
+  for (let sy = 0; sy < srcH; sy++) {
+    const srcRow = sy * srcW * 4
+    const iRow   = sy * targetW * 4
+    for (let tx = 0; tx < targetW; tx++) {
+      const s0 = hStart[tx]; const ws = hWts[tx]
+      let r = 0, g = 0, b = 0, a = 0
+      for (let k = 0; k < ws.length; k++) {
+        const si = srcRow + (s0 + k) * 4; const w = ws[k]
+        r += src[si] * w; g += src[si + 1] * w; b += src[si + 2] * w; a += src[si + 3] * w
+      }
+      const oi = iRow + tx * 4
+      inter[oi] = r; inter[oi + 1] = g; inter[oi + 2] = b; inter[oi + 3] = a
+    }
+    if (sy % 64 === 0) onProgress(Math.round((sy / srcH) * 45))
+  }
+
+  // ── Vertical pass: (targetW × srcH) → (targetW × targetH) ──────────────
+  const out    = new OffscreenCanvas(targetW, targetH)
+  const outCtx = out.getContext('2d')!
+  const outImg = outCtx.createImageData(targetW, targetH)
+  const outPx  = outImg.data
+
+  for (let ty = 0; ty < targetH; ty++) {
+    const sy  = (ty + 0.5) * srcH / targetH - 0.5
+    const y0  = Math.max(0, Math.ceil(sy - 2))
+    const y1  = Math.min(srcH - 1, Math.floor(sy + 2))
+    // Vertical weights (small array, compute inline)
+    const vws: number[] = []; let vsum = 0
+    for (let yi = y0; yi <= y1; yi++) { const w = lanczos2W(sy - yi); vws.push(w); vsum += w }
+    const oRow = ty * targetW * 4
+    for (let tx = 0; tx < targetW; tx++) {
+      let r = 0, g = 0, b = 0, a = 0
+      for (let k = 0; k < vws.length; k++) {
+        const ii = (y0 + k) * targetW * 4 + tx * 4; const w = vws[k] / vsum
+        r += inter[ii] * w; g += inter[ii + 1] * w; b += inter[ii + 2] * w; a += inter[ii + 3] * w
+      }
+      const oi = oRow + tx * 4
+      outPx[oi]     = Math.max(0, Math.min(255, r))
+      outPx[oi + 1] = Math.max(0, Math.min(255, g))
+      outPx[oi + 2] = Math.max(0, Math.min(255, b))
+      outPx[oi + 3] = Math.max(0, Math.min(255, a))
+    }
+    if (ty % 64 === 0) onProgress(45 + Math.round((ty / targetH) * 45))
+  }
+
+  outCtx.putImageData(outImg, 0, 0)
+  return out
 }
 
 async function runInference(
@@ -262,15 +334,19 @@ async function runInference(
   const resolvedMode = imageMode === 'auto' ? detectImageMode(workBitmap) : imageMode
   self.postMessage({ type: 'log', id, message: `Image mode: ${resolvedMode}${imageMode === 'auto' ? ' (auto-detected)' : ''}` })
 
-  // ── Graphic path: step-up canvas scaling ───────────────────────────────────
-  // Upscales in 2× passes so each bicubic kernel operates over fewer pixels
-  // → sharper than a single large-factor pass. Flat colours and hard edges
-  // are preserved; no AI texture hallucination.
+  // ── Graphic path: Lanczos2 separable upscale ───────────────────────────────
+  // Sinc-based filter preserves hard edges and sharp text — far crisper than
+  // bicubic. Flat colours stay flat; no AI texture hallucination.
   if (resolvedMode === 'graphic') {
-    const out = graphicScale(workBitmap, workW * scaleFactor, workH * scaleFactor)
+    const out = await graphicScale(
+      workBitmap,
+      workW * scaleFactor,
+      workH * scaleFactor,
+      (pct) => self.postMessage({ type: 'infer-progress', id, progress: pct })
+    )
     bitmap.close()
     if (workBitmap !== bitmap) workBitmap.close()
-    self.postMessage({ type: 'infer-progress', id, progress: 90 })
+    self.postMessage({ type: 'infer-progress', id, progress: 95 })
     const resultBlob   = await out.convertToBlob({ type: outMime, quality: 0.92 })
     const resultBuffer = await resultBlob.arrayBuffer()
     self.postMessage({ type: 'infer-progress', id, progress: 100 })
