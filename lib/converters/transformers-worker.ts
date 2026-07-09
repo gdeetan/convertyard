@@ -401,11 +401,16 @@ async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, pr
   const blob = new Blob([buffer], { type: mimeType })
   let image = await RawImage.fromBlob(blob)
 
-  // WebGPU can handle 1344px; WASM uses 756px to avoid std::bad_alloc from too many visual tokens.
-  const MAX_PX = vlmDevice === 'wasm' ? 756 : 1344
-  if (image.width > MAX_PX || image.height > MAX_PX) {
-    const scale = MAX_PX / Math.max(image.width, image.height)
-    image = await image.resize(Math.round(image.width * scale), Math.round(image.height * scale))
+  // Qwen2.5-VL patches are 28px; spatial_merge_size=2 means effective stride is 56px.
+  // Both dimensions must be multiples of 56 or the ONNX tensor allocation mismatches.
+  // WebGPU budget allows 1344px (24×56); WASM uses 728px (13×56) to avoid std::bad_alloc.
+  const PATCH = 56
+  const MAX_PX = vlmDevice === 'wasm' ? 728 : 1344
+  const scale = Math.min(1, MAX_PX / Math.max(image.width, image.height))
+  const alignedW = Math.max(PATCH, Math.round((image.width * scale) / PATCH) * PATCH)
+  const alignedH = Math.max(PATCH, Math.round((image.height * scale) / PATCH) * PATCH)
+  if (alignedW !== image.width || alignedH !== image.height) {
+    image = await image.resize(alignedW, alignedH)
   }
 
   self.postMessage({ type: 'infer-progress', id, progress: 15 })
