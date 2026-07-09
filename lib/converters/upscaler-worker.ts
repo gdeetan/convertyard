@@ -334,10 +334,11 @@ async function runInference(
   const srcW = bitmap.width
   const srcH = bitmap.height
 
-  // Chrome GPU-backed canvases silently fail above ~16384px per side.
-  // If the scaled output would exceed MAX_CANVAS_DIM, downscale the source first
-  // so the output canvas stays within GPU limits.
-  const MAX_CANVAS_DIM = 8192
+  // Chrome GPU-backed canvases (WebGL/ESRGAN) silently fail above ~16384px per side.
+  // 2D-only canvases (Lanczos graphic path) support up to ~32768px — use a higher cap
+  // so large source images still produce output bigger than the original.
+  const MAX_CANVAS_DIM = 8192   // ESRGAN/WebGL photo path
+  const MAX_GRAPHIC_DIM = 16384 // Lanczos 2D canvas graphic path
   let workBitmap: ImageBitmap = bitmap
   let workW = srcW
   let workH = srcH
@@ -367,11 +368,12 @@ async function runInference(
   if (resolvedMode === 'graphic') {
     const rawOutW = srcW * scaleFactor
     const rawOutH = srcH * scaleFactor
-    const capRatio = Math.min(1, MAX_CANVAS_DIM / rawOutW, MAX_CANVAS_DIM / rawOutH)
+    // Use the higher 2D canvas cap so output is never smaller than the source.
+    const capRatio = Math.min(1, MAX_GRAPHIC_DIM / rawOutW, MAX_GRAPHIC_DIM / rawOutH)
     const capW = Math.round(rawOutW * capRatio)
     const capH = Math.round(rawOutH * capRatio)
     if (capRatio < 1) {
-      self.postMessage({ type: 'log', id, message: `Graphic: capping output ${rawOutW}×${rawOutH} → ${capW}×${capH} (GPU limit)` })
+      self.postMessage({ type: 'log', id, message: `Graphic: capping output ${rawOutW}×${rawOutH} → ${capW}×${capH} (canvas limit)` })
     }
     const out = await graphicScale(
       bitmap,   // original — Lanczos handles the full ratio directly
