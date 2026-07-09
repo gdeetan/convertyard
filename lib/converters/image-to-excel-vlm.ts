@@ -1,4 +1,4 @@
-import { loadTransformersModel, extractTableWithVlm } from '@/lib/converters/transformers-client'
+import { loadTransformersModel, extractTableWithVlm, getVlmDevice } from '@/lib/converters/transformers-client'
 import type { ConversionResult, ToolOptions } from '@/lib/types'
 import * as XLSX from 'xlsx'
 
@@ -103,11 +103,12 @@ export async function imageToExcelVlm(
       if (rows.length === 0) throw new Error('No table data found in image')
 
       const baseName = file.name.replace(/\.[^.]+$/, '')
-      const xlsxBytes = toXlsx(rows, baseName)
+      const outputName = getVlmDevice() === 'wasm' ? `${baseName} (verify output)` : baseName
+      const xlsxBytes = toXlsx(rows, outputName)
       results.push(
         new File(
           [xlsxBytes as unknown as Uint8Array<ArrayBuffer>],
-          `${baseName}.xlsx`,
+          `${outputName}.xlsx`,
           { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
         )
       )
