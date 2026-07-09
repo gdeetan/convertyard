@@ -392,7 +392,7 @@ async function runOcr(id: string, buffer: ArrayBuffer, mimeType: string) {
   self.postMessage({ type: 'infer-result', id, result })
 }
 
-// ── Inference: table extraction (SmolVLM-500M) ────────────────────────────────
+// ── Inference: table extraction (Qwen2.5-VL-3B-Instruct-ONNX) ──────────────
 
 async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, prompt: string) {
   const { RawImage } = await import('@huggingface/transformers')
@@ -422,6 +422,7 @@ async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, pr
     add_generation_prompt: true,
   })
 
+  // padding: true required by Qwen2VL processor for correct attention mask generation
   const inputs = await processor(text, [image], { padding: true })
   self.postMessage({ type: 'infer-progress', id, progress: 40 })
 
