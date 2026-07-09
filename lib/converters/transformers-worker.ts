@@ -16,7 +16,7 @@
 // Injected at build time — empty string when env var is not set
 declare const __HF_TOKEN__: string
 
-export type ModelType = 'bg-removal' | 'alt-text' | 'ocr'
+export type ModelType = 'bg-removal' | 'alt-text' | 'ocr' | 'table-vlm'
 
 interface LoadMsg { type: 'load'; modelType: ModelType }
 interface InferMsg {
@@ -25,7 +25,7 @@ interface InferMsg {
   modelType: ModelType
   buffer: ArrayBuffer
   mimeType: string
-  opts: { maxTokens?: number; outputFormat?: string; contextHint?: string; filename?: string }
+  opts: { maxTokens?: number; outputFormat?: string; contextHint?: string; filename?: string; prompt?: string }
 }
 type IncomingMsg = LoadMsg | InferMsg
 
@@ -35,6 +35,8 @@ let bgModel: unknown = null
 let bgProcessor: unknown = null
 let altModel: unknown = null
 let altProcessor: unknown = null
+let vlmModel: unknown = null
+let vlmProcessor: unknown = null
 // ── Aggregated download progress tracker ──────────────────────────────────────
 
 function makeProgressCallback(modelType: ModelType) {
@@ -121,6 +123,35 @@ async function loadAltModel(progressType: ModelType = 'alt-text') {
   } catch {
     await tryLoad(false)  // HF Hub fallback (uses __HF_TOKEN__)
   }
+}
+
+async function loadSmolVlmModel() {
+  if (vlmModel && vlmProcessor) return
+  await ensureHfAuth()
+
+  const { AutoModelForImageTextToText, AutoProcessor } = await import('@huggingface/transformers')
+  const cb = makeProgressCallback('table-vlm')
+  const MODEL_ID = 'HuggingFaceTB/SmolVLM-500M-Instruct'
+
+  // Try WebGPU first (fast), fall back to WASM (slow but works everywhere)
+  let device: 'webgpu' | 'wasm'
+  try {
+    const adapter = await (navigator as unknown as { gpu?: { requestAdapter: () => Promise<unknown> } }).gpu?.requestAdapter()
+    device = adapter ? 'webgpu' : 'wasm'
+  } catch {
+    device = 'wasm'
+  }
+
+  const dtype = device === 'webgpu'
+    ? { embed_tokens: 'fp16' as const, vision_encoder: 'fp16' as const, decoder_model_merged: 'q4' as const }
+    : 'fp32' as const
+
+  vlmProcessor = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb })
+  vlmModel = await AutoModelForImageTextToText.from_pretrained(MODEL_ID, {
+    dtype,
+    device,
+    progress_callback: cb,
+  })
 }
 
 // ── Inference: background removal ─────────────────────────────────────────────
@@ -360,6 +391,55 @@ async function runOcr(id: string, buffer: ArrayBuffer, mimeType: string) {
   self.postMessage({ type: 'infer-result', id, result })
 }
 
+// ── Inference: table extraction (SmolVLM-500M) ────────────────────────────────
+
+async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, prompt: string) {
+  const { RawImage } = await import('@huggingface/transformers')
+
+  const blob = new Blob([buffer], { type: mimeType })
+  const image = await RawImage.fromBlob(blob)
+
+  self.postMessage({ type: 'infer-progress', id, progress: 15 })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const processor = vlmProcessor as any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const model = vlmModel as any
+
+  const messages = [
+    {
+      role: 'user',
+      content: [
+        { type: 'image' },
+        { type: 'text', text: prompt },
+      ],
+    },
+  ]
+
+  const text = processor.apply_chat_template(messages, {
+    tokenize: false,
+    add_generation_prompt: true,
+  })
+
+  const inputs = await processor(text, [image])
+  self.postMessage({ type: 'infer-progress', id, progress: 40 })
+
+  const outputs = await model.generate({
+    ...inputs,
+    max_new_tokens: 2048,
+  })
+
+  self.postMessage({ type: 'infer-progress', id, progress: 85 })
+
+  // Slice off prompt tokens — keep only newly generated tokens
+  const newTokens = outputs.slice(inputs.input_ids.dims[1])
+  const decoded: string[] = processor.batch_decode(newTokens, { skip_special_tokens: true })
+  const result = (decoded[0] ?? '').trim()
+
+  self.postMessage({ type: 'infer-progress', id, progress: 100 })
+  self.postMessage({ type: 'infer-result', id, result })
+}
+
 // ── Message router ────────────────────────────────────────────────────────────
 
 self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
@@ -370,6 +450,7 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
       if (msg.modelType === 'bg-removal') await loadBgModel()
       else if (msg.modelType === 'alt-text') await loadAltModel('alt-text')
       else if (msg.modelType === 'ocr') await loadAltModel('ocr')  // same Florence-2 model
+      else if (msg.modelType === 'table-vlm') await loadSmolVlmModel()
       self.postMessage({ type: 'model-ready', modelType: msg.modelType })
     } catch (err) {
       self.postMessage({ type: 'error', message: (err as Error).message })
@@ -386,6 +467,9 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
         await runAltText(id, buffer, mimeType, opts.maxTokens ?? 50, opts.contextHint, opts.filename)
       } else if (modelType === 'ocr') {
         await runOcr(id, buffer, mimeType)
+      } else if (modelType === 'table-vlm') {
+        const prompt = opts.prompt ?? 'Extract the table as CSV. First row: headers. No explanation, no markdown fences.'
+        await runTableVlm(id, buffer, mimeType, prompt)
       }
     } catch (err) {
       self.postMessage({ type: 'error', id, message: (err as Error).message })
