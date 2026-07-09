@@ -143,14 +143,26 @@ async function upscaleTileToRgba(scale: UpscaleScale, tileData: ImageData) {
 }
 
 // Detect whether an image is photorealistic or a graphic (illustration, infographic, etc.)
-// by sampling unique colours at 5-bit quantisation. Photos have high unique-colour ratios
-// (organic gradients everywhere); graphics have low ratios (large flat regions, few hues).
+// Uses two independent signals and classifies as graphic if either fires:
+//
+//   Signal 1 — unique colour ratio (5-bit quantised):
+//     Photos  → 0.20–0.80  (organic gradients everywhere)
+//     Graphics → 0.001–0.10 (few distinct hues, even with illustrations)
+//
+//   Signal 2 — flat patch ratio (8×8 luma-variance blocks):
+//     Photos  → <5% of patches are flat (noise in every region)
+//     Graphics → >30% of patches are flat (large solid-colour fills)
+//
+// Using OR means a complex illustrated infographic (many colours BUT lots of
+// flat regions) is still caught by signal 2 even when signal 1 misses it.
 function detectImageMode(bitmap: ImageBitmap): 'photo' | 'graphic' {
   const SAMPLE = 200
   const canvas = new OffscreenCanvas(SAMPLE, SAMPLE)
   const ctx = canvas.getContext('2d')!
   ctx.drawImage(bitmap, 0, 0, SAMPLE, SAMPLE)
   const { data } = ctx.getImageData(0, 0, SAMPLE, SAMPLE)
+
+  // Signal 1: unique colour count
   const colors = new Set<number>()
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i]     >> 3
@@ -158,8 +170,51 @@ function detectImageMode(bitmap: ImageBitmap): 'photo' | 'graphic' {
     const b = data[i + 2] >> 3
     colors.add((r << 10) | (g << 5) | b)
   }
-  // Photos: ratio typically 0.2–0.8. Graphics: ratio typically 0.001–0.05.
-  return colors.size / (SAMPLE * SAMPLE) < 0.12 ? 'graphic' : 'photo'
+  const uniqueRatio = colors.size / (SAMPLE * SAMPLE)
+
+  // Signal 2: flat patch ratio (8×8 blocks with near-zero luma variance)
+  const PATCH = 8
+  let flatPatches = 0, totalPatches = 0
+  for (let py = 0; py <= SAMPLE - PATCH; py += PATCH) {
+    for (let px = 0; px <= SAMPLE - PATCH; px += PATCH) {
+      let sum = 0, sumSq = 0, n = 0
+      for (let dy = 0; dy < PATCH; dy++) {
+        for (let dx = 0; dx < PATCH; dx++) {
+          const idx = ((py + dy) * SAMPLE + (px + dx)) * 4
+          const luma = data[idx] * 0.299 + data[idx + 1] * 0.587 + data[idx + 2] * 0.114
+          sum += luma; sumSq += luma * luma; n++
+        }
+      }
+      const mean = sum / n
+      if (sumSq / n - mean * mean < 50) flatPatches++
+      totalPatches++
+    }
+  }
+  const flatRatio = flatPatches / totalPatches
+
+  return (uniqueRatio < 0.15 || flatRatio > 0.30) ? 'graphic' : 'photo'
+}
+
+// Step-up canvas scaling for graphics: upscale in 2× passes rather than one
+// large pass. Each pass uses a narrower bicubic kernel → sharper result.
+// 2× → 1 pass. 3× → 2× then 1.5×. 4× → 2× twice. 8× → 2× three times.
+function graphicScale(src: ImageBitmap | OffscreenCanvas, targetW: number, targetH: number): OffscreenCanvas {
+  let cur: ImageBitmap | OffscreenCanvas = src
+  let curW = src instanceof ImageBitmap ? src.width  : src.width
+  let curH = src instanceof ImageBitmap ? src.height : src.height
+
+  while (curW < targetW || curH < targetH) {
+    const nextW = Math.min(curW * 2, targetW)
+    const nextH = Math.min(curH * 2, targetH)
+    const step  = new OffscreenCanvas(nextW, nextH)
+    const sCtx  = step.getContext('2d')!
+    sCtx.imageSmoothingEnabled = true
+    sCtx.imageSmoothingQuality = 'high'
+    sCtx.drawImage(cur as CanvasImageSource, 0, 0, nextW, nextH)
+    cur = step; curW = nextW; curH = nextH
+  }
+
+  return cur as OffscreenCanvas
 }
 
 async function runInference(
@@ -207,15 +262,12 @@ async function runInference(
   const resolvedMode = imageMode === 'auto' ? detectImageMode(workBitmap) : imageMode
   self.postMessage({ type: 'log', id, message: `Image mode: ${resolvedMode}${imageMode === 'auto' ? ' (auto-detected)' : ''}` })
 
-  // ── Graphic path: canvas bicubic ───────────────────────────────────────────
-  // Preserves flat colours and hard edges. Much better than ESRGAN for
-  // illustrations, infographics, icons, and text-heavy images.
+  // ── Graphic path: step-up canvas scaling ───────────────────────────────────
+  // Upscales in 2× passes so each bicubic kernel operates over fewer pixels
+  // → sharper than a single large-factor pass. Flat colours and hard edges
+  // are preserved; no AI texture hallucination.
   if (resolvedMode === 'graphic') {
-    const out = new OffscreenCanvas(workW * scaleFactor, workH * scaleFactor)
-    const ctx = out.getContext('2d')!
-    ctx.imageSmoothingEnabled = true
-    ctx.imageSmoothingQuality = 'high'
-    ctx.drawImage(workBitmap, 0, 0, workW * scaleFactor, workH * scaleFactor)
+    const out = graphicScale(workBitmap, workW * scaleFactor, workH * scaleFactor)
     bitmap.close()
     if (workBitmap !== bitmap) workBitmap.close()
     self.postMessage({ type: 'infer-progress', id, progress: 90 })
