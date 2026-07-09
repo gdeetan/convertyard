@@ -1,5 +1,5 @@
 import type { ToolConfig, ConversionResult } from '@/lib/types'
-import { upscaleBatch, type UpscaleScale, type UpscaleOutputFormat } from '@/lib/converters/image-upscaler'
+import { upscaleBatch, type UpscaleScale, type UpscaleOutputFormat, type ImageMode } from '@/lib/converters/image-upscaler'
 
 export const config: ToolConfig = {
   slug: 'image-upscaler',
@@ -13,9 +13,10 @@ export const config: ToolConfig = {
   convertFn: async (files, options, onProgress): Promise<ConversionResult[]> => {
     const scale = ((options.scale as string) ?? '4x') as UpscaleScale
     const outputFormat = ((options.outputFormat as string) ?? 'match') as UpscaleOutputFormat
+    const imageMode = ((options.imageMode as string) ?? 'auto') as ImageMode
     const results = await upscaleBatch(
       files,
-      { scale, outputFormat },
+      { scale, outputFormat, imageMode },
       () => {},
       (fileIndex: number, pct: number) => onProgress?.(fileIndex, pct)
     )
@@ -33,6 +34,17 @@ export const config: ToolConfig = {
         { value: '3x', label: '3×' },
         { value: '4x', label: '4× (recommended)' },
         { value: '8x', label: '8× (largest)' },
+      ],
+    },
+    {
+      type: 'radio',
+      name: 'imageMode',
+      label: 'Image type',
+      default: 'auto',
+      choices: [
+        { value: 'auto', label: 'Auto-detect' },
+        { value: 'photo', label: 'Photo' },
+        { value: 'graphic', label: 'Graphic / illustration' },
       ],
     },
     {
