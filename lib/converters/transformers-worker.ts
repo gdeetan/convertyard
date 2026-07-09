@@ -130,7 +130,7 @@ async function loadTableVlmModel() {
   if (vlmModel && vlmProcessor) return
   await ensureHfAuth()
 
-  const { Qwen2VLForConditionalGeneration, AutoProcessor } = await import('@huggingface/transformers')
+  const { Qwen2_5_VLForConditionalGeneration: Qwen2_5_VL, AutoProcessor } = await import('@huggingface/transformers')
   const cb = makeProgressCallback('table-vlm')
   const MODEL_ID = 'onnx-community/Qwen2.5-VL-3B-Instruct-ONNX'
 
@@ -149,7 +149,7 @@ async function loadTableVlmModel() {
     : 'q8' as const
 
   vlmProcessor = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb })
-  vlmModel = await Qwen2VLForConditionalGeneration.from_pretrained(MODEL_ID, {
+  vlmModel = await Qwen2_5_VL.from_pretrained(MODEL_ID, {
     dtype,
     device,
     progress_callback: cb,
