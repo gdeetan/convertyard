@@ -20,6 +20,7 @@ import { config as compressImage } from './tools/compress-image'
 import { config as imageResizer } from './tools/image-resizer'
 import { config as imageCropper } from './tools/image-cropper'
 import { config as mp4ToMp3 } from './tools/mp4-to-mp3'
+import { config as mp4ToWebp } from './tools/mp4-to-webp'
 import { config as mp3ToMp4 } from './tools/mp3-to-mp4'
 import { config as backgroundRemover } from './tools/background-remover'
 import { config as altTextGenerator } from './tools/alt-text-generator'
@@ -65,6 +66,7 @@ export const tools: ToolConfig[] = [
   imageResizer,
   imageCropper,
   mp4ToMp3,
+  mp4ToWebp,
   mp3ToMp4,
   backgroundRemover,
   altTextGenerator,
