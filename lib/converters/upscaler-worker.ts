@@ -125,7 +125,11 @@ async function upscaleTileToRgba(scale: UpscaleScale, tileData: ImageData) {
   if (!upscaler) throw new Error(`Model ${scale} not loaded`)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tensor: any = await upscaler.upscale(tileData, { output: 'tensor' })
+  const tensor: any = await upscaler.upscale(tileData, {
+    output: 'tensor',
+    patchSize: TILE_PX,
+    padding: OVERLAP,
+  })
   const shape = Array.from(tensor.shape as number[])
   const { width, height } = normalizeTensorShape(shape)
   const floats = await tensor.data() as Float32Array
@@ -153,13 +157,34 @@ async function runInference(
   const srcW = bitmap.width
   const srcH = bitmap.height
 
+  // Chrome GPU-backed canvases silently fail above ~16384px per side.
+  // If the scaled output would exceed MAX_CANVAS_DIM, downscale the source first
+  // so the output canvas stays within GPU limits.
+  const MAX_CANVAS_DIM = 8192
+  let workBitmap: ImageBitmap = bitmap
+  let workW = srcW
+  let workH = srcH
+  if (srcW * scaleFactor > MAX_CANVAS_DIM || srcH * scaleFactor > MAX_CANVAS_DIM) {
+    const limitRatio = Math.min(MAX_CANVAS_DIM / (srcW * scaleFactor), MAX_CANVAS_DIM / (srcH * scaleFactor))
+    workW = Math.round(srcW * limitRatio)
+    workH = Math.round(srcH * limitRatio)
+    const scaleCanvas = new OffscreenCanvas(workW, workH)
+    scaleCanvas.getContext('2d')!.drawImage(bitmap, 0, 0, workW, workH)
+    workBitmap = await createImageBitmap(scaleCanvas)
+    self.postMessage({
+      type: 'log',
+      id,
+      message: `Source scaled ${srcW}×${srcH} → ${workW}×${workH} to fit GPU canvas limit (output would have been ${srcW * scaleFactor}×${srcH * scaleFactor})`,
+    })
+  }
+
   // Allocate full output canvas at upscaled dimensions
-  const out    = new OffscreenCanvas(srcW * scaleFactor, srcH * scaleFactor)
+  const out    = new OffscreenCanvas(workW * scaleFactor, workH * scaleFactor)
   const outCtx = out.getContext('2d')!
 
   // Build tile grid
-  const xStarts = buildStarts(srcW, TILE_PX)
-  const yStarts = buildStarts(srcH, TILE_PX)
+  const xStarts = buildStarts(workW, TILE_PX)
+  const yStarts = buildStarts(workH, TILE_PX)
   const total   = xStarts.length * yStarts.length
   let done = 0
 
@@ -167,14 +192,14 @@ async function runInference(
 
   for (const sy of yStarts) {
     for (const sx of xStarts) {
-      const tw = Math.min(TILE_PX, srcW - sx)
-      const th = Math.min(TILE_PX, srcH - sy)
+      const tw = Math.min(TILE_PX, workW - sx)
+      const th = Math.min(TILE_PX, workH - sy)
 
       // Overlap padding — skip at image edges to avoid out-of-bounds reads
       const padL = sx > 0 ? OVERLAP : 0
       const padT = sy > 0 ? OVERLAP : 0
-      const padR = sx + tw < srcW ? OVERLAP : 0
-      const padB = sy + th < srcH ? OVERLAP : 0
+      const padR = sx + tw < workW ? OVERLAP : 0
+      const padB = sy + th < workH ? OVERLAP : 0
 
       const extX = sx - padL
       const extY = sy - padT
@@ -183,7 +208,7 @@ async function runInference(
 
       // Extract overlapping tile as ImageData
       const tileCanvas = new OffscreenCanvas(extW, extH)
-      tileCanvas.getContext('2d')!.drawImage(bitmap, extX, extY, extW, extH, 0, 0, extW, extH)
+      tileCanvas.getContext('2d')!.drawImage(workBitmap, extX, extY, extW, extH, 0, 0, extW, extH)
       const tileData = tileCanvas.getContext('2d')!.getImageData(0, 0, extW, extH)
 
       let rendered = await upscaleTileToRgba(scale, tileData)
@@ -230,6 +255,7 @@ async function runInference(
   }
 
   bitmap.close()
+  if (workBitmap !== bitmap) workBitmap.close()
 
   self.postMessage({ type: 'infer-progress', id, progress: 95 })
 
