@@ -400,7 +400,7 @@ async function runOcr(id: string, buffer: ArrayBuffer, mimeType: string) {
   self.postMessage({ type: 'infer-result', id, result })
 }
 
-// ── Inference: table extraction (Qwen2-VL-2B-Instruct) ───────────────────────
+// ── Inference: table extraction (Qwen2.5-VL-3B on WebGPU, SmolVLM-500M on WASM) ──
 
 async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, prompt: string) {
   const { RawImage } = await import('@huggingface/transformers')
