@@ -195,20 +195,26 @@ function detectImageMode(bitmap: ImageBitmap): 'photo' | 'graphic' {
   return (uniqueRatio < 0.15 || flatRatio > 0.30) ? 'graphic' : 'photo'
 }
 
-// Lanczos2 sinc weight — zero outside radius 2, smooth taper inside.
-function lanczos2W(x: number): number {
+// Generalized Lanczos2 weight with explicit support radius.
+// For upscaling: radius = 2 (source-pixel units).
+// For downscaling: radius = 2 / scale — widens the kernel to prevent aliasing.
+function lanczosWeight(x: number, radius: number): number {
   const ax = Math.abs(x)
   if (ax === 0) return 1
-  if (ax >= 2) return 0
-  const pax = Math.PI * ax
-  return (Math.sin(pax) / pax) * (Math.sin(pax * 0.5) / (pax * 0.5))
+  if (ax >= radius) return 0
+  const norm = ax / radius       // normalise to [0, 1) regardless of radius
+  const pnorm = Math.PI * norm
+  return (Math.sin(pnorm) / pnorm) * (Math.sin(pnorm * 0.5) / (pnorm * 0.5))
 }
 
-// Separable Lanczos2 upscale for graphics.
-// Two-pass (horizontal then vertical) so the kernel is applied once per axis
-// instead of the full 2D cross-product — keeps complexity O(N·k) not O(N·k²).
-// Produces crisp text and sharp colour edges; much better than bicubic for
-// infographics and illustrations.
+// Strip-based separable Lanczos2 for graphics (handles both upscale and downscale).
+//
+// Two-pass (H then V) to keep complexity O(N·k) instead of O(N·k²).
+// Processes vertical strips of STRIP_H output rows at a time so peak RAM stays
+// bounded — ~6 MB per strip even for a 12848×7594 source, regardless of scale factor.
+//
+// This function accepts the original undegraded bitmap; callers must NOT pre-downscale
+// before calling (use capW/capH to stay within GPU limits instead).
 async function graphicScale(
   bitmap: ImageBitmap,
   targetW: number,
@@ -217,75 +223,94 @@ async function graphicScale(
 ): Promise<OffscreenCanvas> {
   const srcW = bitmap.width
   const srcH = bitmap.height
+  const scaleX = targetW / srcW
+  const scaleY = targetH / srcH
+  // Widen kernel support for downscaling so we anti-alias instead of aliasing.
+  const radiusX = Math.max(2, 2 / scaleX)
+  const radiusY = Math.max(2, 2 / scaleY)
 
-  // Extract source pixels into a plain array
-  const srcCanvas = new OffscreenCanvas(srcW, srcH)
-  srcCanvas.getContext('2d')!.drawImage(bitmap, 0, 0)
-  const src = srcCanvas.getContext('2d')!.getImageData(0, 0, srcW, srcH).data
-
-  // ── Horizontal pass: (srcW × srcH) → (targetW × srcH) ──────────────────
-  // Pre-compute kernel weights per output column (reused for every row).
+  // Pre-compute H-pass kernel per output column (reused for every row strip).
   const hStart = new Int32Array(targetW)
   const hWts: Float32Array[] = []
   for (let tx = 0; tx < targetW; tx++) {
-    const sx  = (tx + 0.5) * srcW / targetW - 0.5
-    const x0  = Math.max(0, Math.ceil(sx - 2))
-    const x1  = Math.min(srcW - 1, Math.floor(sx + 2))
-    const ws  = new Float32Array(x1 - x0 + 1)
-    let wsum  = 0
-    for (let xi = x0; xi <= x1; xi++) { ws[xi - x0] = lanczos2W(sx - xi); wsum += ws[xi - x0] }
+    const sx = (tx + 0.5) / scaleX - 0.5
+    const x0 = Math.max(0, Math.ceil(sx - radiusX))
+    const x1 = Math.min(srcW - 1, Math.floor(sx + radiusX))
+    const ws = new Float32Array(x1 - x0 + 1)
+    let wsum = 0
+    for (let xi = x0; xi <= x1; xi++) { ws[xi - x0] = lanczosWeight(xi - sx, radiusX); wsum += ws[xi - x0] }
     if (wsum > 0) for (let i = 0; i < ws.length; i++) ws[i] /= wsum
     hStart[tx] = x0
     hWts.push(ws)
   }
 
-  const inter = new Uint8ClampedArray(targetW * srcH * 4)
-  for (let sy = 0; sy < srcH; sy++) {
-    const srcRow = sy * srcW * 4
-    const iRow   = sy * targetW * 4
-    for (let tx = 0; tx < targetW; tx++) {
-      const s0 = hStart[tx]; const ws = hWts[tx]
-      let r = 0, g = 0, b = 0, a = 0
-      for (let k = 0; k < ws.length; k++) {
-        const si = srcRow + (s0 + k) * 4; const w = ws[k]
-        r += src[si] * w; g += src[si + 1] * w; b += src[si + 2] * w; a += src[si + 3] * w
-      }
-      const oi = iRow + tx * 4
-      inter[oi] = r; inter[oi + 1] = g; inter[oi + 2] = b; inter[oi + 3] = a
-    }
-    if (sy % 64 === 0) onProgress(Math.round((sy / srcH) * 45))
-  }
-
-  // ── Vertical pass: (targetW × srcH) → (targetW × targetH) ──────────────
+  const STRIP_H = 64  // output rows per strip
   const out    = new OffscreenCanvas(targetW, targetH)
   const outCtx = out.getContext('2d')!
-  const outImg = outCtx.createImageData(targetW, targetH)
-  const outPx  = outImg.data
 
-  for (let ty = 0; ty < targetH; ty++) {
-    const sy  = (ty + 0.5) * srcH / targetH - 0.5
-    const y0  = Math.max(0, Math.ceil(sy - 2))
-    const y1  = Math.min(srcH - 1, Math.floor(sy + 2))
-    // Vertical weights (small array, compute inline)
-    const vws: number[] = []; let vsum = 0
-    for (let yi = y0; yi <= y1; yi++) { const w = lanczos2W(sy - yi); vws.push(w); vsum += w }
-    const oRow = ty * targetW * 4
-    for (let tx = 0; tx < targetW; tx++) {
-      let r = 0, g = 0, b = 0, a = 0
-      for (let k = 0; k < vws.length; k++) {
-        const ii = (y0 + k) * targetW * 4 + tx * 4; const w = vws[k] / vsum
-        r += inter[ii] * w; g += inter[ii + 1] * w; b += inter[ii + 2] * w; a += inter[ii + 3] * w
+  for (let ty0 = 0; ty0 < targetH; ty0 += STRIP_H) {
+    const ty1      = Math.min(targetH, ty0 + STRIP_H)
+    const nOutRows = ty1 - ty0
+
+    // Source rows required for this output strip (V-kernel margin on both sides).
+    const sy0f = (ty0 + 0.5) / scaleY - 0.5
+    const sy1f = (ty1 - 0.5) / scaleY - 0.5
+    const sy0  = Math.max(0, Math.floor(sy0f - radiusY))
+    const sy1  = Math.min(srcH - 1, Math.ceil(sy1f + radiusY))
+    const nSrcRows = sy1 - sy0 + 1
+
+    // Extract only the needed source rows (cheap canvas crop — no full-image read).
+    const srcStrip = new OffscreenCanvas(srcW, nSrcRows)
+    srcStrip.getContext('2d')!.drawImage(bitmap, 0, sy0, srcW, nSrcRows, 0, 0, srcW, nSrcRows)
+    const srcData = srcStrip.getContext('2d')!.getImageData(0, 0, srcW, nSrcRows).data
+
+    // ── H-pass: srcW × nSrcRows → targetW × nSrcRows ────────────────────
+    // Float32 avoids precision loss from clamping between passes.
+    const inter = new Float32Array(targetW * nSrcRows * 4)
+    for (let ry = 0; ry < nSrcRows; ry++) {
+      const srcOff = ry * srcW    * 4
+      const iOff   = ry * targetW * 4
+      for (let tx = 0; tx < targetW; tx++) {
+        const s0 = hStart[tx]; const ws = hWts[tx]
+        let r = 0, g = 0, b = 0, a = 0
+        for (let k = 0; k < ws.length; k++) {
+          const si = srcOff + (s0 + k) * 4; const w = ws[k]
+          r += srcData[si] * w; g += srcData[si + 1] * w; b += srcData[si + 2] * w; a += srcData[si + 3] * w
+        }
+        const oi = iOff + tx * 4
+        inter[oi] = r; inter[oi + 1] = g; inter[oi + 2] = b; inter[oi + 3] = a
       }
-      const oi = oRow + tx * 4
-      outPx[oi]     = Math.max(0, Math.min(255, r))
-      outPx[oi + 1] = Math.max(0, Math.min(255, g))
-      outPx[oi + 2] = Math.max(0, Math.min(255, b))
-      outPx[oi + 3] = Math.max(0, Math.min(255, a))
     }
-    if (ty % 64 === 0) onProgress(45 + Math.round((ty / targetH) * 45))
+
+    // ── V-pass: targetW × nSrcRows → targetW × nOutRows ─────────────────
+    const outImg = new ImageData(targetW, nOutRows)
+    const outPx  = outImg.data
+    for (let ty = ty0; ty < ty1; ty++) {
+      const sy  = (ty + 0.5) / scaleY - 0.5
+      const y0  = Math.max(sy0, Math.ceil (sy - radiusY))
+      const y1  = Math.min(sy1, Math.floor(sy + radiusY))
+      const vws: number[] = []; let vsum = 0
+      for (let yi = y0; yi <= y1; yi++) { const w = lanczosWeight(yi - sy, radiusY); vws.push(w); vsum += w }
+      const oRow = (ty - ty0) * targetW * 4
+      for (let tx = 0; tx < targetW; tx++) {
+        let r = 0, g = 0, b = 0, a = 0
+        for (let k = 0; k < vws.length; k++) {
+          const ii = (y0 - sy0 + k) * targetW * 4 + tx * 4; const w = vws[k] / vsum
+          r += inter[ii] * w; g += inter[ii + 1] * w; b += inter[ii + 2] * w; a += inter[ii + 3] * w
+        }
+        const oi = oRow + tx * 4
+        outPx[oi]     = Math.max(0, Math.min(255, r))
+        outPx[oi + 1] = Math.max(0, Math.min(255, g))
+        outPx[oi + 2] = Math.max(0, Math.min(255, b))
+        outPx[oi + 3] = Math.max(0, Math.min(255, a))
+      }
+    }
+
+    outCtx.putImageData(outImg, 0, ty0)
+    onProgress(Math.round((ty1 / targetH) * 90))
+    await new Promise<void>(r => setTimeout(r, 0))  // yield between strips
   }
 
-  outCtx.putImageData(outImg, 0, 0)
   return out
 }
 
@@ -335,13 +360,23 @@ async function runInference(
   self.postMessage({ type: 'log', id, message: `Image mode: ${resolvedMode}${imageMode === 'auto' ? ' (auto-detected)' : ''}` })
 
   // ── Graphic path: Lanczos2 separable upscale ───────────────────────────────
-  // Sinc-based filter preserves hard edges and sharp text — far crisper than
-  // bicubic. Flat colours stay flat; no AI texture hallucination.
+  // Pass the original undegraded bitmap so Lanczos operates on full-resolution
+  // source pixels. The canvas guard pre-downscale (bicubic) would destroy quality
+  // before Lanczos could run — here we cap the OUTPUT instead and let Lanczos
+  // handle any scale ratio (including downscale) correctly via its widened kernel.
   if (resolvedMode === 'graphic') {
+    const rawOutW = srcW * scaleFactor
+    const rawOutH = srcH * scaleFactor
+    const capRatio = Math.min(1, MAX_CANVAS_DIM / rawOutW, MAX_CANVAS_DIM / rawOutH)
+    const capW = Math.round(rawOutW * capRatio)
+    const capH = Math.round(rawOutH * capRatio)
+    if (capRatio < 1) {
+      self.postMessage({ type: 'log', id, message: `Graphic: capping output ${rawOutW}×${rawOutH} → ${capW}×${capH} (GPU limit)` })
+    }
     const out = await graphicScale(
-      workBitmap,
-      workW * scaleFactor,
-      workH * scaleFactor,
+      bitmap,   // original — Lanczos handles the full ratio directly
+      capW,
+      capH,
       (pct) => self.postMessage({ type: 'infer-progress', id, progress: pct })
     )
     bitmap.close()
