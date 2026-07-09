@@ -1,4 +1,4 @@
-import { imageOcrConvert } from '@/lib/converters/image-ocr'
+import { imageToExcelVlm } from '@/lib/converters/image-to-excel-vlm'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -9,68 +9,43 @@ export const config: ToolConfig = {
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '.xlsx',
-  convertFn: (files, opts, onProgress) =>
-    imageOcrConvert(files, { ...opts, outputMode: 'excel' }, onProgress),
+  convertFn: imageToExcelVlm,
 
   limitationNote: {
-    summary: 'Works best on clearly structured tables',
-    body: 'Bordered tables and borderless tables with consistent column spacing extract well. Merged cells and complex nested tables may not preserve their structure.',
+    summary: 'Uses a local AI model (~500 MB download on first use)',
+    body: 'SmolVLM-500M runs entirely in your browser via WebGPU. First use downloads ~500 MB which is then cached. Subsequent conversions are instant. Simple and moderately complex tables work well. Extremely dense or multi-level nested headers may need minor cleanup.',
   },
 
-  options: [
-    {
-      type: 'radio',
-      name: 'recognitionEngine',
-      label: 'Recognition engine',
-      choices: [
-        { value: 'standard', label: 'Standard — all languages, no download' },
-        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~262MB (may be cached)' },
-      ],
-      default: 'standard',
-      conditionalHints: {
-        standard: 'Tesseract OCR with image preprocessing. Works with all languages. Best for clean, printed text.',
-        'ai-enhanced': 'Florence-2 + TrOCR: processes the full page at once without line segmentation, then falls back to TrOCR for lines Florence-2 misses. Downloads ~262MB on first use — shared with the Image Description tool so may already be cached. English only.',
-      },
-    },
-    {
-      type: 'dropdown',
-      name: 'language',
-      label: 'Language',
-      hint: 'Choose the language of text in the table. Standard engine only — AI-Enhanced uses English.',
-      choices: [
-        { value: 'eng', label: 'English' },
-        { value: 'fra', label: 'French' },
-        { value: 'deu', label: 'German' },
-        { value: 'spa', label: 'Spanish' },
-        { value: 'por', label: 'Portuguese' },
-        { value: 'chi_sim', label: 'Chinese (Simplified)' },
-        { value: 'jpn', label: 'Japanese' },
-        { value: 'kor', label: 'Korean' },
-      ],
-      default: 'eng',
-    },
-  ],
+  options: [],
 
   faq: [
     {
-      q: 'What types of tables does it handle best?',
-      a: 'Bordered tables with visible grid lines extract most accurately. Borderless tables with consistent column spacing also work well. Complex nested tables or tables with merged cells may need manual cleanup.',
+      q: 'How does this work?',
+      a: 'It uses SmolVLM-500M-Instruct, a 500-million parameter vision language model that runs entirely in your browser. The model reads the image the same way a person would — understanding headers, merged cells, and N/A values — then outputs the table as a spreadsheet.',
+    },
+    {
+      q: 'Why does the first conversion take so long?',
+      a: 'The model (~500 MB) downloads to your browser on first use. After that it is cached, so subsequent conversions start immediately. The download is a one-time cost shared across any other tools on ConvertYard that use the same model.',
     },
     {
       q: 'Can I open the output directly in Excel or Google Sheets?',
       a: 'Yes. The output is a standard .xlsx file — open it directly in Excel, Google Sheets, or LibreOffice Calc.',
     },
     {
-      q: 'Does it work on invoice images?',
-      a: 'Yes — invoices with line-item tables extract cleanly. Use the Receipt to Text tool if you specifically need structured vendor, date, and total fields in CSV format.',
+      q: 'What types of tables does it handle best?',
+      a: 'Standard bordered and borderless tables with consistent column spacing extract accurately. The AI understands merged header cells, percentage values, and N/A entries. Extremely complex nested tables or handwritten tables may need minor manual cleanup.',
     },
     {
-      q: 'Should I verify the spreadsheet data before using it in calculations?',
-      a: 'Yes. The text in a spreadsheet cell is one thing — a slightly wrong word in a product name is easy to spot. A slightly wrong number in a revenue column is not, and if that number feeds into formulas, the error compounds silently. Column alignment is the main thing to check: scan a few rows to make sure values didn\'t shift one column. For tables with totals or subtotals, compare a couple of those against the original image before you build anything on top of the data.',
+      q: 'Does it work on invoice or receipt images?',
+      a: 'For structured receipts with line items, yes. For receipts where you need vendor, date, and total extracted into specific fields, use the Receipt to Text tool instead.',
+    },
+    {
+      q: 'Should I verify the spreadsheet before using it in calculations?',
+      a: 'Yes — especially numbers. Scan a few rows to confirm column alignment, and for tables with totals, spot-check those against the original image before building formulas on top of the data.',
     },
     {
       q: 'Are my files uploaded anywhere?',
-      a: 'No. OCR and spreadsheet creation both run in your browser. Your files never leave your device.',
+      a: 'No. The AI model runs locally in your browser. Your images never leave your device.',
     },
   ],
 
@@ -79,6 +54,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'Image to Excel Converter — ConvertYard',
-    description: 'Extract tables from images into .xlsx spreadsheets. No retyping — screenshot or photo a table, get an Excel file back. Runs locally, no uploads.',
+    description: 'Extract tables from images into .xlsx spreadsheets using local AI. No retyping — screenshot or photo a table, get an Excel file back. Runs locally, no uploads.',
   },
 }
