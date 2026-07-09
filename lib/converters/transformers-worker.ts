@@ -142,10 +142,10 @@ async function loadTableVlmModel() {
     device = 'wasm'
   }
 
-  // q4 on WebGPU keeps model ~1.8 GB; q8 on WASM avoids OOM
-  const dtype = device === 'webgpu'
-    ? { embed_tokens: 'fp16' as const, vision_encoder: 'fp16' as const, decoder_model_merged: 'q4' as const }
-    : 'q8' as const
+  // q4f16 = 4-bit weights + fp16 activations — standard onnx-community browser dtype.
+  // Per-component dicts (SmolVLM pattern) cause tensor size mismatches on Qwen2VL
+  // because its ONNX export uses different component file names/quantization levels.
+  const dtype = device === 'webgpu' ? 'q4f16' as const : 'q8' as const
 
   vlmProcessor = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb })
   vlmModel = await Qwen2VLForConditionalGeneration.from_pretrained(MODEL_ID, {
