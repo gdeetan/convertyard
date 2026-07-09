@@ -12,8 +12,8 @@ export const config: ToolConfig = {
   convertFn: imageToExcelVlm,
 
   limitationNote: {
-    summary: 'Uses a local AI model (~2.5 GB download on first use)',
-    body: 'Qwen2-VL-2B runs entirely in your browser via WebGPU. First use downloads ~2.5 GB which is then cached — subsequent conversions start immediately. Handles complex multi-column tables, merged headers, and N/A values accurately. Extremely dense nested tables may still need minor cleanup.',
+    summary: 'Uses a local AI model (~2.4 GB download on first use)',
+    body: 'Qwen2-VL-2B runs entirely in your browser. First use downloads ~2.4 GB which is then cached — subsequent conversions start immediately. Handles complex multi-column tables, merged headers, and N/A values accurately. Extremely dense nested tables may still need minor cleanup.',
   },
 
   options: [],
@@ -25,7 +25,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Why does the first conversion take so long?',
-      a: 'The model (~2.5 GB) downloads to your browser on first use. After that it is cached, so subsequent conversions start immediately. This is a one-time cost — once cached, the tool loads instantly.',
+      a: 'The model (~2.4 GB) downloads to your browser on first use. After that it is cached, so subsequent conversions start immediately. This is a one-time cost — once cached, the tool loads instantly.',
     },
     {
       q: 'Can I open the output directly in Excel or Google Sheets?',

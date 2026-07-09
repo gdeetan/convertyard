@@ -133,23 +133,11 @@ async function loadTableVlmModel() {
   const cb = makeProgressCallback('table-vlm')
   const MODEL_ID = 'onnx-community/Qwen2-VL-2B-Instruct'
 
-  // Try WebGPU first (fast), fall back to WASM (slow but works everywhere)
-  let device: 'webgpu' | 'wasm'
-  try {
-    const adapter = await (navigator as unknown as { gpu?: { requestAdapter: () => Promise<unknown> } }).gpu?.requestAdapter()
-    device = adapter ? 'webgpu' : 'wasm'
-  } catch {
-    device = 'wasm'
-  }
-
-  // q4f16 on WebGPU = 4-bit weights + fp16 activations (~2.7 GB total).
-  // q8 on WASM maps to _quantized suffix files (~2.4 GB total).
-  const dtype = device === 'webgpu' ? 'q4f16' as const : 'q8' as const
-
+  // q8 (_quantized files, ~2.4 GB) avoids the 4-bit dequantization Metal shaders
+  // that fail to compile on macOS WebGPU. ORT Web auto-selects WebGPU or WASM.
   vlmProcessor = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb })
   vlmModel = await Qwen2VLForConditionalGeneration.from_pretrained(MODEL_ID, {
-    dtype,
-    device,
+    dtype: 'q8',
     progress_callback: cb,
   })
 }
