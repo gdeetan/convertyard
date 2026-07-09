@@ -55,7 +55,13 @@ const readyMap:  Partial<Record<UpscaleScale, boolean>> = {}
 
 async function loadModel(scale: UpscaleScale) {
   if (readyMap[scale]) return
-  await initTf()
+  // 8x ESRGAN output tensors exceed the WebGL GPU texture limit (16384px) regardless
+  // of tile size. CPU backend has no such constraint; slower but always correct.
+  if (scale === '8x') {
+    await ensureBackend(['cpu'])
+  } else {
+    await initTf()
+  }
   instances[scale] = new Upscaler({ model: MODEL_MAP[scale] })
   self.postMessage({ type: 'model-progress', scale, progress: 50 })
   await instances[scale].warmup([{ patchSize: 64, padding: 2 }])
@@ -125,11 +131,7 @@ async function upscaleTileToRgba(scale: UpscaleScale, tileData: ImageData) {
   if (!upscaler) throw new Error(`Model ${scale} not loaded`)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tensor: any = await upscaler.upscale(tileData, {
-    output: 'tensor',
-    patchSize: TILE_PX,
-    padding: OVERLAP,
-  })
+  const tensor: any = await upscaler.upscale(tileData, { output: 'tensor' })
   const shape = Array.from(tensor.shape as number[])
   const { width, height } = normalizeTensorShape(shape)
   const floats = await tensor.data() as Float32Array
