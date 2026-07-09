@@ -22,6 +22,7 @@ import { config as imageCropper } from './tools/image-cropper'
 import { config as mp4ToMp3 } from './tools/mp4-to-mp3'
 import { config as mp4ToWebp } from './tools/mp4-to-webp'
 import { config as mp3ToMp4 } from './tools/mp3-to-mp4'
+import { config as videoToGif } from './tools/video-to-gif'
 import { config as backgroundRemover } from './tools/background-remover'
 import { config as altTextGenerator } from './tools/alt-text-generator'
 import { config as imageUpscaler } from './tools/image-upscaler'
@@ -68,6 +69,7 @@ export const tools: ToolConfig[] = [
   mp4ToMp3,
   mp4ToWebp,
   mp3ToMp4,
+  videoToGif,
   backgroundRemover,
   altTextGenerator,
   imageUpscaler,
