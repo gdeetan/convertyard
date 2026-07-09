@@ -131,13 +131,25 @@ async function loadTableVlmModel() {
 
   const { Qwen2VLForConditionalGeneration, AutoProcessor } = await import('@huggingface/transformers')
   const cb = makeProgressCallback('table-vlm')
-  const MODEL_ID = 'onnx-community/Qwen2-VL-2B-Instruct'
+  const MODEL_ID = 'onnx-community/Qwen2.5-VL-3B-Instruct-ONNX'
 
-  // q8 (_quantized files, ~2.4 GB) avoids the 4-bit dequantization Metal shaders
-  // that fail to compile on macOS WebGPU. ORT Web auto-selects WebGPU or WASM.
+  let device: 'webgpu' | 'wasm'
+  try {
+    const adapter = await (navigator as unknown as { gpu?: { requestAdapter: () => Promise<unknown> } }).gpu?.requestAdapter()
+    device = adapter ? 'webgpu' : 'wasm'
+  } catch {
+    device = 'wasm'
+  }
+
+  // WebGPU: split dtypes keep model ~1.8 GB; WASM: q8 avoids OOM
+  const dtype = device === 'webgpu'
+    ? { embed_tokens: 'fp16' as const, vision_encoder: 'fp16' as const, decoder_model_merged: 'q4' as const }
+    : 'q8' as const
+
   vlmProcessor = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb })
   vlmModel = await Qwen2VLForConditionalGeneration.from_pretrained(MODEL_ID, {
-    dtype: 'q8',
+    dtype,
+    device,
     progress_callback: cb,
   })
 }
@@ -416,7 +428,7 @@ async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, pr
     add_generation_prompt: true,
   })
 
-  const inputs = await processor(text, image)
+  const inputs = await processor(text, [image], { padding: true })
   self.postMessage({ type: 'infer-progress', id, progress: 40 })
 
   const outputs = await model.generate({
