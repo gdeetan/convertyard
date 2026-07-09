@@ -125,13 +125,13 @@ async function loadAltModel(progressType: ModelType = 'alt-text') {
   }
 }
 
-async function loadSmolVlmModel() {
+async function loadTableVlmModel() {
   if (vlmModel && vlmProcessor) return
   await ensureHfAuth()
 
-  const { AutoModelForImageTextToText, AutoProcessor } = await import('@huggingface/transformers')
+  const { Qwen2VLForConditionalGeneration, AutoProcessor } = await import('@huggingface/transformers')
   const cb = makeProgressCallback('table-vlm')
-  const MODEL_ID = 'HuggingFaceTB/SmolVLM-500M-Instruct'
+  const MODEL_ID = 'onnx-community/Qwen2.5-VL-3B-Instruct-ONNX'
 
   // Try WebGPU first (fast), fall back to WASM (slow but works everywhere)
   let device: 'webgpu' | 'wasm'
@@ -142,13 +142,13 @@ async function loadSmolVlmModel() {
     device = 'wasm'
   }
 
-  // WASM dtype must be q8 (fp32 would OOM on most devices at ~2GB activations)
+  // q4 on WebGPU keeps model ~1.8 GB; q8 on WASM avoids OOM
   const dtype = device === 'webgpu'
     ? { embed_tokens: 'fp16' as const, vision_encoder: 'fp16' as const, decoder_model_merged: 'q4' as const }
     : 'q8' as const
 
   vlmProcessor = await AutoProcessor.from_pretrained(MODEL_ID, { progress_callback: cb })
-  vlmModel = await AutoModelForImageTextToText.from_pretrained(MODEL_ID, {
+  vlmModel = await Qwen2VLForConditionalGeneration.from_pretrained(MODEL_ID, {
     dtype,
     device,
     progress_callback: cb,
@@ -422,7 +422,7 @@ async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, pr
     add_generation_prompt: true,
   })
 
-  const inputs = await processor(text, [image])
+  const inputs = await processor(text, [image], { padding: true })
   self.postMessage({ type: 'infer-progress', id, progress: 40 })
 
   const outputs = await model.generate({
@@ -451,7 +451,7 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
       if (msg.modelType === 'bg-removal') await loadBgModel()
       else if (msg.modelType === 'alt-text') await loadAltModel('alt-text')
       else if (msg.modelType === 'ocr') await loadAltModel('ocr')  // same Florence-2 model
-      else if (msg.modelType === 'table-vlm') await loadSmolVlmModel()
+      else if (msg.modelType === 'table-vlm') await loadTableVlmModel()
       self.postMessage({ type: 'model-ready', modelType: msg.modelType })
     } catch (err) {
       self.postMessage({ type: 'error', message: (err as Error).message })
