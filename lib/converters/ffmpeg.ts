@@ -487,7 +487,7 @@ export async function compressVideo(
 
   const resHeight = RESOLUTION_HEIGHT[resolution]
   const vfArgs: string[] = resHeight
-    ? ['-vf', `scale=-2:${resHeight}:force_original_aspect_ratio=decrease`]
+    ? ['-vf', `scale=-2:${resHeight}`]
     : []
   const audioArgs: string[] = stripAudio
     ? ['-an']
@@ -574,7 +574,7 @@ export async function compressVideo(
 
       await ffmpeg.deleteFile(outputName).catch(() => {})
 
-      if (!data) throw new Error('Compression produced no output')
+      if (!data || data.byteLength === 0) throw new Error('Compression produced no output')
       const baseName = file.name.replace(/\.[^.]+$/, '')
       results.push(new File([data], `${baseName}.mp4`, { type: 'video/mp4' }))
       onProgress?.(i, 100)
