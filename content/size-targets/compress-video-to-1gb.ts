@@ -8,7 +8,7 @@ export const config: SizeTargetConfig = {
   h1: 'Compress Video to 1 GB',
   subhead: 'Near-lossless compression for 4K recordings and long-form professional footage.',
   intro:
-    "1 GB is the threshold for near-lossless H.264 compression of long 4K recordings. At this size, multiple hours of 1080p or 30–60 minutes of 4K footage can be stored with no perceptible quality difference from the uncompressed original. 1 GB is also the standard upload ceiling for platforms like YouTube (for accounts without verified status), many cloud storage sync limits, and broadcast media ingest pipelines that accept H.264 proxies.",
+    "1 GB is the threshold for near-lossless H.264 compression of long 4K recordings. At this size, multiple hours of 1080p or 30–60 minutes of 4K footage can be stored with no perceptible quality difference from the uncompressed original. 1 GB is a common ceiling for broadcast media ingest pipelines that accept H.264 proxies, many cloud storage sync tools, and high-quality video archive workflows where storage space still matters.",
   useCases: [
     {
       label: 'Long 4K recordings at near-lossless quality',
