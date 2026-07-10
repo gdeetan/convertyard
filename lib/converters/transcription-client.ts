@@ -1,15 +1,22 @@
 import type { WhisperQuality } from './transcription-worker'
+import {
+  classifyTranscriptionError,
+  type TranscriptionErrorShape,
+} from './transcription-errors'
 
 // ── Singleton worker ───────────────────────────────────────────────────────────
 
 let workerInstance: Worker | null = null
+let workerFactory: (() => Worker) | null = null
 
 function getWorker(): Worker {
   if (!workerInstance) {
-    workerInstance = new Worker(
-      new URL('./transcription-worker.ts', import.meta.url),
-      { type: 'module' }
-    )
+    workerInstance = workerFactory
+      ? workerFactory()
+      : new Worker(
+          new URL('./transcription-worker.ts', import.meta.url),
+          { type: 'module' }
+        )
   }
   return workerInstance
 }
@@ -26,6 +33,20 @@ export interface TranscriptionChunk {
 export interface TranscriptionResult {
   text: string
   chunks?: TranscriptionChunk[]
+}
+
+export type { TranscriptionErrorShape as TranscriptionError }
+
+export function __setWorkerFactoryForTests(factory: (() => Worker) | null): void {
+  workerFactory = factory
+  workerInstance = null
+}
+
+export function __resetTranscriptionClientForTests(): void {
+  workerFactory = null
+  workerInstance = null
+  for (const key of Object.keys(modelReady) as QualityMode[]) delete modelReady[key]
+  for (const key of Object.keys(loadingPromise) as QualityMode[]) delete loadingPromise[key]
 }
 
 // ── Model loading ─────────────────────────────────────────────────────────────
@@ -57,7 +78,7 @@ export function loadTranscriptionModel(
       } else if (d.type === 'error' && !d.id) {
         worker.removeEventListener('message', handler)
         delete loadingPromise[quality]
-        reject(new Error(d.message as string))
+        reject(d.error as TranscriptionErrorShape)
       }
     }
 
@@ -107,14 +128,17 @@ export function transcribeAudio(
       } else if (d.type === 'error' && d.id === id) {
         worker.removeEventListener('message', handler)
         worker.removeEventListener('error', errorHandler)
-        reject(new Error(d.message as string))
+        reject(d.error as TranscriptionErrorShape)
       }
     }
 
     const errorHandler = (e: ErrorEvent) => {
       worker.removeEventListener('message', handler)
       worker.removeEventListener('error', errorHandler)
-      reject(new Error(e.message ?? 'Worker error'))
+      reject(classifyTranscriptionError(e.message ?? 'Worker error', {
+        code: 'WORKER_INIT_FAILED',
+        phase: 'worker',
+      }))
     }
 
     worker.addEventListener('message', handler)

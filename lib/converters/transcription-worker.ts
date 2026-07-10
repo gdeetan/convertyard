@@ -5,6 +5,11 @@
 // Separate from transformers-worker.ts because Whisper uses a completely different pipeline type.
 
 import { pipeline, env } from '@huggingface/transformers'
+import {
+  classifyTranscriptionError,
+  type TranscriptionErrorShape,
+  type TranscriptionLoadAttempt,
+} from './transcription-errors'
 
 env.allowLocalModels = false
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -30,19 +35,54 @@ interface TranscribeMsg {
 
 type IncomingMsg = LoadMsg | TranscribeMsg
 
+interface ModelVariant {
+  modelId: string
+  dtype: 'fp32'
+}
+
+interface ModelErrorMsg {
+  type: 'error'
+  id?: string
+  error: TranscriptionErrorShape
+}
+
+interface ModelProgressMsg {
+  type: 'model-progress'
+  quality: WhisperQuality
+  progress: number
+}
+
+interface ModelReadyMsg {
+  type: 'model-ready'
+  quality: WhisperQuality
+  modelId: string
+  dtype: string
+}
+
 // ── Model state ────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let whisperPipeline: any = null
 let loadedQuality: WhisperQuality | null = null
+let loadedVariant: ModelVariant | null = null
 
-// ── Model ID mapping ──────────────────────────────────────────────────────────
+// ── Model fallback mapping ────────────────────────────────────────────────────
 
-function modelIdForQuality(quality: WhisperQuality): string {
+function modelVariantsForQuality(quality: WhisperQuality): ModelVariant[] {
   switch (quality) {
-    case 'fast':     return 'Xenova/whisper-tiny'
-    case 'balanced': return 'Xenova/whisper-base'
-    case 'accurate': return 'Xenova/whisper-small'
+    case 'fast':
+      return [{ modelId: 'Xenova/whisper-tiny', dtype: 'fp32' }]
+    case 'balanced':
+      return [
+        { modelId: 'Xenova/whisper-base', dtype: 'fp32' },
+        { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
+      ]
+    case 'accurate':
+      return [
+        { modelId: 'Xenova/whisper-small', dtype: 'fp32' },
+        { modelId: 'Xenova/whisper-base', dtype: 'fp32' },
+        { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
+      ]
   }
 }
 
@@ -59,9 +99,13 @@ function makeProgressCallback(quality: WhisperQuality) {
       const totalDown = Object.values(downloaded).reduce((a, b) => a + b, 0)
       const totalExpected = Object.values(totals).reduce((a, b) => a + b, 0)
       const pct = totalExpected > 0 ? Math.round((totalDown / totalExpected) * 100) : 0
-      self.postMessage({ type: 'model-progress', quality, progress: pct })
+      self.postMessage({ type: 'model-progress', quality, progress: pct } satisfies ModelProgressMsg)
     }
   }
+}
+
+function postError(error: TranscriptionErrorShape, id?: string) {
+  self.postMessage({ type: 'error', id, error } satisfies ModelErrorMsg)
 }
 
 // ── Model loader ──────────────────────────────────────────────────────────────
@@ -69,14 +113,44 @@ function makeProgressCallback(quality: WhisperQuality) {
 async function loadWhisperModel(quality: WhisperQuality) {
   if (whisperPipeline && loadedQuality === quality) return
 
-  const modelId = modelIdForQuality(quality)
-  const cb = makeProgressCallback(quality)
+  const variants = modelVariantsForQuality(quality)
+  const attempts: TranscriptionLoadAttempt[] = []
+  let lastError: TranscriptionErrorShape | null = null
 
-  whisperPipeline = await pipeline('automatic-speech-recognition', modelId, {
-    dtype: 'q8',
-    progress_callback: cb,
-  })
-  loadedQuality = quality
+  whisperPipeline = null
+  loadedQuality = null
+  loadedVariant = null
+
+  for (const variant of variants) {
+    try {
+      const cb = makeProgressCallback(quality)
+      whisperPipeline = await pipeline('automatic-speech-recognition', variant.modelId, {
+        dtype: variant.dtype,
+        progress_callback: cb,
+      })
+      loadedQuality = quality
+      loadedVariant = variant
+      return
+    } catch (err) {
+      lastError = classifyTranscriptionError(err, {
+        modelId: variant.modelId,
+        dtype: variant.dtype,
+      })
+      attempts.push({
+        modelId: variant.modelId,
+        dtype: variant.dtype,
+        quality,
+        error: lastError.rawMessage,
+      })
+      whisperPipeline = null
+    }
+  }
+
+  throw {
+    ...(lastError ?? classifyTranscriptionError('Whisper model failed to load')),
+    phase: 'load' as const,
+    attempts,
+  } satisfies TranscriptionErrorShape
 }
 
 // ── Transcription ─────────────────────────────────────────────────────────────
@@ -112,9 +186,14 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
   if (msg.type === 'load') {
     try {
       await loadWhisperModel(msg.quality)
-      self.postMessage({ type: 'model-ready', quality: msg.quality })
+      self.postMessage({
+        type: 'model-ready',
+        quality: msg.quality,
+        modelId: loadedVariant?.modelId ?? modelVariantsForQuality(msg.quality)[0].modelId,
+        dtype: loadedVariant?.dtype ?? 'fp32',
+      } satisfies ModelReadyMsg)
     } catch (err) {
-      self.postMessage({ type: 'error', message: (err as Error).message })
+      postError(classifyTranscriptionError(err, { phase: 'load' }))
     }
     return
   }
@@ -124,7 +203,12 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
     try {
       await runTranscribe(id, audioData, sampleRate, language, timestamps)
     } catch (err) {
-      self.postMessage({ type: 'error', id, message: (err as Error).message })
+      postError(classifyTranscriptionError(err, {
+        phase: 'transcribe',
+        code: 'TRANSCRIBE_FAILED',
+        modelId: loadedVariant?.modelId,
+        dtype: loadedVariant?.dtype,
+      }), id)
     }
   }
 })

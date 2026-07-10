@@ -2,9 +2,11 @@ import { getFFmpeg } from './ffmpeg-client'
 import {
   loadTranscriptionModel,
   transcribeAudio as transcribeAudioClient,
+  type TranscriptionError,
   type QualityMode,
   type TranscriptionResult,
 } from './transcription-client'
+import { classifyTranscriptionError } from './transcription-errors'
 
 // ── Re-exports ─────────────────────────────────────────────────────────────────
 
@@ -17,14 +19,22 @@ export type OutputFormat = 'txt' | 'srt'
 export interface TranscriptionBatchResult {
   filename: string
   text: string
+  output: string
   srt?: string
-  error?: string
+  error?: TranscriptionError
 }
 
 export interface TranscriptionOptions {
   quality: QualityMode
   language: string | null
   outputFormat: OutputFormat
+}
+
+export function selectTranscriptionOutput(
+  result: Pick<TranscriptionBatchResult, 'text' | 'srt'>,
+  outputFormat: OutputFormat
+): string {
+  return outputFormat === 'srt' ? result.srt ?? result.text : result.text
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -113,7 +123,7 @@ export async function transcribeBatch(
   options: TranscriptionOptions,
   onModelProgress: (pct: number) => void,
   onFileProgress: (fileIndex: number, pct: number) => void,
-  onFileText: (fileIndex: number, text: string) => void,
+  onFileResult: (fileIndex: number, result: Pick<TranscriptionBatchResult, 'text' | 'srt' | 'output'>) => void,
 ): Promise<TranscriptionBatchResult[]> {
   await loadTranscriptionModel(options.quality, onModelProgress)
   onModelProgress(100)
@@ -126,43 +136,60 @@ export async function transcribeBatch(
 
       let audioFile: File = files[i]
       if (isVideo(files[i])) {
-        audioFile = await extractAudioFromVideo(files[i])
+        try {
+          audioFile = await extractAudioFromVideo(files[i])
+        } catch (err) {
+          throw classifyTranscriptionError(err, { code: 'VIDEO_AUDIO_EXTRACT_FAILED', phase: 'extract' })
+        }
       }
 
       onFileProgress(i, 15)
 
-      const audioData = await decodeAudio(audioFile)
+      let audioData: Float32Array
+      try {
+        audioData = await decodeAudio(audioFile)
+      } catch (err) {
+        throw classifyTranscriptionError(err, { code: 'AUDIO_DECODE_FAILED', phase: 'decode' })
+      }
 
       onFileProgress(i, 25)
 
       const needsTimestamps = options.outputFormat === 'srt'
-      const result = await transcribeAudioClient(
-        audioData,
-        16000,
-        options.language,
-        needsTimestamps,
-        (pct) => onFileProgress(i, 25 + Math.round(pct * 0.7)),
-      )
+      let result: TranscriptionResult
+      try {
+        result = await transcribeAudioClient(
+          audioData,
+          16000,
+          options.language,
+          needsTimestamps,
+          (pct) => onFileProgress(i, 25 + Math.round(pct * 0.7)),
+        )
+      } catch (err) {
+        throw classifyTranscriptionError(err, { code: 'TRANSCRIBE_FAILED', phase: 'transcribe' })
+      }
 
       const text = result.text
-      onFileText(i, text)
-      onFileProgress(i, 100)
-
       const entry: TranscriptionBatchResult = {
         filename: files[i].name,
         text,
+        output: text,
       }
-
       if (options.outputFormat === 'srt') {
         entry.srt = buildSRT(result)
+        entry.output = selectTranscriptionOutput(entry, options.outputFormat)
       }
+
+      onFileProgress(i, 100)
+      onFileResult(i, { text: entry.text, srt: entry.srt, output: entry.output })
 
       results.push(entry)
     } catch (err) {
+      const error = classifyTranscriptionError(err)
       results.push({
         filename: files[i].name,
         text: '',
-        error: err instanceof Error ? err.message : String(err),
+        output: '',
+        error,
       })
     }
   }

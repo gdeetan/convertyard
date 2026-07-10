@@ -50,7 +50,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Does it work offline?',
-      a: 'Yes, after the first model download (39–466 MB depending on quality). The model is cached in your browser and subsequent uses work completely offline.',
+      a: 'Yes, after the first model download. The model is cached in your browser and subsequent uses work completely offline.',
     },
   ],
 

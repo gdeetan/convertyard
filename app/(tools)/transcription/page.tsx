@@ -9,7 +9,16 @@ import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
 import { RelatedToolsStrip } from '@/components/tool-shell/related-tools-strip'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { config } from '@/content/tools/transcription'
-import type { QualityMode, OutputFormat } from '@/lib/converters/transcription'
+import {
+  classifyTranscriptionError,
+  formatTranscriptionError,
+  type TranscriptionErrorShape,
+} from '@/lib/converters/transcription-errors'
+import type {
+  QualityMode,
+  OutputFormat,
+  TranscriptionBatchResult,
+} from '@/lib/converters/transcription'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -20,7 +29,11 @@ interface FileEntry {
   status: 'pending' | 'processing' | 'done' | 'error'
   progress: number
   text?: string
+  srt?: string
+  output?: string
   error?: string
+  errorDetails?: string
+  errorCode?: string
 }
 
 // ── Copy button ────────────────────────────────────────────────────────────────
@@ -53,9 +66,9 @@ function CopyButton({ text }: { text: string }) {
 // ── Quality options ────────────────────────────────────────────────────────────
 
 const QUALITY_OPTIONS: { value: QualityMode; label: string; size: string }[] = [
-  { value: 'fast', label: 'Fast', size: '39 MB' },
-  { value: 'balanced', label: 'Balanced', size: '144 MB' },
-  { value: 'accurate', label: 'Accurate', size: '466 MB' },
+  { value: 'fast', label: 'Fast', size: 'smallest download' },
+  { value: 'balanced', label: 'Balanced', size: 'recommended' },
+  { value: 'accurate', label: 'Accurate', size: 'best quality' },
 ]
 
 const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
@@ -114,6 +127,29 @@ export default function TranscriptionPage() {
     })
   }, [])
 
+  const applyBatchResult = useCallback((index: number, result: Pick<TranscriptionBatchResult, 'text' | 'srt' | 'output'>) => {
+    updateEntry(index, {
+      text: result.text,
+      srt: result.srt,
+      output: result.output,
+      status: 'done',
+      progress: 100,
+      error: undefined,
+      errorDetails: undefined,
+      errorCode: undefined,
+    })
+  }, [updateEntry])
+
+  const applyEntryError = useCallback((index: number, error: TranscriptionErrorShape) => {
+    updateEntry(index, {
+      status: 'error',
+      progress: 0,
+      error: formatTranscriptionError(error),
+      errorDetails: error.rawMessage,
+      errorCode: error.code,
+    })
+  }, [updateEntry])
+
   const handleAdd = useCallback((files: File[]) => {
     const newEntries: FileEntry[] = files.map((file) => ({
       file,
@@ -134,7 +170,17 @@ export default function TranscriptionPage() {
     const { transcribeBatch } = await import('@/lib/converters/transcription')
 
     // Reset all to pending
-    setEntries((prev) => prev.map((e) => ({ ...e, status: 'pending' as const, progress: 0, text: undefined, error: undefined })))
+    setEntries((prev) => prev.map((e) => ({
+      ...e,
+      status: 'pending' as const,
+      progress: 0,
+      text: undefined,
+      srt: undefined,
+      output: undefined,
+      error: undefined,
+      errorDetails: undefined,
+      errorCode: undefined,
+    })))
 
     setPhase('processing')
 
@@ -149,26 +195,32 @@ export default function TranscriptionPage() {
           onFileProgress(fileIndex, pct)
           updateEntry(fileIndex, { status: 'processing' })
         },
-        (fileIndex, text) => {
-          updateEntry(fileIndex, { text, status: 'done', progress: 100 })
+        (fileIndex, result) => {
+          applyBatchResult(fileIndex, result)
         }
       )
 
       // Handle any errors from results
       results.forEach((result, i) => {
         if (result.error) {
-          updateEntry(i, { status: 'error', error: result.error, progress: 0 })
+          applyEntryError(i, result.error)
         }
       })
 
       setPhase('done')
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
+      const error = classifyTranscriptionError(err)
       console.error('[transcription] processing failed:', err)
       setEntries((prev) =>
         prev.map((e) =>
           e.status === 'pending' || e.status === 'processing'
-            ? { ...e, status: 'error', error: msg }
+            ? {
+                ...e,
+                status: 'error',
+                error: formatTranscriptionError(error),
+                errorDetails: error?.rawMessage ?? String(err),
+                errorCode: error?.code ?? 'UNKNOWN',
+              }
             : e
         )
       )
@@ -176,7 +228,7 @@ export default function TranscriptionPage() {
     } finally {
       processingRef.current = false
     }
-  }, [entries, quality, language, outputFormat, onFileProgress, updateEntry])
+  }, [applyBatchResult, applyEntryError, entries, quality, language, outputFormat, onFileProgress])
 
   const handleReset = () => {
     setEntries([])
@@ -186,14 +238,14 @@ export default function TranscriptionPage() {
   }
 
   const handleDownloadZIP = () => {
-    const doneEntries = entries.filter((e) => e.status === 'done' && e.text)
+    const doneEntries = entries.filter((e) => e.status === 'done' && e.output)
     if (doneEntries.length === 0) return
 
     const files: Record<string, Uint8Array> = {}
     for (const e of doneEntries) {
       const baseName = e.file.name.replace(/\.[^.]+$/, '')
       const ext = outputFormat === 'srt' ? '.srt' : '.txt'
-      files[`${baseName}${ext}`] = strToU8(e.text ?? '')
+      files[`${baseName}${ext}`] = strToU8(e.output ?? '')
     }
 
     const zipped = zipSync(files)
@@ -416,8 +468,8 @@ export default function TranscriptionPage() {
                   <span className="flex-1 truncate text-sm text-fg">{entry.file.name}</span>
 
                   {/* Copy button when done */}
-                  {entry.status === 'done' && entry.text && (
-                    <CopyButton text={entry.text} />
+                  {entry.status === 'done' && entry.output && (
+                    <CopyButton text={entry.output} />
                   )}
                 </div>
 
@@ -435,10 +487,10 @@ export default function TranscriptionPage() {
                 )}
 
                 {/* Transcript preview when done */}
-                {entry.status === 'done' && entry.text && (
+                {entry.status === 'done' && entry.output && (
                   <div className="px-4 pb-3">
                     <p className="font-mono text-xs text-fg-muted line-clamp-3 whitespace-pre-wrap">
-                      {entry.text}
+                      {entry.output}
                     </p>
                   </div>
                 )}
@@ -447,6 +499,19 @@ export default function TranscriptionPage() {
                 {entry.status === 'error' && entry.error && (
                   <div className="px-4 pb-3">
                     <p className="text-xs text-error">{entry.error}</p>
+                    {entry.errorCode && (
+                      <p className="mt-1 text-[11px] font-medium text-fg-subtle">
+                        Error code: {entry.errorCode}
+                      </p>
+                    )}
+                    {entry.errorDetails && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-[11px] text-fg-subtle">Technical details</summary>
+                        <p className="mt-1 break-words font-mono text-[11px] text-fg-subtle">
+                          {entry.errorDetails}
+                        </p>
+                      </details>
+                    )}
                   </div>
                 )}
               </div>
