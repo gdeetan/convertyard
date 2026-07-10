@@ -16,7 +16,7 @@
 // Injected at build time — empty string when env var is not set
 declare const __HF_TOKEN__: string
 
-export type ModelType = 'bg-removal' | 'alt-text' | 'ocr' | 'table-vlm'
+export type ModelType = 'bg-removal' | 'alt-text' | 'ocr'
 
 interface LoadMsg { type: 'load'; modelType: ModelType }
 interface InferMsg {
@@ -35,9 +35,6 @@ let bgModel: unknown = null
 let bgProcessor: unknown = null
 let altModel: unknown = null
 let altProcessor: unknown = null
-let vlmModel: unknown = null
-let vlmProcessor: unknown = null
-const QWEN_MODEL_ID = 'onnx-community/Qwen2.5-VL-3B-Instruct-ONNX'
 // ── Aggregated download progress tracker ──────────────────────────────────────
 
 function makeProgressCallback(modelType: ModelType) {
@@ -124,31 +121,6 @@ async function loadAltModel(progressType: ModelType = 'alt-text') {
   } catch {
     await tryLoad(false)  // HF Hub fallback (uses __HF_TOKEN__)
   }
-}
-
-async function loadTableVlmModel() {
-  if (vlmModel && vlmProcessor) return
-  await ensureHfAuth()
-
-  let adapter: unknown
-  try {
-    adapter = await (navigator as unknown as { gpu?: { requestAdapter: () => Promise<unknown> } }).gpu?.requestAdapter()
-  } catch {
-    // WebGPU API not available
-  }
-  if (!adapter) {
-    throw Object.assign(new Error('WebGPU not available'), { code: 'WEBGPU_UNAVAILABLE' })
-  }
-
-  const cb = makeProgressCallback('table-vlm')
-  const { Qwen2_5_VLForConditionalGeneration: Qwen2_5_VL, AutoProcessor } = await import('@huggingface/transformers')
-  const dtype = {
-    embed_tokens: 'fp16' as const,
-    vision_encoder: 'fp16' as const,
-    decoder_model_merged: 'q4' as const,
-  }
-  vlmProcessor = await AutoProcessor.from_pretrained(QWEN_MODEL_ID, { progress_callback: cb })
-  vlmModel = await Qwen2_5_VL.from_pretrained(QWEN_MODEL_ID, { dtype, device: 'webgpu', progress_callback: cb })
 }
 
 // ── Inference: background removal ─────────────────────────────────────────────
@@ -388,72 +360,6 @@ async function runOcr(id: string, buffer: ArrayBuffer, mimeType: string) {
   self.postMessage({ type: 'infer-result', id, result })
 }
 
-// ── Inference: table extraction (Qwen2.5-VL-3B, WebGPU only) ─────────────────
-
-async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, prompt: string) {
-  const { RawImage } = await import('@huggingface/transformers')
-
-  const blob = new Blob([buffer], { type: mimeType })
-  let image = await RawImage.fromBlob(blob)
-
-  // Qwen2.5-VL: spatial_merge_size=2 * patch_size=28 = 56px stride.
-  // Both dims must be multiples of 56 or the ONNX tensor allocation mismatches.
-  const MAX_PX = 1344
-  const PATCH = 56
-  const scale = Math.min(1, MAX_PX / Math.max(image.width, image.height))
-  const alignedW = Math.max(PATCH, Math.round((image.width * scale) / PATCH) * PATCH)
-  const alignedH = Math.max(PATCH, Math.round((image.height * scale) / PATCH) * PATCH)
-  if (alignedW !== image.width || alignedH !== image.height) {
-    image = await image.resize(alignedW, alignedH)
-  }
-
-  self.postMessage({ type: 'infer-progress', id, progress: 15 })
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const processor = vlmProcessor as any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const model = vlmModel as any
-
-  const messages = [
-    {
-      role: 'user',
-      content: [
-        { type: 'image' },
-        { type: 'text', text: prompt },
-      ],
-    },
-  ]
-
-  const text = processor.apply_chat_template(messages, {
-    tokenize: false,
-    add_generation_prompt: true,
-  })
-
-  const inputs = await processor(text, [image], { padding: true })
-  self.postMessage({ type: 'infer-progress', id, progress: 40 })
-
-  const MAX_NEW_TOKENS = 2048
-  const outputs = await model.generate({
-    ...inputs,
-    max_new_tokens: MAX_NEW_TOKENS,
-    do_sample: false,
-    repetition_penalty: 1.0,
-  })
-
-  self.postMessage({ type: 'infer-progress', id, progress: 85 })
-
-  // transformers.js 4.x: slice(null, [N, null]) = all batches, seq_dim N to end (new tokens only)
-  const newTokens = outputs.slice(null, [inputs.input_ids.dims[1], null])
-  const newTokenCount = (newTokens as { dims?: number[] }).dims?.[1] ?? 0
-  const truncated = newTokenCount >= MAX_NEW_TOKENS
-
-  const decoded: string[] = processor.batch_decode(newTokens, { skip_special_tokens: true })
-  const result = (decoded[0] ?? '').trim()
-
-  self.postMessage({ type: 'infer-progress', id, progress: 100 })
-  self.postMessage({ type: 'infer-result', id, result, truncated })
-}
-
 // ── Message router ────────────────────────────────────────────────────────────
 
 self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
@@ -464,11 +370,7 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
       if (msg.modelType === 'bg-removal') await loadBgModel()
       else if (msg.modelType === 'alt-text') await loadAltModel('alt-text')
       else if (msg.modelType === 'ocr') await loadAltModel('ocr')  // same Florence-2 model
-      else if (msg.modelType === 'table-vlm') await loadTableVlmModel()
       self.postMessage({ type: 'model-ready', modelType: msg.modelType })
-      if (msg.modelType === 'table-vlm') {
-        self.postMessage({ type: 'model-device', modelType: 'table-vlm', device: 'webgpu' })
-      }
     } catch (err) {
       const code = (err as { code?: string }).code
       self.postMessage({ type: 'error', message: (err as Error).message, ...(code ? { code } : {}) })
@@ -485,9 +387,6 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
         await runAltText(id, buffer, mimeType, opts.maxTokens ?? 50, opts.contextHint, opts.filename)
       } else if (modelType === 'ocr') {
         await runOcr(id, buffer, mimeType)
-      } else if (modelType === 'table-vlm') {
-        const prompt = opts.prompt ?? 'Transcribe the table in this image as CSV. First row: headers. Copy every value exactly as shown. If a cell is unreadable, output ?. Do not guess, summarize, or add rows. No markdown fences, no explanation.'
-        await runTableVlm(id, buffer, mimeType, prompt)
       }
     } catch (err) {
       self.postMessage({ type: 'error', id, message: (err as Error).message })

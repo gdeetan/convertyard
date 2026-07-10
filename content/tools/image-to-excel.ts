@@ -1,35 +1,5 @@
 import { imageOcrConvert } from '@/lib/converters/image-ocr'
-import { imageToExcelVlm } from '@/lib/converters/image-to-excel-vlm'
-import { loadTransformersModel } from '@/lib/converters/transformers-client'
 import type { ConversionResult, ToolConfig, ToolOptions } from '@/lib/types'
-
-async function convertWithAiMode(
-  files: File[],
-  opts: ToolOptions,
-  onProgress?: (fileIndex: number, pct: number) => void,
-): Promise<ConversionResult[]> {
-  try {
-    await loadTransformersModel('table-vlm', pct => onProgress?.(0, Math.round(pct * 0.3)))
-  } catch (err) {
-    if ((err as { code?: string }).code === 'WEBGPU_UNAVAILABLE') {
-      // WebGPU unavailable — run deterministic OCR; signal via filename so user
-      // knows which engine ran (cannot return both a File and a warning message).
-      const results = await imageOcrConvert(files, { ...opts, outputMode: 'excel' }, onProgress)
-      return results.map(r => {
-        if (r instanceof File) {
-          return new File(
-            [r],
-            r.name.replace(/\.xlsx$/, ' (OCR — AI mode needs GPU).xlsx'),
-            { type: r.type },
-          )
-        }
-        return r
-      })
-    }
-    throw err
-  }
-  return imageToExcelVlm(files, opts, onProgress)
-}
 
 export const config: ToolConfig = {
   slug: 'image-to-excel',
@@ -40,13 +10,11 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '.xlsx',
   convertFn: (files: File[], opts: ToolOptions, onProgress) =>
-    opts.aiMode
-      ? convertWithAiMode(files, opts, onProgress)
-      : imageOcrConvert(files, { ...opts, outputMode: 'excel' }, onProgress),
+    imageOcrConvert(files, { ...opts, outputMode: 'excel' }, onProgress),
 
   limitationNote: {
-    summary: 'OCR by default — AI mode is opt-in and GPU-only',
-    body: 'Standard mode uses Tesseract OCR with column detection. Tables with consistent column alignment extract accurately — the thing to spot-check is whether numbers stayed in the right column on tightly-spaced or slightly skewed images. For denser tables or stylized fonts, switch to AI-Enhanced recognition (English only) in the options below — it uses Florence-2 + TrOCR and often reads tricky characters more accurately. AI mode (separate toggle) uses a local vision model for the messiest layouts, but can misread numbers — always verify.',
+    summary: 'OCR-based — spot-check numbers and column alignment',
+    body: 'Standard mode uses Tesseract OCR with column detection. Tables with consistent column alignment extract accurately — the thing to spot-check is whether numbers stayed in the right column on tightly-spaced or slightly skewed images. For denser tables or stylized fonts, switch to AI-Enhanced recognition (English only) in the options below — it uses Florence-2 + TrOCR and often reads tricky characters more accurately.',
   },
 
   options: [
@@ -79,27 +47,16 @@ export const config: ToolConfig = {
       ],
       default: 'eng',
     },
-    {
-      type: 'toggle',
-      name: 'aiMode',
-      label: 'AI mode (beta)',
-      hint: 'Uses a local vision AI instead of OCR. Better on messy or borderless tables, but may misread numbers — verify output. Requires a GPU-capable browser (Chrome or Edge). Downloads ~1.8 GB on first use.',
-      default: false,
-    },
   ],
 
   faq: [
     {
       q: 'How does this work?',
-      a: 'By default the tool uses Tesseract OCR with pixel-level column detection to reconstruct the table grid from the image. Words are assigned to cells based on their horizontal position, and the result is written to .xlsx. This approach cannot invent data — it can only misread a character, never fabricate a row or shuffle a value between columns. AI mode (optional) uses Qwen2.5-VL running locally in your browser — better on messy or handwritten layouts, but generative models can misread numbers, so verify before using in calculations.',
+      a: 'The tool uses Tesseract OCR with pixel-level column detection to reconstruct the table grid from the image. Words are assigned to cells based on their horizontal position, and the result is written to .xlsx. This approach cannot invent data — it can only misread a character, never fabricate a row or shuffle a value between columns.',
     },
     {
       q: 'When should I use AI-Enhanced recognition?',
       a: 'Switch to AI-Enhanced when standard OCR misreads characters — common on dense tables, bold or italic headers, or text that runs close together. It uses Florence-2 + TrOCR instead of Tesseract, which handles complex layouts without line-by-line segmentation. Downloads ~262MB on first use (shared with other OCR tools on this site, so it may already be cached). English only.',
-    },
-    {
-      q: 'Why does the first AI-mode conversion take so long?',
-      a: 'When AI mode is enabled, the Qwen2.5-VL model (~1.8 GB) downloads to your browser on first use. After that it is cached, so subsequent conversions start immediately. Standard mode downloads only Tesseract language data (a few MB, shared with other OCR tools).',
     },
     {
       q: 'Can I open the output directly in Excel or Google Sheets?',
@@ -119,7 +76,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Are my files uploaded anywhere?',
-      a: 'No. Both OCR and AI mode run entirely in your browser. Your images never leave your device.',
+      a: 'No. All processing runs entirely in your browser. Your images never leave your device.',
     },
   ],
 

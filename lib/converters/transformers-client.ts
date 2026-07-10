@@ -4,14 +4,6 @@ import type { ModelType } from './transformers-worker'
 
 let workerInstance: Worker | null = null
 
-// ── VLM device tracking ────────────────────────────────────────────────────────
-
-let lastVlmDevice: 'webgpu' | 'wasm' = 'wasm'
-
-export function getVlmDevice(): 'webgpu' | 'wasm' {
-  return lastVlmDevice
-}
-
 function getWorker(): Worker {
   if (!workerInstance) {
     workerInstance = new Worker(
@@ -48,8 +40,6 @@ export function loadTransformersModel(
         delete loadingPromise[modelType]
         onProgress(100)
         resolve()
-      } else if (d.type === 'model-device' && d.modelType === modelType) {
-        lastVlmDevice = d.device as 'webgpu' | 'wasm'
       } else if (d.type === 'error' && !d.id) {
         worker.removeEventListener('message', handler)
         delete loadingPromise[modelType]
@@ -181,47 +171,4 @@ export function recognizeHandwritingOcr(
   })
 }
 
-// ── Table extraction VLM ──────────────────────────────────────────────────────
-
-export function extractTableWithVlm(
-  blob: Blob,
-  onProgress?: (pct: number) => void
-): Promise<{ csv: string; truncated: boolean }> {
-  return new Promise((resolve, reject) => {
-    const worker = getWorker()
-    const id = crypto.randomUUID()
-
-    const handler = (e: MessageEvent) => {
-      const d = e.data
-      if (d.id !== id) return
-
-      if (d.type === 'infer-progress') {
-        onProgress?.(d.progress as number)
-      } else if (d.type === 'infer-result') {
-        worker.removeEventListener('message', handler)
-        resolve({ csv: d.result as string, truncated: Boolean(d.truncated) })
-      } else if (d.type === 'error') {
-        worker.removeEventListener('message', handler)
-        reject(new Error(d.message as string))
-      }
-    }
-
-    worker.addEventListener('message', handler)
-
-    // Prompt lives in the worker default — no need to send it from the client.
-    blob.arrayBuffer().then(buffer => {
-      worker.postMessage(
-        {
-          type: 'infer',
-          id,
-          modelType: 'table-vlm',
-          buffer,
-          mimeType: blob.type || 'image/png',
-          opts: {},
-        },
-        [buffer]
-      )
-    }).catch(reject)
-  })
-}
 
