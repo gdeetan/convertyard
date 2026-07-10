@@ -463,3 +463,121 @@ export async function videoToGif(
 
   return results
 }
+
+const H264_CRF: Record<string, number> = { small: 18, medium: 23, high: 28, maximum: 35 }
+const H265_CRF: Record<string, number> = { small: 22, medium: 26, high: 30, maximum: 36 }
+const RESOLUTION_HEIGHT: Record<string, number> = { '1080p': 1080, '720p': 720, '480p': 480, '360p': 360 }
+
+export async function compressVideo(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+
+  const targetSizeMode = options.targetSizeMode === true || options.targetSizeMode === 'true'
+  const level         = (options.level      as string)  ?? 'medium'
+  const resolution    = (options.resolution as string)  ?? 'original'
+  const h265          = options.h265         === true || options.h265 === 'true'
+  const stripAudio    = options.stripAudio   === true || options.stripAudio === 'true'
+  const targetKB      = typeof options.targetKB === 'number' ? options.targetKB : 51200
+
+  const codec  = h265 ? 'libx265' : 'libx264'
+  const crfMap = h265 ? H265_CRF  : H264_CRF
+
+  const resHeight = RESOLUTION_HEIGHT[resolution]
+  const vfArgs: string[] = resHeight
+    ? ['-vf', `scale=-2:${resHeight}:force_original_aspect_ratio=decrease`]
+    : []
+  const audioArgs: string[] = stripAudio
+    ? ['-an']
+    : ['-c:a', 'aac', '-b:a', '128k']
+
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const file   = files[i]
+      const hasVideoTrack = await probeVideoTrack(file)
+      if (hasVideoTrack === false) {
+        results.push(new Error('This file has no video track. Video Compressor only works on video files, not audio-only files.'))
+        continue
+      }
+
+      const ffmpeg = await getFFmpeg()
+      const ext    = file.name.split('.').pop() ?? 'mp4'
+      const inputName  = `cv_in_${i}.${ext}`
+      const outputName = `cv_out_${i}.mp4`
+
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+
+      let data: Uint8Array<ArrayBuffer> | undefined
+
+      if (!targetSizeMode) {
+        const crf = crfMap[level] ?? 23
+        const progressHandler = ({ progress }: { progress: number }) => {
+          onProgress?.(i, Math.round(10 + progress * 85))
+        }
+        ffmpeg.on('progress', progressHandler)
+        try {
+          await ffmpeg.exec([
+            '-i', inputName,
+            ...vfArgs,
+            '-c:v', codec,
+            '-crf', String(crf),
+            '-preset', 'ultrafast',
+            ...audioArgs,
+            outputName,
+          ])
+          data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+        } finally {
+          ffmpeg.off('progress', progressHandler)
+          await ffmpeg.deleteFile(inputName).catch(() => {})
+          await ffmpeg.deleteFile(outputName).catch(() => {})
+        }
+      } else {
+        const targetBytes = targetKB * 1024
+        let crf = h265 ? 26 : 23
+        const MAX_PASSES = 6
+        for (let pass = 0; pass < MAX_PASSES; pass++) {
+          const pctBase = 10 + pass * 13
+          const progressHandler = ({ progress }: { progress: number }) => {
+            onProgress?.(i, Math.round(pctBase + progress * 13))
+          }
+          ffmpeg.on('progress', progressHandler)
+          try {
+            await ffmpeg.exec([
+              '-i', inputName,
+              ...vfArgs,
+              '-c:v', codec,
+              '-crf', String(crf),
+              '-preset', 'ultrafast',
+              ...audioArgs,
+              outputName,
+            ])
+          } finally {
+            ffmpeg.off('progress', progressHandler)
+            await ffmpeg.deleteFile(inputName).catch(() => {})
+          }
+          const candidate = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+          if (candidate.byteLength <= targetBytes || pass === MAX_PASSES - 1) {
+            data = candidate
+            break
+          }
+          await ffmpeg.deleteFile(outputName).catch(() => {})
+          crf = Math.min(crf + 5, 51)
+        }
+      }
+
+      await ffmpeg.deleteFile(outputName).catch(() => {})
+
+      if (!data) throw new Error('Compression produced no output')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      results.push(new File([data], `${baseName}.mp4`, { type: 'video/mp4' }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(toError(err))
+    }
+  }
+  return results
+}

@@ -20,6 +20,13 @@ import { config as compressPdfTo5mb } from './size-targets/compress-pdf-to-5mb'
 import { config as compressPdfTo10mb } from './size-targets/compress-pdf-to-10mb'
 import { config as compressPdfTo20mb } from './size-targets/compress-pdf-to-20mb'
 import { config as compressPdfTo25mb } from './size-targets/compress-pdf-to-25mb'
+import { config as compressVideoTo10mb }  from './size-targets/compress-video-to-10mb'
+import { config as compressVideoTo25mb }  from './size-targets/compress-video-to-25mb'
+import { config as compressVideoTo50mb }  from './size-targets/compress-video-to-50mb'
+import { config as compressVideoTo100mb } from './size-targets/compress-video-to-100mb'
+import { config as compressVideoTo200mb } from './size-targets/compress-video-to-200mb'
+import { config as compressVideoTo500mb } from './size-targets/compress-video-to-500mb'
+import { config as compressVideoTo1gb }   from './size-targets/compress-video-to-1gb'
 
 export const sizeTargets: SizeTargetConfig[] = [
   compressImageTo10kb,
@@ -42,4 +49,11 @@ export const sizeTargets: SizeTargetConfig[] = [
   compressPdfTo10mb,
   compressPdfTo20mb,
   compressPdfTo25mb,
+  compressVideoTo10mb,
+  compressVideoTo25mb,
+  compressVideoTo50mb,
+  compressVideoTo100mb,
+  compressVideoTo200mb,
+  compressVideoTo500mb,
+  compressVideoTo1gb,
 ]

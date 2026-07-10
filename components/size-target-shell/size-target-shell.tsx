@@ -9,11 +9,13 @@ import { sizeTargets } from '@/content/size-target-registry'
 import { verticals } from '@/content/vertical-registry'
 import { config as compressPdfConfig } from '@/content/tools/compress-pdf'
 import { config as compressImageConfig } from '@/content/tools/compress-image'
+import { config as compressVideoConfig } from '@/content/tools/compress-video'
 import type { SizeTargetConfig, ToolConfig, ToolOption } from '@/lib/types'
 
 const INHERITED_FAQ_INDICES: Record<string, number[]> = {
   'compress-pdf':   [4, 5], // "Are files uploaded?" + "Can I batch?"
   'compress-image': [6],    // "Are my images uploaded to your servers?"
+  'compress-video': [0, 1], // "Are my video files uploaded?" + "Can I compress multiple videos?"
 }
 
 interface SizeTargetShellProps {
@@ -26,7 +28,7 @@ interface SizeTargetShellProps {
 
 function buildPrefilledConfig(parentConfig: ToolConfig, config: SizeTargetConfig): ToolConfig {
   const targetKB = Math.round(config.targetBytes / 1024)
-  if (config.parentTool === 'compress-pdf') {
+  if (config.parentTool === 'compress-pdf' || config.parentTool === 'compress-video') {
     return {
       ...parentConfig,
       options: parentConfig.options?.map(opt => {
@@ -55,7 +57,10 @@ export function SizeTargetShell({
   parentCategory,
   parentCategoryHref,
 }: SizeTargetShellProps) {
-  const parentToolConfig = config.parentTool === 'compress-pdf' ? compressPdfConfig : compressImageConfig
+  const parentToolConfig =
+    config.parentTool === 'compress-pdf'    ? compressPdfConfig   :
+    config.parentTool === 'compress-video'  ? compressVideoConfig :
+    compressImageConfig
   const toolConfig = buildPrefilledConfig(parentToolConfig, config)
 
   const relatedSizeConfigs = sizeTargets.filter(

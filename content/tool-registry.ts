@@ -42,6 +42,7 @@ import { config as protectPdf } from './tools/protect-pdf'
 import { config as watermarkPdf } from './tools/watermark-pdf'
 import { config as pdfToPowerpoint } from './tools/pdf-to-powerpoint'
 import { config as ocrPdf } from './tools/ocr-pdf'
+import { config as compressVideo } from './tools/compress-video'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
@@ -89,6 +90,7 @@ export const tools: ToolConfig[] = [
   watermarkPdf,
   pdfToPowerpoint,
   ocrPdf,
+  compressVideo,
 ]
 
 export const toolBySlug = Object.fromEntries(
