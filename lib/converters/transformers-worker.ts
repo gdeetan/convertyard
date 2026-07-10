@@ -37,9 +37,7 @@ let altModel: unknown = null
 let altProcessor: unknown = null
 let vlmModel: unknown = null
 let vlmProcessor: unknown = null
-let vlmDevice: 'webgpu' | 'wasm' = 'wasm'
 const QWEN_MODEL_ID = 'onnx-community/Qwen2.5-VL-3B-Instruct-ONNX'
-const SMOLVLM_MODEL_ID = 'HuggingFaceTB/SmolVLM-500M-Instruct'
 // ── Aggregated download progress tracker ──────────────────────────────────────
 
 function makeProgressCallback(modelType: ModelType) {
@@ -132,35 +130,25 @@ async function loadTableVlmModel() {
   if (vlmModel && vlmProcessor) return
   await ensureHfAuth()
 
-  const cb = makeProgressCallback('table-vlm')
-
-  let device: 'webgpu' | 'wasm'
+  let adapter: unknown
   try {
-    const adapter = await (navigator as unknown as { gpu?: { requestAdapter: () => Promise<unknown> } }).gpu?.requestAdapter()
-    device = adapter ? 'webgpu' : 'wasm'
+    adapter = await (navigator as unknown as { gpu?: { requestAdapter: () => Promise<unknown> } }).gpu?.requestAdapter()
   } catch {
-    device = 'wasm'
+    // WebGPU API not available
   }
-  vlmDevice = device
+  if (!adapter) {
+    throw Object.assign(new Error('WebGPU not available'), { code: 'WEBGPU_UNAVAILABLE' })
+  }
 
-  if (device === 'webgpu') {
-    const { Qwen2_5_VLForConditionalGeneration: Qwen2_5_VL, AutoProcessor } = await import('@huggingface/transformers')
-    const dtype = {
-      embed_tokens: 'fp16' as const,
-      vision_encoder: 'fp16' as const,
-      decoder_model_merged: 'q4' as const,
-    }
-    vlmProcessor = await AutoProcessor.from_pretrained(QWEN_MODEL_ID, { progress_callback: cb })
-    vlmModel = await Qwen2_5_VL.from_pretrained(QWEN_MODEL_ID, { dtype, device, progress_callback: cb })
-  } else {
-    const { AutoModelForImageTextToText, AutoProcessor } = await import('@huggingface/transformers')
-    vlmProcessor = await AutoProcessor.from_pretrained(SMOLVLM_MODEL_ID, { progress_callback: cb })
-    vlmModel = await AutoModelForImageTextToText.from_pretrained(SMOLVLM_MODEL_ID, {
-      dtype: 'q8',
-      device: 'wasm',
-      progress_callback: cb,
-    })
+  const cb = makeProgressCallback('table-vlm')
+  const { Qwen2_5_VLForConditionalGeneration: Qwen2_5_VL, AutoProcessor } = await import('@huggingface/transformers')
+  const dtype = {
+    embed_tokens: 'fp16' as const,
+    vision_encoder: 'fp16' as const,
+    decoder_model_merged: 'q4' as const,
   }
+  vlmProcessor = await AutoProcessor.from_pretrained(QWEN_MODEL_ID, { progress_callback: cb })
+  vlmModel = await Qwen2_5_VL.from_pretrained(QWEN_MODEL_ID, { dtype, device: 'webgpu', progress_callback: cb })
 }
 
 // ── Inference: background removal ─────────────────────────────────────────────
@@ -400,7 +388,7 @@ async function runOcr(id: string, buffer: ArrayBuffer, mimeType: string) {
   self.postMessage({ type: 'infer-result', id, result })
 }
 
-// ── Inference: table extraction (Qwen2.5-VL-3B on WebGPU, SmolVLM-500M on WASM) ──
+// ── Inference: table extraction (Qwen2.5-VL-3B, WebGPU only) ─────────────────
 
 async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, prompt: string) {
   const { RawImage } = await import('@huggingface/transformers')
@@ -408,24 +396,15 @@ async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, pr
   const blob = new Blob([buffer], { type: mimeType })
   let image = await RawImage.fromBlob(blob)
 
-  const MAX_PX = vlmDevice === 'wasm' ? 512 : 1344
-
-  if (vlmDevice === 'webgpu') {
-    // Qwen2.5-VL: spatial_merge_size=2 * patch_size=28 = 56px stride.
-    // Both dims must be multiples of 56 or the ONNX tensor allocation mismatches.
-    const PATCH = 56
-    const scale = Math.min(1, MAX_PX / Math.max(image.width, image.height))
-    const alignedW = Math.max(PATCH, Math.round((image.width * scale) / PATCH) * PATCH)
-    const alignedH = Math.max(PATCH, Math.round((image.height * scale) / PATCH) * PATCH)
-    if (alignedW !== image.width || alignedH !== image.height) {
-      image = await image.resize(alignedW, alignedH)
-    }
-  } else {
-    // SmolVLM: no patch alignment required — cap to 512px
-    const scale = Math.min(1, MAX_PX / Math.max(image.width, image.height))
-    if (scale < 1) {
-      image = await image.resize(Math.round(image.width * scale), Math.round(image.height * scale))
-    }
+  // Qwen2.5-VL: spatial_merge_size=2 * patch_size=28 = 56px stride.
+  // Both dims must be multiples of 56 or the ONNX tensor allocation mismatches.
+  const MAX_PX = 1344
+  const PATCH = 56
+  const scale = Math.min(1, MAX_PX / Math.max(image.width, image.height))
+  const alignedW = Math.max(PATCH, Math.round((image.width * scale) / PATCH) * PATCH)
+  const alignedH = Math.max(PATCH, Math.round((image.height * scale) / PATCH) * PATCH)
+  if (alignedW !== image.width || alignedH !== image.height) {
+    image = await image.resize(alignedW, alignedH)
   }
 
   self.postMessage({ type: 'infer-progress', id, progress: 15 })
@@ -453,21 +432,26 @@ async function runTableVlm(id: string, buffer: ArrayBuffer, mimeType: string, pr
   const inputs = await processor(text, [image], { padding: true })
   self.postMessage({ type: 'infer-progress', id, progress: 40 })
 
+  const MAX_NEW_TOKENS = 2048
   const outputs = await model.generate({
     ...inputs,
-    max_new_tokens: vlmDevice === 'wasm' ? 512 : 2048,
-    repetition_penalty: 1.3,
+    max_new_tokens: MAX_NEW_TOKENS,
+    do_sample: false,
+    repetition_penalty: 1.0,
   })
 
   self.postMessage({ type: 'infer-progress', id, progress: 85 })
 
   // transformers.js 4.x: slice(null, [N, null]) = all batches, seq_dim N to end (new tokens only)
   const newTokens = outputs.slice(null, [inputs.input_ids.dims[1], null])
+  const newTokenCount = (newTokens as { dims?: number[] }).dims?.[1] ?? 0
+  const truncated = newTokenCount >= MAX_NEW_TOKENS
+
   const decoded: string[] = processor.batch_decode(newTokens, { skip_special_tokens: true })
   const result = (decoded[0] ?? '').trim()
 
   self.postMessage({ type: 'infer-progress', id, progress: 100 })
-  self.postMessage({ type: 'infer-result', id, result })
+  self.postMessage({ type: 'infer-result', id, result, truncated })
 }
 
 // ── Message router ────────────────────────────────────────────────────────────
@@ -483,10 +467,11 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
       else if (msg.modelType === 'table-vlm') await loadTableVlmModel()
       self.postMessage({ type: 'model-ready', modelType: msg.modelType })
       if (msg.modelType === 'table-vlm') {
-        self.postMessage({ type: 'model-device', modelType: 'table-vlm', device: vlmDevice })
+        self.postMessage({ type: 'model-device', modelType: 'table-vlm', device: 'webgpu' })
       }
     } catch (err) {
-      self.postMessage({ type: 'error', message: (err as Error).message })
+      const code = (err as { code?: string }).code
+      self.postMessage({ type: 'error', message: (err as Error).message, ...(code ? { code } : {}) })
     }
     return
   }
@@ -501,7 +486,7 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
       } else if (modelType === 'ocr') {
         await runOcr(id, buffer, mimeType)
       } else if (modelType === 'table-vlm') {
-        const prompt = opts.prompt ?? 'Extract the table as CSV. First row: headers. No explanation, no markdown fences.'
+        const prompt = opts.prompt ?? 'Transcribe the table in this image as CSV. First row: headers. Copy every value exactly as shown. If a cell is unreadable, output ?. Do not guess, summarize, or add rows. No markdown fences, no explanation.'
         await runTableVlm(id, buffer, mimeType, prompt)
       }
     } catch (err) {

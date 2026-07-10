@@ -1,6 +1,6 @@
 import { imageOcrConvert } from '@/lib/converters/image-ocr'
 import { imageToExcelVlm } from '@/lib/converters/image-to-excel-vlm'
-import { loadTransformersModel, getVlmDevice } from '@/lib/converters/transformers-client'
+import { loadTransformersModel } from '@/lib/converters/transformers-client'
 import type { ConversionResult, ToolConfig, ToolOptions } from '@/lib/types'
 
 async function convertWithAiMode(
@@ -8,21 +8,25 @@ async function convertWithAiMode(
   opts: ToolOptions,
   onProgress?: (fileIndex: number, pct: number) => void,
 ): Promise<ConversionResult[]> {
-  await loadTransformersModel('table-vlm', pct => onProgress?.(0, Math.round(pct * 0.3)))
-  if (getVlmDevice() !== 'webgpu') {
-    // WebGPU unavailable — run deterministic OCR; signal via filename so user
-    // knows which engine ran (cannot return both a File and a warning message).
-    const results = await imageOcrConvert(files, { ...opts, outputMode: 'excel' }, onProgress)
-    return results.map(r => {
-      if (r instanceof File) {
-        return new File(
-          [r],
-          r.name.replace(/\.xlsx$/, ' (OCR — AI mode needs GPU).xlsx'),
-          { type: r.type },
-        )
-      }
-      return r
-    })
+  try {
+    await loadTransformersModel('table-vlm', pct => onProgress?.(0, Math.round(pct * 0.3)))
+  } catch (err) {
+    if ((err as { code?: string }).code === 'WEBGPU_UNAVAILABLE') {
+      // WebGPU unavailable — run deterministic OCR; signal via filename so user
+      // knows which engine ran (cannot return both a File and a warning message).
+      const results = await imageOcrConvert(files, { ...opts, outputMode: 'excel' }, onProgress)
+      return results.map(r => {
+        if (r instanceof File) {
+          return new File(
+            [r],
+            r.name.replace(/\.xlsx$/, ' (OCR — AI mode needs GPU).xlsx'),
+            { type: r.type },
+          )
+        }
+        return r
+      })
+    }
+    throw err
   }
   return imageToExcelVlm(files, opts, onProgress)
 }

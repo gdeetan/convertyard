@@ -1,4 +1,4 @@
-import { loadTransformersModel, extractTableWithVlm, getVlmDevice } from '@/lib/converters/transformers-client'
+import { loadTransformersModel, extractTableWithVlm } from '@/lib/converters/transformers-client'
 import type { ConversionResult, ToolOptions } from '@/lib/types'
 import * as XLSX from 'xlsx'
 
@@ -92,7 +92,7 @@ export async function imageToExcelVlm(
     try {
       const file = files[i]
 
-      const rawCsv = await extractTableWithVlm(
+      const { csv: rawCsv, truncated } = await extractTableWithVlm(
         file,
         pct => onProgress?.(i, (i === 0 ? 40 : 5) + Math.round(pct * 0.55))
       )
@@ -103,7 +103,7 @@ export async function imageToExcelVlm(
       if (rows.length === 0) throw new Error('No table data found in image')
 
       const baseName = file.name.replace(/\.[^.]+$/, '')
-      const outputName = getVlmDevice() === 'wasm' ? `${baseName} (verify output)` : baseName
+      const outputName = truncated ? `${baseName} (may be truncated)` : baseName
       const xlsxBytes = toXlsx(rows, outputName)
       results.push(
         new File(

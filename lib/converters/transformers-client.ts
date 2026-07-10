@@ -53,7 +53,9 @@ export function loadTransformersModel(
       } else if (d.type === 'error' && !d.id) {
         worker.removeEventListener('message', handler)
         delete loadingPromise[modelType]
-        reject(new Error(d.message as string))
+        const err = new Error(d.message as string)
+        if (d.code) (err as Error & { code: string }).code = d.code as string
+        reject(err)
       }
     }
 
@@ -181,21 +183,10 @@ export function recognizeHandwritingOcr(
 
 // ── Table extraction VLM ──────────────────────────────────────────────────────
 
-const TABLE_EXTRACTION_PROMPT =
-  'Extract this table as CSV. Start your response with the very first CSV line — no preamble, no explanation, no markdown fences.\n' +
-  'Rules:\n' +
-  '- Line 1: column headers, each header separated by a comma\n' +
-  '- Every subsequent line: one data row, values separated by commas\n' +
-  '- Every row must have exactly the same number of comma-separated values as the header line\n' +
-  '- If a cell value contains a comma, wrap that value in double-quotes\n' +
-  '- Empty cells: output nothing between the commas (e.g. value1,,value3)\n' +
-  '- Do not repeat any row\n' +
-  'Output ONLY raw CSV. No markdown, no explanation, no extra text before or after.'
-
 export function extractTableWithVlm(
   blob: Blob,
   onProgress?: (pct: number) => void
-): Promise<string> {
+): Promise<{ csv: string; truncated: boolean }> {
   return new Promise((resolve, reject) => {
     const worker = getWorker()
     const id = crypto.randomUUID()
@@ -208,7 +199,7 @@ export function extractTableWithVlm(
         onProgress?.(d.progress as number)
       } else if (d.type === 'infer-result') {
         worker.removeEventListener('message', handler)
-        resolve(d.result as string)
+        resolve({ csv: d.result as string, truncated: Boolean(d.truncated) })
       } else if (d.type === 'error') {
         worker.removeEventListener('message', handler)
         reject(new Error(d.message as string))
@@ -217,6 +208,7 @@ export function extractTableWithVlm(
 
     worker.addEventListener('message', handler)
 
+    // Prompt lives in the worker default — no need to send it from the client.
     blob.arrayBuffer().then(buffer => {
       worker.postMessage(
         {
@@ -225,7 +217,7 @@ export function extractTableWithVlm(
           modelType: 'table-vlm',
           buffer,
           mimeType: blob.type || 'image/png',
-          opts: { prompt: TABLE_EXTRACTION_PROMPT },
+          opts: {},
         },
         [buffer]
       )
