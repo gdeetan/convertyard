@@ -53,21 +53,24 @@ export async function mp4ToMp3(
       }
       ffmpeg.on('progress', progressHandler)
 
-      await ffmpeg.exec([
-        '-i', inputName,
-        '-vn',
-        '-acodec', 'libmp3lame',
-        '-ab', `${bitrate}k`,
-        '-ar', sampleRate,
-        outputName,
-      ])
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec([
+          '-i', inputName,
+          '-vn',
+          '-acodec', 'libmp3lame',
+          '-ab', `${bitrate}k`,
+          '-ar', sampleRate,
+          outputName,
+        ])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
 
-      ffmpeg.off('progress', progressHandler)
-
-      const data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
-      await ffmpeg.deleteFile(inputName)
-      await ffmpeg.deleteFile(outputName)
-
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
       const baseName = file.name.replace(/\.[^.]+$/, '')
       results.push(new File([data], `${baseName}.mp3`, { type: 'audio/mpeg' }))
       onProgress?.(i, 100)
@@ -182,7 +185,7 @@ export async function mp3ToMp4(
         if (bgImage) await ffmpeg.deleteFile(imageName).catch(() => {})
       }
 
-      if (!data) throw new Error('Conversion produced no output')
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
       const baseName = file.name.replace(/\.[^.]+$/, '')
       results.push(new File([data], `${baseName}.mp4`, { type: 'video/mp4' }))
       onProgress?.(i, 100)
@@ -256,7 +259,7 @@ export async function gifToMp4(
         await ffmpeg.deleteFile(outputName).catch(() => {})
       }
 
-      if (!data) throw new Error('Conversion produced no output')
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
       const baseName = file.name.replace(/\.[^.]+$/, '')
       results.push(new File([data], `${baseName}.mp4`, { type: 'video/mp4' }))
       onProgress?.(i, 100)
@@ -277,7 +280,7 @@ const WEBP_CROP_FILTERS: Record<string, string | null> = {
 
 function buildAnimatedWebpScale(maxDimension: number): string | null {
   if (!Number.isFinite(maxDimension) || maxDimension <= 0) return null
-  return `scale='if(gte(iw,ih),${maxDimension},-2)':'if(gte(iw,ih),-2,${maxDimension})':flags=lanczos:force_original_aspect_ratio=decrease`
+  return `scale='if(gte(iw,ih),min(iw,${maxDimension}),-2)':'if(gte(iw,ih),-2,min(ih,${maxDimension}))':flags=lanczos`
 }
 
 function buildAnimatedWebpFilter(options: ToolOptions): string {
@@ -371,7 +374,7 @@ export async function mp4ToWebp(
         await ffmpeg.deleteFile(outputName).catch(() => {})
       }
 
-      if (!data) throw new Error('Conversion produced no output')
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
       const baseName = file.name.replace(/\.[^.]+$/, '')
       results.push(new File([data], `${baseName}.webp`, { type: 'image/webp' }))
       onProgress?.(i, 100)
@@ -452,7 +455,7 @@ export async function videoToGif(
         await ffmpeg.deleteFile(outputName).catch(() => {})
       }
 
-      if (!data) throw new Error('Conversion produced no output')
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
       const baseName = file.name.replace(/\.[^.]+$/, '')
       results.push(new File([data], `${baseName}.gif`, { type: 'image/gif' }))
       onProgress?.(i, 100)

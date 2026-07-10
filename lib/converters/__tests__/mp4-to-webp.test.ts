@@ -76,7 +76,7 @@ describe('mp4ToWebp', () => {
       '-to', '4.5',
       '-i', 'video_in_0.mp4',
       '-an',
-      '-vf', "crop='min(iw,ih)':'min(iw,ih)',fps=12,scale='if(gte(iw,ih),640,-2)':'if(gte(iw,ih),-2,640)':flags=lanczos:force_original_aspect_ratio=decrease",
+      '-vf', "crop='min(iw,ih)':'min(iw,ih)',fps=12,scale='if(gte(iw,ih),min(iw,640),-2)':'if(gte(iw,ih),-2,min(ih,640))':flags=lanczos",
       '-c:v', 'libwebp',
       '-lossless', '0',
       '-compression_level', '4',
