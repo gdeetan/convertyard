@@ -496,8 +496,14 @@ export async function compressVideo(
   for (let i = 0; i < files.length; i++) {
     onProgress?.(i, 5)
     try {
-      const ffmpeg = await getFFmpeg()
       const file   = files[i]
+      const hasVideoTrack = await probeVideoTrack(file)
+      if (hasVideoTrack === false) {
+        results.push(new Error('This file has no video track. Video Compressor only works on video files, not audio-only files.'))
+        continue
+      }
+
+      const ffmpeg = await getFFmpeg()
       const ext    = file.name.split('.').pop() ?? 'mp4'
       const inputName  = `cv_in_${i}.${ext}`
       const outputName = `cv_out_${i}.mp4`
@@ -526,6 +532,8 @@ export async function compressVideo(
           data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
         } finally {
           ffmpeg.off('progress', progressHandler)
+          await ffmpeg.deleteFile(inputName).catch(() => {})
+          await ffmpeg.deleteFile(outputName).catch(() => {})
         }
       } else {
         const targetBytes = targetKB * 1024
@@ -549,6 +557,7 @@ export async function compressVideo(
             ])
           } finally {
             ffmpeg.off('progress', progressHandler)
+            await ffmpeg.deleteFile(inputName).catch(() => {})
           }
           const candidate = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
           if (candidate.byteLength <= targetBytes || pass === MAX_PASSES - 1) {
@@ -560,7 +569,6 @@ export async function compressVideo(
         }
       }
 
-      await ffmpeg.deleteFile(inputName).catch(() => {})
       await ffmpeg.deleteFile(outputName).catch(() => {})
 
       if (!data) throw new Error('Compression produced no output')

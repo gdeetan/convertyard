@@ -2,6 +2,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@ffmpeg/util', () => ({ fetchFile: vi.fn(async (f: File) => new Uint8Array([1, 2, 3])) }))
 
+vi.mock('@/lib/converters/media-probe', () => ({
+  probeVideoTrack: vi.fn(async () => true),
+}))
+
 const mockExec = vi.fn(async () => {})
 const mockWriteFile = vi.fn(async () => {})
 const mockReadFile = vi.fn(async () => new Uint8Array([9, 8, 7]))
@@ -82,5 +86,20 @@ describe('compressVideo', () => {
     const file = makeFile('my-clip.mov')
     const results = await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: false })
     expect((results[0] as File).name).toBe('my-clip.mp4')
+  })
+
+  it('cleans up temp files after successful conversion', async () => {
+    const file = makeFile('video.mp4')
+    await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: false })
+    expect(mockDeleteFile).toHaveBeenCalled()
+  })
+
+  it('target size mode: runs all 6 passes when output never fits', async () => {
+    mockReadFile.mockResolvedValue(new Uint8Array([9, 8, 7]))
+    const file = makeFile('video.mp4')
+    const results = await compressVideo([file], { targetSizeMode: true, targetKB: 0, resolution: 'original', h265: false, stripAudio: false })
+    expect(mockExec).toHaveBeenCalledTimes(6)
+    // Still returns a File (last pass result)
+    expect(results[0]).toBeInstanceOf(File)
   })
 })
