@@ -46,10 +46,39 @@ export const config: ToolConfig = {
 
   limitationNote: {
     summary: 'OCR by default — AI mode is opt-in and GPU-only',
-    body: 'Standard mode uses Tesseract OCR with column detection. Tables with consistent column alignment extract accurately — the thing to spot-check is whether numbers stayed in the right column on tightly-spaced or slightly skewed images. AI mode (toggle below) uses a local vision model and may handle messier layouts, but can misread numbers — always verify. AI mode requires Chrome or Edge with a GPU and downloads ~1.8 GB on first use.',
+    body: 'Standard mode uses Tesseract OCR with column detection. Tables with consistent column alignment extract accurately — the thing to spot-check is whether numbers stayed in the right column on tightly-spaced or slightly skewed images. For denser tables or stylized fonts, switch to AI-Enhanced recognition (English only) in the options below — it uses Florence-2 + TrOCR and often reads tricky characters more accurately. AI mode (separate toggle) uses a local vision model for the messiest layouts, but can misread numbers — always verify.',
   },
 
   options: [
+    {
+      type: 'radio',
+      name: 'recognitionEngine',
+      label: 'Recognition engine',
+      choices: [
+        { value: 'standard', label: 'Standard — all languages, no download' },
+        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~262MB (may be cached)' },
+      ],
+      default: 'standard',
+      conditionalHints: {
+        standard: 'Tesseract OCR with column detection. Best for clean printed text in any language.',
+        'ai-enhanced': 'Florence-2 + TrOCR: processes the full page at once, better on dense or stylized fonts. Downloads ~262MB on first use — shared with other OCR tools so may already be cached. English only.',
+      },
+    },
+    {
+      type: 'dropdown',
+      name: 'language',
+      label: 'Language',
+      hint: 'Language of text in the table. Standard engine only — AI-Enhanced uses English.',
+      choices: [
+        { value: 'eng', label: 'English' },
+        { value: 'fra', label: 'French' },
+        { value: 'deu', label: 'German' },
+        { value: 'spa', label: 'Spanish' },
+        { value: 'chi_sim', label: 'Chinese (Simplified)' },
+        { value: 'jpn', label: 'Japanese' },
+      ],
+      default: 'eng',
+    },
     {
       type: 'toggle',
       name: 'aiMode',
@@ -63,6 +92,10 @@ export const config: ToolConfig = {
     {
       q: 'How does this work?',
       a: 'By default the tool uses Tesseract OCR with pixel-level column detection to reconstruct the table grid from the image. Words are assigned to cells based on their horizontal position, and the result is written to .xlsx. This approach cannot invent data — it can only misread a character, never fabricate a row or shuffle a value between columns. AI mode (optional) uses Qwen2.5-VL running locally in your browser — better on messy or handwritten layouts, but generative models can misread numbers, so verify before using in calculations.',
+    },
+    {
+      q: 'When should I use AI-Enhanced recognition?',
+      a: 'Switch to AI-Enhanced when standard OCR misreads characters — common on dense tables, bold or italic headers, or text that runs close together. It uses Florence-2 + TrOCR instead of Tesseract, which handles complex layouts without line-by-line segmentation. Downloads ~262MB on first use (shared with other OCR tools on this site, so it may already be cached). English only.',
     },
     {
       q: 'Why does the first AI-mode conversion take so long?',
