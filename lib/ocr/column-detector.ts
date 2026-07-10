@@ -200,3 +200,78 @@ export async function detectColumnBoundaries(
 
   return null
 }
+
+/**
+ * Detect row boundary Y positions from a preprocessed binary image blob.
+ *
+ * Strategy A: horizontal gridlines (bordered tables) — rows where ≥50% of
+ * pixels are dark indicate a ruled line; those Y positions become boundaries.
+ *
+ * Strategy B: projection valleys (borderless tables) — find horizontal bands
+ * of whitespace (low dark-pixel density) between rows of text.
+ *
+ * Returns null if fewer than 2 row boundaries are found.
+ */
+export async function detectRowBoundaries(
+  binaryBlob: Blob,
+  imageWidth: number,
+  imageHeight: number,
+): Promise<number[] | null> {
+  if (typeof OffscreenCanvas === 'undefined') return null
+
+  let data: Uint8ClampedArray
+  try {
+    const bmp = await createImageBitmap(binaryBlob)
+    const canvas = new OffscreenCanvas(imageWidth, imageHeight)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(bmp, 0, 0)
+    bmp.close()
+    data = ctx.getImageData(0, 0, imageWidth, imageHeight).data
+  } catch {
+    return null
+  }
+
+  // Horizontal density profile: fraction of dark pixels per row
+  const profile = new Float32Array(imageHeight)
+  for (let y = 0; y < imageHeight; y++) {
+    let dark = 0
+    for (let x = 0; x < imageWidth; x++) {
+      if (data[(y * imageWidth + x) * 4] < 128) dark++
+    }
+    profile[y] = dark / imageWidth
+  }
+
+  // Strategy A: horizontal gridlines (bordered tables)
+  const lineYs: number[] = []
+  for (let y = 1; y < imageHeight - 1; y++) {
+    if (profile[y] >= 0.5 && profile[y] >= profile[y - 1] && profile[y] >= profile[y + 1]) {
+      lineYs.push(y)
+    }
+  }
+  const clusteredLines = clusterPositions(lineYs, 4)
+  if (clusteredLines.length >= 2) {
+    const bounds = [0, ...clusteredLines, imageHeight]
+    if (bounds.length >= 4) return bounds
+  }
+
+  // Strategy B: whitespace valleys (borderless tables)
+  const smoothed = gaussianSmooth(profile, 1.5)
+  const GAP_THRESHOLD = 0.03
+  const MIN_GAP_PX = 4
+  const bounds: number[] = [0]
+  let inGap = false
+  let gapStart = 0
+  for (let y = 0; y < imageHeight; y++) {
+    if (smoothed[y] < GAP_THRESHOLD) {
+      if (!inGap) { inGap = true; gapStart = y }
+    } else {
+      if (inGap && y - gapStart >= MIN_GAP_PX) {
+        bounds.push(Math.round((gapStart + y) / 2))
+      }
+      inGap = false
+    }
+  }
+  bounds.push(imageHeight)
+  return bounds.length >= 4 ? bounds : null
+}

@@ -4,7 +4,7 @@ import { detectLines } from '@/lib/ocr/line-detector'
 import { correctWords } from '@/lib/ocr/correction-client'
 import type { ConversionResult, OcrWordMeta, OcrResultMeta, ToolOptions } from '@/lib/types'
 import * as XLSX from 'xlsx'
-import { detectColumnBoundaries } from '@/lib/ocr/column-detector'
+import { detectColumnBoundaries, detectRowBoundaries } from '@/lib/ocr/column-detector'
 
 interface TrOcrLineResult {
   text: string
@@ -39,6 +39,62 @@ async function compositePng(blob: Blob): Promise<Blob> {
   ctx.drawImage(bmp, 0, 0)
   bmp.close()
   return canvas.convertToBlob({ type: 'image/png' })
+}
+
+// ── Per-cell OCR helpers ──────────────────────────────────────────────────────
+
+async function cropToBlob(
+  bitmap: ImageBitmap,
+  x: number, y: number, w: number, h: number,
+): Promise<Blob> {
+  const canvas = new OffscreenCanvas(Math.max(w, 1), Math.max(h, 1))
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, w, h)
+  ctx.drawImage(bitmap, x, y, w, h, 0, 0, w, h)
+  return canvas.convertToBlob({ type: 'image/png' })
+}
+
+async function recognizeTablePerCell(
+  binaryBlob: Blob,
+  imageWidth: number,
+  imageHeight: number,
+  lang: string,
+  colBounds: number[],
+  rowBounds: number[],
+): Promise<string[][] | null> {
+  if (typeof OffscreenCanvas === 'undefined') return null
+  const bitmap = await createImageBitmap(binaryBlob)
+  const colEdges = [0, ...colBounds, imageWidth]
+  const rowEdges = rowBounds
+  const grid: string[][] = []
+
+  for (let r = 0; r < rowEdges.length - 1; r++) {
+    const cy = rowEdges[r]
+    const ch = rowEdges[r + 1] - cy
+    if (ch < 4) continue
+    const rowCells: string[] = []
+    for (let c = 0; c < colEdges.length - 1; c++) {
+      const cx = colEdges[c]
+      const cw = colEdges[c + 1] - cx
+      if (cw < 4) continue
+      const cellBlob = await cropToBlob(bitmap, cx, cy, cw, ch)
+      const result = await recognizePage(cellBlob, lang, { oem: 1, psm: 7 })
+      rowCells.push((result.text ?? '').trim())
+    }
+    if (rowCells.length > 0) grid.push(rowCells)
+  }
+
+  bitmap.close()
+  return grid.length >= 2 ? grid : null
+}
+
+function gridToExcel(grid: string[][], sheetName: string): Uint8Array {
+  const ws = XLSX.utils.aoa_to_sheet(grid)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, sheetName.slice(0, 31))
+  const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+  return new Uint8Array(buf)
 }
 
 // ── Line cropping for TrOCR ───────────────────────────────────────────────────
@@ -555,6 +611,7 @@ export async function imageOcrConvert(
       // Tries Hough gridline detection first, then vertical projection profile.
       // If neither finds signal, parseTableFromWords uses word-gap voting.
       let detectedColBoundaries: number[] | undefined
+      let perCellGrid: string[][] | null = null
       if (mode === 'excel' || mode === 'table-csv') {
         try {
           const layoutBlobForCols = useAi
@@ -566,6 +623,13 @@ export async function imageOcrConvert(
           bmp.close()
           const cols = await detectColumnBoundaries(layoutBlobForCols, W, H)
           if (cols) detectedColBoundaries = cols
+
+          // Attempt per-cell OCR: detect row boundaries → crop + OCR each cell
+          const rows = await detectRowBoundaries(layoutBlobForCols, W, H)
+          if (cols && rows) {
+            const grid = await recognizeTablePerCell(layoutBlobForCols, W, H, lang, cols, rows)
+            if (grid) perCellGrid = grid
+          }
         } catch (colErr) {
           console.warn('[column-detector] Detection failed, using word-gap voting:', colErr)
         }
@@ -638,12 +702,16 @@ export async function imageOcrConvert(
           break
         }
         case 'table-csv': {
-          const csv = parseTableText(text, pageWords, detectedColBoundaries)
+          const csv = perCellGrid
+            ? perCellGrid.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n')
+            : parseTableText(text, pageWords, detectedColBoundaries)
           outFile = new File([csv], `${baseName}.csv`, { type: 'text/csv' })
           break
         }
         case 'excel': {
-          const xlsxBytes = parseToExcel(text, baseName, pageWords, detectedColBoundaries)
+          const xlsxBytes = perCellGrid
+            ? gridToExcel(perCellGrid, baseName)
+            : parseToExcel(text, baseName, pageWords, detectedColBoundaries)
           outFile = new File([xlsxBytes as unknown as Uint8Array<ArrayBuffer>], `${baseName}.xlsx`, {
             type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           })
