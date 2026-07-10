@@ -1,5 +1,31 @@
+import { imageOcrConvert } from '@/lib/converters/image-ocr'
 import { imageToExcelVlm } from '@/lib/converters/image-to-excel-vlm'
-import type { ToolConfig } from '@/lib/types'
+import { loadTransformersModel, getVlmDevice } from '@/lib/converters/transformers-client'
+import type { ConversionResult, ToolConfig, ToolOptions } from '@/lib/types'
+
+async function convertWithAiMode(
+  files: File[],
+  opts: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void,
+): Promise<ConversionResult[]> {
+  await loadTransformersModel('table-vlm', pct => onProgress?.(0, Math.round(pct * 0.3)))
+  if (getVlmDevice() !== 'webgpu') {
+    // WebGPU unavailable — run deterministic OCR; signal via filename so user
+    // knows which engine ran (cannot return both a File and a warning message).
+    const results = await imageOcrConvert(files, { ...opts, outputMode: 'excel' }, onProgress)
+    return results.map(r => {
+      if (r instanceof File) {
+        return new File(
+          [r],
+          r.name.replace(/\.xlsx$/, ' (OCR — AI mode needs GPU).xlsx'),
+          { type: r.type },
+        )
+      }
+      return r
+    })
+  }
+  return imageToExcelVlm(files, opts, onProgress)
+}
 
 export const config: ToolConfig = {
   slug: 'image-to-excel',
@@ -9,23 +35,34 @@ export const config: ToolConfig = {
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '.xlsx',
-  convertFn: imageToExcelVlm,
+  convertFn: (files: File[], opts: ToolOptions, onProgress) =>
+    opts.aiMode
+      ? convertWithAiMode(files, opts, onProgress)
+      : imageOcrConvert(files, { ...opts, outputMode: 'excel' }, onProgress),
 
   limitationNote: {
-    summary: 'Model size depends on your browser',
-    body: 'Chrome/Edge with GPU: uses Qwen2.5-VL-3B-Instruct (~1.8 GB, one-time download, then cached) — accurate on complex tables. Safari/Firefox or no GPU: uses SmolVLM-500M (~200 MB) — results may need verification. All processing runs locally; files never leave your device.',
+    summary: 'OCR by default — AI mode is opt-in and GPU-only',
+    body: 'Standard mode uses Tesseract OCR with column detection. Tables with consistent column alignment extract accurately — the thing to spot-check is whether numbers stayed in the right column on tightly-spaced or slightly skewed images. AI mode (toggle below) uses a local vision model and may handle messier layouts, but can misread numbers — always verify. AI mode requires Chrome or Edge with a GPU and downloads ~1.8 GB on first use.',
   },
 
-  options: [],
+  options: [
+    {
+      type: 'toggle',
+      name: 'aiMode',
+      label: 'AI mode (beta)',
+      hint: 'Uses a local vision AI instead of OCR. Better on messy or borderless tables, but may misread numbers — verify output. Requires a GPU-capable browser (Chrome or Edge). Downloads ~1.8 GB on first use.',
+      default: false,
+    },
+  ],
 
   faq: [
     {
       q: 'How does this work?',
-      a: 'It uses Qwen2.5-VL-3B-Instruct, a 3-billion parameter vision language model that runs entirely in your browser. The model reads the image the same way a person would — understanding headers, merged cells, and N/A values — then outputs the table as a spreadsheet.',
+      a: 'By default the tool uses Tesseract OCR with pixel-level column detection to reconstruct the table grid from the image. Words are assigned to cells based on their horizontal position, and the result is written to .xlsx. This approach cannot invent data — it can only misread a character, never fabricate a row or shuffle a value between columns. AI mode (optional) uses Qwen2.5-VL running locally in your browser — better on messy or handwritten layouts, but generative models can misread numbers, so verify before using in calculations.',
     },
     {
-      q: 'Why does the first conversion take so long?',
-      a: 'The model (~1.8 GB) downloads to your browser on first use. After that it is cached, so subsequent conversions start immediately. This is a one-time cost — once cached, the tool loads instantly.',
+      q: 'Why does the first AI-mode conversion take so long?',
+      a: 'When AI mode is enabled, the Qwen2.5-VL model (~1.8 GB) downloads to your browser on first use. After that it is cached, so subsequent conversions start immediately. Standard mode downloads only Tesseract language data (a few MB, shared with other OCR tools).',
     },
     {
       q: 'Can I open the output directly in Excel or Google Sheets?',
@@ -33,7 +70,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'What types of tables does it handle best?',
-      a: 'Standard bordered and borderless tables with consistent column spacing extract accurately. The AI understands merged header cells, percentage values, and N/A entries. Extremely complex nested tables or handwritten tables may need minor manual cleanup.',
+      a: 'Bordered tables (with visible grid lines) and borderless tables with consistent column spacing extract most reliably. If column values are very close together or the image has slight skew, spot-check the column alignment after export.',
     },
     {
       q: 'Does it work on invoice or receipt images?',
@@ -45,7 +82,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Are my files uploaded anywhere?',
-      a: 'No. The AI model runs locally in your browser. Your images never leave your device.',
+      a: 'No. Both OCR and AI mode run entirely in your browser. Your images never leave your device.',
     },
   ],
 
@@ -54,6 +91,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'Image to Excel Converter — ConvertYard',
-    description: 'Extract tables from images into .xlsx spreadsheets using local AI. No retyping — screenshot or photo a table, get an Excel file back. Runs locally, no uploads.',
+    description: 'Extract tables from images into .xlsx spreadsheets. Browser-based OCR — no uploads, no account. Batch convert screenshots and photos to Excel in seconds.',
   },
 }
