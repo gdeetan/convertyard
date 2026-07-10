@@ -8,7 +8,7 @@ export const config: SizeTargetConfig = {
   h1: 'Compress Video to 100 MB',
   subhead: 'Hit Discord Nitro Basic and most LMS upload limits. Full 1080p quality at 100 MB.',
   intro:
-    "100 MB covers Discord Nitro Basic (100 MB), most learning management systems (Canvas, Moodle, Blackboard typically cap course video uploads at 100–250 MB), and WeTransfer's basic free tier. At 100 MB you can maintain 1080p quality for clips up to 10 minutes, making this the sweet spot for course content, tutorial recordings, and professional demo videos.",
+    "100 MB covers Discord Nitro Basic (100 MB) and most learning management systems — Canvas, Moodle, and Blackboard typically cap course video uploads at 100–250 MB. At 100 MB you can maintain 1080p quality for clips up to 10 minutes, making this the sweet spot for course content, tutorial recordings, and professional demo videos.",
   useCases: [
     {
       label: 'Discord Nitro Basic uploads (100 MB cap)',

@@ -26,7 +26,7 @@ export const config: SizeTargetConfig = {
   specificFaq: [
     {
       q: 'My video is 28 MB. Can I get it to exactly 25 MB?',
-      a: 'Enable Target size mode on the main Compress Video page and enter 25 MB. The tool runs iterative passes increasing compression until the file is at or below your target. For a 28 MB video, one pass at CRF 26 is usually enough.',
+      a: 'Enable Target size mode on the main Compress Video page and enter 25 MB. The tool automatically finds the right compression level — for a 28 MB video it usually needs only one pass.',
     },
     {
       q: 'Is 25 MB the Gmail limit for Google Workspace accounts too?',

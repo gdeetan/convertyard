@@ -6,17 +6,17 @@ export const config: SizeTargetConfig = {
   targetLabel: '200 MB',
   slug: 'to-200mb',
   h1: 'Compress Video to 200 MB',
-  subhead: 'WeTransfer free tier, iMessage video limits, and long-form 1080p clips.',
+  subhead: 'Long 1080p clips that still transfer fast. Covers WeTransfer and most file-sharing tools.',
   intro:
-    "WeTransfer's free tier caps transfers at 2 GB total, but its per-file practical sweet spot for fast transfer is 200 MB or less. iMessage on cellular networks compresses large video before sending — keeping your clip under 200 MB bypasses this automatic quality reduction. At 200 MB you can archive 20–30 minute 1080p recordings while keeping quality high enough for professional review.",
+    "WeTransfer's free tier allows up to 2 GB per transfer, but files under 200 MB upload and download noticeably faster on typical home connections. At 200 MB you can archive 20–30 minute 1080p recordings while keeping quality high enough for professional review — well above the visible quality threshold for screen viewing.",
   useCases: [
     {
       label: 'WeTransfer free-tier file transfers',
       description: 'WeTransfer free allows up to 2 GB per transfer. Individual video files under 200 MB upload and download faster and are less likely to hit timeout issues on slow connections.',
     },
     {
-      label: 'iMessage video without automatic compression',
-      description: 'iMessage automatically compresses large video files when sending over cellular. Files under ~200 MB often bypass this auto-compression, preserving your quality.',
+      label: 'Long interview or meeting recordings',
+      description: 'A 1-hour interview or recorded meeting at 1080p compresses to 150–200 MB — small enough to email or share via most cloud links without storage penalties.',
     },
     {
       label: 'Long-form tutorial recordings for review',
@@ -30,7 +30,7 @@ export const config: SizeTargetConfig = {
     },
     {
       q: 'Does WeTransfer have a per-file size limit?',
-      a: 'WeTransfer Free allows 2 GB per transfer and up to 50 files. There is no per-file limit within that 2 GB total. However, files over 200 MB can time out on slow connections.',
+      a: 'WeTransfer Free allows up to 2 GB per transfer across up to 50 files. Files under 200 MB complete transfers faster on slower connections and are less likely to stall mid-upload.',
     },
   ],
   relatedSizes: ['to-100mb', 'to-500mb'],

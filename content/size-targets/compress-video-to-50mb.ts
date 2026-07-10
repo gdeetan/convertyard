@@ -6,9 +6,9 @@ export const config: SizeTargetConfig = {
   targetLabel: '50 MB',
   slug: 'to-50mb',
   h1: 'Compress Video to 50 MB',
-  subhead: 'Hit the Slack free-tier file share limit. Works for most team platforms.',
+  subhead: 'Under the Slack free-tier cap. Fits Discord standard, Asana, Notion, and most team tools.',
   intro:
-    "Slack's free tier caps file uploads at 50 MB. Discord's standard file upload limit is 25 MB (500 MB with Nitro). Many corporate intranets and project management tools (Basecamp, Asana, Monday.com) enforce 50–100 MB upload limits. Compressing your video to 50 MB covers all of these in one pass.",
+    "Slack's free tier caps file uploads at 50 MB. Discord's standard file upload limit is 25 MB (500 MB with Nitro). Many corporate intranets and project management tools (Basecamp, Asana, Monday.com) enforce 50–100 MB upload limits. Compressing your video to 50 MB covers all of these at once.",
   useCases: [
     {
       label: 'Slack free-tier file shares (50 MB cap)',

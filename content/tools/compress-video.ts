@@ -1,7 +1,7 @@
 import { compressVideo } from '@/lib/converters/ffmpeg'
 import type { ToolConfig } from '@/lib/types'
 
-const LARGE_FILE_BYTES = 2 * 1024 * 1024 * 1024
+const LARGE_FILE_BYTES = 300 * 1024 * 1024
 
 export const config: ToolConfig = {
   slug: 'compress-video',
@@ -23,12 +23,12 @@ export const config: ToolConfig = {
   warningFn: (files) => {
     const hasLarge = files.some((f) => f.size > LARGE_FILE_BYTES)
     return hasLarge
-      ? 'Files over 2 GB may take several minutes in-browser. Processing continues in the background.'
+      ? 'Large files take longer in-browser — a 500 MB video may take 5–15 minutes depending on your device. The tab must stay open while compressing.'
       : null
   },
   limitationNote: {
     summary: 'What compresses well?',
-    body: 'Videos with complex scenes (high-motion, high-detail) compress less than simple scenes. H.265 achieves 30–50% smaller files than H.264 at the same quality, but requires a modern device for smooth playback.',
+    body: 'Video compression is CPU-intensive and runs entirely in your browser. Large files (500 MB+) may take 5–15 minutes depending on your device. High-motion footage (sport, gaming) compresses less than talking-head or screen recordings. H.265 achieves 30–50% smaller files than H.264 at the same quality, but requires a modern device for playback.',
   },
 
   options: [
@@ -109,7 +109,7 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my video files uploaded to a server?',
-      a: "Never. All compression runs in your browser using ffmpeg.wasm — a full video processing engine compiled to WebAssembly. Your files never leave your device. ConvertYard's servers only deliver the tool code. They never see your video content.",
+      a: "Never. All compression runs in your browser using ffmpeg.wasm — a full video processing engine compiled to WebAssembly. Your files never leave your device. ConvertYard's servers only deliver the tool code — they never see your files.",
     },
     {
       q: 'Can I compress multiple videos at once?',
@@ -117,7 +117,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'What video formats are supported?',
-      a: 'Input: MP4, MOV, WebM, AVI, MKV, WMV, and TS. Output is always MP4 (H.264 or H.265). MP4 is the most universally compatible video format — it plays on every device, browser, and platform.',
+      a: 'Input: MP4, MOV, WebM, AVI, MKV, WMV, and TS. Output is always MP4 (H.264 or H.265). MP4 plays on virtually every device without additional software — phones, browsers, smart TVs, and editing tools all read it.',
     },
     {
       q: 'What does the compression level setting do?',
