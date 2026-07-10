@@ -539,33 +539,36 @@ export async function compressVideo(
         const targetBytes = targetKB * 1024
         let crf = h265 ? 26 : 23
         const MAX_PASSES = 6
-        for (let pass = 0; pass < MAX_PASSES; pass++) {
-          const pctBase = 10 + pass * 13
-          const progressHandler = ({ progress }: { progress: number }) => {
-            onProgress?.(i, Math.round(pctBase + progress * 13))
+        try {
+          for (let pass = 0; pass < MAX_PASSES; pass++) {
+            const pctBase = 10 + pass * 13
+            const progressHandler = ({ progress }: { progress: number }) => {
+              onProgress?.(i, Math.round(pctBase + progress * 13))
+            }
+            ffmpeg.on('progress', progressHandler)
+            try {
+              await ffmpeg.exec([
+                '-i', inputName,
+                ...vfArgs,
+                '-c:v', codec,
+                '-crf', String(crf),
+                '-preset', 'ultrafast',
+                ...audioArgs,
+                outputName,
+              ])
+            } finally {
+              ffmpeg.off('progress', progressHandler)
+            }
+            const candidate = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+            if (candidate.byteLength <= targetBytes || pass === MAX_PASSES - 1) {
+              data = candidate
+              break
+            }
+            await ffmpeg.deleteFile(outputName).catch(() => {})
+            crf = Math.min(crf + 5, 51)
           }
-          ffmpeg.on('progress', progressHandler)
-          try {
-            await ffmpeg.exec([
-              '-i', inputName,
-              ...vfArgs,
-              '-c:v', codec,
-              '-crf', String(crf),
-              '-preset', 'ultrafast',
-              ...audioArgs,
-              outputName,
-            ])
-          } finally {
-            ffmpeg.off('progress', progressHandler)
-            await ffmpeg.deleteFile(inputName).catch(() => {})
-          }
-          const candidate = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
-          if (candidate.byteLength <= targetBytes || pass === MAX_PASSES - 1) {
-            data = candidate
-            break
-          }
-          await ffmpeg.deleteFile(outputName).catch(() => {})
-          crf = Math.min(crf + 5, 51)
+        } finally {
+          await ffmpeg.deleteFile(inputName).catch(() => {})
         }
       }
 

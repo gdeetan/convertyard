@@ -102,4 +102,17 @@ describe('compressVideo', () => {
     // Still returns a File (last pass result)
     expect(results[0]).toBeInstanceOf(File)
   })
+
+  it('target size mode: input file written once and read on every pass', async () => {
+    // targetKB=0 forces 6 passes; input must be available for each exec call
+    mockReadFile.mockResolvedValue(new Uint8Array([9, 8, 7]))
+    const file = makeFile('video.mp4')
+    await compressVideo([file], { targetSizeMode: true, targetKB: 0, resolution: 'original', h265: false, stripAudio: false })
+    expect(mockWriteFile).toHaveBeenCalledOnce()
+    const inputName = mockWriteFile.mock.calls[0][0] as string
+    // Every exec call should reference the same input file
+    for (const call of mockExec.mock.calls) {
+      expect(call[0]).toContain(inputName)
+    }
+  })
 })
