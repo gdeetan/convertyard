@@ -623,6 +623,180 @@ function mergeRefinedMasks(base: Uint8ClampedArray, refined: Uint8ClampedArray):
   return out
 }
 
+type BgRoute = 'portrait-photo' | 'general-photo' | 'flat-graphic'
+
+function colorDistanceSq(r1: number, g1: number, b1: number, r2: number, g2: number, b2: number): number {
+  const dr = r1 - r2
+  const dg = g1 - g2
+  const db = b1 - b2
+  return dr * dr + dg * dg + db * db
+}
+
+function classifyBgRoute(rgba: { width: number; height: number; data: Uint8ClampedArray | Uint8Array }): BgRoute {
+  const { width, height, data } = rgba
+  const stepX = Math.max(1, Math.floor(width / 32))
+  const stepY = Math.max(1, Math.floor(height / 32))
+  const palette = new Set<number>()
+  let samples = 0
+
+  for (let y = 0; y < height; y += stepY) {
+    for (let x = 0; x < width; x += stepX) {
+      const idx = (y * width + x) * 4
+      const r = data[idx] >> 4
+      const g = data[idx + 1] >> 4
+      const b = data[idx + 2] >> 4
+      palette.add((r << 8) | (g << 4) | b)
+      samples++
+    }
+  }
+
+  const cornerSizeX = Math.max(1, Math.floor(width * 0.12))
+  const cornerSizeY = Math.max(1, Math.floor(height * 0.12))
+  const corners: Array<[number, number]> = [
+    [0, 0],
+    [width - cornerSizeX, 0],
+    [0, height - cornerSizeY],
+    [width - cornerSizeX, height - cornerSizeY],
+  ]
+
+  let sumR = 0
+  let sumG = 0
+  let sumB = 0
+  let cornerSamples = 0
+  for (const [startX, startY] of corners) {
+    for (let y = Math.max(0, startY); y < Math.min(height, startY + cornerSizeY); y += Math.max(1, Math.floor(cornerSizeY / 8))) {
+      for (let x = Math.max(0, startX); x < Math.min(width, startX + cornerSizeX); x += Math.max(1, Math.floor(cornerSizeX / 8))) {
+        const idx = (y * width + x) * 4
+        sumR += data[idx]
+        sumG += data[idx + 1]
+        sumB += data[idx + 2]
+        cornerSamples++
+      }
+    }
+  }
+
+  const meanR = cornerSamples > 0 ? sumR / cornerSamples : 0
+  const meanG = cornerSamples > 0 ? sumG / cornerSamples : 0
+  const meanB = cornerSamples > 0 ? sumB / cornerSamples : 0
+  let cornerVariance = 0
+  let brightCorners = 0
+
+  for (const [startX, startY] of corners) {
+    for (let y = Math.max(0, startY); y < Math.min(height, startY + cornerSizeY); y += Math.max(1, Math.floor(cornerSizeY / 8))) {
+      for (let x = Math.max(0, startX); x < Math.min(width, startX + cornerSizeX); x += Math.max(1, Math.floor(cornerSizeX / 8))) {
+        const idx = (y * width + x) * 4
+        const r = data[idx]
+        const g = data[idx + 1]
+        const b = data[idx + 2]
+        cornerVariance += colorDistanceSq(r, g, b, meanR, meanG, meanB)
+        if (r + g + b > 680) brightCorners++
+      }
+    }
+  }
+
+  const avgCornerVariance = cornerSamples > 0 ? cornerVariance / cornerSamples : Infinity
+  const paletteRatio = palette.size / Math.max(1, samples)
+  const brightCornerRatio = brightCorners / Math.max(1, cornerSamples)
+
+  if (palette.size <= 96 && paletteRatio < 0.42 && avgCornerVariance < 900 && brightCornerRatio > 0.35) {
+    return 'flat-graphic'
+  }
+  if (palette.size <= 64 && avgCornerVariance < 1400) {
+    return 'flat-graphic'
+  }
+  if (height >= width * 1.15) return 'portrait-photo'
+  return 'general-photo'
+}
+
+function buildGraphicMask(rgba: { width: number; height: number; data: Uint8ClampedArray | Uint8Array }): Uint8ClampedArray {
+  const { width, height, data } = rgba
+  const totalPixels = width * height
+  const visited = new Uint8Array(totalPixels)
+  const background = new Uint8Array(totalPixels)
+  const queue = new Int32Array(totalPixels)
+
+  const corners = [
+    0,
+    width - 1,
+    (height - 1) * width,
+    height * width - 1,
+  ]
+
+  let seedR = 0
+  let seedG = 0
+  let seedB = 0
+  for (const pixelIndex of corners) {
+    const idx = pixelIndex * 4
+    seedR += data[idx]
+    seedG += data[idx + 1]
+    seedB += data[idx + 2]
+  }
+  seedR /= corners.length
+  seedG /= corners.length
+  seedB /= corners.length
+
+  let tolerance = 26 * 26 * 3
+  let head = 0
+  let tail = 0
+  const enqueue = (pixelIndex: number) => {
+    if (pixelIndex < 0 || pixelIndex >= totalPixels || visited[pixelIndex]) return
+    const idx = pixelIndex * 4
+    const dist = colorDistanceSq(data[idx], data[idx + 1], data[idx + 2], seedR, seedG, seedB)
+    if (dist > tolerance) return
+    visited[pixelIndex] = 1
+    background[pixelIndex] = 1
+    queue[tail++] = pixelIndex
+  }
+
+  corners.forEach(enqueue)
+  while (head < tail) {
+    const pixelIndex = queue[head++]
+    const y = Math.floor(pixelIndex / width)
+    const x = pixelIndex - y * width
+    if (x > 0) enqueue(pixelIndex - 1)
+    if (x + 1 < width) enqueue(pixelIndex + 1)
+    if (y > 0) enqueue(pixelIndex - width)
+    if (y + 1 < height) enqueue(pixelIndex + width)
+  }
+
+  let backgroundRatio = tail / Math.max(1, totalPixels)
+  if (backgroundRatio < 0.08) {
+    tolerance = 42 * 42 * 3
+    visited.fill(0)
+    background.fill(0)
+    head = 0
+    tail = 0
+    corners.forEach(enqueue)
+    while (head < tail) {
+      const pixelIndex = queue[head++]
+      const y = Math.floor(pixelIndex / width)
+      const x = pixelIndex - y * width
+      if (x > 0) enqueue(pixelIndex - 1)
+      if (x + 1 < width) enqueue(pixelIndex + 1)
+      if (y > 0) enqueue(pixelIndex - width)
+      if (y + 1 < height) enqueue(pixelIndex + width)
+    }
+    backgroundRatio = tail / Math.max(1, totalPixels)
+  }
+
+  const alpha = new Uint8ClampedArray(totalPixels)
+  for (let i = 0; i < totalPixels; i++) {
+    alpha[i] = background[i] ? 0 : 255
+  }
+
+  let binary = buildBinaryMask(alpha, 200)
+  binary = closeMask(binary, width, height)
+  binary = openMask(binary, width, height)
+  binary = keepPrimarySubject(binary, width, height)
+  binary = fillHoles(binary, width, height)
+
+  const cleaned = new Uint8ClampedArray(totalPixels)
+  for (let i = 0; i < totalPixels; i++) {
+    cleaned[i] = binary[i] ? 255 : 0
+  }
+  return blurAlpha(cleaned, width, height, 1)
+}
+
 // ── Inference: background removal ─────────────────────────────────────────────
 
 async function runBgRemoval(
@@ -638,46 +812,54 @@ async function runBgRemoval(
 
   self.postMessage({ type: 'infer-progress', id, progress: 10 })
 
+  const rgbaImage = image.rgba()
+  const route = classifyBgRoute(rgbaImage)
+
   // Preprocess
   const processor = bgProcessor as BgProcessor
   const model = bgModel as BgModel
 
-  const firstPassRaw = await runBgSegmentationPass(
-    image,
-    image.width,
-    image.height,
-    processor,
-    model,
-    RawImage
-  )
-  self.postMessage({ type: 'infer-progress', id, progress: 30 })
-  self.postMessage({ type: 'infer-progress', id, progress: 70 })
-  let refinedMask = postprocessBackgroundMask(firstPassRaw, image.width, image.height)
-  const maskStats = analyzeMask(refinedMask, image.width, image.height)
+  let refinedMask: Uint8ClampedArray
+  if (route === 'flat-graphic') {
+    self.postMessage({ type: 'infer-progress', id, progress: 30 })
+    refinedMask = buildGraphicMask(rgbaImage)
+    self.postMessage({ type: 'infer-progress', id, progress: 70 })
+  } else {
+    const firstPassRaw = await runBgSegmentationPass(
+      image,
+      image.width,
+      image.height,
+      processor,
+      model,
+      RawImage
+    )
+    self.postMessage({ type: 'infer-progress', id, progress: 30 })
+    self.postMessage({ type: 'infer-progress', id, progress: 70 })
+    refinedMask = postprocessBackgroundMask(firstPassRaw, image.width, image.height)
+    const maskStats = analyzeMask(refinedMask, image.width, image.height)
 
-  if (shouldRunBgRefinePass(maskStats)) {
-    const rgbaImage = image.rgba()
-    const refineCrop = buildRefineCrop(maskStats, image.width, image.height)
-    if (refineCrop) {
-      const croppedImage = await createRawImageCrop(rgbaImage, refineCrop, mimeType, RawImage)
-      const cropPassRaw = await runBgSegmentationPass(
-        croppedImage,
-        refineCrop.width,
-        refineCrop.height,
-        processor,
-        model,
-        RawImage
-      )
-      const cropRefined = postprocessBackgroundMask(cropPassRaw, refineCrop.width, refineCrop.height)
-      const projected = projectCropMaskToFull(cropRefined, refineCrop, image.width, image.height)
-      refinedMask = mergeRefinedMasks(refinedMask, projected)
+    if (route === 'general-photo' || shouldRunBgRefinePass(maskStats)) {
+      const refineCrop = buildRefineCrop(maskStats, image.width, image.height)
+      if (refineCrop) {
+        const croppedImage = await createRawImageCrop(rgbaImage, refineCrop, mimeType, RawImage)
+        const cropPassRaw = await runBgSegmentationPass(
+          croppedImage,
+          refineCrop.width,
+          refineCrop.height,
+          processor,
+          model,
+          RawImage
+        )
+        const cropRefined = postprocessBackgroundMask(cropPassRaw, refineCrop.width, refineCrop.height)
+        const projected = projectCropMaskToFull(cropRefined, refineCrop, image.width, image.height)
+        refinedMask = mergeRefinedMasks(refinedMask, projected)
+      }
     }
   }
 
   self.postMessage({ type: 'infer-progress', id, progress: 85 })
 
   // Composite: original image + mask as alpha
-  const rgbaImage = image.rgba()
   const canvas = new OffscreenCanvas(image.width, image.height)
   const ctx = canvas.getContext('2d')!
 

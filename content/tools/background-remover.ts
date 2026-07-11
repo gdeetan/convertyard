@@ -36,11 +36,15 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'How accurate is the AI background removal?',
-      a: 'The remover uses a local segmentation model with an extra refine pass for hard images. On clean backgrounds and well-lit subjects, accuracy is strong. Difficult scenes like fur, foliage, or similar foreground/background colors can still need manual touch-up, but the refine pass helps recover subjects the first pass only partially separates.',
+      a: 'The remover now routes images through different local extraction paths. Portraits and photos use AI segmentation with a refine pass for hard cases, while flatter graphics can use a color-region extraction path instead. Accuracy is strongest on clear subjects and simple graphics; complex low-contrast scenes can still need manual touch-up.',
     },
     {
       q: 'Does it work on hair, fur, and fine details?',
       a: 'Often, yes. The tool now reruns difficult images on a tighter crop around the detected subject to improve hair, fur, and thin edges. Results are still best when the subject is reasonably well-lit and not the exact same color and texture as the background.',
+    },
+    {
+      q: 'Does it work better on logos, stickers, and simple graphics now?',
+      a: 'Yes, that is one of the main improvements. Flat graphics with consistent background colors can now bypass the portrait-oriented segmentation path and use a background-color extraction route instead, which is usually more reliable for logos, icons, illustrations, and sticker-style images.',
     },
     {
       q: 'How large is the AI model? Will it slow my browser?',
