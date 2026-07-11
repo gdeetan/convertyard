@@ -123,6 +123,314 @@ async function loadAltModel(progressType: ModelType = 'alt-text') {
   }
 }
 
+// ── Background-mask postprocessing ────────────────────────────────────────────
+
+function clampByte(value: number): number {
+  return value < 0 ? 0 : value > 255 ? 255 : value
+}
+
+function normalizeMask(data: Uint8Array): Uint8ClampedArray {
+  let min = 255
+  let max = 0
+
+  for (let i = 0; i < data.length; i++) {
+    const v = data[i]
+    if (v < min) min = v
+    if (v > max) max = v
+  }
+
+  const out = new Uint8ClampedArray(data.length)
+  if (max <= min) return out
+
+  const scale = 255 / (max - min)
+  for (let i = 0; i < data.length; i++) {
+    out[i] = clampByte(Math.round((data[i] - min) * scale))
+  }
+
+  return out
+}
+
+function computeAdaptiveThreshold(alpha: Uint8ClampedArray): number {
+  let sum = 0
+  let strong = 0
+  let strongest = 0
+
+  for (let i = 0; i < alpha.length; i++) {
+    const v = alpha[i]
+    sum += v
+    if (v >= 96) strong++
+    if (v >= 160) strongest++
+  }
+
+  const mean = sum / Math.max(1, alpha.length)
+  const strongRatio = strong / Math.max(1, alpha.length)
+  const strongestRatio = strongest / Math.max(1, alpha.length)
+
+  if (strongestRatio > 0.12) return 144
+  if (strongRatio > 0.2) return 120
+  if (mean > 110) return 112
+  return 96
+}
+
+function buildBinaryMask(alpha: Uint8ClampedArray, threshold: number): Uint8Array {
+  const binary = new Uint8Array(alpha.length)
+  for (let i = 0; i < alpha.length; i++) {
+    binary[i] = alpha[i] >= threshold ? 1 : 0
+  }
+  return binary
+}
+
+function dilate(mask: Uint8Array, width: number, height: number): Uint8Array {
+  const out = new Uint8Array(mask.length)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let value = 0
+      for (let dy = -1; dy <= 1 && !value; dy++) {
+        const ny = y + dy
+        if (ny < 0 || ny >= height) continue
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx
+          if (nx < 0 || nx >= width) continue
+          if (mask[ny * width + nx]) {
+            value = 1
+            break
+          }
+        }
+      }
+      out[y * width + x] = value
+    }
+  }
+  return out
+}
+
+function erode(mask: Uint8Array, width: number, height: number): Uint8Array {
+  const out = new Uint8Array(mask.length)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let value = 1
+      for (let dy = -1; dy <= 1 && value; dy++) {
+        const ny = y + dy
+        if (ny < 0 || ny >= height) {
+          value = 0
+          break
+        }
+        for (let dx = -1; dx <= 1; dx++) {
+          const nx = x + dx
+          if (nx < 0 || nx >= width || !mask[ny * width + nx]) {
+            value = 0
+            break
+          }
+        }
+      }
+      out[y * width + x] = value
+    }
+  }
+  return out
+}
+
+function closeMask(mask: Uint8Array, width: number, height: number): Uint8Array {
+  return erode(dilate(mask, width, height), width, height)
+}
+
+function openMask(mask: Uint8Array, width: number, height: number): Uint8Array {
+  return dilate(erode(mask, width, height), width, height)
+}
+
+function keepPrimarySubject(mask: Uint8Array, width: number, height: number): Uint8Array {
+  const visited = new Uint8Array(mask.length)
+  const queue = new Int32Array(mask.length)
+  const cx = (width - 1) / 2
+  const cy = (height - 1) / 2
+  const imageArea = width * height
+  const minArea = Math.max(64, Math.floor(imageArea * 0.002))
+  let bestPixels: number[] | null = null
+  let bestScore = -Infinity
+
+  for (let i = 0; i < mask.length; i++) {
+    if (!mask[i] || visited[i]) continue
+    let head = 0
+    let tail = 0
+    queue[tail++] = i
+    visited[i] = 1
+
+    const pixels: number[] = []
+    let area = 0
+    let sumX = 0
+    let sumY = 0
+    let touchesEdge = 0
+
+    while (head < tail) {
+      const idx = queue[head++]
+      pixels.push(idx)
+      area++
+      const y = Math.floor(idx / width)
+      const x = idx - y * width
+      sumX += x
+      sumY += y
+      if (x === 0 || y === 0 || x === width - 1 || y === height - 1) touchesEdge++
+
+      if (x > 0) {
+        const next = idx - 1
+        if (mask[next] && !visited[next]) {
+          visited[next] = 1
+          queue[tail++] = next
+        }
+      }
+      if (x + 1 < width) {
+        const next = idx + 1
+        if (mask[next] && !visited[next]) {
+          visited[next] = 1
+          queue[tail++] = next
+        }
+      }
+      if (y > 0) {
+        const next = idx - width
+        if (mask[next] && !visited[next]) {
+          visited[next] = 1
+          queue[tail++] = next
+        }
+      }
+      if (y + 1 < height) {
+        const next = idx + width
+        if (mask[next] && !visited[next]) {
+          visited[next] = 1
+          queue[tail++] = next
+        }
+      }
+    }
+
+    if (area < minArea) continue
+
+    const centerX = sumX / area
+    const centerY = sumY / area
+    const normDx = width > 1 ? (centerX - cx) / width : 0
+    const normDy = height > 1 ? (centerY - cy) / height : 0
+    const centralityPenalty = Math.sqrt(normDx * normDx + normDy * normDy)
+    const areaRatio = area / imageArea
+    const edgePenalty = touchesEdge / area
+    const score = areaRatio * 2.5 - centralityPenalty * 0.8 - edgePenalty * 0.7
+
+    if (score > bestScore) {
+      bestScore = score
+      bestPixels = pixels
+    }
+  }
+
+  if (!bestPixels) return mask
+
+  const out = new Uint8Array(mask.length)
+  for (let i = 0; i < bestPixels.length; i++) {
+    out[bestPixels[i]] = 1
+  }
+  return out
+}
+
+function fillHoles(mask: Uint8Array, width: number, height: number): Uint8Array {
+  const visited = new Uint8Array(mask.length)
+  const queue = new Int32Array(mask.length)
+  let head = 0
+  let tail = 0
+
+  const enqueue = (idx: number) => {
+    if (!mask[idx] && !visited[idx]) {
+      visited[idx] = 1
+      queue[tail++] = idx
+    }
+  }
+
+  for (let x = 0; x < width; x++) {
+    enqueue(x)
+    enqueue((height - 1) * width + x)
+  }
+  for (let y = 0; y < height; y++) {
+    enqueue(y * width)
+    enqueue(y * width + (width - 1))
+  }
+
+  while (head < tail) {
+    const idx = queue[head++]
+    const y = Math.floor(idx / width)
+    const x = idx - y * width
+
+    if (x > 0) enqueue(idx - 1)
+    if (x + 1 < width) enqueue(idx + 1)
+    if (y > 0) enqueue(idx - width)
+    if (y + 1 < height) enqueue(idx + width)
+  }
+
+  const out = mask.slice()
+  for (let i = 0; i < out.length; i++) {
+    if (!out[i] && !visited[i]) out[i] = 1
+  }
+  return out
+}
+
+function blurAlpha(alpha: Uint8ClampedArray, width: number, height: number, radius: number): Uint8ClampedArray {
+  if (radius <= 0) return alpha
+
+  const tmp = new Float32Array(alpha.length)
+  const out = new Uint8ClampedArray(alpha.length)
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0
+      let count = 0
+      for (let dx = -radius; dx <= radius; dx++) {
+        const nx = x + dx
+        if (nx < 0 || nx >= width) continue
+        sum += alpha[y * width + nx]
+        count++
+      }
+      tmp[y * width + x] = sum / count
+    }
+  }
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      let sum = 0
+      let count = 0
+      for (let dy = -radius; dy <= radius; dy++) {
+        const ny = y + dy
+        if (ny < 0 || ny >= height) continue
+        sum += tmp[ny * width + x]
+        count++
+      }
+      out[y * width + x] = clampByte(Math.round(sum / count))
+    }
+  }
+
+  return out
+}
+
+function postprocessBackgroundMask(rawMask: Uint8Array, width: number, height: number): Uint8ClampedArray {
+  const normalized = normalizeMask(rawMask)
+  const threshold = computeAdaptiveThreshold(normalized)
+
+  let binary = buildBinaryMask(normalized, threshold)
+  binary = closeMask(binary, width, height)
+  binary = openMask(binary, width, height)
+  binary = keepPrimarySubject(binary, width, height)
+  binary = fillHoles(binary, width, height)
+
+  const subjectMatte = new Uint8ClampedArray(normalized.length)
+  for (let i = 0; i < normalized.length; i++) {
+    subjectMatte[i] = binary[i] ? normalized[i] : 0
+  }
+
+  const featherSource = new Uint8ClampedArray(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    featherSource[i] = binary[i] ? 255 : 0
+  }
+
+  const feather = blurAlpha(featherSource, width, height, 1)
+  const out = new Uint8ClampedArray(subjectMatte.length)
+  for (let i = 0; i < subjectMatte.length; i++) {
+    out[i] = clampByte(Math.round((subjectMatte[i] * feather[i]) / 255))
+  }
+
+  return out
+}
+
 // ── Inference: background removal ─────────────────────────────────────────────
 
 async function runBgRemoval(
@@ -166,6 +474,11 @@ async function runBgRemoval(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mask = await RawImage.fromTensor(tensor as any)
   const resizedMask = await mask.resize(image.width, image.height)
+  const refinedMask = postprocessBackgroundMask(
+    resizedMask.data as Uint8Array,
+    image.width,
+    image.height
+  )
 
   self.postMessage({ type: 'infer-progress', id, progress: 85 })
 
@@ -182,8 +495,8 @@ async function runBgRemoval(
   ctx.putImageData(imgData, 0, 0)
 
   const composited = ctx.getImageData(0, 0, image.width, image.height)
-  for (let i = 0; i < resizedMask.data.length; i++) {
-    composited.data[4 * i + 3] = resizedMask.data[i]
+  for (let i = 0; i < refinedMask.length; i++) {
+    composited.data[4 * i + 3] = refinedMask[i]
   }
   ctx.putImageData(composited, 0, 0)
 
