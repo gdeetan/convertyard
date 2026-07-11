@@ -36,11 +36,11 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'How accurate is the AI background removal?',
-      a: 'The AI model (RMBG-1.4) was trained on millions of images across e-commerce, portrait, and product photography. On clean backgrounds and well-lit subjects, accuracy is excellent. Complex scenes with multiple subjects or very similar foreground/background colors may need manual touch-up.',
+      a: 'The remover uses a local segmentation model with an extra refine pass for hard images. On clean backgrounds and well-lit subjects, accuracy is strong. Difficult scenes like fur, foliage, or similar foreground/background colors can still need manual touch-up, but the refine pass helps recover subjects the first pass only partially separates.',
     },
     {
       q: 'Does it work on hair, fur, and fine details?',
-      a: 'Yes. The model is specifically trained to handle fine-detail edge cases like hair strands, fur, and transparent objects better than simple color-key approaches. Results are best when the subject is well-lit and contrasts with the background.',
+      a: 'Often, yes. The tool now reruns difficult images on a tighter crop around the detected subject to improve hair, fur, and thin edges. Results are still best when the subject is reasonably well-lit and not the exact same color and texture as the background.',
     },
     {
       q: 'How large is the AI model? Will it slow my browser?',

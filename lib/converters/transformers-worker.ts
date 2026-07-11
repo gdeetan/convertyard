@@ -431,6 +431,198 @@ function postprocessBackgroundMask(rawMask: Uint8Array, width: number, height: n
   return out
 }
 
+interface MaskStats {
+  areaRatio: number
+  bboxAreaRatio: number
+  edgeTouchRatio: number
+  meanForegroundAlpha: number
+  maxAlpha: number
+  bbox: { left: number; top: number; right: number; bottom: number } | null
+}
+
+function analyzeMask(alpha: Uint8ClampedArray, width: number, height: number): MaskStats {
+  const threshold = 96
+  const imageArea = width * height
+  let count = 0
+  let edgeTouches = 0
+  let sumAlpha = 0
+  let maxAlpha = 0
+  let left = width
+  let top = height
+  let right = -1
+  let bottom = -1
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x
+      const v = alpha[idx]
+      if (v > maxAlpha) maxAlpha = v
+      if (v < threshold) continue
+
+      count++
+      sumAlpha += v
+      if (x < left) left = x
+      if (x > right) right = x
+      if (y < top) top = y
+      if (y > bottom) bottom = y
+      if (x === 0 || y === 0 || x === width - 1 || y === height - 1) edgeTouches++
+    }
+  }
+
+  if (count === 0 || right < left || bottom < top) {
+    return {
+      areaRatio: 0,
+      bboxAreaRatio: 0,
+      edgeTouchRatio: 0,
+      meanForegroundAlpha: 0,
+      maxAlpha,
+      bbox: null,
+    }
+  }
+
+  const bboxArea = (right - left + 1) * (bottom - top + 1)
+  return {
+    areaRatio: count / imageArea,
+    bboxAreaRatio: bboxArea / imageArea,
+    edgeTouchRatio: edgeTouches / count,
+    meanForegroundAlpha: sumAlpha / count,
+    maxAlpha,
+    bbox: { left, top, right, bottom },
+  }
+}
+
+function shouldRunBgRefinePass(stats: MaskStats): boolean {
+  if (!stats.bbox) return true
+  if (stats.maxAlpha < 180) return true
+  if (stats.meanForegroundAlpha < 150) return true
+  if (stats.areaRatio < 0.08) return true
+  if (stats.bboxAreaRatio < 0.2) return true
+  if (stats.edgeTouchRatio > 0.08) return true
+  return false
+}
+
+interface CropRect {
+  left: number
+  top: number
+  width: number
+  height: number
+}
+
+function buildRefineCrop(stats: MaskStats, width: number, height: number): CropRect | null {
+  if (!stats.bbox) return null
+
+  const boxWidth = stats.bbox.right - stats.bbox.left + 1
+  const boxHeight = stats.bbox.bottom - stats.bbox.top + 1
+  const centerX = (stats.bbox.left + stats.bbox.right) / 2
+  const centerY = (stats.bbox.top + stats.bbox.bottom) / 2
+  const padFactor = 1.35
+  const minSide = Math.max(Math.min(width, height) * 0.45, Math.max(boxWidth, boxHeight) * padFactor)
+  const side = Math.min(Math.max(boxWidth, boxHeight, minSide), Math.max(width, height))
+
+  let left = Math.round(centerX - side / 2)
+  let top = Math.round(centerY - side / 2)
+  let right = left + Math.round(side)
+  let bottom = top + Math.round(side)
+
+  if (left < 0) {
+    right -= left
+    left = 0
+  }
+  if (top < 0) {
+    bottom -= top
+    top = 0
+  }
+  if (right > width) {
+    left -= right - width
+    right = width
+  }
+  if (bottom > height) {
+    top -= bottom - height
+    bottom = height
+  }
+
+  left = Math.max(0, left)
+  top = Math.max(0, top)
+  right = Math.min(width, right)
+  bottom = Math.min(height, bottom)
+
+  const cropWidth = right - left
+  const cropHeight = bottom - top
+  if (cropWidth < 32 || cropHeight < 32) return null
+
+  return { left, top, width: cropWidth, height: cropHeight }
+}
+
+type BgProcessor = (img: unknown) => Promise<{ pixel_values: unknown }>
+type BgModel = (inputs: Record<string, unknown>) => Promise<Record<string, unknown>>
+type MaskTensor = { mul: (n: number) => MaskTensor; to: (t: string) => MaskTensor; squeeze: (d: number) => MaskTensor; dims: number[] }
+
+async function runBgSegmentationPass(
+  image: unknown,
+  outputWidth: number,
+  outputHeight: number,
+  processor: BgProcessor,
+  model: BgModel,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  RawImage: any
+): Promise<Uint8Array> {
+  const { pixel_values } = await processor(image)
+  const modelOutputs = await model({ input: pixel_values })
+  const rawOutput = modelOutputs.output
+  const maskRaw = (Array.isArray(rawOutput) ? rawOutput[0] : rawOutput) as MaskTensor
+  const maskTensor = maskRaw.dims.length === 4 ? maskRaw.squeeze(0) : maskRaw
+  const tensor = maskTensor.mul(255).to('uint8')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const mask = await RawImage.fromTensor(tensor as any)
+  const resizedMask = await mask.resize(outputWidth, outputHeight)
+  return resizedMask.data as Uint8Array
+}
+
+async function createRawImageCrop(
+  rgbaImage: { width: number; height: number; data: Uint8ClampedArray | Uint8Array },
+  crop: CropRect,
+  mimeType: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  RawImage: any
+): Promise<unknown> {
+  const canvas = new OffscreenCanvas(crop.width, crop.height)
+  const ctx = canvas.getContext('2d')!
+
+  const imgData = new ImageData(
+    new Uint8ClampedArray(rgbaImage.data),
+    rgbaImage.width,
+    rgbaImage.height
+  )
+  ctx.putImageData(imgData, -crop.left, -crop.top)
+
+  const blob = await canvas.convertToBlob({ type: mimeType })
+  return RawImage.fromBlob(blob)
+}
+
+function projectCropMaskToFull(alpha: Uint8ClampedArray, crop: CropRect, width: number, height: number): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(width * height)
+  for (let y = 0; y < crop.height; y++) {
+    const fullY = crop.top + y
+    if (fullY < 0 || fullY >= height) continue
+    for (let x = 0; x < crop.width; x++) {
+      const fullX = crop.left + x
+      if (fullX < 0 || fullX >= width) continue
+      out[fullY * width + fullX] = alpha[y * crop.width + x]
+    }
+  }
+  return out
+}
+
+function mergeRefinedMasks(base: Uint8ClampedArray, refined: Uint8ClampedArray): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(base.length)
+  for (let i = 0; i < base.length; i++) {
+    const baseAlpha = base[i]
+    const refinedAlpha = refined[i]
+    out[i] = refinedAlpha > 0 ? Math.max(baseAlpha, refinedAlpha) : baseAlpha
+  }
+  return out
+}
+
 // ── Inference: background removal ─────────────────────────────────────────────
 
 async function runBgRemoval(
@@ -447,38 +639,40 @@ async function runBgRemoval(
   self.postMessage({ type: 'infer-progress', id, progress: 10 })
 
   // Preprocess
-  const processor = bgProcessor as {
-    (img: unknown): Promise<{ pixel_values: unknown }>
-  }
-  const model = bgModel as {
-    (inputs: Record<string, unknown>): Promise<Record<string, unknown>>
-  }
+  const processor = bgProcessor as BgProcessor
+  const model = bgModel as BgModel
 
-  const { pixel_values } = await processor(image)
-  self.postMessage({ type: 'infer-progress', id, progress: 30 })
-
-  // MODNet's ONNX input is named 'input', not 'pixel_values'
-  const modelOutputs = await model({ input: pixel_values })
-  self.postMessage({ type: 'infer-progress', id, progress: 70 })
-
-  // Handle both array outputs (RMBG-style) and direct tensor outputs (MODNet-style)
-  const rawOutput = modelOutputs.output
-  type MaskTensor = { mul: (n: number) => MaskTensor; to: (t: string) => MaskTensor; squeeze: (d: number) => MaskTensor; dims: number[] }
-  const maskRaw = (Array.isArray(rawOutput) ? rawOutput[0] : rawOutput) as MaskTensor
-
-  // If 4D [1, 1, H, W] squeeze batch dim to 3D [1, H, W] — RawImage.fromTensor requires 3D
-  const maskTensor = maskRaw.dims.length === 4 ? maskRaw.squeeze(0) : maskRaw
-
-  // Build mask (single-channel, 0–255)
-  const tensor = maskTensor.mul(255).to('uint8')
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const mask = await RawImage.fromTensor(tensor as any)
-  const resizedMask = await mask.resize(image.width, image.height)
-  const refinedMask = postprocessBackgroundMask(
-    resizedMask.data as Uint8Array,
+  const firstPassRaw = await runBgSegmentationPass(
+    image,
     image.width,
-    image.height
+    image.height,
+    processor,
+    model,
+    RawImage
   )
+  self.postMessage({ type: 'infer-progress', id, progress: 30 })
+  self.postMessage({ type: 'infer-progress', id, progress: 70 })
+  let refinedMask = postprocessBackgroundMask(firstPassRaw, image.width, image.height)
+  const maskStats = analyzeMask(refinedMask, image.width, image.height)
+
+  if (shouldRunBgRefinePass(maskStats)) {
+    const rgbaImage = image.rgba()
+    const refineCrop = buildRefineCrop(maskStats, image.width, image.height)
+    if (refineCrop) {
+      const croppedImage = await createRawImageCrop(rgbaImage, refineCrop, mimeType, RawImage)
+      const cropPassRaw = await runBgSegmentationPass(
+        croppedImage,
+        refineCrop.width,
+        refineCrop.height,
+        processor,
+        model,
+        RawImage
+      )
+      const cropRefined = postprocessBackgroundMask(cropPassRaw, refineCrop.width, refineCrop.height)
+      const projected = projectCropMaskToFull(cropRefined, refineCrop, image.width, image.height)
+      refinedMask = mergeRefinedMasks(refinedMask, projected)
+    }
+  }
 
   self.postMessage({ type: 'infer-progress', id, progress: 85 })
 
