@@ -28,6 +28,21 @@ function isHeic(file: File): boolean {
   )
 }
 
+// Android phones (Samsung etc.) store HEIF photos with .jpg extension and
+// report type=image/jpeg. Check the ISOBMFF ftyp box magic bytes to catch them.
+async function hasHeicMagicBytes(file: File): Promise<boolean> {
+  try {
+    const buf = await file.slice(0, 12).arrayBuffer()
+    const b = new Uint8Array(buf)
+    // bytes 4-7 must be 'ftyp'
+    if (b[4] !== 0x66 || b[5] !== 0x74 || b[6] !== 0x79 || b[7] !== 0x70) return false
+    const brand = String.fromCharCode(b[8], b[9], b[10], b[11])
+    return /^(heic|heis|heix|hevc|hevx|mif1|msf1|MiHE|MiHM|MiHS|MiHB)/.test(brand)
+  } catch {
+    return false
+  }
+}
+
 // ── Pre-processing: composite transparent PNG onto white ─────────────────────
 
 async function compositePng(blob: Blob): Promise<Blob> {
@@ -451,7 +466,7 @@ export async function imageOcrConvert(
     try {
       let blob: Blob = file
 
-      if (isHeic(file)) {
+      if (isHeic(file) || await hasHeicMagicBytes(file)) {
         onProgress?.(i, 10)
         diagLog('heic-decode-start', file.name)
         blob = await decodeHeic(file)
