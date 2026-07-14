@@ -1,6 +1,7 @@
 // Canvas-based image preprocessing for handwriting OCR.
 // Pipeline: grayscale → gaussian blur → perspective correction → CLAHE
 //           → Sauvola adaptive binarization → ruled-line removal → deskew → upscale
+import { diagLog } from '@/lib/debug/mobile-diagnostics'
 
 const MIN_WIDTH_PX = 1500
 const MIN_WIDTH_PX_RECEIPT = 2500
@@ -63,6 +64,7 @@ async function preprocessCore(blob: Blob, minWidth = MIN_WIDTH_PX): Promise<{
 
   const bmp = await createImageBitmap(blob)
   const { width: origW, height: origH } = bmp
+  diagLog('preprocess-canvas', `${origW}x${origH} minWidth=${minWidth}`)
 
   const canvas = new OffscreenCanvas(origW, origH)
   const ctx = canvas.getContext('2d')!

@@ -16,6 +16,7 @@ import type { ToolConfig, FileEntry, ToolPhase, ToolOptions, ToolCategory, Compr
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { sizeTargets } from '@/content/size-target-registry'
 import { useRecentTools } from '@/lib/hooks/use-recent-tools'
+import { diagLog, diagError } from '@/lib/debug/mobile-diagnostics'
 
 const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
   images:           { label: 'Image Converters',     href: '/images' },
@@ -190,6 +191,7 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions,
 
   const handleAdd = useCallback((files: File[]) => {
     dispatch({ type: 'ADD_FILES', files })
+    diagLog('files-added', `${files.length} files total=${files.reduce((s, f) => s + f.size, 0)} bytes`)
     if (config.warningFn) {
       setFileWarning(config.warningFn(files))
     }
@@ -217,6 +219,7 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions,
     try {
       results = await config.convertFn(files, options, onProgress)
     } catch (err) {
+      diagError('tool-shell-convert-fail', err)
       results = files.map(() => new Error(err instanceof Error ? err.message : 'Conversion failed'))
     }
 
