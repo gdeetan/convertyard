@@ -425,7 +425,18 @@ export async function imageOcrConvert(
   const engine = (opts.recognitionEngine as string | undefined) ?? 'standard'
   const style = (opts.handwritingStyle as string | undefined) ?? 'mixed'
   const quality = (opts.qualityMode as string | undefined) !== 'fast'
-  const useAi = engine === 'ai-enhanced' && lang === 'eng'
+  // iOS Safari (WKWebView) kills the tab when Florence-2 (~262 MB) finishes
+  // loading — confirmed via ?debug=1: both sessions die at model-ready, before
+  // inference runs. Skip AI models on iOS and fall back to Tesseract.
+  const iosDetected =
+    typeof navigator !== 'undefined' &&
+    /iPad|iPhone|iPod/.test(navigator.userAgent) &&
+    /WebKit/.test(navigator.userAgent) &&
+    !/CriOS|FxiOS|EdgiOS/.test(navigator.userAgent)
+  const useAi = engine === 'ai-enhanced' && lang === 'eng' && !iosDetected
+  if (iosDetected && engine === 'ai-enhanced') {
+    diagLog('ai-mode-skipped', 'iOS Safari — routing to Tesseract to avoid OOM')
+  }
   const isPng = (f: File) => f.type === 'image/png' || /\.png$/i.test(f.name)
 
   const results: ConversionResult[] = []
