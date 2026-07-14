@@ -9,6 +9,7 @@
 // trocr-small fp32 is the fallback (~400MB). Both cached in IndexedDB after first load.
 
 import { pipeline, env } from '@huggingface/transformers'
+import { diagLog, diagError, diagMemory } from '@/lib/debug/mobile-diagnostics'
 
 env.allowRemoteModels = true
 env.useBrowserCache = true
@@ -34,6 +35,8 @@ async function loadPipeline(
 
   for (const { model, label } of attempts) {
     try {
+      diagLog('trocr-pipeline-load-start', label)
+      diagMemory(`before-trocr-pipeline:${label}`)
       const instance = await pipeline('image-to-text', model, {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         dtype: 'fp32' as any,
@@ -45,8 +48,11 @@ async function loadPipeline(
         },
       })
       console.log(`[TrOCR] Loaded ${label}`)
+      diagLog('trocr-pipeline-loaded', label)
+      diagMemory(`after-trocr-pipeline:${label}`)
       return instance
     } catch (e) {
+      diagError('trocr-pipeline-variant-fail', e)
       console.warn(`[TrOCR] Failed ${label}:`, e)
     }
   }
@@ -83,6 +89,7 @@ export async function recognizeLineWithTrOCR(
   quality = true
 ): Promise<TrOcrLineResult> {
   const url = URL.createObjectURL(lineBlob)
+  diagLog('trocr-inference-start')
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await (pipe as any)(url, {
@@ -94,6 +101,7 @@ export async function recognizeLineWithTrOCR(
     const output = Array.isArray(result) ? result[0] : result
     const raw = (output as { generated_text?: string }).generated_text?.trim() ?? ''
     const text = isDegenerate(raw) ? '' : raw
+    diagLog('trocr-inference-done', text.slice(0, 40) || '(empty)')
     // Length-based confidence proxy — TrOCR pipeline does not expose beam-search scores.
     const confidence = text.length >= 3 ? 0.9 : text.length > 0 ? 0.5 : 0.0
     return { text, confidence }

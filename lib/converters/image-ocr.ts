@@ -5,6 +5,7 @@ import { correctWords } from '@/lib/ocr/correction-client'
 import type { ConversionResult, OcrWordMeta, OcrResultMeta, ToolOptions } from '@/lib/types'
 import * as XLSX from 'xlsx'
 import { detectColumnBoundaries, detectRowBoundaries } from '@/lib/ocr/column-detector'
+import { diagLog, diagError, diagMemory } from '@/lib/debug/mobile-diagnostics'
 
 interface TrOcrLineResult {
   text: string
@@ -434,13 +435,16 @@ export async function imageOcrConvert(
   for (let i = 0; i < files.length; i++) {
     onProgress?.(i, 5)
     const file = files[i]
+    diagLog('file-received', `${file.name} type=${file.type} size=${file.size}`)
 
     try {
       let blob: Blob = file
 
       if (isHeic(file)) {
         onProgress?.(i, 10)
+        diagLog('heic-decode-start', file.name)
         blob = await decodeHeic(file)
+        diagLog('heic-decode-done')
       }
 
       if (isPng(file)) {
@@ -455,11 +459,16 @@ export async function imageOcrConvert(
 
       if (useAi) {
         onProgress?.(i, 20)
+        diagLog('ai-mode-preprocess-start')
+        diagMemory('before-preprocess')
         const { binary: binBlob, grayscale: grayBlob } = await preprocessForOcrDual(blob)
+        diagLog('ai-mode-preprocess-done')
         let trocrLines: TrOcrLineResult[] | null = null
 
         let usedFlorence = false
         try {
+          diagLog('florence-stage-start')
+          diagMemory('before-florence')
           const { recognizeWithFlorenceOcr } = await import('@/lib/ocr/florence-ocr-client')
           onProgress?.(i, 22)
           const florenceText = await recognizeWithFlorenceOcr(
@@ -475,15 +484,20 @@ export async function imageOcrConvert(
               confidence: -1 as const,
             }))
             usedFlorence = true
+            diagLog('florence-stage-done', `chars=${text.length}`)
           } else {
             console.warn('[Florence-2] Empty OCR result — falling back to TrOCR')
+            diagLog('florence-stage-empty', 'falling back to TrOCR')
           }
         } catch (florenceErr) {
+          diagError('florence-stage-fail', florenceErr)
           console.warn('[Florence-2] OCR failed, falling back to TrOCR:', florenceErr)
         }
 
         if (!usedFlorence) {
           try {
+            diagLog('trocr-stage-start')
+            diagMemory('before-trocr')
             const { recognizeWithTrOCR } = await import('@/lib/ocr/trocr-client')
             onProgress?.(i, 57)
             const lineBoxes = await detectLines(binBlob)
@@ -540,6 +554,7 @@ export async function imageOcrConvert(
               continue
             }
           } catch (trocErr) {
+            diagError('trocr-stage-fail', trocErr)
             console.warn('[TrOCR] Model unavailable, falling back to Tesseract:', trocErr)
             onProgress?.(i, 65)
             const result = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
@@ -758,6 +773,7 @@ export async function imageOcrConvert(
       results.push(outFile)
       onProgress?.(i, 100)
     } catch (err) {
+      diagError('image-ocr-outer-catch', err)
       onProgress?.(i, 100)
       results.push(err instanceof Error ? err : new Error(String(err)))
     }

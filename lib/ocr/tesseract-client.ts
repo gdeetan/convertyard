@@ -1,5 +1,6 @@
 // lib/ocr/tesseract-client.ts
 import Tesseract from 'tesseract.js'
+import { diagLog, diagError, diagMemory } from '@/lib/debug/mobile-diagnostics'
 
 export interface OcrWord {
   text: string
@@ -42,6 +43,8 @@ async function getWorker(lang: string, opts: OcrOptions): Promise<Tesseract.Work
     workerInstance = null
   }
   try {
+    diagLog('tesseract-worker-create', lang)
+    diagMemory('before-tesseract-worker')
     workerInstance = await Tesseract.createWorker(lang)
     await workerInstance.setParameters({
       tessedit_ocr_engine_mode: opts.oem ?? 1,
@@ -51,7 +54,9 @@ async function getWorker(lang: string, opts: OcrOptions): Promise<Tesseract.Work
     } as Record<string, unknown>)
     currentLang = lang
     currentOpts = optsKey
+    diagLog('tesseract-worker-ready', lang)
   } catch (err) {
+    diagError('tesseract-worker-create-fail', err)
     workerInstance = null
     currentLang = null
     currentOpts = null
@@ -66,6 +71,7 @@ export async function recognizePage(
   opts: OcrOptions = {}
 ): Promise<OcrPageResult> {
   const worker = await getWorker(lang, opts)
+  diagLog('tesseract-recognize-start')
   try {
     const { data } = await worker.recognize(image, {}, { blocks: true })
     const words: OcrWord[] = []
@@ -87,6 +93,7 @@ export async function recognizePage(
         }
       }
     }
+    diagLog('tesseract-recognize-done', `words=${words.length}`)
     return {
       text: data.text ?? '',
       confidence: data.confidence ?? 0,
@@ -94,6 +101,7 @@ export async function recognizePage(
       lines,
     }
   } catch (err) {
+    diagError('tesseract-recognize-fail', err)
     const w = workerInstance
     workerInstance = null
     currentLang = null

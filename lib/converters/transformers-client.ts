@@ -1,4 +1,5 @@
 import type { ModelType } from './transformers-worker'
+import { diagLog, diagError, diagMemory } from '@/lib/debug/mobile-diagnostics'
 
 // ── Singleton worker ───────────────────────────────────────────────────────────
 
@@ -6,6 +7,7 @@ let workerInstance: Worker | null = null
 
 function getWorker(): Worker {
   if (!workerInstance) {
+    diagLog('transformers-worker-spawn')
     workerInstance = new Worker(
       new URL('./transformers-worker.ts', import.meta.url),
       { type: 'module' }
@@ -19,6 +21,8 @@ function getWorker(): Worker {
 const modelReady: Partial<Record<ModelType, boolean>> = {}
 // Deduplication: if model is already loading, return the same promise
 const loadingPromise: Partial<Record<ModelType, Promise<void>>> = {}
+
+let _lastModelProgressPct: Partial<Record<ModelType, number>> = {}
 
 export function loadTransformersModel(
   modelType: ModelType,
@@ -34,10 +38,19 @@ export function loadTransformersModel(
       const d = e.data
       if (d.type === 'model-progress' && d.modelType === modelType) {
         onProgress(d.progress as number)
+        const pct = d.progress as number
+        const last = _lastModelProgressPct[modelType] ?? -10
+        if (Math.floor(pct / 10) > Math.floor(last / 10)) {
+          diagLog('model-download-progress', `${modelType} ${pct.toFixed(0)}%`)
+          _lastModelProgressPct[modelType] = pct
+        }
       } else if (d.type === 'model-ready' && d.modelType === modelType) {
         worker.removeEventListener('message', handler)
         modelReady[modelType] = true
         delete loadingPromise[modelType]
+        delete _lastModelProgressPct[modelType]
+        diagLog('model-ready', modelType)
+        diagMemory(`after-model-ready:${modelType}`)
         onProgress(100)
         resolve()
       } else if (d.type === 'error' && !d.id) {
@@ -45,6 +58,7 @@ export function loadTransformersModel(
         delete loadingPromise[modelType]
         const err = new Error(d.message as string)
         if (d.code) (err as Error & { code: string }).code = d.code as string
+        diagError('model-load-fail', err)
         reject(err)
       }
     }
