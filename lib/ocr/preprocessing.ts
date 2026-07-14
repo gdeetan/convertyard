@@ -54,6 +54,35 @@ function unsharpMask(gray: Uint8Array, w: number, h: number): Uint8Array {
   return out
 }
 
+// createImageBitmap fails on some JPEG variants (CMYK, unusual ICC profiles,
+// Samsung HDR metadata). Fall back to an <img> element which is more lenient.
+async function decodeBlobToImageBitmap(blob: Blob): Promise<ImageBitmap> {
+  try {
+    return await createImageBitmap(blob)
+  } catch {
+    return new Promise((resolve, reject) => {
+      const url = URL.createObjectURL(blob)
+      const img = new Image()
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        try {
+          const canvas = new OffscreenCanvas(img.naturalWidth, img.naturalHeight)
+          const ctx = canvas.getContext('2d')!
+          ctx.drawImage(img, 0, 0)
+          resolve(canvas.transferToImageBitmap())
+        } catch (e) {
+          reject(e)
+        }
+      }
+      img.onerror = () => {
+        URL.revokeObjectURL(url)
+        reject(new Error('The source image could not be decoded.'))
+      }
+      img.src = url
+    })
+  }
+}
+
 // Core pipeline — returns both binarized output (for line detection) and
 // CLAHE grayscale output (for TrOCR inference, preserves natural pixel distribution).
 async function preprocessCore(blob: Blob, minWidth = MIN_WIDTH_PX): Promise<{
@@ -62,7 +91,7 @@ async function preprocessCore(blob: Blob, minWidth = MIN_WIDTH_PX): Promise<{
 } | null> {
   if (typeof OffscreenCanvas === 'undefined') return null
 
-  const bmp = await createImageBitmap(blob)
+  const bmp = await decodeBlobToImageBitmap(blob)
   const { width: origW, height: origH } = bmp
   diagLog('preprocess-canvas', `${origW}x${origH} minWidth=${minWidth}`)
 
