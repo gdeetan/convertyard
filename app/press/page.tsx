@@ -65,6 +65,7 @@ export default function PressPage() {
             <a
               href="/logo.svg"
               download="convertyard-logo.svg"
+              aria-label="Download ConvertYard logo (SVG)"
               className="rounded-lg border border-border bg-bg-muted px-5 py-3 text-sm font-medium text-fg transition-colors hover:bg-bg-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               Logo (SVG) ↓
@@ -72,6 +73,7 @@ export default function PressPage() {
             <a
               href="/logo-mark.svg"
               download="convertyard-mark.svg"
+              aria-label="Download ConvertYard mark / icon (SVG)"
               className="rounded-lg border border-border bg-bg-muted px-5 py-3 text-sm font-medium text-fg transition-colors hover:bg-bg-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
               Mark / icon (SVG) ↓
@@ -83,12 +85,12 @@ export default function PressPage() {
         <section>
           <h2 className="mb-3 text-xl font-semibold text-fg">Press contact</h2>
           <p>
-            <Link
+            <a
               href="mailto:hello@convertyard.com"
               className="font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
             >
               hello@convertyard.com
-            </Link>
+            </a>
           </p>
         </section>
       </div>
