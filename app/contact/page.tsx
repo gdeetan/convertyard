@@ -28,23 +28,23 @@ export default function ContactPage() {
       <div className="space-y-6 text-base leading-relaxed text-fg-muted">
         <p>
           Found a bug or a tool that's producing wrong output?{' '}
-          <a
+          <Link
             href="mailto:hello@convertyard.com"
             className="font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
           >
             hello@convertyard.com
-          </a>
+          </Link>
           . Include the tool name, the file format, and what you expected to happen.
         </p>
 
         <p>
           Want a format or conversion we don't cover yet?{' '}
-          <a
+          <Link
             href="mailto:hello@convertyard.com"
             className="font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
           >
             hello@convertyard.com
-          </a>
+          </Link>
           . If it can run in a browser without uploading files, it's on the table.
         </p>
 
@@ -57,12 +57,12 @@ export default function ContactPage() {
             press kit
           </Link>
           . Or email{' '}
-          <a
+          <Link
             href="mailto:hello@convertyard.com"
             className="font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
           >
             hello@convertyard.com
-          </a>{' '}
+          </Link>{' '}
           directly.
         </p>
       </div>
