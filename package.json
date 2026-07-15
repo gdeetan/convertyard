@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && mkdir -p dist && cp -R out/. dist/",
     "start": "next start",
     "lint": "next lint",
     "postinstall": "cp node_modules/wasm-vips/lib/vips.wasm public/vips.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.wasm public/mupdf-wasm.wasm 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf.js public/mupdf.js 2>/dev/null || true && cp node_modules/mupdf/dist/mupdf-wasm.js public/mupdf-wasm.js 2>/dev/null || true",
