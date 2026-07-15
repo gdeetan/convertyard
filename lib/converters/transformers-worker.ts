@@ -1,5 +1,13 @@
 /// <reference lib="webworker" />
 
+import {
+  BackgroundRemovalError,
+  normalizeRgbaData,
+  serializeBackgroundRemovalError,
+  validateCanvasRgbaLength,
+  validateMaskLength,
+} from './background-removal-errors'
+
 // Runs entirely in a Web Worker — never imported server-side.
 // Models are cached in browser IndexedDB/Cache Storage by transformers.js after first download.
 //
@@ -589,7 +597,7 @@ async function createRawImageCrop(
   const ctx = canvas.getContext('2d')!
 
   const imgData = new ImageData(
-    new Uint8ClampedArray(rgbaImage.data),
+    normalizeRgbaData(rgbaImage.data, rgbaImage.width, rgbaImage.height, 'preprocess'),
     rgbaImage.width,
     rgbaImage.height
   )
@@ -808,12 +816,27 @@ async function runBgRemoval(
   const { RawImage } = await import('@huggingface/transformers')
 
   const blob = new Blob([buffer], { type: mimeType })
-  const image = await RawImage.fromBlob(blob)
+  let image: {
+    width: number
+    height: number
+    rgba: () => { width: number; height: number; data: Uint8ClampedArray | Uint8Array }
+  }
+  try {
+    image = await RawImage.fromBlob(blob)
+  } catch (err) {
+    throw new BackgroundRemovalError(
+      'IMAGE_DECODE_FAILED',
+      'decode',
+      err instanceof Error ? err.message : 'Could not decode image.'
+    )
+  }
 
   self.postMessage({ type: 'infer-progress', id, progress: 10 })
 
   const rgbaImage = image.rgba()
-  const route = classifyBgRoute(rgbaImage)
+  const rgbaData = normalizeRgbaData(rgbaImage.data, image.width, image.height, 'preprocess')
+  const normalizedRgbaImage = { ...rgbaImage, data: rgbaData }
+  const route = classifyBgRoute(normalizedRgbaImage)
 
   // Preprocess
   const processor = bgProcessor as BgProcessor
@@ -822,7 +845,7 @@ async function runBgRemoval(
   let refinedMask: Uint8ClampedArray
   if (route === 'flat-graphic') {
     self.postMessage({ type: 'infer-progress', id, progress: 30 })
-    refinedMask = buildGraphicMask(rgbaImage)
+    refinedMask = buildGraphicMask(normalizedRgbaImage)
     self.postMessage({ type: 'infer-progress', id, progress: 70 })
   } else {
     const firstPassRaw = await runBgSegmentationPass(
@@ -841,7 +864,7 @@ async function runBgRemoval(
     if (route === 'general-photo' || shouldRunBgRefinePass(maskStats)) {
       const refineCrop = buildRefineCrop(maskStats, image.width, image.height)
       if (refineCrop) {
-        const croppedImage = await createRawImageCrop(rgbaImage, refineCrop, mimeType, RawImage)
+        const croppedImage = await createRawImageCrop(normalizedRgbaImage, refineCrop, mimeType, RawImage)
         const cropPassRaw = await runBgSegmentationPass(
           croppedImage,
           refineCrop.width,
@@ -863,21 +886,32 @@ async function runBgRemoval(
   const canvas = new OffscreenCanvas(image.width, image.height)
   const ctx = canvas.getContext('2d')!
 
+  validateMaskLength(refinedMask, image.width, image.height)
   const imgData = new ImageData(
-    new Uint8ClampedArray(rgbaImage.data.buffer as ArrayBuffer),
+    normalizeRgbaData(normalizedRgbaImage.data, image.width, image.height, 'composite'),
     image.width,
     image.height
   )
   ctx.putImageData(imgData, 0, 0)
 
   const composited = ctx.getImageData(0, 0, image.width, image.height)
+  validateCanvasRgbaLength(composited.data, image.width, image.height)
   for (let i = 0; i < refinedMask.length; i++) {
     composited.data[4 * i + 3] = refinedMask[i]
   }
   ctx.putImageData(composited, 0, 0)
 
   const outMime = outputFormat === 'webp' ? 'image/webp' : 'image/png'
-  const resultBlob = await canvas.convertToBlob({ type: outMime })
+  let resultBlob: Blob
+  try {
+    resultBlob = await canvas.convertToBlob({ type: outMime })
+  } catch (err) {
+    throw new BackgroundRemovalError(
+      'CANVAS_EXPORT_FAILED',
+      'export',
+      err instanceof Error ? err.message : 'Could not export transparent image.'
+    )
+  }
   const resultBuffer = await resultBlob.arrayBuffer()
 
   self.postMessage({ type: 'infer-progress', id, progress: 100 })
@@ -1061,8 +1095,13 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
       else if (msg.modelType === 'ocr') await loadAltModel('ocr')  // same Florence-2 model
       self.postMessage({ type: 'model-ready', modelType: msg.modelType })
     } catch (err) {
-      const code = (err as { code?: string }).code
-      self.postMessage({ type: 'error', message: (err as Error).message, ...(code ? { code } : {}) })
+      if (msg.modelType === 'bg-removal') {
+        const error = serializeBackgroundRemovalError(err, 'MODEL_LOAD_FAILED', 'load')
+        self.postMessage({ type: 'error', message: error.message, code: error.code, phase: error.phase })
+      } else {
+        const code = (err as { code?: string }).code
+        self.postMessage({ type: 'error', message: (err as Error).message, ...(code ? { code } : {}) })
+      }
     }
     return
   }
@@ -1078,7 +1117,18 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
         await runOcr(id, buffer, mimeType)
       }
     } catch (err) {
-      self.postMessage({ type: 'error', id, message: (err as Error).message })
+      if (modelType === 'bg-removal') {
+        const error = serializeBackgroundRemovalError(err, 'MODEL_INFERENCE_FAILED', 'inference')
+        self.postMessage({
+          type: 'error',
+          id,
+          message: error.message,
+          code: error.code,
+          phase: error.phase,
+        })
+      } else {
+        self.postMessage({ type: 'error', id, message: (err as Error).message })
+      }
     }
   }
 })

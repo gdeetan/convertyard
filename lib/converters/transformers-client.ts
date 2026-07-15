@@ -97,7 +97,10 @@ export function removeBackground(
         resolve(resultFile)
       } else if (d.type === 'error') {
         worker.removeEventListener('message', handler)
-        reject(new Error(d.message as string))
+        const err = new Error(d.message as string)
+        if (d.code) (err as Error & { code: string }).code = d.code as string
+        if (d.phase) (err as Error & { phase: string }).phase = d.phase as string
+        reject(err)
       }
     }
 
@@ -184,5 +187,4 @@ export function recognizeHandwritingOcr(
     }).catch(reject)
   })
 }
-
 
