@@ -124,23 +124,27 @@ describe('compressVideo', () => {
     expect(args).toContain('copy')
   })
 
-  it('target size mode: 2-pass VBR when duration is available', async () => {
+  it('target size mode: 1-pass ABR when duration is available', async () => {
     vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
     const file = makeFile('video.mp4', 10 * 1024 * 1024)
     await compressVideo([file], { targetSizeMode: true, targetKB: 5120, resolution: 'original', h265: false, stripAudio: false })
-    expect(mockExec).toHaveBeenCalledTimes(2)
-    const pass1Args: string[] = mockExec.mock.calls[0][0]
-    const pass2Args: string[] = mockExec.mock.calls[1][0]
-    expect(pass1Args[pass1Args.indexOf('-pass') + 1]).toBe('1')
-    expect(pass2Args[pass2Args.indexOf('-pass') + 1]).toBe('2')
+    expect(mockExec).toHaveBeenCalledOnce()
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('-b:v')
+    expect(args).toContain('-maxrate')
+    expect(args).toContain('-bufsize')
+    expect(args).not.toContain('-crf')
+    expect(args).not.toContain('-pass')
   })
 
-  it('target size mode: 2-pass VBR uses -b:v not -crf', async () => {
+  it('target size mode: 1-pass ABR calculates bitrate from duration and target', async () => {
     vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
     const file = makeFile('video.mp4', 10 * 1024 * 1024)
     await compressVideo([file], { targetSizeMode: true, targetKB: 5120, resolution: 'original', h265: false, stripAudio: false })
-    const pass2Args: string[] = mockExec.mock.calls[1][0]
-    expect(pass2Args).toContain('-b:v')
-    expect(pass2Args).not.toContain('-crf')
+    const args: string[] = mockExec.mock.calls[0][0]
+    const bvIndex = args.indexOf('-b:v')
+    expect(parseInt(args[bvIndex + 1])).toBeGreaterThan(0)
+    const maxrateIndex = args.indexOf('-maxrate')
+    expect(parseInt(args[maxrateIndex + 1])).toBeGreaterThan(parseInt(args[bvIndex + 1]))
   })
 })

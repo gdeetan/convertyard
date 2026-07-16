@@ -559,56 +559,32 @@ export async function compressVideo(
           const durationSeconds = await probeVideoDuration(file)
 
           if (durationSeconds > 0) {
-            // 2-pass VBR: calculate exact target bitrate, always exactly 2 passes
+            // 1-pass ABR: calculate target bitrate, constrain with maxrate/bufsize
             const audioBitsPerSec = stripAudio ? 0 : 128_000
             const videoBitsPerSec = Math.max(
               100_000,
               Math.floor((targetBytes * 8 - audioBitsPerSec * durationSeconds) / durationSeconds)
             )
-            const passlogName = `cv_pass_${i}`
-            const pass1Handler = ({ progress }: { progress: number }) => {
-              onProgress?.(i, Math.round(10 + progress * 30))
+            const progressHandler = ({ progress }: { progress: number }) => {
+              onProgress?.(i, Math.round(10 + progress * 85))
             }
-            const pass2Handler = ({ progress }: { progress: number }) => {
-              onProgress?.(i, Math.round(40 + progress * 55))
-            }
+            ffmpeg.on('progress', progressHandler)
             try {
-              ffmpeg.on('progress', pass1Handler)
-              try {
-                await ffmpeg.exec([
-                  '-i', inputName,
-                  ...vfArgs,
-                  '-c:v', codec,
-                  '-b:v', String(videoBitsPerSec),
-                  '-pass', '1',
-                  '-passlogfile', passlogName,
-                  '-an',
-                  '-f', 'null', '/dev/null',
-                ])
-              } finally {
-                ffmpeg.off('progress', pass1Handler)
-              }
-              onProgress?.(i, 40)
-              ffmpeg.on('progress', pass2Handler)
-              try {
-                await ffmpeg.exec([
-                  '-i', inputName,
-                  ...vfArgs,
-                  '-c:v', codec,
-                  '-b:v', String(videoBitsPerSec),
-                  '-pass', '2',
-                  '-passlogfile', passlogName,
-                  ...audioArgs,
-                  outputName,
-                ])
-              } finally {
-                ffmpeg.off('progress', pass2Handler)
-              }
+              await ffmpeg.exec([
+                '-i', inputName,
+                ...vfArgs,
+                '-c:v', codec,
+                '-b:v', String(videoBitsPerSec),
+                '-maxrate', String(Math.floor(videoBitsPerSec * 1.5)),
+                '-bufsize', String(videoBitsPerSec * 2),
+                ...audioArgs,
+                outputName,
+              ])
               data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
             } finally {
+              ffmpeg.off('progress', progressHandler)
               await ffmpeg.deleteFile(inputName).catch(() => {})
               await ffmpeg.deleteFile(outputName).catch(() => {})
-              await ffmpeg.deleteFile(`${passlogName}-0.log`).catch(() => {})
             }
           } else {
             // Fallback: CRF iteration when duration probe unavailable (e.g. unsupported format)
