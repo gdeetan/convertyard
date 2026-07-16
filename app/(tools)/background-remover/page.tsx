@@ -239,17 +239,18 @@ export default function BackgroundRemoverPage() {
         </p>
       </header>
 
-      <BestPracticesPanel />
-
       {!hasImage && (
-        <div className="mb-8">
-          <Dropzone
-            accepts={config.accepts}
-            acceptsExt={config.acceptsExt}
-            onAdd={handleAdd}
-            disabled={isProcessing}
-          />
-        </div>
+        <>
+          <div className="mb-6">
+            <Dropzone
+              accepts={config.accepts}
+              acceptsExt={config.acceptsExt}
+              onAdd={handleAdd}
+              disabled={isProcessing}
+            />
+          </div>
+          <BestPracticesPanel />
+        </>
       )}
 
       {hasImage && file && previewUrl && (
@@ -386,6 +387,8 @@ export default function BackgroundRemoverPage() {
           </aside>
         </div>
       )}
+
+      {hasImage && <BestPracticesPanel />}
 
       <div className="mb-12">
         <FAQAccordion items={config.faq} pageUrl={`https://convertyard.com/${config.slug}`} />
