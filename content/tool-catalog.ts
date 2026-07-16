@@ -90,7 +90,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'compress-video', title: 'Video Compressor', description: 'Compress MP4, MOV, WebM, AVI — no uploads, no file size cap. Batch up to 1,000 files.', category: 'video-audio', status: 'live' },
   { slug: 'video-to-gif',      title: 'Video to GIF',      description: 'Turn video clips into shareable GIFs.', category: 'video-audio', status: 'live' },
   { slug: 'audio-trimmer',     title: 'Audio Trimmer',     description: 'Cut audio clips without re-encoding.', category: 'video-audio', status: 'coming-soon' },
-  { slug: 'extract-audio',     title: 'Extract Audio',     description: 'Pull audio tracks from any video.', category: 'video-audio', status: 'coming-soon' },
+  { slug: 'extract-audio',     title: 'Extract Audio',     description: 'Pull audio tracks from any video. Output MP3, AAC, WAV, OGG, or FLAC.', category: 'video-audio', status: 'live' },
 
   // Developer — all coming soon
   { slug: 'json-formatter', title: 'JSON Formatter',         description: 'Format, validate, and minify JSON.', category: 'developer', status: 'live' },
