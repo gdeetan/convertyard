@@ -115,11 +115,12 @@ export async function probeAudioInfo(
   const handler = ({ message }: { message: string }) => { lines.push(message) }
   ffmpeg.on('log', handler)
   try {
-    await (ffmpeg.exec(['-i', inputName, '-f', 'null', '/dev/null']) as Promise<unknown>).catch(() => {})
+    await ffmpeg.exec(['-i', inputName, '-f', 'null', '/dev/null']).catch(() => {})
   } finally {
     ffmpeg.off('log', handler)
   }
   const output = lines.join('\n')
+  // Returns null if no audio stream or bitrate absent from log — caller falls back to re-encoding
   const m = output.match(/Audio: (\w+).*?(\d+) kb\/s/)
   if (!m) return null
   return { codec: m[1], bitrateKbps: parseInt(m[2], 10) }
