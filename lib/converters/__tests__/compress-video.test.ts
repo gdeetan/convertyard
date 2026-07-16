@@ -147,4 +147,37 @@ describe('compressVideo', () => {
     const maxrateIndex = args.indexOf('-maxrate')
     expect(parseInt(args[maxrateIndex + 1])).toBeGreaterThan(parseInt(args[bvIndex + 1]))
   })
+
+  it('target size mode: uses 64kbps audio for targets at or below 10MB', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    const file = makeFile('video.mp4', 20 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 5 * 1024, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('64k')
+    expect(args).not.toContain('128k')
+  })
+
+  it('target size mode: uses 96kbps audio for targets between 10MB and 50MB', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    const file = makeFile('video.mp4', 60 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 25 * 1024, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('96k')
+    expect(args).not.toContain('128k')
+  })
+
+  it('target size mode: uses 128kbps audio for targets above 50MB', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    const file = makeFile('video.mp4', 200 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 100 * 1024, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('128k')
+  })
+
+  it('preset mode: always uses 128kbps audio regardless of target', async () => {
+    const file = makeFile('video.mp4')
+    await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('128k')
+  })
 })

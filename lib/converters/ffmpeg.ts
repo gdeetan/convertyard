@@ -559,8 +559,12 @@ export async function compressVideo(
           const durationSeconds = await probeVideoDuration(file)
 
           if (durationSeconds > 0) {
-            // 1-pass ABR: calculate target bitrate, constrain with maxrate/bufsize
-            const audioBitsPerSec = stripAudio ? 0 : 128_000
+            // Adaptive audio: smaller targets get lower bitrate, freeing bits for video
+            const adaptiveAudioKbps = targetKB <= 10 * 1024 ? 64 : targetKB <= 50 * 1024 ? 96 : 128
+            const targetAudioArgs: string[] = stripAudio
+              ? ['-an']
+              : ['-c:a', 'aac', '-b:a', `${adaptiveAudioKbps}k`]
+            const audioBitsPerSec = stripAudio ? 0 : adaptiveAudioKbps * 1000
             const videoBitsPerSec = Math.max(
               100_000,
               Math.floor((targetBytes * 8 - audioBitsPerSec * durationSeconds) / durationSeconds)
@@ -577,7 +581,7 @@ export async function compressVideo(
                 '-b:v', String(videoBitsPerSec),
                 '-maxrate', String(Math.floor(videoBitsPerSec * 1.5)),
                 '-bufsize', String(videoBitsPerSec * 2),
-                ...audioArgs,
+                ...targetAudioArgs,
                 outputName,
               ])
               data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
