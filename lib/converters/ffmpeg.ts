@@ -587,3 +587,77 @@ export async function compressVideo(
   }
   return results
 }
+
+function explainExtractAudioError(error: Error): Error {
+  if (error.message.includes('Output file #0 does not contain any stream')) {
+    return new Error(
+      'This file has no audio track. Extract Audio only works on video files that contain audio.'
+    )
+  }
+  return error
+}
+
+export async function extractAudio(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+
+  const format = (options.format as string) ?? 'mp3'
+  const bitrate = (options.bitrate as string) ?? '192'
+  const sampleRate = (options.sampleRate as string) ?? '44100'
+
+  const FORMAT_MAP: Record<string, { codec: string; ext: string; mime: string; lossless: boolean }> = {
+    mp3:  { codec: 'libmp3lame', ext: '.mp3',  mime: 'audio/mpeg', lossless: false },
+    aac:  { codec: 'aac',        ext: '.m4a',  mime: 'audio/mp4',  lossless: false },
+    wav:  { codec: 'pcm_s16le',  ext: '.wav',  mime: 'audio/wav',  lossless: true  },
+    ogg:  { codec: 'libvorbis',  ext: '.ogg',  mime: 'audio/ogg',  lossless: false },
+    flac: { codec: 'flac',       ext: '.flac', mime: 'audio/flac', lossless: true  },
+  }
+
+  const fmt = FORMAT_MAP[format] ?? FORMAT_MAP.mp3
+
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const ext = file.name.split('.').pop() ?? 'mp4'
+      const inputName = `ea_in_${i}.${ext}`
+      const outputName = `ea_out_${i}${fmt.ext}`
+
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+
+      const audioArgs = fmt.lossless
+        ? ['-map', 'a', '-codec:a', fmt.codec, '-ar', sampleRate]
+        : ['-map', 'a', '-codec:a', fmt.codec, '-b:a', `${bitrate}k`, '-ar', sampleRate]
+
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec(['-i', inputName, ...audioArgs, outputName])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      results.push(new File([data], `${baseName}${fmt.ext}`, { type: fmt.mime }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(explainExtractAudioError(toError(err)))
+    }
+  }
+
+  return results
+}
