@@ -589,7 +589,10 @@ export async function compressVideo(
 }
 
 function explainExtractAudioError(error: Error): Error {
-  if (error.message.includes('Output file #0 does not contain any stream')) {
+  if (
+    error.message.includes('Output file #0 does not contain any stream') ||
+    error.message.includes('ErrnoError: FS error')
+  ) {
     return new Error(
       'This file has no audio track. Extract Audio only works on video files that contain audio.'
     )
@@ -604,9 +607,9 @@ export async function extractAudio(
 ): Promise<ConversionResult[]> {
   const results: ConversionResult[] = []
 
-  const format = (options.format as string) ?? 'mp3'
-  const bitrate = (options.bitrate as string) ?? '192'
-  const sampleRate = (options.sampleRate as string) ?? '44100'
+  const format     = typeof options.format     === 'string' ? options.format     : 'mp3'
+  const bitrate    = typeof options.bitrate    === 'string' ? options.bitrate    : '192'
+  const sampleRate = typeof options.sampleRate === 'string' ? options.sampleRate : '44100'
 
   const FORMAT_MAP: Record<string, { codec: string; ext: string; mime: string; lossless: boolean }> = {
     mp3:  { codec: 'libmp3lame', ext: '.mp3',  mime: 'audio/mpeg', lossless: false },
@@ -632,8 +635,8 @@ export async function extractAudio(
       onProgress?.(i, 10)
 
       const audioArgs = fmt.lossless
-        ? ['-map', 'a', '-codec:a', fmt.codec, '-ar', sampleRate]
-        : ['-map', 'a', '-codec:a', fmt.codec, '-b:a', `${bitrate}k`, '-ar', sampleRate]
+        ? ['-map', 'a', '-vn', '-codec:a', fmt.codec, '-ar', sampleRate]
+        : ['-map', 'a', '-vn', '-codec:a', fmt.codec, '-b:a', `${bitrate}k`, '-ar', sampleRate]
 
       const progressHandler = ({ progress }: { progress: number }) => {
         onProgress?.(i, Math.round(10 + progress * 85))
