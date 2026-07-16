@@ -8,7 +8,7 @@ export const config: ToolConfig = {
   title: 'WAV to MP3 Converter',
   subtitle: 'Shrink WAV recordings to MP3 in your browser. No uploads, batch ready.',
   category: 'video-audio',
-  accepts: ['audio/wav', 'audio/x-wav'],
+  accepts: ['audio/wav', 'audio/x-wav', 'audio/wave'],
   acceptsExt: ['.wav'],
   outputExt: '.mp3',
   convertFn: mp4ToMp3,
