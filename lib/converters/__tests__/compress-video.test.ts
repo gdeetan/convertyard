@@ -174,6 +174,38 @@ describe('compressVideo', () => {
     expect(args).toContain('128k')
   })
 
+  it('target size mode: uses 64kbps audio at exactly 10MB target boundary', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    const file = makeFile('video.mp4', 20 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 10 * 1024, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('64k')
+  })
+
+  it('target size mode: uses 96kbps audio just above 10MB target boundary', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    const file = makeFile('video.mp4', 60 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 10 * 1024 + 1, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('96k')
+  })
+
+  it('target size mode: uses 96kbps audio at exactly 50MB target boundary', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    const file = makeFile('video.mp4', 200 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 50 * 1024, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('96k')
+  })
+
+  it('target size mode: uses 128kbps audio just above 50MB target boundary', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    const file = makeFile('video.mp4', 300 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 50 * 1024 + 1, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('128k')
+  })
+
   it('preset mode: always uses 128kbps audio regardless of target', async () => {
     const file = makeFile('video.mp4')
     await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: false })

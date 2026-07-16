@@ -562,7 +562,7 @@ export async function compressVideo(
             // Adaptive audio: smaller targets get lower bitrate, freeing bits for video
             const adaptiveAudioKbps = targetKB <= 10 * 1024 ? 64 : targetKB <= 50 * 1024 ? 96 : 128
             const targetAudioArgs: string[] = stripAudio
-              ? ['-an']
+              ? audioArgs
               : ['-c:a', 'aac', '-b:a', `${adaptiveAudioKbps}k`]
             const audioBitsPerSec = stripAudio ? 0 : adaptiveAudioKbps * 1000
             const videoBitsPerSec = Math.max(
