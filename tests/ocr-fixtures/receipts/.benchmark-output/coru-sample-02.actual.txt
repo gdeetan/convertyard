@@ -1,0 +1,27 @@
+Vendor: 16551
+Date:   07/12/2022
+
+────────────────────────────────
+16551
+Receptit NumberGHEck
+DgerT# 465
+DaterT Time 07/12/2022 07 07 PM
+Water
+Station Down
+45 PERSONS # 4 64
+Din - In
+00,10 TOTAL
+Item 00.10 92.10
+30.10
+Item 25.43 25.47
+item 19.47 29.43
+21.97
+item 8.77 8.07
+2.00 10.53 21.7
+Net Sales 239.47
+28.74
+fax 37.55
+0.00
+TOTAL
+TOTAL DUE 305.76
+────────────────────────────────

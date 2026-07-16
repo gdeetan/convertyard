@@ -1,0 +1,24 @@
+16551
+Receipt Number
+CHECK
+Date# 465
+Date/Time 07/12/2022 07.07 PM
+Waiter
+Station Down
+Table 45
+Persons # 4
+964
+Din-In
+Item U.P Item Total
+92.10 92.10
+30.71 30.71
+25.43 25.43
+39.47 39.47
+21.93 21.93
+8.77 8.77
+2.00 10.53 21.06
+Net Sales 239.47
+Service 12% 28.74
+Tax 37.55
+Min. Charge 0.00
+TOTAL DUE 305.76

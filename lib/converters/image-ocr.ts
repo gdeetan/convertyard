@@ -1,4 +1,4 @@
-import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
+import { recognizePage, terminateOcrWorker, type OcrOptions, type OcrPageResult } from '@/lib/ocr/tesseract-client'
 import { preprocessForOcr, preprocessForOcrDual } from '@/lib/ocr/preprocessing'
 import { detectLines } from '@/lib/ocr/line-detector'
 import { correctWords } from '@/lib/ocr/correction-client'
@@ -10,6 +10,59 @@ import { diagLog, diagError, diagMemory } from '@/lib/debug/mobile-diagnostics'
 interface TrOcrLineResult {
   text: string
   confidence: number
+}
+
+const RECEIPT_PRIMARY_OCR: OcrOptions = { oem: 1, psm: 4, dpi: 300, preserveSpaces: true }
+const RECEIPT_BLOCK_OCR: OcrOptions = { oem: 1, psm: 6, dpi: 300, preserveSpaces: true }
+
+function toOcrWordMeta(result: OcrPageResult): OcrWordMeta[] {
+  const rawWords = result.words ?? []
+  return rawWords.length > 5000
+    ? rawWords.map(w => ({ text: w.text, confidence: w.confidence, lineIndex: w.lineIndex }))
+    : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox, lineIndex: w.lineIndex }))
+}
+
+function scoreReceiptOcr(text: string, confidence: number): number {
+  const repaired = repairDigitTokens(text)
+  const lines = repaired.split('\n').map(l => l.trim()).filter(Boolean)
+  const cleanPrices = repaired.match(/(?:[$S]\s*)?\b\d{1,5}(?:,\d{3})?[.,]\d{2}\b/g)?.length ?? 0
+  const malformedPrices = repaired.match(/\d+[.,]\d+[.,]\d+|\d[.,]\d[.,]|\d{1,3}(?:[.,]\d{1,3}){3,}/g)?.length ?? 0
+  const dates = repaired.match(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/g)?.length ?? 0
+  const strongLabels = repaired.match(/\b(total|subtotal|tax|amount due|amt due|balance due)\b/gi)?.length ?? 0
+  const weakLabels = repaired.match(/\b(change|cash|card|visa|mastercard|qty|receipt|invoice|server|table|cashier)\b/gi)?.length ?? 0
+  const itemLikeLines = lines.filter(line =>
+    /[A-Za-z]{3,}/.test(line) &&
+    /\b\d{1,5}(?:,\d{3})?[.,]\d{2}\b/.test(line) &&
+    !/\d+[.,]\d+[.,]\d+|\d{1,3}(?:[.,]\d{1,3}){3,}/.test(line)
+  ).length
+  const alphaChars = (repaired.match(/[A-Za-z]/g) ?? []).length
+  const digitChars = (repaired.match(/\d/g) ?? []).length
+  const garbageChars = (repaired.match(/[�<>[\]{}]/g) ?? []).length
+  const totalChars = Math.max(1, repaired.replace(/\s/g, '').length)
+  const readableRatio = (alphaChars + digitChars) / totalChars
+  const numericHeavyPenalty = digitChars > alphaChars * 2.2 ? 20 : 0
+  const totalBonus = extractReceiptTotal(repaired) ? 25 : 0
+  return confidence
+    + Math.min(cleanPrices, 14) * 7
+    + Math.min(itemLikeLines, 12) * 10
+    + dates * 16
+    + Math.min(strongLabels, 6) * 10
+    + Math.min(weakLabels, 8) * 3
+    + Math.min(lines.length, 28)
+    + totalBonus
+    + readableRatio * 20
+    - Math.min(malformedPrices, 16) * 12
+    - Math.min(garbageChars, 20) * 5
+    - numericHeavyPenalty
+}
+
+async function recognizeReceiptPage(image: Blob, lang: string, allowRetry = true): Promise<OcrPageResult> {
+  const primary = await recognizePage(image, lang, RECEIPT_PRIMARY_OCR)
+  const primaryScore = scoreReceiptOcr(primary.text, primary.confidence)
+  if (!allowRetry || primaryScore >= 120) return primary
+
+  const block = await recognizePage(image, lang, RECEIPT_BLOCK_OCR)
+  return scoreReceiptOcr(block.text, block.confidence) > primaryScore ? block : primary
 }
 
 // ── HEIC decode ───────────────────────────────────────────────────────────────
@@ -55,6 +108,98 @@ async function compositePng(blob: Blob): Promise<Blob> {
   ctx.drawImage(bmp, 0, 0)
   bmp.close()
   return canvas.convertToBlob({ type: 'image/png' })
+}
+
+async function cropLikelyReceiptPaper(blob: Blob): Promise<Blob> {
+  if (typeof OffscreenCanvas === 'undefined') return blob
+  const bmp = await createImageBitmap(blob)
+  try {
+    const maxProbe = 720
+    const scale = Math.min(1, maxProbe / Math.max(bmp.width, bmp.height))
+    const probeW = Math.max(1, Math.round(bmp.width * scale))
+    const probeH = Math.max(1, Math.round(bmp.height * scale))
+    const probe = new OffscreenCanvas(probeW, probeH)
+    const pctx = probe.getContext('2d')
+    if (!pctx) return blob
+    pctx.drawImage(bmp, 0, 0, probeW, probeH)
+    const data = pctx.getImageData(0, 0, probeW, probeH).data
+    const colCounts = new Uint16Array(probeW)
+    const rowCounts = new Uint16Array(probeH)
+
+    for (let y = 0; y < probeH; y++) {
+      for (let x = 0; x < probeW; x++) {
+        const idx = (y * probeW + x) * 4
+        const r = data[idx]
+        const g = data[idx + 1]
+        const b = data[idx + 2]
+        const max = Math.max(r, g, b)
+        const min = Math.min(r, g, b)
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b
+        if (lum > 145 && max - min < 58) {
+          colCounts[x]++
+          rowCounts[y]++
+        }
+      }
+    }
+
+    const colThreshold = Math.max(12, Math.round(probeH * 0.14))
+    let bestStart = -1
+    let bestEnd = -1
+    let start = -1
+    for (let x = 0; x <= probeW; x++) {
+      const active = x < probeW && colCounts[x] >= colThreshold
+      if (active && start === -1) start = x
+      if ((!active || x === probeW) && start !== -1) {
+        const end = x - 1
+        if (end - start > bestEnd - bestStart) {
+          bestStart = start
+          bestEnd = end
+        }
+        start = -1
+      }
+    }
+    if (bestStart < 0 || bestEnd - bestStart < probeW * 0.18) return blob
+
+    const rowThreshold = Math.max(8, Math.round((bestEnd - bestStart + 1) * 0.16))
+    let top = 0
+    let bottom = probeH - 1
+    while (top < probeH && rowCounts[top] < rowThreshold) top++
+    while (bottom > top && rowCounts[bottom] < rowThreshold) bottom--
+    if (bottom - top < probeH * 0.35) return blob
+
+    const padX = Math.round(probeW * 0.025)
+    const padY = Math.round(probeH * 0.02)
+    const sx = Math.max(0, Math.round((bestStart - padX) / scale))
+    const sy = Math.max(0, Math.round((top - padY) / scale))
+    const ex = Math.min(bmp.width, Math.round((bestEnd + padX) / scale))
+    const ey = Math.min(bmp.height, Math.round((bottom + padY) / scale))
+    const cropW = ex - sx
+    const cropH = ey - sy
+    const originalArea = bmp.width * bmp.height
+    const cropArea = cropW * cropH
+    if (
+      cropW < bmp.width * 0.18 ||
+      cropW > bmp.width * 0.78 ||
+      cropH < bmp.height * 0.55 ||
+      cropArea > originalArea * 0.78
+    ) {
+      return blob
+    }
+
+    const canvas = new OffscreenCanvas(cropW, cropH)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return blob
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, cropW, cropH)
+    ctx.drawImage(bmp, sx, sy, cropW, cropH, 0, 0, cropW, cropH)
+    diagLog('receipt-paper-crop', `${bmp.width}x${bmp.height} -> ${cropW}x${cropH}`)
+    return canvas.convertToBlob({ type: 'image/png' })
+  } catch (err) {
+    diagError('receipt-paper-crop-fail', err)
+    return blob
+  } finally {
+    bmp.close()
+  }
 }
 
 // ── Per-cell OCR helpers ──────────────────────────────────────────────────────
@@ -222,42 +367,132 @@ function repairDigitTokens(text: string): string {
   )
 }
 
+function normalizeReceiptOcrText(text: string): string {
+  return repairDigitTokens(text)
+    .split('\n')
+    .map(line => line
+      .replace(/(^|[\s:])S(?=\s?\d{1,5}[.,]\d{2}\b)/g, '$1$')
+      .replace(/\bT[O0]T[A4][!1IL]\b/gi, 'TOTAL')
+      .replace(/\bSUB[ -]?T[O0]T[A4][!1IL]\b/gi, 'SUBTOTAL')
+      .replace(/\bSUBTOTA[!1IL]\b/gi, 'SUBTOTAL')
+      .replace(/\bT[A4]X\b/gi, 'TAX')
+      .replace(/\b(?:TTL|TT1|TTL\.?)\s*SALE\b/gi, 'Ttl Sale')
+      .replace(/\bAM[TR][\w!1IL]{0,5}\b(?=\s*:?\s*(?:[$₱€£]?\s*)?\d)/gi, 'Amt Due')
+      .replace(/\bAMOUNT\s+DUE\b/gi, 'Amount Due')
+      .replace(/\bB[A4]L[A4]NCE\b/gi, 'BALANCE')
+      .replace(/\b[VY]IS[A4]\b/gi, 'VISA')
+      .replace(/(\d)\s*,\s*(\d{2})(?!\d)/g, '$1.$2')
+      .replace(/(\d),(?=\d{3}\b)/g, '$1,')
+      .replace(/\((\d+(?:\.\d+)?)0X\)/gi, '($1%)')
+      .replace(/\s{3,}/g, '  ')
+      .trimEnd()
+    )
+    .filter(line => line.trim().length > 0 && !/^[|_\-—=~.,:;'\s]+$/.test(line))
+    .join('\n')
+}
+
 function repairEmail(text: string): string {
   return text
     .replace(/(\S+)\s+at\s+(\S+\.\S+)/gi, '$1@$2')
     .replace(/(\.\w{1,4}),(\w{2,3})\b/g, '$1.$2')
 }
 
-function extractReceiptTotal(text: string): string {
-  // Scan lines in reverse — the grand total is usually near the bottom.
-  // Prefer a line containing "total" but NOT "subtotal".
-  for (const line of text.split('\n').reverse()) {
-    if (/\btotal\b/i.test(line) && !/subtotal/i.test(line)) {
-      const m = line.match(/\$[\d,]+\.\d{2}/)
-      if (m) return m[0]
-    }
+const RECEIPT_AMOUNT_RE = /(?:([$₱€£])\s*|\b(PHP|EGP|USD)\s*)?-?\s*(\d{1,3}(?:[,\s]\d{3})*|\d{1,6})([.,]\d{2})(?!\d)/gi
+
+function normalizeReceiptAmount(raw: string): { display: string; value: number } | null {
+  const currency = raw.match(/[$₱€£]|\b(?:PHP|EGP|USD)\b/i)?.[0] ?? ''
+  let numeric = raw
+    .replace(/[$₱€£]/g, '')
+    .replace(/\b(?:PHP|EGP|USD)\b/gi, '')
+    .replace(/[^\d.,-]/g, '')
+
+  const lastDot = numeric.lastIndexOf('.')
+  const lastComma = numeric.lastIndexOf(',')
+  if (lastComma > lastDot) {
+    numeric = numeric.slice(0, lastComma).replace(/[.,]/g, '') + '.' + numeric.slice(lastComma + 1)
+  } else {
+    numeric = numeric.replace(/,/g, '')
   }
-  // Fallback: any labeled amount (amount due, balance, sum)
-  const labeled = text.match(/(?:amount\s*due|balance\s*due|amount|due|sum)[^\d$]*(\$[\d,]+\.\d{2})/i)
-  if (labeled) return labeled[1]
-  // Last resort: last dollar figure in the document
-  const all = text.match(/\$[\d,]+\.\d{2}/g)
-  return all?.[all.length - 1] ?? ''
+
+  const value = Number(numeric)
+  if (!Number.isFinite(value) || value < 0.01) return null
+
+  const formatted = value.toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
+  const prefix = currency
+    ? currency === '$' || currency === '₱' || currency === '€' || currency === '£'
+      ? currency
+      : `${currency.toUpperCase()} `
+    : ''
+  return { display: `${prefix}${formatted}`, value }
+}
+
+function receiptAmountsInLine(line: string): Array<{ display: string; value: number; raw: string }> {
+  return [...line.matchAll(RECEIPT_AMOUNT_RE)]
+    .map(match => {
+      const amount = normalizeReceiptAmount(match[0])
+      return amount ? { ...amount, raw: match[0] } : null
+    })
+    .filter((amount): amount is { display: string; value: number; raw: string } => Boolean(amount))
+}
+
+function extractReceiptTotal(text: string): string {
+  const lines = normalizeReceiptOcrText(text).split('\n')
+  const candidates: Array<{ display: string; value: number; score: number }> = []
+  const preferredLabel = /\b(?:grand\s*total|total\s*due|amount\s*due|amt\s*due|balance\s*due|total)\b/i
+  const weakTotalLabel = /\b(?:due|balance|payment|card|visa|mastercard|amex|bdo)\b/i
+  const excludedLabel = /\b(?:subtotal|sub\s*total|tax|vat|service|discount|change|cash|tender|paid|sale|sales|fee)\b/i
+
+  lines.forEach((line, index) => {
+    const amounts = receiptAmountsInLine(line)
+    if (amounts.length === 0) return
+
+    const lowerPosition = lines.length > 1 ? index / (lines.length - 1) : 1
+    for (const amount of amounts) {
+      let score = lowerPosition * 30
+      if (preferredLabel.test(line)) score += 120
+      else if (weakTotalLabel.test(line)) score += 45
+      if (excludedLabel.test(line)) score -= 80
+      if (/[~\-]\s*$/.test(line)) score -= 25
+      if (amount.value >= 1) score += Math.min(35, Math.log10(amount.value + 1) * 14)
+      candidates.push({ display: amount.display, value: amount.value, score })
+    }
+  })
+
+  const labeled = candidates
+    .filter(candidate => candidate.score >= 80)
+    .sort((a, b) => b.score - a.score || b.value - a.value)
+  if (labeled[0]) return labeled[0].display
+
+  const lowerHalf = candidates
+    .filter(candidate => candidate.score >= 15)
+    .sort((a, b) => b.score - a.score || b.value - a.value)
+  return lowerHalf[0]?.display ?? ''
 }
 
 function extractReceiptFields(text: string): { vendor: string; date: string; total: string } {
-  text = repairDigitTokens(text)
+  text = normalizeReceiptOcrText(text)
   const lines = text.split('\n').map(l => l.trim()).filter(Boolean)
   const dateMatch = text.match(/\b\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}\b/)
+  const vendor = lines.slice(0, 12).find(line => {
+    const alpha = (line.match(/[A-Za-z]/g) ?? []).length
+    const total = line.replace(/\s/g, '').length
+    if (total === 0 || alpha / total < 0.45) return false
+    if (/\b(?:dine\s*in|subtotal|total|tax|receipt|invoice|check|server|table|ordered)\b/i.test(line)) return false
+    if (receiptAmountsInLine(line).length > 0) return false
+    return true
+  })
   return {
-    vendor: lines[0] ?? '',
+    vendor: vendor ?? lines[0] ?? '',
     date: dateMatch?.[0] ?? '',
     total: extractReceiptTotal(text),
   }
 }
 
 function parseReceiptText(text: string, filename: string): string {
-  text = repairDigitTokens(text)
+  text = normalizeReceiptOcrText(text)
   const { vendor, date, total } = extractReceiptFields(text)
   const esc = (v: string) => `"${v.replace(/"/g, '""')}"`
   return [
@@ -271,7 +506,7 @@ function parseReceiptText(text: string, filename: string): string {
 }
 
 function formatReceiptAsText(text: string): string {
-  text = repairDigitTokens(text)
+  text = normalizeReceiptOcrText(text)
   const { vendor, date, total } = extractReceiptFields(text)
   const divider = '─'.repeat(32)
   const header = [
@@ -440,6 +675,7 @@ export async function imageOcrConvert(
   const engine = (opts.recognitionEngine as string | undefined) ?? 'standard'
   const style = (opts.handwritingStyle as string | undefined) ?? 'mixed'
   const quality = (opts.qualityMode as string | undefined) !== 'fast'
+  const receiptModeRequested = mode === 'receipt-csv'
   // iOS Safari (WKWebView) kills the tab when Florence-2 (~262 MB) finishes
   // loading — confirmed via ?debug=1: both sessions die at model-ready, before
   // inference runs. Skip AI models on iOS and fall back to Tesseract.
@@ -450,7 +686,12 @@ export async function imageOcrConvert(
     !/CriOS|FxiOS|EdgiOS/.test(navigator.userAgent)
   const useAi = engine === 'ai-enhanced' && lang === 'eng' && !iosDetected
   if (iosDetected && engine === 'ai-enhanced') {
-    diagLog('ai-mode-skipped', 'iOS Safari — routing to Tesseract to avoid OOM')
+    diagLog(
+      'ai-mode-skipped',
+      receiptModeRequested
+        ? 'iOS Safari — routing receipts to mobile OCR to avoid OOM'
+        : 'iOS Safari — routing to Tesseract to avoid OOM'
+    )
   }
   const isPng = (f: File) => f.type === 'image/png' || /\.png$/i.test(f.name)
 
@@ -465,6 +706,10 @@ export async function imageOcrConvert(
 
     try {
       let blob: Blob = file
+      const receiptMode = mode === 'receipt-csv'
+      const receiptMinWidth = receiptMode && iosDetected ? 1800 : 2500
+      const receiptAllowRetry = !(receiptMode && iosDetected)
+      let originalReceiptBlob: Blob | null = null
 
       if (isHeic(file) || await hasHeicMagicBytes(file)) {
         onProgress?.(i, 10)
@@ -478,6 +723,13 @@ export async function imageOcrConvert(
         blob = await compositePng(blob)
       }
 
+      if (receiptMode) {
+        onProgress?.(i, 17)
+        originalReceiptBlob = blob
+        const croppedBlob = await cropLikelyReceiptPaper(blob)
+        if (croppedBlob !== blob) blob = croppedBlob
+      }
+
       let text = ''
       let confidence = 0
       let pageWords: OcrWordMeta[] = []
@@ -487,7 +739,10 @@ export async function imageOcrConvert(
         onProgress?.(i, 20)
         diagLog('ai-mode-preprocess-start')
         diagMemory('before-preprocess')
-        const { binary: binBlob, grayscale: grayBlob } = await preprocessForOcrDual(blob)
+        const { binary: binBlob, grayscale: grayBlob } = await preprocessForOcrDual(
+          blob,
+          receiptMode ? receiptMinWidth : undefined
+        )
         diagLog('ai-mode-preprocess-done')
         let trocrLines: TrOcrLineResult[] | null = null
 
@@ -551,13 +806,12 @@ export async function imageOcrConvert(
             if (!text.trim()) {
               console.warn('[TrOCR] No text extracted from line crops — falling back to Tesseract')
               onProgress?.(i, 80)
-              const fallback = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
+              const fallback = receiptMode
+                ? await recognizeReceiptPage(binBlob, lang, receiptAllowRetry)
+                : await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
               text = fallback.text
               confidence = fallback.confidence
-              const rawWords = fallback.words ?? []
-              pageWords = rawWords.length > 5000
-                ? rawWords.map(w => ({ text: w.text, confidence: w.confidence, lineIndex: w.lineIndex }))
-                : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox, lineIndex: w.lineIndex }))
+              pageWords = toOcrWordMeta(fallback)
               usedTesseractFallback = true
             }
 
@@ -583,12 +837,11 @@ export async function imageOcrConvert(
             diagError('trocr-stage-fail', trocErr)
             console.warn('[TrOCR] Model unavailable, falling back to Tesseract:', trocErr)
             onProgress?.(i, 65)
-            const result = await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
+            const result = receiptMode
+              ? await recognizeReceiptPage(binBlob, lang, receiptAllowRetry)
+              : await recognizePage(binBlob, lang, { oem: 1, psm: psmForStyle(style) })
             ;({ text, confidence } = result)
-            const rawWords = result.words ?? []
-            pageWords = rawWords.length > 5000
-              ? rawWords.map(w => ({ text: w.text, confidence: w.confidence, lineIndex: w.lineIndex }))
-              : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox, lineIndex: w.lineIndex }))
+            pageWords = toOcrWordMeta(result)
           }
         }
 
@@ -610,24 +863,61 @@ export async function imageOcrConvert(
           onProgress?.(i, 100)
           continue
         }
+
+        if (receiptMode) {
+          try {
+            onProgress?.(i, 84)
+            const receiptResult = await recognizeReceiptPage(binBlob, lang)
+            let bestResult = receiptResult
+            let bestScore = scoreReceiptOcr(receiptResult.text, receiptResult.confidence)
+
+            if (!iosDetected && originalReceiptBlob && originalReceiptBlob !== blob) {
+              const originalBinary = await preprocessForOcr(originalReceiptBlob, receiptMinWidth)
+              const originalResult = await recognizeReceiptPage(originalBinary, lang, receiptAllowRetry)
+              const originalScore = scoreReceiptOcr(originalResult.text, originalResult.confidence)
+              if (originalScore > bestScore) {
+                bestResult = originalResult
+                bestScore = originalScore
+              }
+            }
+
+            const aiScore = scoreReceiptOcr(text, confidence)
+            if (bestScore > aiScore) {
+              diagLog('receipt-ocr-selected', `local=${bestScore.toFixed(1)} ai=${aiScore.toFixed(1)}`)
+              text = bestResult.text
+              confidence = bestResult.confidence
+              pageWords = toOcrWordMeta(bestResult)
+            } else {
+              diagLog('receipt-ai-selected', `ai=${aiScore.toFixed(1)} local=${bestScore.toFixed(1)}`)
+            }
+          } catch (receiptVerifyErr) {
+            diagError('receipt-ocr-verify-fail', receiptVerifyErr)
+          }
+        }
       } else {
         // Standard path: preprocess → Tesseract with OEM/PSM tuning
         onProgress?.(i, 20)
-        binaryPreprocessed = await preprocessForOcr(blob, mode === 'receipt-csv' ? 2500 : undefined)
+        binaryPreprocessed = await preprocessForOcr(blob, receiptMode ? receiptMinWidth : undefined)
         onProgress?.(i, 30)
         const tableMode = mode === 'excel' || mode === 'table-csv'
-        const receiptMode = mode === 'receipt-csv'
-        const result = await recognizePage(binaryPreprocessed, lang, {
-          oem: 1,
-          psm: tableMode ? 6 : receiptMode ? 4 : psmForStyle(style),
-          ...(receiptMode ? { dpi: 300, preserveSpaces: true } : {}),
-        });
+        let result = receiptMode
+          ? await recognizeReceiptPage(binaryPreprocessed, lang, receiptAllowRetry)
+          : await recognizePage(binaryPreprocessed, lang, {
+              oem: 1,
+              psm: tableMode ? 6 : psmForStyle(style),
+            });
+        if (receiptMode && !iosDetected && originalReceiptBlob && originalReceiptBlob !== blob) {
+          const originalBinary = await preprocessForOcr(originalReceiptBlob, receiptMinWidth)
+          const originalResult = await recognizeReceiptPage(originalBinary, lang, receiptAllowRetry)
+          if (
+            scoreReceiptOcr(originalResult.text, originalResult.confidence) >
+            scoreReceiptOcr(result.text, result.confidence)
+          ) {
+            result = originalResult
+          }
+        }
         ({ text, confidence } = result)
-        // Collect word metadata; drop bboxes above 5000-word threshold to cap memory
-        const rawWords = result.words ?? []
-        pageWords = rawWords.length > 5000
-          ? rawWords.map(w => ({ text: w.text, confidence: w.confidence, lineIndex: w.lineIndex }))
-          : rawWords.map(w => ({ text: w.text, confidence: w.confidence, bbox: w.bbox, lineIndex: w.lineIndex }))
+        pageWords = toOcrWordMeta(result)
       }
 
       // For table/excel modes: AI engines (Florence, TrOCR) produce no bbox data,
@@ -678,6 +968,7 @@ export async function imageOcrConvert(
 
       const { normalizeOcrText } = await import('@/lib/ocr/florence-ocr-client')
       text = normalizeOcrText(text)
+      if (receiptMode) text = normalizeReceiptOcrText(text)
 
       onProgress?.(i, 90)
 
@@ -709,10 +1000,10 @@ export async function imageOcrConvert(
       let outFile: File
 
       // Helper: build OcrResultMeta for text-output modes
-      const makeOcrMeta = (): OcrResultMeta => ({
+      const makeOcrMeta = (previewText = text, words = pageWords): OcrResultMeta => ({
         kind: 'ocr',
-        words: pageWords,
-        lines: text.split('\n').filter(l => l.trim().length > 0),
+        words,
+        lines: previewText.split('\n').filter(l => l.trim().length > 0),
         sourceIndex: i,
       })
 
@@ -726,14 +1017,19 @@ export async function imageOcrConvert(
         }
         case 'receipt-csv': {
           const fmt = (opts.receiptFormat as string | undefined) ?? 'txt'
+          let previewText: string
           if (fmt === 'csv') {
             const csv = parseReceiptText(text, file.name)
+            previewText = csv
             outFile = new File([csv], `${baseName}-receipt.csv`, { type: 'text/csv' })
           } else {
             const formatted = formatReceiptAsText(text)
+            previewText = formatted
             outFile = new File([formatted], `${baseName}-receipt.txt`, { type: 'text/plain' })
           }
-          break
+          results.push({ file: outFile, ocrMeta: makeOcrMeta(previewText, []) })
+          onProgress?.(i, 100)
+          continue
         }
         case 'card-csv': {
           const header = i === 0 ? 'filename,name,company,email,phone,url,raw_text\n' : ''

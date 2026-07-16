@@ -1,0 +1,34 @@
+{
+  "fixtures": {
+    "coru-sample-01": {
+      "suite": "english",
+      "notes": "Public CORU sample with overlay annotations; usable as English/key-field OCR fixture."
+    },
+    "coru-sample-02": {
+      "suite": "english",
+      "notes": "Public CORU sample with mostly English receipt text."
+    },
+    "coru-sample-03": {
+      "suite": "english",
+      "notes": "Public CORU sample with mostly numeric/key-field receipt text."
+    },
+    "coru-sample-04": {
+      "suite": "mixed-arabic",
+      "default": false,
+      "notes": "Mixed Arabic/English public CORU sample; excluded from default English benchmark."
+    },
+    "coru-sample-05": {
+      "suite": "mixed-arabic",
+      "default": false,
+      "notes": "Mixed Arabic/English public CORU sample; excluded from default English benchmark."
+    },
+    "user-sample-01": {
+      "suite": "english",
+      "notes": "User-provided English receipt photo; tall angled receipt stress fixture."
+    },
+    "user-sample-02": {
+      "suite": "english",
+      "notes": "User-provided English receipt photo."
+    }
+  }
+}

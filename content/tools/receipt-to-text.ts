@@ -1,5 +1,6 @@
 import { imageOcrConvert } from '@/lib/converters/image-ocr'
 import type { ToolConfig } from '@/lib/types'
+import { OcrReviewPanel } from '@/components/ocr-review'
 
 export const config: ToolConfig = {
   slug: 'receipt-to-text',
@@ -10,23 +11,14 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '.txt',
   convertFn: (files, opts, onProgress) =>
-    imageOcrConvert(files, { ...opts, outputMode: 'receipt-csv' }, onProgress),
+    imageOcrConvert(
+      files,
+      { ...opts, recognitionEngine: 'ai-enhanced', outputMode: 'receipt-csv' },
+      onProgress
+    ),
+  reviewPanel: OcrReviewPanel,
 
   options: [
-    {
-      type: 'radio',
-      name: 'recognitionEngine',
-      label: 'Recognition engine',
-      choices: [
-        { value: 'standard', label: 'Standard — no download' },
-        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~262MB (may be cached)' },
-      ],
-      default: 'standard',
-      conditionalHints: {
-        standard: 'Tesseract OCR with image preprocessing. Fast, no download needed.',
-        'ai-enhanced': 'Florence-2 + TrOCR: processes the full receipt at once, better on faded or printed thermal text. Downloads ~262MB on first use — shared with the Image Description tool so may already be cached. English only.',
-      },
-    },
     {
       type: 'radio',
       name: 'receiptFormat',
