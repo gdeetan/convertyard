@@ -5,7 +5,7 @@ import { OcrReviewPanel } from '@/components/ocr-review'
 export const config: ToolConfig = {
   slug: 'screenshot-to-text',
   title: 'Screenshot to Text Converter',
-  subtitle: 'Extract text from screenshots. Drop up to 500 at once, no uploads.',
+  subtitle: 'Extract text from screenshots — up to 500 at once, no uploads.',
   category: 'image-to-text',
   accepts: ['image/png', 'image/jpeg', 'image/webp'],
   acceptsExt: ['.png', '.jpg', '.jpeg', '.webp'],
@@ -15,8 +15,8 @@ export const config: ToolConfig = {
   reviewPanel: OcrReviewPanel,
 
   limitationNote: {
-    summary: 'OCR is CPU-intensive',
-    body: 'Text recognition runs on your device. Expect a few seconds per screenshot. Speed depends on your device and image resolution.',
+    summary: 'Tuned for clear, sharp screenshots',
+    body: 'Accuracy drops on blurry captures, very small text (<12px), and low-contrast colours. A sharper source image fixes this faster than any setting.',
   },
 
   options: [
@@ -71,24 +71,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'What kinds of screenshots work best?',
+      a: 'Clear screenshots of UI text — error messages, Slack or Discord posts, settings screens, article paragraphs. Anything you can read comfortably on screen will read cleanly here.',
+    },
+    {
       q: 'Does it work on dark-mode screenshots?',
-      a: 'Yes. The converter pre-processes PNGs to ensure text on dark backgrounds extracts cleanly before OCR runs.',
+      a: 'Yes. Dark backgrounds are automatically detected and inverted before recognition runs, so light text on dark reads the same as dark text on light.',
     },
     {
       q: 'Can I extract text from a screenshot of a PDF?',
-      a: 'Yes — if you have a screenshot of a PDF page rather than the PDF file itself, drop it here. For actual .pdf files, use the OCR PDF tool.',
+      a: 'Yes. For actual .pdf files, the OCR PDF tool is faster. If you have a screenshot of a PDF page, this is the right tool.',
     },
     {
-      q: 'What languages are supported?',
-      a: '14 languages are available in the dropdown including English, French, German, Spanish, Chinese (Simplified and Traditional), Japanese, Korean, Arabic, Hindi, and Russian.',
+      q: 'What about multi-column layouts?',
+      a: 'Works for most cases. Dense layouts sometimes merge adjacent columns. Crop to a single column first if that happens.',
     },
     {
-      q: 'Can I extract text from a screenshot with multiple columns?',
-      a: 'Yes, though multi-column layouts sometimes read across columns rather than down each one. For complex layouts, cropping to a single column before dropping gives cleaner results.',
-    },
-    {
-      q: 'Do I still need to review the output from screenshots?',
-      a: 'Screenshots are the most reliable input for OCR — the text is rendered at screen resolution rather than photographed, so you\'re not fighting blur, angles, or lighting. That said, some things still trip it up: small UI text (labels under 12px), light-grey placeholder text, monospace code with ambiguous characters like 0/O and 1/l/I, and anything in an unusual font. It\'s worth a quick look before you paste the result somewhere, but for most standard UI screenshots you won\'t need to fix much.',
+      q: 'What trips it up?',
+      a: 'Small labels under 12px, light-grey placeholder text, monospace code with ambiguous characters (0/O, 1/l/I), and unusual fonts. For most standard UI screenshots you\'ll find little or nothing to fix.',
     },
     {
       q: 'Are my screenshots uploaded anywhere?',

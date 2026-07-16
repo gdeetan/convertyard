@@ -5,7 +5,7 @@ import { OcrReviewPanel } from '@/components/ocr-review'
 export const config: ToolConfig = {
   slug: 'scan-to-text',
   title: 'Scan to Text Converter',
-  subtitle: 'Convert scanned document images into editable text. Accepts TIFF, JPG, PNG.',
+  subtitle: 'Convert scanned document images into editable text. TIFF, JPG, PNG, BMP.',
   category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/tiff', 'image/bmp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp'],
@@ -15,8 +15,8 @@ export const config: ToolConfig = {
   reviewPanel: OcrReviewPanel,
 
   limitationNote: {
-    summary: 'OCR is CPU-intensive',
-    body: 'Text recognition runs on your device. For large batches of scanned pages, keep the tab open and allow extra time.',
+    summary: 'Reads cleanest from 200+ DPI scans with good contrast',
+    body: 'Faded ink, bleed-through, and sub-200 DPI scans reduce accuracy. Most flatbed scans at default settings read well.',
   },
 
   options: [
@@ -69,25 +69,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'My scanner outputs TIFFs — can I use those directly?',
-      a: 'Yes. TIFF is accepted alongside JPG, PNG, and BMP. You don\'t need to convert scanner output before dropping it here.',
+      q: 'What scan quality do I need?',
+      a: '200 DPI or above at good ink contrast. Most flatbed scanner defaults (300 DPI, black and white or greyscale) produce near-perfect results.',
+    },
+    {
+      q: 'Does it support TIFF?',
+      a: 'Yes. TIFF, JPG, PNG, and BMP are all accepted. TIFF is common from document scanners and is handled the same as any other format.',
     },
     {
       q: 'What about two-sided documents?',
-      a: 'Each scanned page is a separate file. Drop them all at once and use "Combined single file" mode — pages are merged in filename order. Name files 001.tiff, 002.tiff, etc.',
+      a: 'Scan each side separately and drop both files in. Use "Combined" output mode to merge them into one file in filename order.',
     },
     {
-      q: 'Does it handle faded or old documents?',
-      a: 'Faded documents can reduce accuracy. For best results, scan at 300 DPI or higher with good contrast settings on your scanner.',
-    },
-
-    {
-      q: 'How accurate is OCR on scanned documents?',
-      a: 'A clean scan at 300 DPI with good contrast — the kind most modern flatbed scanners produce by default — typically hits 97–99% accuracy on printed text. Accuracy drops with older documents that have yellowed pages, faded ink, or staining. If you\'re scanning something important (a contract, a medical record, historical pages with faded ink), treat the output as a first draft: use the review panel to check amber-underlined words, then do a final read-through before archiving or sharing the file.',
+      q: 'Can it read faded or old documents?',
+      a: 'Light fading often still reads — the tool handles moderate contrast loss. Heavy fading, water damage, or bleed-through from the reverse side reduces accuracy significantly. No software fix compensates for genuinely unreadable ink.',
     },
     {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. OCR runs entirely in your browser. Your scans never leave your device.',
+      q: 'Are files uploaded anywhere?',
+      a: 'No. OCR runs entirely in your browser. Nothing is sent to any server.',
     },
   ],
 
@@ -96,6 +95,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'Scan to Text Converter — ConvertYard',
-    description: 'Convert scanned document images (TIFF, JPG, PNG, BMP) to editable text. Batch convert locally — no uploads. 14 languages supported.',
+    description: 'Convert scanned document images (TIFF, JPG, PNG, BMP) to editable text. Batch up to 1,000 files locally. No uploads. 14 languages supported.',
   },
 }
