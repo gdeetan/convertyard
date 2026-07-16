@@ -664,3 +664,89 @@ export async function extractAudio(
 
   return results
 }
+
+function explainTrimAudioError(error: Error): Error {
+  if (
+    error.message.includes('Output file #0 does not contain any stream') ||
+    error.message.includes('ErrnoError: FS error')
+  ) {
+    return new Error('This file has no audio track. Audio Trimmer only works on files that contain audio.')
+  }
+  return error
+}
+
+export async function trimAudio(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+
+  const startTime = typeof options.startTime === 'number' && options.startTime > 0 ? options.startTime : null
+  const endTime   = typeof options.endTime   === 'number' && options.endTime   > 0 ? options.endTime   : null
+  const format    = typeof options.format    === 'string'                          ? options.format    : 'keep'
+
+  const FORMAT_MAP: Record<string, { codec: string; ext: string; mime: string; lossless: boolean }> = {
+    mp3:  { codec: 'libmp3lame', ext: '.mp3',  mime: 'audio/mpeg', lossless: false },
+    aac:  { codec: 'aac',        ext: '.m4a',  mime: 'audio/mp4',  lossless: false },
+    wav:  { codec: 'pcm_s16le',  ext: '.wav',  mime: 'audio/wav',  lossless: true  },
+    ogg:  { codec: 'libvorbis',  ext: '.ogg',  mime: 'audio/ogg',  lossless: false },
+    flac: { codec: 'flac',       ext: '.flac', mime: 'audio/flac', lossless: true  },
+  }
+
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+
+    try {
+      const ffmpeg    = await getFFmpeg()
+      const file      = files[i]
+      const inputExt  = file.name.split('.').pop() ?? 'mp3'
+      const isAudio   = file.type.startsWith('audio/')
+      const useStreamCopy = isAudio && format === 'keep'
+
+      const fmt = useStreamCopy
+        ? { ext: `.${inputExt}`, mime: file.type, lossless: true }
+        : (FORMAT_MAP[format] ?? FORMAT_MAP.mp3)
+
+      const inputName  = `at_in_${i}.${inputExt}`
+      const outputName = `at_out_${i}${fmt.ext}`
+
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+
+      const trimArgs: string[] = []
+      if (startTime !== null) trimArgs.push('-ss', String(startTime))
+      if (endTime   !== null) trimArgs.push('-to', String(endTime))
+
+      const audioArgs: string[] = useStreamCopy
+        ? ['-c', 'copy']
+        : fmt.lossless
+          ? ['-map', 'a', '-vn', '-codec:a', (FORMAT_MAP[format] ?? FORMAT_MAP.mp3).codec, '-ar', '44100']
+          : ['-map', 'a', '-vn', '-codec:a', (FORMAT_MAP[format] ?? FORMAT_MAP.mp3).codec, '-b:a', '192k', '-ar', '44100']
+
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec([...trimArgs, '-i', inputName, ...audioArgs, outputName])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      results.push(new File([data], `${baseName}-trimmed${fmt.ext}`, { type: fmt.mime }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(explainTrimAudioError(toError(err)))
+    }
+  }
+
+  return results
+}
