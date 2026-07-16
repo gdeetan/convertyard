@@ -1,0 +1,374 @@
+{
+  "How-To Geek": {
+    "subject": "Free Acrobat alternative that works on 1,000 files at once — worth a mention?",
+    "body": "Hi How-To Geek team,\n\nYour piece on ditching $240/year for Acrobat landed right after I built something for the same reason. ConvertYard (convertyard.com) is a free, local-first batch converter—PDF to Word, compress, merge, split—up to 1,000 files at once, no sign-up, nothing uploaded to a server (open DevTools and watch: zero outgoing requests). Readers who follow your Acrobat alternatives coverage will find it useful for bulk jobs that free single-file tools can't handle. Worth a mention in a future roundup on free PDF tools?\n\n— Garrick\nconvertyard.com",
+    "contact": "https://www.howtogeek.com/about/ (contact form) / join@howtogeek.com (editorial)",
+    "type": "pitch"
+  },
+  "MakeUseOf": {
+    "subject": "Batch PDF tool for your Acrobat-alternatives readers — no uploads, 1,000 files",
+    "body": "Hi MakeUseOf team,\n\nYour roundup on free Acrobat alternatives covers the single-file tools well. ConvertYard fills the gap for users who need to process 50 or 500 PDFs at once—compress, convert, merge—all client-side via WebAssembly, so files never leave the browser. No account required, no file limit. Happy to write a guest piece on \"How to batch-convert PDFs without uploading anything to the cloud\" if that fits your editorial calendar.\n\n— Garrick\nconvertyard.com",
+    "contact": "https://www.makeuseof.com/contact/ (contact form)",
+    "type": "pitch"
+  },
+  "TechRadar": {
+    "subject": "Local-first PDF batch converter — no server, no sign-up, 1,000 files",
+    "body": "Hi TechRadar team,\n\nYour coverage of novel browser-based tools shows readers care about what's actually running under the hood. ConvertYard is a free PDF (and image/video) converter that runs entirely in the browser via WebAssembly—DevTools shows zero outgoing file requests. It handles batches up to 1,000 files and needs no account. Given your best-PDF-editors coverage, I think your readers who value privacy and performance would want to know about it. Happy to arrange a mention in your next best-free-PDF-tools update.\n\n— Garrick\nconvertyard.com",
+    "contact": "press@techradar.com / https://www.techradar.com/about-us",
+    "type": "pitch"
+  },
+  "Zapier Blog (PDF Tools)": {
+    "subject": "Free PDF batch tool your automation readers will want — zero uploads",
+    "body": "Hi Zapier team,\n\nYour \"7 best PDF editor apps\" piece is one of the cleaner roundups out there. ConvertYard covers the use case that cloud PDF tools struggle with: batch-processing hundreds of files locally without an upload step, no API key, no account. For Zapier readers who already automate document workflows, a local-first tool that processes 1,000 PDFs in one drop is a natural complement. Worth adding to the roundup, or I can write a guest post on \"when to process files locally vs. in the cloud.\"\n\n— Garrick\nconvertyard.com",
+    "contact": "hello@zapier.com",
+    "type": "pitch"
+  },
+  "Law Technology Today": {
+    "subject": "Guest piece: batch-processing client PDFs without uploading to a vendor's server",
+    "body": "Hi Law Technology Today team,\n\nLaw firms handle sensitive documents daily, and most PDF tools send those files to a third-party server by default. ConvertYard is a free tool where everything—compress, merge, convert, split—runs in the browser via WebAssembly. Files never leave the client's machine. I'd like to write a 1,500-word piece for your readers on \"How to process client PDFs in bulk without a cloud upload,\" covering the practical workflow and the compliance angle.\n\n— Garrick\nconvertyard.com",
+    "contact": "https://www.lawtechnologytoday.org/write-for-us/ (article submission form)",
+    "type": "pitch"
+  },
+  "Above the Law": {
+    "subject": "Free batch PDF tool for law firms — nothing uploaded, no vendor risk",
+    "body": "Hi Above the Law team,\n\nYour AALL 2026 coverage reminded me that legal tech adoption is accelerating—and document handling is still a pain point. ConvertYard is a free browser-based tool for batch-converting and compressing PDFs (and other formats), with zero server uploads. For attorneys dealing with large discovery sets or hundreds of client documents, processing 1,000 files locally without signing up for another vendor is worth knowing about. Happy to write a short practical piece or be included in a legal-tech tools roundup.\n\n— Garrick\nconvertyard.com",
+    "contact": "tips@abovethelaw.com",
+    "type": "pitch"
+  },
+  "LexBlog": {
+    "subject": "Guest post: processing client documents without a cloud upload — practical legal-tech",
+    "body": "Hi LexBlog team,\n\nYour network covers detailed legal practice topics. I'd like to contribute a practical post for your legal technology category: \"How to batch-process client PDFs without uploading them to a vendor's server.\" ConvertYard is the tool I'd showcase—free, browser-only processing via WebAssembly, no account, up to 1,000 files. It speaks directly to the confidentiality concerns attorneys have when sending documents to cloud-based PDF tools.\n\n— Garrick\nconvertyard.com",
+    "contact": "hello@lexblog.com / https://www.lexblog.com/about/",
+    "type": "pitch"
+  },
+  "Small Business Trends": {
+    "subject": "Free batch file converter for small business — no uploads, no subscription",
+    "body": "Hi Small Business Trends team,\n\nSmall businesses deal with contracts, invoices, and proposals in bulk, and most PDF tools require a paid plan or upload files to a cloud server. ConvertYard is a free browser-based converter—compress, merge, convert PDFs and images, up to 1,000 files at once, no sign-up needed and nothing goes to a server. It's the kind of practical tool your readers bookmark before they ever need it. I'd love to contribute a short piece on \"free document tools that keep your files off the cloud.\"\n\n— Garrick\nconvertyard.com",
+    "contact": "https://smallbiztrends.com/write-for-us/ (pitch form)",
+    "type": "pitch"
+  },
+  "HubSpot Blog": {
+    "subject": "Free batch PDF/image tool for marketing teams — no sign-up, nothing uploaded",
+    "body": "Hi HubSpot Blog team,\n\nYour tools roundups (like the recent content optimization piece) consistently surface free options that save teams real time. ConvertYard does that for file conversion: batch-compress images, convert PDFs, resize files—up to 1,000 at once, client-side only, no account required. Marketing teams prepping assets or onboarding documents in bulk hit per-file limits on every major free tool. We don't have one. Worth including in a future \"free tools for marketing teams\" roundup?\n\n— Garrick\nconvertyard.com",
+    "contact": "https://www.hubspot.com/company/contact (press contact)",
+    "type": "pitch"
+  },
+  "G2 Learn Hub": {
+    "subject": "Free batch PDF/file tool worth including in your document software coverage",
+    "body": "Hi G2 Learn Hub team,\n\nYour document services roundups (like the translation services piece) guide software buyers who care about what tools actually do. ConvertYard is a free batch file converter—PDF, image, video—that runs entirely in the browser with no uploads and no account. For readers who hit file limits or privacy concerns with existing tools, it's a practical alternative worth knowing. Happy to supply screenshots, use-case details, or a guest post on \"when local-first beats cloud for document conversion.\"\n\n— Garrick\nconvertyard.com",
+    "contact": "G2 vendor portal / editorial@g2.com",
+    "type": "pitch"
+  },
+  "Lifehacker (PDF Tools)": {
+    "subject": "Free batch file converter — 1,000 files, nothing uploaded, no account",
+    "body": "Hi Lifehacker team,\n\nYou cover tools that give people back control over their digital life. ConvertYard is a free browser-based converter for PDFs, images, and video—up to 1,000 files at once, everything processed locally via WebAssembly, zero outgoing requests (verifiable in DevTools). No sign-up, no file-size cap, no per-day limit. It's the tool I built after getting cut off trying to convert 12 JPGs to WebP on every other free site. Would love a mention in a tools roundup or \"free alternatives\" piece.\n\n— Garrick\nconvertyard.com",
+    "contact": "tips@lifehacker.com",
+    "type": "pitch"
+  },
+  "PCMag": {
+    "subject": "Free browser-based PDF batch tool — 1,000 files, no uploads, worth a look",
+    "body": "Hi PCMag team,\n\nYour PDF editors roundup is one of the most-referenced in that space. ConvertYard is a free tool that handles what most roundup entries can't: true batch processing of hundreds of PDFs locally, with no file uploads to a server and no account required. Everything runs in the browser via WebAssembly—open DevTools and the network tab stays quiet. For readers who need to compress or convert 50+ files without a subscription, it fills a gap your current picks leave open. Happy to provide a demo or more detail for your next update.\n\n— Garrick\nconvertyard.com",
+    "contact": "https://www.pcmag.com/about (press / editorial contact)",
+    "type": "pitch"
+  },
+  "PetaPixel": {
+    "subject": "Free batch HEIC converter for wildlife photographers — no upload required",
+    "body": "Hi PetaPixel team,\n\nYour piece on Kristi Odom's wildlife work reminded me how many photographers leave a shoot with hundreds of HEIC files locked behind clunky converters. ConvertYard lets photographers convert entire batches of HEIC to JPG or WebP directly in the browser — libvips-wasm does the work locally, so personal location data and raw wildlife images never touch a server. No account, no upload, no subscription. Happy to write up a quick workflow piece if that would fit your audience.\n\n— Garrick\nconvertyard.com",
+    "contact": "tips@petapixel.com",
+    "type": "pitch"
+  },
+  "Fstoppers": {
+    "subject": "Batch HEIC-to-JPG in the browser — a tool your photographers will actually use",
+    "body": "Hi Fstoppers team,\n\nYour \"10 Mistakes That Kill a Headshot\" piece nails the workflow friction photographers face after a shoot. ConvertYard cuts one more friction point: drop 500 HEIC files from a session, get JPGs back in seconds — all processed locally via WebAssembly, nothing uploaded. For photographers shooting with iPhone as a second body, this removes the cloud-conversion step entirely. Open to writing a short workflow guide if it fits your editorial calendar.\n\n— Garrick\nconvertyard.com",
+    "contact": "editorial form at fstoppers.com/contact",
+    "type": "pitch"
+  },
+  "Digital Photography Review (dpreview)": {
+    "subject": "Local-first HEIC batch converter — reader tool worth knowing about",
+    "body": "Hi dpreview editorial team,\n\ndpreview readers regularly ask how to batch-convert HEIC files from iPhones without pushing personal photos to a cloud service. ConvertYard does this entirely in the browser via WebAssembly — no server, no account, supports JPG, WebP, and AVIF output. It handles 1000+ files in a single batch. Worth a mention in your software/workflow coverage if you're covering HEIC tools this cycle.\n\n— Garrick\nconvertyard.com",
+    "contact": "editorial@dpreview.com",
+    "type": "pitch"
+  },
+  "9to5Mac": {
+    "subject": "Batch HEIC converter that never uploads your photos — built for iPhone users",
+    "body": "Hi 9to5Mac team,\n\nWith Apple pushing another wave of iPhones and iPads this back-to-school season, new iPhone users are going to hit the HEIC compatibility wall fast. ConvertYard converts HEIC to JPG or WebP in the browser via WebAssembly — files stay on-device, no Apple ID required, works on any platform. Handles hundreds of vacation or portrait photos at once. Happy to provide a tip or walkthrough if it fits your how-to section.\n\n— Garrick\nconvertyard.com",
+    "contact": "tips@9to5mac.com",
+    "type": "pitch"
+  },
+  "Smashing Magazine": {
+    "subject": "AVIF and WebP batch conversion in the browser — no upload, no build step",
+    "body": "Hi Smashing Magazine editors,\n\nYour piece on AI fatigue resonated — users want tools that do one thing reliably, not SaaS dashboards. ConvertYard converts JPG, PNG, and HEIC files to WebP or AVIF entirely in-browser via libvips-wasm, with no upload and no account. For front-end devs trying to prep image assets without a build pipeline or third-party service, it handles 1000-file batches locally. Open to writing a performance-focused article on client-side image conversion if that fits your pipeline.\n\n— Garrick\nconvertyard.com",
+    "contact": "editors@smashingmagazine.com",
+    "type": "pitch"
+  },
+  "Web Designer Depot": {
+    "subject": "Convert images to WebP/AVIF in the browser — tool your readers can use today",
+    "body": "Hi Web Designer Depot team,\n\nYour piece on Facebook's design regression is a good reminder that the best tools do less and do it cleanly. ConvertYard converts JPG, PNG, and HEIC files to WebP and AVIF locally in the browser — no upload, no plugin, no account. For designers who need to prep next-gen image formats quickly without touching a CDN or build tool, it's a single drag-and-drop away. Happy to write a short tutorial on client-side image optimization workflows if it fits your content.\n\n— Garrick\nconvertyard.com",
+    "contact": "pitch form at webdesignerdepot.com/write-for-us/",
+    "type": "pitch"
+  },
+  "Creative Bloq": {
+    "subject": "Free batch image converter for digital artists — HEIC, WebP, AVIF, all local",
+    "body": "Hi Creative Bloq team,\n\nYour piece on unstructured personal art practice is a good reminder that creative work generates a lot of files fast. ConvertYard lets digital artists batch-convert HEIC, JPG, and PNG files to WebP or AVIF in the browser — nothing uploaded, no account needed, processes 1000 files in one drop. For artists exporting from iPad or iPhone who need web-ready formats without a cloud subscription, this closes the gap. Happy to contribute a short tools piece if it fits.\n\n— Garrick\nconvertyard.com",
+    "contact": "pitch form at creativebloq.com",
+    "type": "pitch"
+  },
+  "SitePoint (Image Tools)": {
+    "subject": "Client-side AVIF/WebP conversion with WebAssembly — article pitch",
+    "body": "Hi SitePoint editors,\n\nWeb performance articles on SitePoint consistently land on image format choices — AVIF vs WebP, conversion pipelines, next-gen format adoption. ConvertYard is a free, open tool that runs libvips-wasm in the browser to convert JPG, PNG, and HEIC to WebP or AVIF without any server round-trip. I can write a technical piece covering how client-side WASM image conversion works, with benchmarks and code walkthrough — or simply share the tool as a resource for your readers.\n\n— Garrick\nconvertyard.com",
+    "contact": "editors@sitepoint.com",
+    "type": "pitch"
+  },
+  "Tom's Guide": {
+    "subject": "Free HEIC batch converter for iPhone users — no upload, works in any browser",
+    "body": "Hi Tom's Guide team,\n\nYour practical how-to guides are the reason iPhone users land on Tom's Guide when they hit format headaches. HEIC is one of the most common: Apple shoots it by default, but Windows and most web services don't handle it natively. ConvertYard converts batches of HEIC files to JPG in the browser — nothing sent to a server, free with no account, works on Windows, Mac, and Android. Worth a mention in a how-to if you cover HEIC conversion this cycle.\n\n— Garrick\nconvertyard.com",
+    "contact": "press contact at tomsguide.com",
+    "type": "pitch"
+  },
+  "Windows Central": {
+    "subject": "Free HEIC-to-JPG batch tool for Windows users — runs entirely offline in browser",
+    "body": "Hi Windows Central team,\n\nYour Windows 11 coverage keeps readers on top of what Microsoft breaks and fixes — and HEIC compatibility on Windows is still a persistent pain point for anyone syncing iPhone photos. ConvertYard converts batches of HEIC files to JPG locally in the browser, no Microsoft store purchase required, no cloud upload, no account. It's a bookmark solution that works even when Windows Photo codecs fail. Happy to share details if it fits a how-to or free tools roundup.\n\n— Garrick\nconvertyard.com",
+    "contact": "tips@windowscentral.com",
+    "type": "pitch"
+  },
+  "iMore (MacRumors/AppleInsider redirect)": {
+    "subject": "Free batch HEIC converter — browser-only, no iCloud required",
+    "body": "Hi [MacRumors/AppleInsider] team,\n\niPhone users shooting HEIC by default still hit a wall when sharing photos with Windows users or uploading to sites that reject the format. ConvertYard converts batches of HEIC files to JPG or WebP in the browser via WebAssembly — no iCloud, no server upload, no account, works on any OS. Drop 500 photos, download a ZIP of JPGs in seconds. Worth a tip post if you're covering HEIC workarounds this month.\n\n— Garrick\nconvertyard.com",
+    "contact": "tips@macrumors.com or news@appleinsider.com (iMore shut down July 16, 2026 — redirect to MacRumors or AppleInsider)",
+    "type": "pitch"
+  },
+  "CSS-Tricks": {
+    "subject": "Zero server requests: running 93 file converters entirely in WASM",
+    "body": "Hi CSS-Tricks team,\n\nYour recent \"What's !important #15\" roundup caught my attention — you cover the browser platform deeply, and I think ConvertYard fits squarely in that territory. I built a batch file converter (93 tools: images, PDF, video, audio) where every conversion runs client-side via ffmpeg.wasm, libvips-wasm, mupdf-wasm, and transformers.js — open DevTools during a conversion and you'll see zero outgoing network requests. I'd love to write a deep-dive guest article on architecting zero-server file processing with WebAssembly for the CSS-Tricks audience.\n\n— Garrick\nconvertyard.com",
+    "contact": "DigitalOcean editorial team",
+    "type": "pitch"
+  },
+  "DZone": {
+    "subject": "WASM-only file processing: architecture notes from 93 browser tools",
+    "body": "Hi DZone team,\n\nYour offline-first iOS piece resonated — the same principle (process locally, never phone home) is what I applied to a web-based batch file converter. ConvertYard runs 93 tools entirely in WebAssembly: ffmpeg.wasm, libvips-wasm, mupdf-wasm, transformers.js. Files never touch a server. Open DevTools during a conversion — zero outgoing requests. I'd like to contribute a technical article on the WASM threading model, memory management, and the lessons from building at 1,000-file batch scale for the DZone audience.\n\n— Garrick\nconvertyard.com",
+    "contact": "contributor at dzone.com/writers",
+    "type": "pitch"
+  },
+  "SitePoint (Developer Tools)": {
+    "subject": "Guest article: building a 1,000-file batch converter with WebAssembly",
+    "body": "Hi SitePoint team,\n\nSitePoint's coverage of browser APIs and modern JavaScript is where I've sent junior devs for years. I built ConvertYard — 93 file-conversion tools (image, video, PDF, audio) where everything runs in the browser via WebAssembly. No server. No upload. Files process locally using ffmpeg.wasm, libvips-wasm, and mupdf-wasm. I'd like to write a practical walkthrough for your audience: how to architect WASM workers for batch processing, handle memory limits at 1,000 files, and ship real tools — not demos.\n\n— Garrick\nconvertyard.com",
+    "contact": "editors@sitepoint.com",
+    "type": "pitch"
+  },
+  "Codrops": {
+    "subject": "Architecture write-up: zero-server file conversion in WASM",
+    "body": "Hi Codrops team,\n\nYour Trionn architecture breakdown — coordinating GSAP, Three.js, Lenis, and Web Audio in one coherent system — is exactly the kind of technical depth I find valuable. I built ConvertYard with a similar coordination challenge: ffmpeg.wasm, libvips-wasm, mupdf-wasm, and transformers.js running concurrently in SharedArrayBuffer workers, converting batches of 1,000 files entirely in the browser. I'd love to write an architecture piece for Codrops on the multi-library WASM orchestration approach that made it work.\n\n— Garrick\nconvertyard.com",
+    "contact": "info@tympanus.net",
+    "type": "pitch"
+  },
+  "Dev.to": {
+    "subject": "How I built 93 file converters that run entirely in WASM",
+    "body": "Hi Dev.to community,\n\nThe post \"What WebAssembly actually is, and why it escaped the browser\" framed WASM's broader potential well. I went the other direction: keeping WASM firmly in the browser as a privacy guarantee. ConvertYard is 93 file-conversion tools (images, video, PDF, audio) built on ffmpeg.wasm, libvips-wasm, mupdf-wasm, and transformers.js. The DevTools test is simple: open the Network tab during a conversion — zero outgoing requests. Planning to publish a detailed article here on the WASM worker architecture, SharedArrayBuffer threading, and how batch-at-1,000-files changes your memory strategy.\n\n— Garrick\nconvertyard.com",
+    "contact": "Write directly (no gatekeeping)",
+    "type": "pitch"
+  },
+  "Hashnode": {
+    "subject": "Cross-post: 93 file converters, zero server, all WASM",
+    "body": "Hi Hashnode team,\n\nCross-posting my Dev.to piece on building ConvertYard — 93 batch file-conversion tools running entirely in WebAssembly (ffmpeg.wasm, libvips-wasm, mupdf-wasm, transformers.js). No file ever leaves the machine. The article covers WASM worker threading, SharedArrayBuffer memory management, and lessons learned at 1,000-file batch scale. Setting canonical to Dev.to.\n\n— Garrick\nconvertyard.com",
+    "contact": "hashnode.com (cross-post)",
+    "type": "pitch"
+  },
+  "Hacker Noon": {
+    "subject": "Story submission: building file converters with zero server infrastructure",
+    "body": "Hi Hacker Noon team,\n\nI noticed you publish broadly on software architecture and unconventional technical approaches. ConvertYard is a batch file converter (93 tools) where the entire stack — ffmpeg.wasm, libvips-wasm, mupdf-wasm, transformers.js — runs client-side. No server sees user files, ever. The practical verification: open DevTools during a 100-file batch conversion and watch the Network tab stay empty. I'd like to submit a story on why WASM-only architecture is a defensible product moat, not just a privacy checkbox.\n\n— Garrick\nconvertyard.com",
+    "contact": "Submit story at hackernoon.com",
+    "type": "pitch"
+  },
+  "JavaScript Weekly": {
+    "subject": null,
+    "body": "ConvertYard runs 93 file-conversion tools (images, PDF, video, audio) entirely in the browser via ffmpeg.wasm, libvips-wasm, mupdf-wasm, and transformers.js — open DevTools during a conversion and you'll see zero outgoing network requests. Batch up to 1,000 files, everything processes locally: convertyard.com",
+    "contact": "news@cooperpress.com",
+    "type": "submission"
+  },
+  "CSS Weekly": {
+    "subject": null,
+    "body": "ConvertYard is a local-first batch file converter — 93 tools covering images, PDF, video, and audio — where all processing runs in WebAssembly in the browser, files never touch a server, and the UI stays under 80kb gzipped before WASM loads: convertyard.com",
+    "contact": "zoran@css-weekly.com",
+    "type": "submission"
+  },
+  "TLDR Tech": {
+    "subject": null,
+    "body": "ConvertYard ships 93 batch file-conversion tools built entirely on WebAssembly (ffmpeg.wasm, libvips-wasm, mupdf-wasm, transformers.js) — zero server-side file processing, verifiable via DevTools Network tab, handling batches up to 1,000 files in-browser: convertyard.com",
+    "contact": "dan@tldr.tech",
+    "type": "submission"
+  },
+  "Bytes.dev": {
+    "subject": null,
+    "body": "ConvertYard is a local-first batch converter with 93 tools — images, video, PDF, audio — all running client-side via WebAssembly with zero network requests during processing; open DevTools and verify it yourself: convertyard.com",
+    "contact": "Submit on site",
+    "type": "submission"
+  },
+  "Frontend Focus": {
+    "subject": null,
+    "body": "ConvertYard runs 93 file-conversion tools (image, PDF, video, audio) entirely in the browser using ffmpeg.wasm, libvips-wasm, mupdf-wasm, and transformers.js — no files hit a server, no sign-up required, and it handles batches of 1,000 files: convertyard.com",
+    "contact": "news@cooperpress.com",
+    "type": "submission"
+  },
+  "Web Tools Weekly": {
+    "subject": null,
+    "body": "ConvertYard — 93 batch file-conversion tools (images, PDF, video, audio) that run entirely in WebAssembly in the browser; zero server uploads, verifiable via DevTools, up to 1,000 files per batch: convertyard.com",
+    "contact": "webtoolsweekly.com/submit",
+    "type": "submission"
+  },
+  "Sidebar.io (Developer)": {
+    "subject": null,
+    "body": "ConvertYard is a local-first batch file converter — 93 tools, everything in WebAssembly, zero outgoing network requests during conversion, up to 1,000 files at a time: convertyard.com",
+    "contact": "Submit on site",
+    "type": "submission"
+  },
+  "Syntax.fm": {
+    "subject": "WASM architecture deep-dive — tool mention or guest spot for ConvertYard",
+    "body": "Hi Wes and Scott,\n\nEpisode 1019 on AI code review hit on something I think about a lot: shipping code you can't fully audit. With ConvertYard I went the opposite direction — every conversion runs locally in WebAssembly (ffmpeg.wasm, libvips-wasm, mupdf-wasm, transformers.js), so users can open DevTools and verify zero outgoing requests themselves. 93 tools, 1,000-file batches, all client-side. Worth a Sick Picks mention, or I'm happy to come on and walk through the WASM threading architecture if that's a better fit.\n\n— Garrick\nconvertyard.com",
+    "contact": "sponsor@syntax.fm",
+    "type": "pitch"
+  },
+  "The Changelog": {
+    "subject": "ConvertYard — zero-server file tooling built entirely on WASM",
+    "body": "Hi Changelog team,\n\nEpisode 681 on MCP and Code Mode was a good breakdown of where local tooling is heading. I built something in the same spirit: ConvertYard, a batch file converter (93 tools) where ffmpeg.wasm, libvips-wasm, mupdf-wasm, and transformers.js do all the work in the browser. No file ever leaves the machine — the Network tab is the proof. I think the architecture story (SharedArrayBuffer workers, WASM threading at 1,000-file scale, keeping JS bundles under 80kb before WASM loads) would make a solid Changelog episode.\n\n— Garrick\nconvertyard.com",
+    "contact": "editors@changelog.com",
+    "type": "pitch"
+  },
+  "Shop Talk Show": {
+    "subject": "ConvertYard — 93 WASM converters, zero server, verifiable in DevTools",
+    "body": "Hi Chris and Dave,\n\nEpisode 723 touched on progressive web components and ads-on-your-site — two topics that intersect directly with ConvertYard. I built 93 batch file-conversion tools (images, PDF, video, audio) that run entirely in WebAssembly: no server, no upload, open DevTools and the Network tab stays empty during any conversion. The site runs display ads below the fold only — tool UI never sees one. Would love a mention on the show, or to come on and talk WASM-first architecture and how the \"no server\" constraint shapes every product decision.\n\n— Garrick\nconvertyard.com",
+    "contact": "Twitter/X @ShopTalkShow",
+    "type": "pitch"
+  },
+  "Lifehacker (OCR Tools)": {
+    "subject": "Extract text from screenshots locally — no account, no upload",
+    "body": "Hi Lifehacker team,\n\nYour piece on HyperTexting caught my attention — readers who are cutting back on cloud dependency tend to care about where their data goes. I built ConvertYard's OCR tools (screenshot-to-text, handwriting-to-text, receipt-to-text, image-to-Excel) for exactly that crowd. Everything runs in the browser via transformers.js — no file ever touches a server, no API key required, no account. Drop a screenshot of a handwritten note or a receipt and get editable text back in seconds. Happy to share it or answer questions if it's a fit for a roundup.\n\n— Garrick\nconvertyard.com",
+    "contact": "tips@lifehacker.com",
+    "type": "pitch"
+  },
+  "Zapier Blog (OCR Tools)": {
+    "subject": "Local OCR that fits note-taking workflows — no upload required",
+    "body": "Hi Zapier team,\n\nYour roundup of note-taking apps covers the capture side well. One gap I see in most OCR tools is that they require uploading files to a third-party server — which matters when the screenshot contains a password, a medical record, or a client document. ConvertYard runs OCR entirely in the browser (transformers.js, no server) so the file never leaves the device. It handles handwriting, receipts, and structured tables to Excel. Could be worth a mention in a future tools roundup or an OCR-focused post.\n\n— Garrick\nconvertyard.com",
+    "contact": "hello@zapier.com",
+    "type": "pitch"
+  },
+  "College Info Geek (Thomas Frank)": {
+    "subject": "Free in-browser OCR for students — handwriting to text, no upload",
+    "body": "Hi Thomas,\n\nYour Notion workflow post is a good example of the kind of tool-stacking students actually use. One friction point I hear about from students: they take handwritten notes in class, then have to use a paid app or upload photos to Google to get searchable text. I built a free in-browser OCR tool (handwriting-to-text, screenshot-to-text) that runs entirely on-device — no account, no upload, works offline after the first load. Could fit a study tools or note-taking roundup if that's on your radar.\n\n— Garrick\nconvertyard.com",
+    "contact": "thomas@collegeinfogeek.com",
+    "type": "pitch"
+  },
+  "WebAIM": {
+    "subject": "Free local OCR for inaccessible PDFs and scanned documents",
+    "body": "Hi WebAIM team,\n\nYour recent post on accessibility extensions made a point that stuck with me: remediating old inaccessible PDFs while publishing new inaccessible ones is \"bailing water with the faucet still running.\" One practical piece of that remediation is extracting text from scanned documents and image-based PDFs. I built a free browser-based OCR tool (screenshot-to-text, image-to-Excel) that runs entirely on-device via transformers.js — no upload, no account — so organizations can extract text from legacy scanned files without sending sensitive documents to a cloud service. Worth a mention in your resources or tools coverage if it fits.\n\n— Garrick\nconvertyard.com",
+    "contact": "https://webaim.org/contact/ (contact form)",
+    "type": "pitch"
+  },
+  "A11y Project": {
+    "subject": "PR suggestion — local OCR tool for the resources list",
+    "body": "Hi A11y Project team,\n\nSuggesting ConvertYard's OCR tools (screenshot-to-text, handwriting-to-text) for the resources page. The tools run entirely in the browser via transformers.js — no file upload, no account, no cost. That makes them practical for accessibility practitioners who need to extract text from scanned documents, legacy PDFs, or image-based content without sending sensitive files to a cloud OCR service. Happy to submit a PR if the fit makes sense.\n\n— Garrick\nconvertyard.com",
+    "contact": "GitHub PR (https://github.com/a11yproject/a11yproject.com)",
+    "type": "pitch"
+  },
+  "Obsidian Forums": {
+    "subject": "I built a free in-browser OCR tool that puts text straight into your clipboard — no upload, no account",
+    "body": "I take a lot of screenshots of handwritten notes and whiteboard sessions during the week. Getting that text into Obsidian meant either paying for an OCR subscription or uploading to Google Lens — neither felt right for anything sensitive.\n\nSo I built screenshot-to-text and handwriting-to-text at convertyard.com. It runs entirely in the browser via transformers.js, nothing leaves your device. Drop an image, get plain text, paste it into a note. There's also an image-to-Excel tool if you're capturing tables.\n\nWould love feedback from people with heavy note-capture workflows — especially if you've hit edge cases with messy handwriting or low-contrast screenshots.\n\nconvertyard.com/screenshot-to-text",
+    "contact": null,
+    "type": "community"
+  },
+  "r/Notion": {
+    "subject": "Built a free OCR tool that converts screenshots and handwriting to text — might help with your capture workflow",
+    "body": "If you paste a lot of content into Notion from screenshots, whiteboards, or handwritten notes, this might save some steps.\n\nI built a few in-browser OCR tools at convertyard.com — screenshot-to-text, handwriting-to-text, receipt-to-text, and image-to-Excel. Everything runs locally in your browser via transformers.js, so nothing gets uploaded anywhere. No account, no API key, no cost.\n\nThe image-to-Excel one is handy if you photograph a table and want to paste structured data into a Notion database. Works on receipts too if you're tracking expenses.\n\nconvertyard.com/screenshot-to-text",
+    "contact": null,
+    "type": "community"
+  },
+  "TechSmith Blog": {
+    "subject": "Free browser-based video tools for creators — no upload, no watermark",
+    "body": "Hi TechSmith team,\n\nYour lighting guide is a go-to for creators shooting their own footage — exactly the audience that needs fast, private file tools alongside their recording setup. ConvertYard runs GIF to MP4, video compression, audio extraction, and audio trimming entirely in the browser via ffmpeg.wasm. Files never leave the device — no upload, no watermark, no account. That's a natural fit for creators handling client footage they can't send to a cloud service. Worth a mention in a tools roundup or workflow piece — happy to contribute.\n\n— Garrick\nconvertyard.com",
+    "contact": "Press contact on techsmith.com/about",
+    "type": "pitch"
+  },
+  "Kapwing Blog": {
+    "subject": "Browser-based video tools that complement Kapwing — no upload required",
+    "body": "Hi Kapwing team,\n\nYour short-form video statistics piece nails why creators are output-obsessed right now — 33% investing more in short-form than anything else. ConvertYard handles the unglamorous prep work: compressing clips, trimming audio, extracting MP3s from MP4s — all in the browser via ffmpeg.wasm. No upload, no watermark, no account, batch up to 1,000 files. A \"free tools for short-form creators\" roundup could be a natural home for it. Open to a link swap or contribution.\n\n— Garrick\nconvertyard.com",
+    "contact": "hello@kapwing.com",
+    "type": "pitch"
+  },
+  "Wistia Blog": {
+    "subject": "Browser-only video processing tool — fits your privacy-conscious video audience",
+    "body": "Hi Wistia team,\n\nYour Wistia vs. YouTube comparison draws readers who care about controlling where their video lives — the same audience that thinks twice before uploading client footage to a random converter. ConvertYard runs video compression, audio extraction, and MP4-to-MP3 conversion entirely in the browser via ffmpeg.wasm. No server ever sees the file. It's a natural callout in any piece about video workflow or file handling for business creators. Let me know if there's a fit.\n\n— Garrick\nconvertyard.com",
+    "contact": "Press contact on wistia.com",
+    "type": "pitch"
+  },
+  "Riverside.fm Blog": {
+    "subject": "Free in-browser audio and video tools for podcast and stream creators",
+    "body": "Hi Riverside team,\n\nYour StreamYard vs. OBS comparison serves creators who care about recording quality — and those same people regularly need to trim audio, extract tracks, or compress video without handing raw recordings to a third-party server. ConvertYard does all of that in the browser via ffmpeg.wasm. Files never upload anywhere. It's a low-lift mention for a \"free tools for podcasters\" roundup or a workflow piece. Happy to provide more detail or a demo.\n\n— Garrick\nconvertyard.com",
+    "contact": "Contact form on riverside.fm",
+    "type": "pitch"
+  },
+  "Trapital": {
+    "subject": "A free, private browser tool for music creators handling their own files",
+    "body": "Hi Dan,\n\nYour piece on AI and human creativity cuts close to what independent artists deal with daily: doing more with less, while keeping control of their work. ConvertYard is a set of browser-based audio and video tools — MP4 to MP3, audio trimmer, video compressor — that run entirely via ffmpeg.wasm. No upload, no watermark, no subscription. For artists handling client or unreleased material, that privacy is non-negotiable. If it fits a future piece on creator tools, happy to talk.\n\n— Garrick\nconvertyard.com",
+    "contact": "dan@trapital.co",
+    "type": "pitch"
+  },
+  "Ben's Bites": {
+    "subject": "AI that runs in a browser tab — no API, no upload — ConvertYard",
+    "body": "Hi Ben,\n\nYou cover more AI tool launches than anyone — so you've seen every \"AI-powered\" tool that quietly ships your files to a cloud API. ConvertYard is the opposite: OCR, alt-text generation, background removal, handwriting-to-text, and image-to-Excel all run directly in the browser via transformers.js. WebAssembly inference, no server, no API key, nothing leaves the device. Open DevTools during a conversion — zero outbound requests. That constraint is the product. Happy to walk you through a demo or write a short breakdown for your readers.\n\n— Garrick\nconvertyard.com",
+    "contact": "ben@bensbites.co",
+    "type": "pitch"
+  },
+  "The Rundown AI": {
+    "subject": "Browser-local AI inference — no API, no upload — ConvertYard",
+    "body": "Hi Rundown team,\n\nYour recent coverage of AI's impact on knowledge work got me thinking about the flip side: what happens when AI processes sensitive files? ConvertYard runs OCR, alt-text generation, background removal, and image-to-Excel entirely in the browser via transformers.js — no file ever hits a server. For readers running AI on contracts, receipts, or internal docs, local inference isn't a nice-to-have, it's the requirement. Worth a mention or short feature? Happy to provide screenshots, a demo, or a contributed note.\n\n— Garrick\nconvertyard.com",
+    "contact": "Submission form at therundown.ai",
+    "type": "pitch"
+  },
+  "TLDR AI": {
+    "subject": "transformers.js running OCR + alt-text in a browser tab — ConvertYard",
+    "body": "Hi Dan,\n\nTLDR AI does a great job surfacing the engineering layer beneath AI tools. ConvertYard runs inference directly in the browser: transformers.js + WebAssembly, no API key, no server round-trip. The tools — OCR, handwriting recognition, alt-text generation, background removal, image-to-Excel — all execute client-side. It's a less-covered deployment pattern that your technical readers would recognize as meaningfully different from \"AI-powered\" wrappers around cloud APIs. Happy to provide a concise write-up or demo if useful.\n\n— Garrick\nconvertyard.com",
+    "contact": "dan@tldr.tech",
+    "type": "pitch"
+  },
+  "Futurepedia Newsletter": {
+    "subject": "AI tools that process files without a cloud — editorial pitch — ConvertYard",
+    "body": "Hi Futurepedia team,\n\nYour newsletter consistently spotlights tools that change how people actually work, not just headline AI releases. ConvertYard's AI tools — OCR, alt-text generation, handwriting-to-text, background removal, image-to-Excel — run entirely in the browser via transformers.js. No API key, no account, no data leaves the device. Beyond the directory listing, I'd love to discuss an editorial feature on the local-inference angle — why it matters for privacy-conscious users and what it means to run a real ML model in a browser tab. Happy to provide screenshots, a demo link, or a short write-up.\n\n— Garrick\nconvertyard.com",
+    "contact": "Via futurepedia.io contact form",
+    "type": "pitch"
+  },
+  "Every.to": {
+    "subject": "Contributed piece pitch: what browser-local AI inference means for knowledge workers",
+    "body": "Hi Every team,\n\nYour recent pieces on GPT-5.6 and knowledge work prompted me to think about the gap in the conversation: every \"AI tool\" your readers are evaluating is uploading their files to a third-party server. I built ConvertYard to run inference entirely in the browser — transformers.js, WebAssembly, no API key, no upload. I'd like to pitch a 1,500-word piece for Every: what client-side AI inference actually means for knowledge workers, with concrete examples (OCR on receipts, alt-text on internal images, background removal on headshots) and a technical explainer your readers could act on. Would that fit your editorial calendar?\n\n— Garrick\nconvertyard.com",
+    "contact": "hello@every.to",
+    "type": "pitch"
+  },
+  "Import AI (Jack Clark)": {
+    "subject": "transformers.js browser inference as a deployment research curiosity — ConvertYard",
+    "body": "Hi Jack,\n\nIssue #464's coverage of Fable's kernel work touched on how inference efficiency shapes what AI can do and where. There's a related frontier that Import AI hasn't covered much: transformer inference running client-side in a browser via WebAssembly. ConvertYard does this in production — OCR, image captioning, background segmentation, handwriting recognition, all via transformers.js with zero server round-trips. The quantization and model-size constraints required to make this work in a browser tab are genuinely interesting as a deployment pattern. Happy to share implementation notes or benchmark numbers if useful for a future issue.\n\n— Garrick\nconvertyard.com",
+    "contact": "Via Substack",
+    "type": "pitch"
+  },
+  "Hacker Newsletter": {
+    "subject": null,
+    "body": "Automatic — no direct pitch. Gets included if Show HN post hits the front page.",
+    "contact": null,
+    "type": "note"
+  },
+  "The Browser": {
+    "subject": "A tool that does something your readers will want to explain at dinner",
+    "body": "Hi Caroline and Robert,\n\nYour curation standard is \"would we recommend this to a friend\" — which is exactly how ConvertYard spreads. I built it after getting paywalled converting 12 JPGs. It converts files — images, PDFs, video, audio — entirely inside the browser via WebAssembly. Nothing touches a server. Most people don't believe it until they check the network tab. Ninety-three tools, up to 1,000 files at once, no account required. It's the kind of thing that's genuinely surprising to learn exists.\n\nHappy to send a sample link or answer questions.\n\n— Garrick\nconvertyard.com",
+    "contact": "editors@thebrowser.com",
+    "type": "pitch"
+  },
+  "Dense Discovery": {
+    "subject": "Tool for Dense Discovery's \"Tools\" section — local-first batch file converter",
+    "body": "Hi Kai,\n\nIssue #397's title — \"Last drinks at the AI casino\" — landed. ConvertYard fits the counter-current: no AI, no cloud, no account. It converts files (images, PDFs, video, audio, OCR) entirely in the browser via WebAssembly. Nothing leaves the device. I built it after hitting a paywall converting 12 JPGs. Ninety-three tools, batch up to 1,000 files, instant results. The kind of indie utility that does one thing without asking anything back.\n\n— Garrick\nconvertyard.com",
+    "contact": "densediscovery.com (advertise/submit form)",
+    "type": "pitch"
+  },
+  "Sidebar.io (General)": {
+    "subject": null,
+    "body": "ConvertYard converts files — images, PDFs, video, audio — entirely in your browser via WebAssembly. Nothing is uploaded. No account, no file limit, 93 tools, up to 1,000 files at once.",
+    "contact": "sidebar.io/submit",
+    "type": "submission"
+  }
+}
