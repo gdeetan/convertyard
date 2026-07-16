@@ -715,13 +715,13 @@ export async function trimAudio(
       await ffmpeg.writeFile(inputName, await fetchFile(file))
       onProgress?.(i, 10)
 
-      const trimArgs: string[] = []
-      if (startTime !== null) trimArgs.push('-ss', String(startTime))
-      if (endTime   !== null) trimArgs.push('-to', String(endTime))
-
       if (startTime !== null && endTime !== null && startTime >= endTime) {
         throw new Error(`Start time (${startTime}s) must be less than end time (${endTime}s).`)
       }
+
+      const trimArgs: string[] = []
+      if (startTime !== null) trimArgs.push('-ss', String(startTime))
+      if (endTime   !== null) trimArgs.push('-to', String(endTime))
 
       const audioArgs: string[] = useStreamCopy
         ? ['-map', 'a', '-c:a', 'copy']
