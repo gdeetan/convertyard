@@ -556,17 +556,17 @@ export async function compressVideo(
             await ffmpeg.deleteFile(outputName).catch(() => {})
           }
         } else {
-            // Compute effective vf args — auto-scale when user didn't set a resolution
-            let effectiveVfArgs = vfArgs
-            if (resolution === 'original') {
-              const dims = await probeVideoDimensions(file)
-              if (dims) {
-                const autoHeight = targetKB <= 10 * 1024 ? 720 : targetKB <= 50 * 1024 ? 1080 : null
-                if (autoHeight !== null && dims.height > autoHeight) {
-                  effectiveVfArgs = ['-vf', `scale=-2:${autoHeight}`]
-                }
+          // Compute effective vf args — auto-scale when user didn't set a resolution
+          let effectiveVfArgs = vfArgs
+          if (resolution === 'original') {
+            const dims = await probeVideoDimensions(file)
+            if (dims) {
+              const autoHeight = targetKB <= 10 * 1024 ? 720 : targetKB <= 50 * 1024 ? 1080 : null
+              if (autoHeight !== null && dims.height > autoHeight) {
+                effectiveVfArgs = ['-vf', `scale=-2:${autoHeight}`]
               }
             }
+          }
 
           const durationSeconds = await probeVideoDuration(file)
 
