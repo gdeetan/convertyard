@@ -183,6 +183,65 @@ export async function preprocessForOcrDual(blob: Blob, minWidth?: number): Promi
   return result
 }
 
+const SCREENSHOT_MIN_WIDTH = 1200
+const SCREENSHOT_MAX_DIM = 4096    // iOS canvas cap: ~16.7 MP / 4096² side
+
+// Exported for unit testing only
+export function isDarkModeScreenshot(meanLuminance: number): boolean {
+  return meanLuminance < 100
+}
+
+export function screenshotNeedsUpscale(width: number): boolean {
+  return width < SCREENSHOT_MIN_WIDTH
+}
+
+// Near-passthrough preprocessing for clear screenshots and sharp digital images.
+// Skips blur, CLAHE, binarization, deskew — those help messy photos but destroy
+// pixel-perfect UI text. Only does: white-background composite, grayscale,
+// dark-mode inversion, and conditional upscale.
+export async function preprocessForScreenshot(blob: Blob): Promise<Blob> {
+  if (typeof OffscreenCanvas === 'undefined') return blob
+
+  const bmp = await decodeBlobToImageBitmap(blob)
+  const origW = bmp.width
+  const origH = bmp.height
+
+  // Composite transparent backgrounds onto white + read pixels
+  const canvas = new OffscreenCanvas(origW, origH)
+  const ctx = canvas.getContext('2d')!
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, origW, origH)
+  ctx.drawImage(bmp, 0, 0)
+  bmp.close()
+
+  const imageData = ctx.getImageData(0, 0, origW, origH)
+  const { data } = imageData
+
+  // Mean luminance for dark-mode detection
+  let totalLum = 0
+  for (let i = 0; i < data.length; i += 4) {
+    totalLum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]
+  }
+  const meanLum = totalLum / (origW * origH)
+  const isDark = isDarkModeScreenshot(meanLum)
+
+  // Grayscale + invert if dark-mode (light text on dark → dark text on light)
+  const gray = new Uint8Array(origW * origH)
+  for (let i = 0; i < gray.length; i++) {
+    const r = data[i * 4], g = data[i * 4 + 1], b = data[i * 4 + 2]
+    const lum = Math.round(0.299 * r + 0.587 * g + 0.114 * b)
+    gray[i] = isDark ? 255 - lum : lum
+  }
+
+  // Upscale only when image is too narrow for reliable OCR
+  const rawScale = screenshotNeedsUpscale(origW) ? SCREENSHOT_MIN_WIDTH / origW : 1
+  const outW = Math.min(Math.round(origW * rawScale), SCREENSHOT_MAX_DIM)
+  const outH = Math.min(Math.round(origH * rawScale), SCREENSHOT_MAX_DIM)
+  const scale = Math.min(outW / origW, outH / origH)
+
+  return renderGrayToBlob(gray, origW, origH, outW, outH, 0, scale)
+}
+
 // ── Separable box blur (O(n) regardless of radius) ───────────────────────────
 
 function boxBlur(src: Uint8Array, w: number, h: number, radius: number): Uint8Array {
