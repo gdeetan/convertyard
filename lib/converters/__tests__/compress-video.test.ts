@@ -6,6 +6,7 @@ vi.mock('@/lib/converters/media-probe', () => ({
   probeVideoTrack: vi.fn(async () => true),
   probeVideoDuration: vi.fn(async () => 0),
   probeVideoDimensions: vi.fn(async () => null),
+  probeAudioInfo: vi.fn(async () => null),
 }))
 
 const mockExec = vi.fn(async () => {})
@@ -27,7 +28,7 @@ vi.mock('@/lib/converters/ffmpeg-client', () => ({
 }))
 
 import { compressVideo } from '../ffmpeg'
-import { probeVideoDuration, probeVideoDimensions } from '@/lib/converters/media-probe'
+import { probeVideoDuration, probeVideoDimensions, probeAudioInfo } from '@/lib/converters/media-probe'
 
 describe('compressVideo', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -253,5 +254,46 @@ describe('compressVideo', () => {
     const args: string[] = mockExec.mock.calls[0][0]
     expect(args).toContain('-vf')
     expect(args[args.indexOf('-vf') + 1]).toContain('720')
+  })
+
+  it('target size mode: uses -c:a copy when source is AAC within adaptive bitrate tolerance', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    // targetKB = 50*1024 → adaptiveAudioKbps = 96; source 96 kb/s <= 96+16 ✓
+    vi.mocked(probeAudioInfo).mockResolvedValueOnce({ codec: 'aac', bitrateKbps: 96 })
+    const file = makeFile('video.mp4', 200 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 50 * 1024, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    const caIndex = args.indexOf('-c:a')
+    expect(caIndex).toBeGreaterThan(-1)
+    expect(args[caIndex + 1]).toBe('copy')
+  })
+
+  it('target size mode: re-encodes audio when source AAC bitrate is too high', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    // targetKB = 50*1024 → adaptiveAudioKbps = 96; source 320 kb/s > 96+16 → re-encode
+    vi.mocked(probeAudioInfo).mockResolvedValueOnce({ codec: 'aac', bitrateKbps: 320 })
+    const file = makeFile('video.mp4', 200 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 50 * 1024, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('96k')
+    const caIndex = args.indexOf('-c:a')
+    expect(args[caIndex + 1]).toBe('aac')
+  })
+
+  it('target size mode: re-encodes audio when source is not AAC', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    vi.mocked(probeAudioInfo).mockResolvedValueOnce({ codec: 'mp3', bitrateKbps: 96 })
+    const file = makeFile('video.mp4', 200 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 50 * 1024, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    const caIndex = args.indexOf('-c:a')
+    expect(args[caIndex + 1]).toBe('aac')
+  })
+
+  it('target size mode: does not probe audio when stripAudio is true', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    const file = makeFile('video.mp4', 200 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 50 * 1024, resolution: 'original', h265: false, stripAudio: true })
+    expect(probeAudioInfo).not.toHaveBeenCalled()
   })
 })

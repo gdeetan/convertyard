@@ -1,6 +1,6 @@
 import { fetchFile } from '@ffmpeg/util'
 import { getFFmpeg } from './ffmpeg-client'
-import { probeVideoTrack, probeVideoDuration, probeVideoDimensions } from './media-probe'
+import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo } from './media-probe'
 import type { ToolOptions, ConversionResult } from '@/lib/types'
 
 function toError(err: unknown): Error {
@@ -573,10 +573,21 @@ export async function compressVideo(
           if (durationSeconds > 0) {
             // Adaptive audio: smaller targets get lower bitrate, freeing bits for video
             const adaptiveAudioKbps = targetKB <= 10 * 1024 ? 64 : targetKB <= 50 * 1024 ? 96 : 128
+            const audioInfo = !stripAudio ? await probeAudioInfo(ffmpeg, inputName) : null
+            const shouldCopyAudio =
+              audioInfo !== null &&
+              audioInfo.codec === 'aac' &&
+              audioInfo.bitrateKbps <= adaptiveAudioKbps + 16
             const targetAudioArgs: string[] = stripAudio
               ? audioArgs
-              : ['-c:a', 'aac', '-b:a', `${adaptiveAudioKbps}k`]
-            const audioBitsPerSec = stripAudio ? 0 : adaptiveAudioKbps * 1000
+              : shouldCopyAudio
+                ? ['-c:a', 'copy']
+                : ['-c:a', 'aac', '-b:a', `${adaptiveAudioKbps}k`]
+            const audioBitsPerSec = stripAudio
+              ? 0
+              : shouldCopyAudio
+                ? audioInfo!.bitrateKbps * 1000
+                : adaptiveAudioKbps * 1000
             const videoBitsPerSec = Math.max(
               100_000,
               Math.floor((targetBytes * 8 - audioBitsPerSec * durationSeconds) / durationSeconds)
