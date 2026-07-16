@@ -105,3 +105,22 @@ export async function probeVideoDimensions(file: File): Promise<{ width: number;
     return null
   }
 }
+
+export async function probeAudioInfo(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ffmpeg: { on: (event: string, handler: (data: { message: string }) => void) => void; off: (event: string, handler: unknown) => void; exec: (args: string[]) => Promise<void> },
+  inputName: string
+): Promise<{ codec: string; bitrateKbps: number } | null> {
+  const lines: string[] = []
+  const handler = ({ message }: { message: string }) => { lines.push(message) }
+  ffmpeg.on('log', handler)
+  try {
+    await (ffmpeg.exec(['-i', inputName, '-f', 'null', '/dev/null']) as Promise<unknown>).catch(() => {})
+  } finally {
+    ffmpeg.off('log', handler)
+  }
+  const output = lines.join('\n')
+  const m = output.match(/Audio: (\w+).*?(\d+) kb\/s/)
+  if (!m) return null
+  return { codec: m[1], bitrateKbps: parseInt(m[2], 10) }
+}
