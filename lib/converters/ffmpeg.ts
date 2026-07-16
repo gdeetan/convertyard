@@ -704,9 +704,10 @@ export async function trimAudio(
       const isAudio   = file.type.startsWith('audio/')
       const useStreamCopy = isAudio && format === 'keep'
 
+      const reEncodeFmt = format === 'keep' ? FORMAT_MAP.aac : (FORMAT_MAP[format] ?? FORMAT_MAP.mp3)
       const fmt = useStreamCopy
         ? { ext: `.${inputExt}`, mime: file.type, lossless: true }
-        : (FORMAT_MAP[format] ?? FORMAT_MAP.mp3)
+        : reEncodeFmt
 
       const inputName  = `at_in_${i}.${inputExt}`
       const outputName = `at_out_${i}${fmt.ext}`
@@ -718,11 +719,15 @@ export async function trimAudio(
       if (startTime !== null) trimArgs.push('-ss', String(startTime))
       if (endTime   !== null) trimArgs.push('-to', String(endTime))
 
+      if (startTime !== null && endTime !== null && startTime >= endTime) {
+        throw new Error(`Start time (${startTime}s) must be less than end time (${endTime}s).`)
+      }
+
       const audioArgs: string[] = useStreamCopy
-        ? ['-c', 'copy']
+        ? ['-map', 'a', '-c:a', 'copy']
         : fmt.lossless
-          ? ['-map', 'a', '-vn', '-codec:a', (FORMAT_MAP[format] ?? FORMAT_MAP.mp3).codec, '-ar', '44100']
-          : ['-map', 'a', '-vn', '-codec:a', (FORMAT_MAP[format] ?? FORMAT_MAP.mp3).codec, '-b:a', '192k', '-ar', '44100']
+          ? ['-map', 'a', '-vn', '-codec:a', reEncodeFmt.codec, '-ar', '44100']
+          : ['-map', 'a', '-vn', '-codec:a', reEncodeFmt.codec, '-b:a', '192k', '-ar', '44100']
 
       const progressHandler = ({ progress }: { progress: number }) => {
         onProgress?.(i, Math.round(10 + progress * 85))
