@@ -46,6 +46,11 @@ import { config as compressVideo } from './tools/compress-video'
 import { config as extractAudio } from './tools/extract-audio'
 import { config as audioTrimmer } from './tools/audio-trimmer'
 import { config as m4aToMp3 } from './tools/m4a-to-mp3'
+import { config as wavToMp3 } from './tools/wav-to-mp3'
+import { config as amrToMp3 } from './tools/amr-to-mp3'
+import { config as oggToMp3 } from './tools/ogg-to-mp3'
+import { config as flacToMp3 } from './tools/flac-to-mp3'
+import { config as opusToMp3 } from './tools/opus-to-mp3'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
@@ -97,6 +102,11 @@ export const tools: ToolConfig[] = [
   extractAudio,
   audioTrimmer,
   m4aToMp3,
+  wavToMp3,
+  amrToMp3,
+  oggToMp3,
+  flacToMp3,
+  opusToMp3,
 ]
 
 export const toolBySlug = Object.fromEntries(

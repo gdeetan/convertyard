@@ -91,6 +91,12 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'video-to-gif',      title: 'Video to GIF',      description: 'Turn video clips into shareable GIFs.', category: 'video-audio', status: 'live' },
   { slug: 'audio-trimmer',     title: 'Audio Trimmer',     description: 'Trim MP3, WAV, M4A, OGG, FLAC, and video audio tracks. Set start and end times in seconds.', category: 'video-audio', status: 'live' },
   { slug: 'extract-audio',     title: 'Extract Audio',     description: 'Pull audio tracks from any video. Output MP3, AAC, WAV, OGG, or FLAC.', category: 'video-audio', status: 'live' },
+  { slug: 'm4a-to-mp3',   title: 'M4A to MP3',   description: 'Convert M4A and iPhone voice memos to MP3. No uploads.', category: 'video-audio', status: 'live' },
+  { slug: 'wav-to-mp3',   title: 'WAV to MP3',   description: 'Shrink WAV recordings to MP3. Batch convert, no uploads.', category: 'video-audio', status: 'live' },
+  { slug: 'amr-to-mp3',   title: 'AMR to MP3',   description: 'Convert AMR voice recordings from Android phones to MP3.', category: 'video-audio', status: 'live' },
+  { slug: 'ogg-to-mp3',   title: 'OGG to MP3',   description: 'Convert OGG Vorbis audio to MP3. Works on Discord and Telegram voice notes.', category: 'video-audio', status: 'live' },
+  { slug: 'flac-to-mp3',  title: 'FLAC to MP3',  description: 'Convert lossless FLAC audio to MP3. Batch convert, no uploads.', category: 'video-audio', status: 'live' },
+  { slug: 'opus-to-mp3',  title: 'OPUS to MP3',  description: 'Convert Opus voice notes and WhatsApp audio to MP3.', category: 'video-audio', status: 'live' },
 
   // Developer — all coming soon
   { slug: 'json-formatter', title: 'JSON Formatter',         description: 'Format, validate, and minify JSON.', category: 'developer', status: 'live' },
