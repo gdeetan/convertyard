@@ -1,6 +1,6 @@
 import { fetchFile } from '@ffmpeg/util'
 import { getFFmpeg } from './ffmpeg-client'
-import { probeVideoTrack } from './media-probe'
+import { probeVideoTrack, probeVideoDuration } from './media-probe'
 import type { ToolOptions, ConversionResult } from '@/lib/types'
 
 function toError(err: unknown): Error {
@@ -540,38 +540,112 @@ export async function compressVideo(
         }
       } else {
         const targetBytes = targetKB * 1024
-        let crf = h265 ? 26 : 23
-        const MAX_PASSES = 6
-        try {
-          for (let pass = 0; pass < MAX_PASSES; pass++) {
-            const pctBase = 10 + pass * 13
-            const progressHandler = ({ progress }: { progress: number }) => {
-              onProgress?.(i, Math.round(pctBase + progress * 13))
-            }
-            ffmpeg.on('progress', progressHandler)
-            try {
-              await ffmpeg.exec([
-                '-i', inputName,
-                ...vfArgs,
-                '-c:v', codec,
-                '-crf', String(crf),
-                '-preset', 'ultrafast',
-                ...audioArgs,
-                outputName,
-              ])
-            } finally {
-              ffmpeg.off('progress', progressHandler)
-            }
-            const candidate = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
-            if (candidate.byteLength <= targetBytes || pass === MAX_PASSES - 1) {
-              data = candidate
-              break
-            }
-            await ffmpeg.deleteFile(outputName).catch(() => {})
-            crf = Math.min(crf + 5, 51)
+
+        if (file.size <= targetBytes) {
+          // Already fits: fast remux to MP4 container, no re-encode
+          const progressHandler = ({ progress }: { progress: number }) => {
+            onProgress?.(i, Math.round(10 + progress * 85))
           }
-        } finally {
-          await ffmpeg.deleteFile(inputName).catch(() => {})
+          ffmpeg.on('progress', progressHandler)
+          try {
+            await ffmpeg.exec(['-i', inputName, '-c', 'copy', outputName])
+            data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+          } finally {
+            ffmpeg.off('progress', progressHandler)
+            await ffmpeg.deleteFile(inputName).catch(() => {})
+            await ffmpeg.deleteFile(outputName).catch(() => {})
+          }
+        } else {
+          const durationSeconds = await probeVideoDuration(file)
+
+          if (durationSeconds > 0) {
+            // 2-pass VBR: calculate exact target bitrate, always exactly 2 passes
+            const audioBitsPerSec = stripAudio ? 0 : 128_000
+            const videoBitsPerSec = Math.max(
+              100_000,
+              Math.floor((targetBytes * 8 - audioBitsPerSec * durationSeconds) / durationSeconds)
+            )
+            const passlogName = `cv_pass_${i}`
+            const pass1Handler = ({ progress }: { progress: number }) => {
+              onProgress?.(i, Math.round(10 + progress * 30))
+            }
+            const pass2Handler = ({ progress }: { progress: number }) => {
+              onProgress?.(i, Math.round(40 + progress * 55))
+            }
+            try {
+              ffmpeg.on('progress', pass1Handler)
+              try {
+                await ffmpeg.exec([
+                  '-i', inputName,
+                  ...vfArgs,
+                  '-c:v', codec,
+                  '-b:v', String(videoBitsPerSec),
+                  '-pass', '1',
+                  '-passlogfile', passlogName,
+                  '-an',
+                  '-f', 'null', '/dev/null',
+                ])
+              } finally {
+                ffmpeg.off('progress', pass1Handler)
+              }
+              onProgress?.(i, 40)
+              ffmpeg.on('progress', pass2Handler)
+              try {
+                await ffmpeg.exec([
+                  '-i', inputName,
+                  ...vfArgs,
+                  '-c:v', codec,
+                  '-b:v', String(videoBitsPerSec),
+                  '-pass', '2',
+                  '-passlogfile', passlogName,
+                  ...audioArgs,
+                  outputName,
+                ])
+              } finally {
+                ffmpeg.off('progress', pass2Handler)
+              }
+              data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+            } finally {
+              await ffmpeg.deleteFile(inputName).catch(() => {})
+              await ffmpeg.deleteFile(outputName).catch(() => {})
+              await ffmpeg.deleteFile(`${passlogName}-0.log`).catch(() => {})
+            }
+          } else {
+            // Fallback: CRF iteration when duration probe unavailable (e.g. unsupported format)
+            let crf = h265 ? 26 : 23
+            const MAX_PASSES = 6
+            try {
+              for (let pass = 0; pass < MAX_PASSES; pass++) {
+                const pctBase = 10 + pass * 13
+                const progressHandler = ({ progress }: { progress: number }) => {
+                  onProgress?.(i, Math.round(pctBase + progress * 13))
+                }
+                ffmpeg.on('progress', progressHandler)
+                try {
+                  await ffmpeg.exec([
+                    '-i', inputName,
+                    ...vfArgs,
+                    '-c:v', codec,
+                    '-crf', String(crf),
+                    '-preset', 'ultrafast',
+                    ...audioArgs,
+                    outputName,
+                  ])
+                } finally {
+                  ffmpeg.off('progress', progressHandler)
+                }
+                const candidate = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+                if (candidate.byteLength <= targetBytes || pass === MAX_PASSES - 1) {
+                  data = candidate
+                  break
+                }
+                await ffmpeg.deleteFile(outputName).catch(() => {})
+                crf = Math.min(crf + 5, 51)
+              }
+            } finally {
+              await ffmpeg.deleteFile(inputName).catch(() => {})
+            }
+          }
         }
       }
 

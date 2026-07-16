@@ -4,6 +4,7 @@ vi.mock('@ffmpeg/util', () => ({ fetchFile: vi.fn(async (f: File) => new Uint8Ar
 
 vi.mock('@/lib/converters/media-probe', () => ({
   probeVideoTrack: vi.fn(async () => true),
+  probeVideoDuration: vi.fn(async () => 0),
 }))
 
 const mockExec = vi.fn(async () => {})
@@ -25,6 +26,7 @@ vi.mock('@/lib/converters/ffmpeg-client', () => ({
 }))
 
 import { compressVideo } from '../ffmpeg'
+import { probeVideoDuration } from '@/lib/converters/media-probe'
 
 describe('compressVideo', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -94,25 +96,51 @@ describe('compressVideo', () => {
     expect(mockDeleteFile).toHaveBeenCalled()
   })
 
-  it('target size mode: runs all 6 passes when output never fits', async () => {
+  it('target size mode: CRF fallback runs all 6 passes when output never fits (duration unavailable)', async () => {
+    // probeVideoDuration returns 0 (default mock) → CRF fallback path
     mockReadFile.mockResolvedValue(new Uint8Array([9, 8, 7]))
     const file = makeFile('video.mp4')
     const results = await compressVideo([file], { targetSizeMode: true, targetKB: 0, resolution: 'original', h265: false, stripAudio: false })
     expect(mockExec).toHaveBeenCalledTimes(6)
-    // Still returns a File (last pass result)
     expect(results[0]).toBeInstanceOf(File)
   })
 
-  it('target size mode: input file written once and read on every pass', async () => {
-    // targetKB=0 forces 6 passes; input must be available for each exec call
+  it('target size mode: input file written once and referenced in every exec call', async () => {
     mockReadFile.mockResolvedValue(new Uint8Array([9, 8, 7]))
     const file = makeFile('video.mp4')
     await compressVideo([file], { targetSizeMode: true, targetKB: 0, resolution: 'original', h265: false, stripAudio: false })
     expect(mockWriteFile).toHaveBeenCalledOnce()
     const inputName = mockWriteFile.mock.calls[0][0] as string
-    // Every exec call should reference the same input file
     for (const call of mockExec.mock.calls) {
       expect(call[0]).toContain(inputName)
     }
+  })
+
+  it('target size mode: stream-copies when file already fits target (no re-encode)', async () => {
+    const file = makeFile('video.mp4', 1024)  // 1 KB
+    await compressVideo([file], { targetSizeMode: true, targetKB: 100, resolution: 'original', h265: false, stripAudio: false })
+    expect(mockExec).toHaveBeenCalledOnce()
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('copy')
+  })
+
+  it('target size mode: 2-pass VBR when duration is available', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    const file = makeFile('video.mp4', 10 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 5120, resolution: 'original', h265: false, stripAudio: false })
+    expect(mockExec).toHaveBeenCalledTimes(2)
+    const pass1Args: string[] = mockExec.mock.calls[0][0]
+    const pass2Args: string[] = mockExec.mock.calls[1][0]
+    expect(pass1Args[pass1Args.indexOf('-pass') + 1]).toBe('1')
+    expect(pass2Args[pass2Args.indexOf('-pass') + 1]).toBe('2')
+  })
+
+  it('target size mode: 2-pass VBR uses -b:v not -crf', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    const file = makeFile('video.mp4', 10 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 5120, resolution: 'original', h265: false, stripAudio: false })
+    const pass2Args: string[] = mockExec.mock.calls[1][0]
+    expect(pass2Args).toContain('-b:v')
+    expect(pass2Args).not.toContain('-crf')
   })
 })

@@ -36,7 +36,7 @@ export const config: ToolConfig = {
       type: 'toggle',
       name: 'targetSizeMode',
       label: 'Target size mode',
-      hint: 'Set an exact size target. The tool runs up to 6 passes, increasing compression each time until your target is met.',
+      hint: 'Set an exact size target. The tool uses 2-pass VBR encoding to hit your target in two passes instead of guessing.',
       default: false,
     },
     {
@@ -129,7 +129,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'How does target size mode work?',
-      a: 'Enable Target size mode and enter your target in MB or KB. The tool runs up to 6 compression passes, each increasing the CRF (compression strength) until the output fits within your target. If your video cannot reach the target — for example, a very long video at very high resolution — the tool returns the smallest file it could produce and shows you the final size.',
+      a: 'Enable Target size mode and enter your target in MB or KB. The tool probes your video duration, calculates the exact bitrate needed to hit the target, then encodes in two passes — a fast analysis pass and a final output pass. This is the same 2-pass VBR approach used by professional video tools. If the file already fits within your target, it remuxes the container instead of re-encoding.',
     },
     {
       q: 'Does compressing a video reduce its resolution or duration?',
