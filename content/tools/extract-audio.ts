@@ -18,7 +18,7 @@ export const config: ToolConfig = {
     'video/mp2t',
   ],
   acceptsExt: ['.mp4', '.mov', '.webm', '.avi', '.mkv', '.wmv', '.ts'],
-  outputExt: '.mp3',
+  outputExt: '',
   convertFn: extractAudio,
   warningFn: (files) => {
     const hasLarge = files.some((f) => f.size > LARGE_FILE_BYTES)
@@ -85,7 +85,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Can I extract audio from multiple videos at once?',
-      a: 'Yes. Drop as many files as you need — there is no hard limit. ConvertYard processes them one at a time in your browser and packages the results in a single ZIP file.',
+      a: 'Yes. Drop as many files as you need — there is no hard file count limit, though very large batches will take proportionally longer. ConvertYard processes them one at a time in your browser and packages the results in a single ZIP file.',
     },
     {
       q: 'I got an error saying "no audio track." What does that mean?',
