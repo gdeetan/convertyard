@@ -4,14 +4,14 @@
 
 ## TechSmith Blog
 
-**Article referenced:** "MP4 to MP3" — https://www.techsmith.com/blog/mp4-to-mp3/
+**Article referenced:** "How to Get the Perfect Video Lighting" — https://www.techsmith.com/blog/get-perfect-lighting-video/
 **Contact:** Press contact on techsmith.com/about
 
-**Subject:** Free browser-based MP4 to MP3 (no upload, no watermark) — roundup addition?
+**Subject:** Free browser-based video tools for creators — no upload, no watermark
 
 Hi TechSmith team,
 
-Your "MP4 to MP3" post walks creators through the exact conversion workflow we built a free tool for. ConvertYard's MP4 to MP3 converter runs entirely in the browser via ffmpeg.wasm — files never leave the device, no watermark, no account, batch up to 1,000 files. Useful for creators working with client recordings or sensitive footage they can't send to a cloud service. Worth a mention in the roundup, or happy to contribute a guest section on local-first audio extraction.
+Your lighting guide is a go-to for creators shooting their own footage — exactly the audience that needs fast, private file tools alongside their recording setup. ConvertYard runs GIF to MP4, video compression, audio extraction, and audio trimming entirely in the browser via ffmpeg.wasm. Files never leave the device — no upload, no watermark, no account. That's a natural fit for creators handling client footage they can't send to a cloud service. Worth a mention in a tools roundup or workflow piece — happy to contribute.
 
 — Garrick
 convertyard.com
@@ -20,14 +20,14 @@ convertyard.com
 
 ## Kapwing Blog
 
-**Article referenced:** "Kapwing vs Veed: Comparison for Video Creators in 2026" — https://www.kapwing.com/resources/kapwing-vs-veed-comparison-for-video-creators-in-2026/
+**Article referenced:** "Short-Form Video Statistics: TikTok, Reels, and Shorts by the Numbers in 2026" — https://www.kapwing.com/resources/short-form-video-statistics-tiktok-reels-and-shorts-by-the-numbers-in-2026/
 **Contact:** hello@kapwing.com
 
-**Subject:** A local-first video tool angle your creator comparison readers might want
+**Subject:** Browser-based video tools that complement Kapwing — no upload required
 
 Hi Kapwing team,
 
-Your Kapwing vs Veed comparison covers cloud-based editors well — but a segment of creators specifically needs tools that never upload files, especially when handling client footage or NDAs. ConvertYard does GIF to MP4, video compression, audio trimming, and MP4 to MP3 entirely in the browser via ffmpeg.wasm. No watermark, no upload, works offline. If you're adding a "privacy-first tools" section or a future roundup, happy to contribute or be included.
+Your short-form video statistics piece nails why creators are output-obsessed right now — 33% investing more in short-form than anything else. ConvertYard handles the unglamorous prep work: compressing clips, trimming audio, extracting MP3s from MP4s — all in the browser via ffmpeg.wasm. No upload, no watermark, no account, batch up to 1,000 files. A "free tools for short-form creators" roundup could be a natural home for it. Open to a link swap or contribution.
 
 — Garrick
 convertyard.com
@@ -36,14 +36,14 @@ convertyard.com
 
 ## Wistia Blog
 
-**Article referenced:** "Top Tools for Podcast Producers" — https://wistia.com/blog/top-tools-for-podcast-producers
+**Article referenced:** "Wistia vs. YouTube: What's the Difference?" — https://wistia.com/blog/wistia-vs-youtube
 **Contact:** Press contact on wistia.com
 
-**Subject:** A no-upload audio tool for podcast producers — roundup fit?
+**Subject:** Browser-only video processing tool — fits your privacy-conscious video audience
 
 Hi Wistia team,
 
-Your "Top Tools for Podcast Producers" post is a solid reference for creators setting up their workflow. One gap in most tool roundups: audio conversion that never touches a server. ConvertYard's audio trimmer and MP4 to MP3 converter run entirely in the browser via ffmpeg.wasm — no upload, no watermark, batch-capable. Useful for podcasters who record client interviews or confidential content. Happy to contribute a short tool profile or a guest paragraph for a future update to that piece.
+Your Wistia vs. YouTube comparison draws readers who care about controlling where their video lives — the same audience that thinks twice before uploading client footage to a random converter. ConvertYard runs video compression, audio extraction, and MP4-to-MP3 conversion entirely in the browser via ffmpeg.wasm. No server ever sees the file. It's a natural callout in any piece about video workflow or file handling for business creators. Let me know if there's a fit.
 
 — Garrick
 convertyard.com
@@ -52,14 +52,14 @@ convertyard.com
 
 ## Riverside.fm Blog
 
-**Article referenced:** "45 AI & ChatGPT Prompts for Podcasters (Save 2+ Hours Per Episode)" — https://riverside.fm/blog/ai-chatgpt-prompts-for-podcasters
+**Article referenced:** "StreamYard vs. OBS: Which Is Better for You?" — https://riverside.com/blog/streamyard-vs-obs
 **Contact:** Contact form on riverside.fm
 
-**Subject:** Free in-browser audio tools for podcasters who can't upload client sessions
+**Subject:** Free in-browser audio and video tools for podcast and stream creators
 
 Hi Riverside team,
 
-Your AI prompts for podcasters post hits the workflow efficiency angle well. One piece creators often miss: audio file handling between sessions — converting, trimming, extracting — without uploading a client's voice to a cloud tool. ConvertYard covers that: audio trimmer, extract audio from video, and format conversion all run in-browser via ffmpeg.wasm. No upload, no watermark, batch-capable. Worth a mention in a tools roundup or gear/workflow article — happy to draft something if useful.
+Your StreamYard vs. OBS comparison serves creators who care about recording quality — and those same people regularly need to trim audio, extract tracks, or compress video without handing raw recordings to a third-party server. ConvertYard does all of that in the browser via ffmpeg.wasm. Files never upload anywhere. It's a low-lift mention for a "free tools for podcasters" roundup or a workflow piece. Happy to provide more detail or a demo.
 
 — Garrick
 convertyard.com
@@ -68,14 +68,14 @@ convertyard.com
 
 ## Trapital
 
-**Article referenced:** "SoundCloud's Big Bet for the AI Era" — https://trapital.co/episodes/soundclouds-big-bet-for-the-ai-era
+**Article referenced:** "When AI Writes Code and Makes Music, What's Left for Humans?" — https://trapital.substack.com/p/when-ai-writes-code-and-makes-music
 **Contact:** dan@trapital.co
 
-**Subject:** Free audio tools for independent creators (no upload, no watermark)
+**Subject:** A free, private browser tool for music creators handling their own files
 
 Hi Dan,
 
-Your SoundCloud episode gets at something real: AI is reshaping what independent artists need from infrastructure. One overlooked piece is basic audio conversion — tools that don't charge, watermark, or upload files to a server. ConvertYard does that in the browser via ffmpeg.wasm: GIF to MP4, extract audio, trim audio, MP4 to MP3 — all offline-capable, free, batch-ready. If you're covering the creator tools stack in a future essay or episode, happy to talk through the local-first angle.
+Your piece on AI and human creativity cuts close to what independent artists deal with daily: doing more with less, while keeping control of their work. ConvertYard is a set of browser-based audio and video tools — MP4 to MP3, audio trimmer, video compressor — that run entirely via ffmpeg.wasm. No upload, no watermark, no subscription. For artists handling client or unreleased material, that privacy is non-negotiable. If it fits a future piece on creator tools, happy to talk.
 
 — Garrick
 convertyard.com
