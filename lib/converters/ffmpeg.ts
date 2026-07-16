@@ -1,6 +1,6 @@
 import { fetchFile } from '@ffmpeg/util'
 import { getFFmpeg } from './ffmpeg-client'
-import { probeVideoTrack, probeVideoDuration } from './media-probe'
+import { probeVideoTrack, probeVideoDuration, probeVideoDimensions } from './media-probe'
 import type { ToolOptions, ConversionResult } from '@/lib/types'
 
 function toError(err: unknown): Error {
@@ -556,6 +556,18 @@ export async function compressVideo(
             await ffmpeg.deleteFile(outputName).catch(() => {})
           }
         } else {
+            // Compute effective vf args — auto-scale when user didn't set a resolution
+            let effectiveVfArgs = vfArgs
+            if (resolution === 'original') {
+              const dims = await probeVideoDimensions(file)
+              if (dims) {
+                const autoHeight = targetKB <= 10 * 1024 ? 720 : targetKB <= 50 * 1024 ? 1080 : null
+                if (autoHeight !== null && dims.height > autoHeight) {
+                  effectiveVfArgs = ['-vf', `scale=-2:${autoHeight}`]
+                }
+              }
+            }
+
           const durationSeconds = await probeVideoDuration(file)
 
           if (durationSeconds > 0) {
@@ -576,7 +588,7 @@ export async function compressVideo(
             try {
               await ffmpeg.exec([
                 '-i', inputName,
-                ...vfArgs,
+                ...effectiveVfArgs,
                 '-c:v', codec,
                 '-b:v', String(videoBitsPerSec),
                 '-maxrate', String(Math.floor(videoBitsPerSec * 1.5)),
@@ -604,7 +616,7 @@ export async function compressVideo(
                 try {
                   await ffmpeg.exec([
                     '-i', inputName,
-                    ...vfArgs,
+                    ...effectiveVfArgs,
                     '-c:v', codec,
                     '-crf', String(crf),
                     '-preset', 'ultrafast',

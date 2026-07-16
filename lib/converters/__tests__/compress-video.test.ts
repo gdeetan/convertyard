@@ -5,6 +5,7 @@ vi.mock('@ffmpeg/util', () => ({ fetchFile: vi.fn(async (f: File) => new Uint8Ar
 vi.mock('@/lib/converters/media-probe', () => ({
   probeVideoTrack: vi.fn(async () => true),
   probeVideoDuration: vi.fn(async () => 0),
+  probeVideoDimensions: vi.fn(async () => null),
 }))
 
 const mockExec = vi.fn(async () => {})
@@ -26,7 +27,7 @@ vi.mock('@/lib/converters/ffmpeg-client', () => ({
 }))
 
 import { compressVideo } from '../ffmpeg'
-import { probeVideoDuration } from '@/lib/converters/media-probe'
+import { probeVideoDuration, probeVideoDimensions } from '@/lib/converters/media-probe'
 
 describe('compressVideo', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -211,5 +212,46 @@ describe('compressVideo', () => {
     await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: false })
     const args: string[] = mockExec.mock.calls[0][0]
     expect(args).toContain('128k')
+  })
+
+  it('target size mode: auto-scales 4K source to 1080p for targets at or below 50MB', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    vi.mocked(probeVideoDimensions).mockResolvedValueOnce({ width: 3840, height: 2160 })
+    const file = makeFile('video.mp4', 200 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 50 * 1024, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('-vf')
+    expect(args[args.indexOf('-vf') + 1]).toContain('1080')
+  })
+
+  it('target size mode: auto-scales 1080p source to 720p for targets at or below 10MB', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    vi.mocked(probeVideoDimensions).mockResolvedValueOnce({ width: 1920, height: 1080 })
+    const file = makeFile('video.mp4', 50 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 10 * 1024, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('-vf')
+    expect(args[args.indexOf('-vf') + 1]).toContain('720')
+  })
+
+  it('target size mode: does not auto-scale when source is already within threshold', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    vi.mocked(probeVideoDimensions).mockResolvedValueOnce({ width: 1280, height: 720 })
+    const file = makeFile('video.mp4', 200 * 1024 * 1024)
+    // source is 720p, target is 50MB — auto-scale threshold is 1080p, source already fits
+    await compressVideo([file], { targetSizeMode: true, targetKB: 50 * 1024, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).not.toContain('-vf')
+  })
+
+  it('target size mode: user-set resolution is not overridden by auto-scale', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    // probeVideoDimensions should NOT be called when user has set a resolution
+    const file = makeFile('video.mp4', 200 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 50 * 1024, resolution: '720p', h265: false, stripAudio: false })
+    expect(probeVideoDimensions).not.toHaveBeenCalled()
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('-vf')
+    expect(args[args.indexOf('-vf') + 1]).toContain('720')
   })
 })
