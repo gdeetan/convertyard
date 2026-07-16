@@ -1,6 +1,28 @@
-import { loadTransformersModel, removeBackground } from './transformers-client'
+import {
+  loadTransformersModel,
+  removeBackground as removeBackgroundFile,
+  removeBackgroundDetailed,
+} from './transformers-client'
 import type { ToolOptions } from '@/lib/types'
 import type { ConversionResult } from '@/lib/types'
+
+export type BackgroundRemovalPreset = 'balanced' | 'sharper-edges' | 'softer-edges'
+
+export type BackgroundRemovalResult = {
+  outputBlob: Blob
+  alphaMask: ImageData
+  confidence: 'high' | 'medium' | 'low'
+  warnings: string[]
+}
+
+export async function removeBackground(
+  image: File | Blob,
+  options: { preset: BackgroundRemovalPreset },
+  onProgress?: (pct: number) => void
+): Promise<BackgroundRemovalResult> {
+  await loadTransformersModel('bg-removal', onProgress ?? (() => {}))
+  return removeBackgroundDetailed(image, options.preset, onProgress)
+}
 
 export async function removeBackgroundBatch(
   files: File[],
@@ -18,7 +40,7 @@ export async function removeBackgroundBatch(
 
   for (let i = 0; i < files.length; i++) {
     try {
-      const file = await removeBackground(
+      const file = await removeBackgroundFile(
         files[i],
         outputFormat,
         (pct) => onProgress?.(i, pct)

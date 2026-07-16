@@ -11,7 +11,7 @@ import {
 // Runs entirely in a Web Worker — never imported server-side.
 // Models are cached in browser IndexedDB/Cache Storage by transformers.js after first download.
 //
-// Background removal uses Xenova/modnet (MIT license, ~14 MB quantized).
+// Background removal prefers a licensed general remover, with MODNet fallback.
 // Alt text uses onnx-community/Florence-2-base-ft (~262 MB q8), self-hosted on
 // Cloudflare R2 (pub-4e06a0715aae49b1975bbe46902137a3.r2.dev) to avoid HuggingFace
 // auth/availability dependency. Florence-2 understands diverse product imagery and
@@ -33,9 +33,22 @@ interface InferMsg {
   modelType: ModelType
   buffer: ArrayBuffer
   mimeType: string
-  opts: { maxTokens?: number; outputFormat?: string; contextHint?: string; filename?: string; prompt?: string }
+  opts: {
+    maxTokens?: number
+    outputFormat?: string
+    preset?: BackgroundRemovalPreset
+    contextHint?: string
+    filename?: string
+    prompt?: string
+  }
 }
 type IncomingMsg = LoadMsg | InferMsg
+
+type BackgroundRemovalPreset = 'balanced' | 'sharper-edges' | 'softer-edges'
+type BackgroundRemovalConfidence = 'high' | 'medium' | 'low'
+
+const ACCEPTED_BG_MIME_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
+const MAX_BG_PIXELS = 24_000_000
 
 // ── State ─────────────────────────────────────────────────────────────────────
 
@@ -95,13 +108,23 @@ async function loadBgModel() {
 
   const cb = makeProgressCallback('bg-removal')
 
-  bgProcessor = await AutoImageProcessor.from_pretrained('Xenova/modnet', {
-    progress_callback: cb,
-  })
-  bgModel = await AutoModelForImageSegmentation.from_pretrained('Xenova/modnet', {
-    dtype: 'q8',
-    progress_callback: cb,
-  })
+  async function tryLoad(modelId: string) {
+    bgProcessor = await AutoImageProcessor.from_pretrained(modelId, {
+      progress_callback: cb,
+    })
+    bgModel = await AutoModelForImageSegmentation.from_pretrained(modelId, {
+      dtype: 'q8',
+      progress_callback: cb,
+    })
+  }
+
+  try {
+    await tryLoad('briaai/RMBG-1.4')
+  } catch {
+    bgModel = null
+    bgProcessor = null
+    await tryLoad('Xenova/modnet')
+  }
 }
 
 async function loadAltModel(progressType: ModelType = 'alt-text') {
@@ -410,13 +433,123 @@ function blurAlpha(alpha: Uint8ClampedArray, width: number, height: number, radi
   return out
 }
 
-function postprocessBackgroundMask(rawMask: Uint8Array, width: number, height: number): Uint8ClampedArray {
+function presetThreshold(base: number, preset: BackgroundRemovalPreset): number {
+  if (preset === 'sharper-edges') return Math.min(190, base + 24)
+  if (preset === 'softer-edges') return Math.max(64, base - 18)
+  return base
+}
+
+function presetFeatherRadius(preset: BackgroundRemovalPreset): number {
+  if (preset === 'sharper-edges') return 0
+  if (preset === 'softer-edges') return 2
+  return 1
+}
+
+function colorDistanceSq(r1: number, g1: number, b1: number, r2: number, g2: number, b2: number): number {
+  const dr = r1 - r2
+  const dg = g1 - g2
+  const db = b1 - b2
+  return dr * dr + dg * dg + db * db
+}
+
+function presetTrimapIterations(preset: BackgroundRemovalPreset): number {
+  if (preset === 'sharper-edges') return 1
+  if (preset === 'softer-edges') return 3
+  return 2
+}
+
+function expandMask(mask: Uint8Array, width: number, height: number, iterations: number): Uint8Array {
+  let out = mask
+  for (let i = 0; i < iterations; i++) out = dilate(out, width, height)
+  return out
+}
+
+function shrinkMask(mask: Uint8Array, width: number, height: number, iterations: number): Uint8Array {
+  let out = mask
+  for (let i = 0; i < iterations; i++) out = erode(out, width, height)
+  return out
+}
+
+function guidedEdgeAlpha(
+  alpha: Uint8ClampedArray,
+  binary: Uint8Array,
+  rgba: { width: number; height: number; data: Uint8ClampedArray | Uint8Array },
+  preset: BackgroundRemovalPreset
+): Uint8ClampedArray {
+  const { width, height, data } = rgba
+  const iterations = presetTrimapIterations(preset)
+  const sureForeground = shrinkMask(binary, width, height, iterations)
+  const possibleForeground = expandMask(binary, width, height, iterations)
+  const radius = preset === 'sharper-edges' ? 1 : 2
+  const out = new Uint8ClampedArray(alpha.length)
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const idx = y * width + x
+      if (sureForeground[idx]) {
+        out[idx] = Math.max(alpha[idx], 245)
+        continue
+      }
+      if (!possibleForeground[idx]) {
+        out[idx] = 0
+        continue
+      }
+
+      const rgbaIdx = idx * 4
+      const r = data[rgbaIdx]
+      const g = data[rgbaIdx + 1]
+      const b = data[rgbaIdx + 2]
+      let weightedAlpha = 0
+      let weightTotal = 0
+
+      for (let dy = -radius; dy <= radius; dy++) {
+        const ny = y + dy
+        if (ny < 0 || ny >= height) continue
+        for (let dx = -radius; dx <= radius; dx++) {
+          const nx = x + dx
+          if (nx < 0 || nx >= width) continue
+          const nIdx = ny * width + nx
+          const nRgbaIdx = nIdx * 4
+          const colorDist = colorDistanceSq(
+            r,
+            g,
+            b,
+            data[nRgbaIdx],
+            data[nRgbaIdx + 1],
+            data[nRgbaIdx + 2]
+          )
+          const spatialDist = dx * dx + dy * dy
+          const colorWeight = Math.exp(-colorDist / 1800)
+          const spatialWeight = Math.exp(-spatialDist / 3)
+          const weight = colorWeight * spatialWeight
+          weightedAlpha += alpha[nIdx] * weight
+          weightTotal += weight
+        }
+      }
+
+      const guided = weightTotal > 0 ? weightedAlpha / weightTotal : alpha[idx]
+      const sourceWeight = preset === 'softer-edges' ? 0.45 : preset === 'sharper-edges' ? 0.7 : 0.58
+      out[idx] = clampByte(Math.round(alpha[idx] * sourceWeight + guided * (1 - sourceWeight)))
+    }
+  }
+
+  return out
+}
+
+function postprocessBackgroundMask(
+  rawMask: Uint8Array,
+  width: number,
+  height: number,
+  preset: BackgroundRemovalPreset,
+  rgba?: { width: number; height: number; data: Uint8ClampedArray | Uint8Array }
+): Uint8ClampedArray {
   const normalized = normalizeMask(rawMask)
-  const threshold = computeAdaptiveThreshold(normalized)
+  const threshold = presetThreshold(computeAdaptiveThreshold(normalized), preset)
 
   let binary = buildBinaryMask(normalized, threshold)
   binary = closeMask(binary, width, height)
-  binary = openMask(binary, width, height)
+  if (preset !== 'softer-edges') binary = openMask(binary, width, height)
+  if (preset === 'sharper-edges') binary = openMask(binary, width, height)
   binary = keepPrimarySubject(binary, width, height)
   binary = fillHoles(binary, width, height)
 
@@ -430,10 +563,14 @@ function postprocessBackgroundMask(rawMask: Uint8Array, width: number, height: n
     featherSource[i] = binary[i] ? 255 : 0
   }
 
-  const feather = blurAlpha(featherSource, width, height, 1)
+  const feather = blurAlpha(featherSource, width, height, presetFeatherRadius(preset))
   const out = new Uint8ClampedArray(subjectMatte.length)
   for (let i = 0; i < subjectMatte.length; i++) {
     out[i] = clampByte(Math.round((subjectMatte[i] * feather[i]) / 255))
+  }
+
+  if (rgba && rgba.width === width && rgba.height === height) {
+    return guidedEdgeAlpha(out, binary, rgba, preset)
   }
 
   return out
@@ -497,6 +634,118 @@ function analyzeMask(alpha: Uint8ClampedArray, width: number, height: number): M
     maxAlpha,
     bbox: { left, top, right, bottom },
   }
+}
+
+interface MaskCandidate {
+  label: string
+  alpha: Uint8ClampedArray
+  stats: MaskStats
+  score: number
+}
+
+function scoreMaskCandidate(stats: MaskStats, route: BgRoute): number {
+  if (!stats.bbox || stats.maxAlpha < 48 || stats.areaRatio < 0.005) return -100
+
+  let score = 0
+  const area = stats.areaRatio
+  const bboxArea = stats.bboxAreaRatio
+
+  if (area >= 0.04 && area <= 0.72) score += 28
+  else if (area < 0.02 || area > 0.9) score -= 32
+  else score += 8
+
+  if (bboxArea >= 0.08 && bboxArea <= 0.82) score += 18
+  else score -= 10
+
+  score += Math.min(24, Math.max(0, (stats.meanForegroundAlpha - 96) / 4))
+  score += Math.min(14, Math.max(0, (stats.maxAlpha - 128) / 8))
+  score -= Math.min(26, stats.edgeTouchRatio * 180)
+
+  if (route === 'general-photo') {
+    if (bboxArea > 0.88) score -= 18
+    if (area > 0.78) score -= 20
+  }
+
+  if (route === 'portrait-photo' && area > 0.12 && area < 0.82) score += 6
+  return score
+}
+
+function makeMaskCandidate(
+  label: string,
+  alpha: Uint8ClampedArray,
+  width: number,
+  height: number,
+  route: BgRoute
+): MaskCandidate {
+  const stats = analyzeMask(alpha, width, height)
+  return {
+    label,
+    alpha,
+    stats,
+    score: scoreMaskCandidate(stats, route),
+  }
+}
+
+function chooseBestMaskCandidate(candidates: MaskCandidate[]): MaskCandidate {
+  return candidates.reduce((best, candidate) => (
+    candidate.score > best.score ? candidate : best
+  ))
+}
+
+function candidateScoresAreClose(candidates: MaskCandidate[], best: MaskCandidate): boolean {
+  return candidates.some((candidate) => (
+    candidate !== best && best.score - candidate.score < 8
+  ))
+}
+
+function mergeMasksConservatively(base: Uint8ClampedArray, refined: Uint8ClampedArray): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(base.length)
+  for (let i = 0; i < base.length; i++) {
+    const b = base[i]
+    const r = refined[i]
+    if (b >= 96 && r >= 32) out[i] = Math.max(b, r)
+    else if (r >= 160) out[i] = r
+    else out[i] = b
+  }
+  return out
+}
+
+function confidenceFromStats(stats: MaskStats, route: BgRoute): {
+  confidence: BackgroundRemovalConfidence
+  warnings: string[]
+} {
+  const warnings: string[] = []
+  let penalty = 0
+
+  if (!stats.bbox || stats.maxAlpha < 48 || stats.areaRatio < 0.01) {
+    warnings.push('No clear foreground subject was detected.')
+    penalty += 3
+  } else {
+    if (stats.areaRatio > 0.82) {
+      warnings.push('The selected subject covers almost the whole image.')
+      penalty += 2
+    }
+    if (stats.areaRatio < 0.04) {
+      warnings.push('The selected subject is very small, so the cutout may miss details.')
+      penalty += 2
+    }
+    if (stats.edgeTouchRatio > 0.08) {
+      warnings.push('The foreground touches the image edge, so background separation may be incomplete.')
+      penalty += 1
+    }
+    if (stats.meanForegroundAlpha < 135 || stats.maxAlpha < 170) {
+      warnings.push('The foreground/background boundary looks low confidence.')
+      penalty += 1
+    }
+    if (route === 'general-photo' && stats.bboxAreaRatio > 0.75) {
+      warnings.push('This scene may contain several possible subjects.')
+      penalty += 1
+    }
+  }
+
+  if (penalty >= 3) return { confidence: 'low', warnings }
+  if (penalty > 0) return { confidence: 'medium', warnings }
+  return { confidence: 'high', warnings }
 }
 
 function shouldRunBgRefinePass(stats: MaskStats): boolean {
@@ -565,6 +814,31 @@ type BgProcessor = (img: unknown) => Promise<{ pixel_values: unknown }>
 type BgModel = (inputs: Record<string, unknown>) => Promise<Record<string, unknown>>
 type MaskTensor = { mul: (n: number) => MaskTensor; to: (t: string) => MaskTensor; squeeze: (d: number) => MaskTensor; dims: number[] }
 
+function extractMaskTensor(modelOutputs: Record<string, unknown>): MaskTensor {
+  const direct =
+    modelOutputs.output ??
+    modelOutputs.logits ??
+    modelOutputs.prediction ??
+    modelOutputs.predictions
+  if (direct) {
+    return (Array.isArray(direct) ? direct[direct.length - 1] : direct) as MaskTensor
+  }
+
+  const values = Object.values(modelOutputs)
+  const tensor = values.find((value) => {
+    const candidate = Array.isArray(value) ? value[value.length - 1] : value
+    return Boolean(candidate && typeof candidate === 'object' && 'dims' in candidate)
+  })
+  if (!tensor) {
+    throw new BackgroundRemovalError(
+      'MODEL_INFERENCE_FAILED',
+      'inference',
+      'Segmentation model did not return a usable alpha mask.'
+    )
+  }
+  return (Array.isArray(tensor) ? tensor[tensor.length - 1] : tensor) as MaskTensor
+}
+
 async function runBgSegmentationPass(
   image: unknown,
   outputWidth: number,
@@ -576,8 +850,7 @@ async function runBgSegmentationPass(
 ): Promise<Uint8Array> {
   const { pixel_values } = await processor(image)
   const modelOutputs = await model({ input: pixel_values })
-  const rawOutput = modelOutputs.output
-  const maskRaw = (Array.isArray(rawOutput) ? rawOutput[0] : rawOutput) as MaskTensor
+  const maskRaw = extractMaskTensor(modelOutputs)
   const maskTensor = maskRaw.dims.length === 4 ? maskRaw.squeeze(0) : maskRaw
   const tensor = maskTensor.mul(255).to('uint8')
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -589,10 +862,11 @@ async function runBgSegmentationPass(
 async function createRawImageCrop(
   rgbaImage: { width: number; height: number; data: Uint8ClampedArray | Uint8Array },
   crop: CropRect,
-  mimeType: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  RawImage: any
-): Promise<unknown> {
+  mimeType: string
+): Promise<{
+  blob: Blob
+  rgba: { width: number; height: number; data: Uint8ClampedArray }
+}> {
   const canvas = new OffscreenCanvas(crop.width, crop.height)
   const ctx = canvas.getContext('2d')!
 
@@ -603,8 +877,12 @@ async function createRawImageCrop(
   )
   ctx.putImageData(imgData, -crop.left, -crop.top)
 
+  const cropData = ctx.getImageData(0, 0, crop.width, crop.height).data
   const blob = await canvas.convertToBlob({ type: mimeType })
-  return RawImage.fromBlob(blob)
+  return {
+    blob,
+    rgba: { width: crop.width, height: crop.height, data: cropData },
+  }
 }
 
 function projectCropMaskToFull(alpha: Uint8ClampedArray, crop: CropRect, width: number, height: number): Uint8ClampedArray {
@@ -621,24 +899,7 @@ function projectCropMaskToFull(alpha: Uint8ClampedArray, crop: CropRect, width: 
   return out
 }
 
-function mergeRefinedMasks(base: Uint8ClampedArray, refined: Uint8ClampedArray): Uint8ClampedArray {
-  const out = new Uint8ClampedArray(base.length)
-  for (let i = 0; i < base.length; i++) {
-    const baseAlpha = base[i]
-    const refinedAlpha = refined[i]
-    out[i] = refinedAlpha > 0 ? Math.max(baseAlpha, refinedAlpha) : baseAlpha
-  }
-  return out
-}
-
 type BgRoute = 'portrait-photo' | 'general-photo' | 'flat-graphic'
-
-function colorDistanceSq(r1: number, g1: number, b1: number, r2: number, g2: number, b2: number): number {
-  const dr = r1 - r2
-  const dg = g1 - g2
-  const db = b1 - b2
-  return dr * dr + dg * dg + db * db
-}
 
 function classifyBgRoute(rgba: { width: number; height: number; data: Uint8ClampedArray | Uint8Array }): BgRoute {
   const { width, height, data } = rgba
@@ -811,9 +1072,18 @@ async function runBgRemoval(
   id: string,
   buffer: ArrayBuffer,
   mimeType: string,
-  outputFormat: string
+  outputFormat: string,
+  preset: BackgroundRemovalPreset
 ) {
   const { RawImage } = await import('@huggingface/transformers')
+
+  if (!ACCEPTED_BG_MIME_TYPES.has(mimeType)) {
+    throw new BackgroundRemovalError(
+      'UNSUPPORTED_IMAGE_TYPE',
+      'decode',
+      'Unsupported image type. Use PNG, JPG, JPEG, or WebP.'
+    )
+  }
 
   const blob = new Blob([buffer], { type: mimeType })
   let image: {
@@ -831,6 +1101,14 @@ async function runBgRemoval(
     )
   }
 
+  if (image.width * image.height > MAX_BG_PIXELS) {
+    throw new BackgroundRemovalError(
+      'IMAGE_TOO_LARGE',
+      'decode',
+      'This image is too large to process reliably in the browser. Try an image under 24 megapixels.'
+    )
+  }
+
   self.postMessage({ type: 'infer-progress', id, progress: 10 })
 
   const rgbaImage = image.rgba()
@@ -843,6 +1121,7 @@ async function runBgRemoval(
   const model = bgModel as BgModel
 
   let refinedMask: Uint8ClampedArray
+  let candidateSelectionWarning = false
   if (route === 'flat-graphic') {
     self.postMessage({ type: 'infer-progress', id, progress: 30 })
     refinedMask = buildGraphicMask(normalizedRgbaImage)
@@ -858,13 +1137,17 @@ async function runBgRemoval(
     )
     self.postMessage({ type: 'infer-progress', id, progress: 30 })
     self.postMessage({ type: 'infer-progress', id, progress: 70 })
-    refinedMask = postprocessBackgroundMask(firstPassRaw, image.width, image.height)
+    refinedMask = postprocessBackgroundMask(firstPassRaw, image.width, image.height, preset, normalizedRgbaImage)
+    const candidates: MaskCandidate[] = [
+      makeMaskCandidate('full-image', refinedMask, image.width, image.height, route),
+    ]
     const maskStats = analyzeMask(refinedMask, image.width, image.height)
 
     if (route === 'general-photo' || shouldRunBgRefinePass(maskStats)) {
       const refineCrop = buildRefineCrop(maskStats, image.width, image.height)
       if (refineCrop) {
-        const croppedImage = await createRawImageCrop(normalizedRgbaImage, refineCrop, mimeType, RawImage)
+        const cropped = await createRawImageCrop(normalizedRgbaImage, refineCrop, mimeType)
+        const croppedImage = await RawImage.fromBlob(cropped.blob)
         const cropPassRaw = await runBgSegmentationPass(
           croppedImage,
           refineCrop.width,
@@ -873,14 +1156,27 @@ async function runBgRemoval(
           model,
           RawImage
         )
-        const cropRefined = postprocessBackgroundMask(cropPassRaw, refineCrop.width, refineCrop.height)
+        const cropRefined = postprocessBackgroundMask(cropPassRaw, refineCrop.width, refineCrop.height, preset, cropped.rgba)
         const projected = projectCropMaskToFull(cropRefined, refineCrop, image.width, image.height)
-        refinedMask = mergeRefinedMasks(refinedMask, projected)
+        const cropCandidate = makeMaskCandidate('subject-crop', projected, image.width, image.height, route)
+        candidates.push(cropCandidate)
+
+        const merged = mergeMasksConservatively(refinedMask, projected)
+        candidates.push(makeMaskCandidate('merged-crop', merged, image.width, image.height, route))
       }
     }
+
+    const selected = chooseBestMaskCandidate(candidates)
+    candidateSelectionWarning = candidateScoresAreClose(candidates, selected)
+    refinedMask = selected.alpha
   }
 
   self.postMessage({ type: 'infer-progress', id, progress: 85 })
+  const finalStats = analyzeMask(refinedMask, image.width, image.height)
+  const { confidence, warnings } = confidenceFromStats(finalStats, route)
+  if (candidateSelectionWarning) {
+    warnings.push('Several foreground candidates looked plausible, so the cutout may need cleanup.')
+  }
 
   // Composite: original image + mask as alpha
   const canvas = new OffscreenCanvas(image.width, image.height)
@@ -913,11 +1209,24 @@ async function runBgRemoval(
     )
   }
   const resultBuffer = await resultBlob.arrayBuffer()
+  const alphaMask = new Uint8ClampedArray(refinedMask)
+  const alphaBuffer = alphaMask.buffer
 
   self.postMessage({ type: 'infer-progress', id, progress: 100 })
-  self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [
-    resultBuffer,
-  ])
+  self.postMessage(
+    {
+      type: 'infer-result',
+      id,
+      result: resultBuffer,
+      outputMime: outMime,
+      alphaMask: alphaBuffer,
+      maskWidth: image.width,
+      maskHeight: image.height,
+      confidence,
+      warnings,
+    },
+    [resultBuffer, alphaBuffer]
+  )
 }
 
 // ── Filename parser ───────────────────────────────────────────────────────────
@@ -1110,7 +1419,7 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
     const { id, modelType, buffer, mimeType, opts } = msg
     try {
       if (modelType === 'bg-removal') {
-        await runBgRemoval(id, buffer, mimeType, opts.outputFormat ?? 'png')
+        await runBgRemoval(id, buffer, mimeType, opts.outputFormat ?? 'png', opts.preset ?? 'balanced')
       } else if (modelType === 'alt-text') {
         await runAltText(id, buffer, mimeType, opts.maxTokens ?? 50, opts.contextHint, opts.filename)
       } else if (modelType === 'ocr') {

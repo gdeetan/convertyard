@@ -1,6 +1,16 @@
 import type { ModelType } from './transformers-worker'
 import { diagLog, diagError, diagMemory } from '@/lib/debug/mobile-diagnostics'
 
+export type BackgroundRemovalPreset = 'balanced' | 'sharper-edges' | 'softer-edges'
+export type BackgroundRemovalConfidence = 'high' | 'medium' | 'low'
+
+export interface DetailedBackgroundRemovalResult {
+  outputBlob: Blob
+  alphaMask: ImageData
+  confidence: BackgroundRemovalConfidence
+  warnings: string[]
+}
+
 // ── Singleton worker ───────────────────────────────────────────────────────────
 
 let workerInstance: Worker | null = null
@@ -115,6 +125,62 @@ export function removeBackground(
   })
 }
 
+export function removeBackgroundDetailed(
+  image: File | Blob,
+  preset: BackgroundRemovalPreset,
+  onProgress?: (pct: number) => void
+): Promise<DetailedBackgroundRemovalResult> {
+  return new Promise((resolve, reject) => {
+    const worker = getWorker()
+    const id = crypto.randomUUID()
+
+    const handler = (e: MessageEvent) => {
+      const d = e.data
+      if (d.id !== id) return
+
+      if (d.type === 'infer-progress') {
+        onProgress?.(d.progress as number)
+      } else if (d.type === 'infer-result') {
+        worker.removeEventListener('message', handler)
+        const outputBlob = new Blob([d.result as ArrayBuffer], { type: d.outputMime as string })
+        const width = d.maskWidth as number
+        const height = d.maskHeight as number
+        const alpha = new Uint8ClampedArray(d.alphaMask as ArrayBuffer)
+        const rgba = new Uint8ClampedArray(width * height * 4)
+        for (let i = 0; i < alpha.length; i++) {
+          const value = alpha[i]
+          const offset = i * 4
+          rgba[offset] = value
+          rgba[offset + 1] = value
+          rgba[offset + 2] = value
+          rgba[offset + 3] = 255
+        }
+        resolve({
+          outputBlob,
+          alphaMask: new ImageData(rgba, width, height),
+          confidence: (d.confidence as BackgroundRemovalConfidence) ?? 'medium',
+          warnings: Array.isArray(d.warnings) ? d.warnings as string[] : [],
+        })
+      } else if (d.type === 'error') {
+        worker.removeEventListener('message', handler)
+        const err = new Error(d.message as string)
+        if (d.code) (err as Error & { code: string }).code = d.code as string
+        if (d.phase) (err as Error & { phase: string }).phase = d.phase as string
+        reject(err)
+      }
+    }
+
+    worker.addEventListener('message', handler)
+
+    image.arrayBuffer().then((buffer) => {
+      worker.postMessage(
+        { type: 'infer', id, modelType: 'bg-removal', buffer, mimeType: image.type, opts: { outputFormat: 'png', preset } },
+        [buffer]
+      )
+    }).catch(reject)
+  })
+}
+
 export function generateAltText(
   file: File,
   maxTokens: number,
@@ -187,4 +253,3 @@ export function recognizeHandwritingOcr(
     }).catch(reject)
   })
 }
-
