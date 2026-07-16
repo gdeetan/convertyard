@@ -56,7 +56,7 @@ ConvertYard is a free alternative to iLovePDF and Smallpdf that never uploads yo
 Platforms: G2, Capterra, GetApp, SaaSworthy, AppSumo Marketplace, Slant, r/productivity, r/Notion, No-Code Tools
 
 ### Account Bio / Product Description
-ConvertYard is free batch file conversion software — images, PDFs, video, audio, OCR, and developer tools. No account required. No file limit. Everything runs in your browser — your files never leave your device. Drop files, convert, download a ZIP. Up to 1,000 files at once.
+Built because iLovePDF and Smallpdf kept paywalling batch conversions and uploading files to servers. ConvertYard runs entirely in your browser — no upload, no account, no limit. Images, PDFs, video, audio, OCR, developer tools. Up to 1,000 files at once.
 
 ### Platform-Specific
 - **G2 category:** File Conversion or PDF Software
@@ -72,7 +72,7 @@ ConvertYard is free batch file conversion software — images, PDFs, video, audi
 Platforms: Futurepedia, AI Tool Hunt, There's An AI For That, Toolify.ai, Ben's Bites, The Rundown AI, TLDR AI, Every.to, Product Hunt AI launch
 
 ### Account Bio / Listing Description
-ConvertYard includes AI-powered tools that run entirely in your browser — background remover, OCR (screenshot-to-text, handwriting-to-text, receipt-to-text), alt-text generator, and image-to-Excel. Powered by transformers.js. No API key, no server, no upload. Your data never leaves your device.
+I built AI file tools that process everything on your device — OCR, alt-text generation, background removal, handwriting-to-text, image-to-Excel. No API key, no upload. transformers.js runs the models in your browser. The files never leave.
 
 ### Platform-Specific
 - **Futurepedia / AI Tool Hunt / There's An AI For That:** "AI-powered file tools that process everything locally — alt-text generation, OCR, background removal, handwriting recognition, image-to-Excel. Built on transformers.js. No API key, no data upload."
@@ -105,7 +105,7 @@ Post in the context of answering a question or sharing a specific use case — n
 | r/legaladvice | Redact/protect PDFs privately | "If you're dealing with sensitive documents — you can redact and protect PDFs in your browser. Files never leave your machine. convertyard.com/redact-pdf" |
 | Obsidian Forums | Paste text from images into notes | "Built a screenshot-to-text tool that runs offline — extract text from any image and paste it straight into Obsidian. No upload. convertyard.com/screenshot-to-text" |
 | r/MachineLearning | transformers.js in-browser inference | "Running transformers.js in the browser for OCR, alt-text generation, and background removal — no server, no API key. Happy to share the architecture if anyone's curious." |
-| r/ChatGPTPromptEngineering | Extract tables from images | "Extract tables from images to Excel — no upload needed. image-to-excel in the browser. convertyard.com/image-to-excel" |
+| r/ChatGPTPromptEngineering | Extract tables from images | "If you're feeding structured data into prompts manually — there's a faster way. Extract tables from images straight to Excel in your browser, no upload. convertyard.com/image-to-excel" |
 
 ---
 
