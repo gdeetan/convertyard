@@ -67,3 +67,41 @@ export async function probeVideoTrack(file: File): Promise<boolean | null> {
     video.src = objectUrl
   })
 }
+
+export async function probeVideoDimensions(file: File): Promise<{ width: number; height: number } | null> {
+  if (typeof document === 'undefined' || typeof URL?.createObjectURL !== 'function') {
+    return null
+  }
+  try {
+    return await new Promise<{ width: number; height: number } | null>((resolve) => {
+      const video = document.createElement('video')
+      const objectUrl = URL.createObjectURL(file)
+      let settled = false
+
+      const finish = (result: { width: number; height: number } | null) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timeoutId)
+        video.removeAttribute('src')
+        video.load()
+        URL.revokeObjectURL(objectUrl)
+        resolve(result)
+      }
+
+      const timeoutId = window.setTimeout(() => finish(null), PROBE_TIMEOUT_MS)
+
+      video.preload = 'metadata'
+      video.muted = true
+      video.playsInline = true
+      video.onloadedmetadata = () => {
+        const w = video.videoWidth
+        const h = video.videoHeight
+        finish(w > 0 && h > 0 ? { width: w, height: h } : null)
+      }
+      video.onerror = () => finish(null)
+      video.src = objectUrl
+    })
+  } catch {
+    return null
+  }
+}
