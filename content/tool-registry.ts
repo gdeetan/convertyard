@@ -43,6 +43,9 @@ import { config as watermarkPdf } from './tools/watermark-pdf'
 import { config as pdfToPowerpoint } from './tools/pdf-to-powerpoint'
 import { config as ocrPdf } from './tools/ocr-pdf'
 import { config as compressVideo } from './tools/compress-video'
+import { config as extractAudio } from './tools/extract-audio'
+import { config as audioTrimmer } from './tools/audio-trimmer'
+import { config as m4aToMp3 } from './tools/m4a-to-mp3'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
@@ -91,6 +94,9 @@ export const tools: ToolConfig[] = [
   pdfToPowerpoint,
   ocrPdf,
   compressVideo,
+  extractAudio,
+  audioTrimmer,
+  m4aToMp3,
 ]
 
 export const toolBySlug = Object.fromEntries(
