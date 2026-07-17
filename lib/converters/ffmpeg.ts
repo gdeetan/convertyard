@@ -271,6 +271,314 @@ export async function gifToMp4(
   return results
 }
 
+export async function aviToMp4(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  const quality = (options.quality as string) ?? 'better'
+  const crf = quality === 'best' ? '18' : quality === 'good' ? '28' : '23'
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const inputName = `avi_in_${i}.avi`
+      const outputName = `avi_out_${i}.mp4`
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec(['-i', inputName, '-c:v', 'libx264', '-crf', crf, '-preset', 'fast', '-c:a', 'aac', '-b:a', '192k', '-movflags', 'faststart', outputName])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
+      results.push(new File([data], `${file.name.replace(/\.[^.]+$/, '')}.mp4`, { type: 'video/mp4' }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
+export async function mkvToMp4(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  const quality = (options.quality as string) ?? 'better'
+  const crf = quality === 'best' ? '18' : quality === 'good' ? '28' : '23'
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const inputName = `mkv_in_${i}.mkv`
+      const outputName = `mkv_out_${i}.mp4`
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        // Try stream-copy first (near-instant for H.264/AAC MKV); fall back to re-encode
+        try {
+          await ffmpeg.exec(['-i', inputName, '-c', 'copy', '-movflags', 'faststart', outputName])
+          data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+        } catch {
+          await ffmpeg.deleteFile(outputName).catch(() => {})
+          await ffmpeg.exec(['-i', inputName, '-c:v', 'libx264', '-crf', crf, '-preset', 'fast', '-c:a', 'aac', '-b:a', '192k', '-movflags', 'faststart', outputName])
+          data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+        }
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
+      results.push(new File([data], `${file.name.replace(/\.[^.]+$/, '')}.mp4`, { type: 'video/mp4' }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
+export async function mp3ToWav(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const ext = file.name.split('.').pop() ?? 'mp3'
+      const inputName = `mp3wav_in_${i}.${ext}`
+      const outputName = `mp3wav_out_${i}.wav`
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec(['-i', inputName, outputName])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
+      results.push(new File([data], `${file.name.replace(/\.[^.]+$/, '')}.wav`, { type: 'audio/wav' }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
+export async function aacToMp3(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const ext = file.name.split('.').pop() ?? 'aac'
+      const inputName = `aac_in_${i}.${ext}`
+      const outputName = `aac_out_${i}.mp3`
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec(['-i', inputName, '-c:a', 'libmp3lame', '-q:a', '2', outputName])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
+      results.push(new File([data], `${file.name.replace(/\.[^.]+$/, '')}.mp3`, { type: 'audio/mpeg' }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
+export async function mp3ToOgg(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const ext = file.name.split('.').pop() ?? 'mp3'
+      const inputName = `mp3ogg_in_${i}.${ext}`
+      const outputName = `mp3ogg_out_${i}.ogg`
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec(['-i', inputName, '-c:a', 'libvorbis', '-q:a', '4', outputName])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
+      results.push(new File([data], `${file.name.replace(/\.[^.]+$/, '')}.ogg`, { type: 'audio/ogg' }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
+export async function mp4ToWebm(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  const quality = (options.quality as string) ?? 'better'
+  const crf = quality === 'best' ? '24' : quality === 'good' ? '36' : '30'
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const ext = file.name.split('.').pop() ?? 'mp4'
+      const inputName = `mp4webm_in_${i}.${ext}`
+      const outputName = `mp4webm_out_${i}.webm`
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec(['-i', inputName, '-c:v', 'libvpx-vp9', '-crf', crf, '-b:v', '0', '-c:a', 'libopus', outputName])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
+      results.push(new File([data], `${file.name.replace(/\.[^.]+$/, '')}.webm`, { type: 'video/webm' }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
+export async function mp3ToAac(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const ext = file.name.split('.').pop() ?? 'mp3'
+      const inputName = `mp3aac_in_${i}.${ext}`
+      const outputName = `mp3aac_out_${i}.aac`
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec(['-i', inputName, '-c:a', 'aac', '-b:a', '192k', outputName])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
+      results.push(new File([data], `${file.name.replace(/\.[^.]+$/, '')}.aac`, { type: 'audio/aac' }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
+export async function mp4ToMov(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const ext = file.name.split('.').pop() ?? 'mp4'
+      const inputName = `mp4mov_in_${i}.${ext}`
+      const outputName = `mp4mov_out_${i}.mov`
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        // Stream copy — MOV is a QuickTime container that accepts H.264/AAC directly
+        await ffmpeg.exec(['-i', inputName, '-c', 'copy', outputName])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
+      results.push(new File([data], `${file.name.replace(/\.[^.]+$/, '')}.mov`, { type: 'video/quicktime' }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
 export async function webmToMp4(
   files: File[],
   options: ToolOptions,

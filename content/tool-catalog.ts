@@ -99,6 +99,14 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'opus-to-mp3',  title: 'OPUS to MP3',  description: 'Convert Opus voice notes and WhatsApp audio to MP3.', category: 'video-audio', status: 'live' },
   { slug: 'mov-to-mp4',  title: 'MOV to MP4',   description: 'Convert MOV files to MP4. Works with iPhone videos and Mac exports. No uploads.', category: 'video-audio', status: 'live' },
   { slug: 'webm-to-mp4', title: 'WebM to MP4',  description: 'Convert WebM to MP4 for broad device compatibility. Batch convert, no uploads.', category: 'video-audio', status: 'live' },
+  { slug: 'avi-to-mp4',  title: 'AVI to MP4',   description: 'Convert legacy AVI files to MP4. Plays on every device. Batch convert, no uploads.', category: 'video-audio', status: 'live' },
+  { slug: 'mkv-to-mp4',  title: 'MKV to MP4',   description: 'Convert MKV to MP4. Stream-copies H.264/AAC instantly — no re-encode needed.', category: 'video-audio', status: 'live' },
+  { slug: 'mp3-to-wav',  title: 'MP3 to WAV',   description: 'Convert MP3 to uncompressed WAV for DAWs and audio editors. Batch, no uploads.', category: 'video-audio', status: 'live' },
+  { slug: 'aac-to-mp3',  title: 'AAC to MP3',   description: 'Convert AAC and M4A files to MP3. Works with iTunes and iPhone audio.', category: 'video-audio', status: 'live' },
+  { slug: 'mp3-to-ogg',  title: 'MP3 to OGG',   description: 'Convert MP3 to OGG Vorbis — open format for games and Linux. Batch, no uploads.', category: 'video-audio', status: 'live' },
+  { slug: 'mp4-to-webm', title: 'MP4 to WebM',  description: 'Convert MP4 to WebM for web delivery. VP9 video, Opus audio. Batch, no uploads.', category: 'video-audio', status: 'live' },
+  { slug: 'mp3-to-aac',  title: 'MP3 to AAC',   description: 'Convert MP3 to AAC at 192 kbps. Native on Apple devices. Batch, no uploads.', category: 'video-audio', status: 'live' },
+  { slug: 'mp4-to-mov',  title: 'MP4 to MOV',   description: 'Convert MP4 to MOV. Stream copy — no re-encode, no quality loss, near-instant.', category: 'video-audio', status: 'live' },
 
   // Developer — all coming soon
   { slug: 'json-formatter', title: 'JSON Formatter',         description: 'Format, validate, and minify JSON.', category: 'developer', status: 'live' },

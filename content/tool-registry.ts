@@ -53,6 +53,14 @@ import { config as flacToMp3 } from './tools/flac-to-mp3'
 import { config as opusToMp3 } from './tools/opus-to-mp3'
 import { config as movToMp4 } from './tools/mov-to-mp4'
 import { config as webmToMp4 } from './tools/webm-to-mp4'
+import { config as aviToMp4 } from './tools/avi-to-mp4'
+import { config as mkvToMp4 } from './tools/mkv-to-mp4'
+import { config as mp3ToWav } from './tools/mp3-to-wav'
+import { config as aacToMp3 } from './tools/aac-to-mp3'
+import { config as mp3ToOgg } from './tools/mp3-to-ogg'
+import { config as mp4ToWebm } from './tools/mp4-to-webm'
+import { config as mp3ToAac } from './tools/mp3-to-aac'
+import { config as mp4ToMov } from './tools/mp4-to-mov'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
@@ -111,6 +119,14 @@ export const tools: ToolConfig[] = [
   opusToMp3,
   movToMp4,
   webmToMp4,
+  aviToMp4,
+  mkvToMp4,
+  mp3ToWav,
+  aacToMp3,
+  mp3ToOgg,
+  mp4ToWebm,
+  mp3ToAac,
+  mp4ToMov,
 ]
 
 export const toolBySlug = Object.fromEntries(
