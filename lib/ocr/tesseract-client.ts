@@ -29,6 +29,8 @@ export interface OcrOptions {
   dpi?: number
   /** Preserve inter-word spacing — helps with tabular layouts like item/price columns. Default: false */
   preserveSpaces?: boolean
+  /** Restrict recognized characters to this set (tessedit_char_whitelist). Use for numeric columns. */
+  whitelist?: string
 }
 
 let workerInstance: Tesseract.Worker | null = null
@@ -36,7 +38,7 @@ let currentLang: string | null = null
 let currentOpts: string | null = null
 
 async function getWorker(lang: string, opts: OcrOptions): Promise<Tesseract.Worker> {
-  const optsKey = `${lang}:oem${opts.oem ?? 1}:psm${opts.psm ?? 3}:dpi${opts.dpi ?? 0}:sp${opts.preserveSpaces ? 1 : 0}`
+  const optsKey = `${lang}:oem${opts.oem ?? 1}:psm${opts.psm ?? 3}:dpi${opts.dpi ?? 0}:sp${opts.preserveSpaces ? 1 : 0}:wl${opts.whitelist ?? ''}`
   if (workerInstance && currentLang === lang && currentOpts === optsKey) return workerInstance
   if (workerInstance) {
     await workerInstance.terminate()
@@ -51,6 +53,7 @@ async function getWorker(lang: string, opts: OcrOptions): Promise<Tesseract.Work
       tessedit_pageseg_mode: opts.psm ?? 3,
       ...(opts.dpi ? { user_defined_dpi: opts.dpi } : {}),
       ...(opts.preserveSpaces ? { preserve_interword_spaces: 1 } : {}),
+      ...(opts.whitelist ? { tessedit_char_whitelist: opts.whitelist } : {}),
     } as Record<string, unknown>)
     currentLang = lang
     currentOpts = optsKey

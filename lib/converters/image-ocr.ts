@@ -221,13 +221,32 @@ function isNumericish(s: string): boolean {
   return /^[-–$€£¥]?[\d,.']+[%]?$/.test(s.trim())
 }
 
+const NUMERIC_WHITELIST = '0123456789.%,- NAna/'
+
 /**
- * For each column that is >60% numeric (by non-empty cells),
- * apply common OCR→digit substitutions to every cell in that column.
+ * Returns a boolean array indicating which columns are >60% numeric (by non-empty cells).
+ * N/A and its variants do not count as numeric.
+ */
+export function classifyColumns(grid: string[][]): boolean[] {
+  if (grid.length === 0) return []
+  const numCols = Math.max(...grid.map(r => r.length))
+  const result: boolean[] = []
+  for (let c = 0; c < numCols; c++) {
+    const nonEmpty = grid.map(r => r[c] ?? '').filter(v => v.length > 0)
+    if (nonEmpty.length === 0) { result.push(false); continue }
+    const numericCount = nonEmpty.filter(isNumericish).length
+    result.push(numericCount / nonEmpty.length >= 0.6)
+  }
+  return result
+}
+
+/**
+ * For each column that is >60% numeric, apply common OCR→digit substitutions.
+ * Uses classifyColumns internally.
  */
 function correctNumericGrid(grid: string[][]): string[][] {
   if (grid.length === 0) return grid
-  const numCols = Math.max(...grid.map(r => r.length))
+  const numericCols = classifyColumns(grid)
   const substitutions: [RegExp, string][] = [
     [/O/g, '0'], [/o/g, '0'],
     [/[lI]/g, '1'],
@@ -237,12 +256,8 @@ function correctNumericGrid(grid: string[][]): string[][] {
     [/G/g, '6'],
   ]
 
-  for (let c = 0; c < numCols; c++) {
-    const nonEmpty = grid.map(r => r[c] ?? '').filter(v => v.length > 0)
-    if (nonEmpty.length === 0) continue
-    const numericCount = nonEmpty.filter(isNumericish).length
-    if (numericCount / nonEmpty.length < 0.6) continue
-
+  for (let c = 0; c < numericCols.length; c++) {
+    if (!numericCols[c]) continue
     for (const row of grid) {
       const val = row[c]
       if (val === undefined || val === '') continue
@@ -256,6 +271,38 @@ function correctNumericGrid(grid: string[][]): string[][] {
     }
   }
 
+  return grid
+}
+
+// S is a common OCR misread of A, so N/S → N/A
+const NA_PATTERN = /^n[/.\s]*[as]\.?$/i
+
+/**
+ * Pattern-based post-correction for numeric/percentage columns.
+ * Normalises N/A variants and cleans up percentage tokens.
+ * colIsNumeric must align with grid column indices.
+ */
+export function correctTableCells(grid: string[][], colIsNumeric: boolean[]): string[][] {
+  for (const row of grid) {
+    for (let c = 0; c < row.length; c++) {
+      if (!colIsNumeric[c]) continue
+      const val = row[c]
+      if (!val) continue
+
+      // N/A normalisation
+      if (NA_PATTERN.test(val.trim())) { row[c] = 'N/A'; continue }
+
+      // Percentage token cleanup: strip leading garbage, fix O→0 / l→1, strip trailing garbage
+      const pctMatch = val.match(/^([^0-9]*)([0-9OolI][0-9OolI.,]*%?)([^%0-9]*)$/)
+      if (pctMatch) {
+        let token = pctMatch[2]
+        token = token.replace(/O/g, '0').replace(/o/g, '0').replace(/[lI]/g, '1')
+        // collapse double-dot
+        token = token.replace(/\.{2,}/g, '.')
+        row[c] = token
+      }
+    }
+  }
   return grid
 }
 
@@ -308,6 +355,62 @@ async function recognizeTablePerCell(
   for (let r = 0; r < grid.length; r++) {
     while (grid[r].length < maxCols) { grid[r].push(''); confidence[r].push(100) }
   }
+
+  // Whitelist retry: re-OCR numeric column cells with character whitelist to
+  // prevent letter↔digit hallucinations at source.
+  // Low-confidence retry: cells below 70% confidence get re-cropped at 2× scale.
+  const numericCols = classifyColumns(grid)
+  const bitmap2 = await createImageBitmap(binaryBlob)
+  const CONF_THRESHOLD = 70
+  const RETRY_PAD = 8
+
+  for (let r = 0; r < grid.length; r++) {
+    const cy = rowEdges[r]
+    const ch = rowEdges[r + 1] - cy
+    if (!cy || ch < 4) continue
+    for (let c = 0; c < colEdges.length - 1; c++) {
+      const cx = colEdges[c]
+      const cw = colEdges[c + 1] - cx
+      if (cw < 4) continue
+      const isNumeric = numericCols[c] ?? false
+      const currentConf = confidence[r][c] ?? 100
+      const needsWhitelist = isNumeric
+      const needsRetry = currentConf < CONF_THRESHOLD
+
+      if (!needsWhitelist && !needsRetry) continue
+
+      if (needsRetry) {
+        // 2× scale retry with padding
+        const px = Math.max(0, cx - RETRY_PAD)
+        const py = Math.max(0, cy - RETRY_PAD)
+        const pw = Math.min(imageWidth - px, cw + RETRY_PAD * 2)
+        const ph = Math.min(imageHeight - py, ch + RETRY_PAD * 2)
+        const scaledCanvas = new OffscreenCanvas(pw * 2, ph * 2)
+        const sCtx = scaledCanvas.getContext('2d')!
+        sCtx.fillStyle = '#ffffff'
+        sCtx.fillRect(0, 0, pw * 2, ph * 2)
+        sCtx.drawImage(bitmap2, px, py, pw, ph, 0, 0, pw * 2, ph * 2)
+        const retryBlob = await scaledCanvas.convertToBlob({ type: 'image/png' })
+        const retryResult = await recognizePage(retryBlob, lang, {
+          oem: 1, psm: 6,
+          ...(isNumeric ? { whitelist: NUMERIC_WHITELIST } : {}),
+        })
+        if ((retryResult.confidence ?? 0) >= currentConf) {
+          grid[r][c] = (retryResult.text ?? '').trim()
+          confidence[r][c] = retryResult.confidence ?? currentConf
+        }
+      } else if (needsWhitelist) {
+        // High-confidence numeric cell: just re-run with whitelist
+        const cellBlob = await cropToBlob(bitmap2, cx, cy, cw, ch)
+        const wlResult = await recognizePage(cellBlob, lang, { oem: 1, psm: 6, whitelist: NUMERIC_WHITELIST })
+        if ((wlResult.confidence ?? 0) >= currentConf) {
+          grid[r][c] = (wlResult.text ?? '').trim()
+          confidence[r][c] = wlResult.confidence ?? currentConf
+        }
+      }
+    }
+  }
+  bitmap2.close()
 
   return { grid, confidence }
 }
@@ -1065,6 +1168,7 @@ export async function imageOcrConvert(
             const perCellResult = await recognizeTablePerCell(layoutBlobForCols, W, H, lang, cols, rows)
             if (perCellResult) {
               perCellGrid = correctNumericGrid(perCellResult.grid)
+              perCellGrid = correctTableCells(perCellGrid, classifyColumns(perCellGrid))
               perCellConfidence = perCellResult.confidence
             }
           }
