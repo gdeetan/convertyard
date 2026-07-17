@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { classifyColumns, correctTableCells } from '../image-ocr'
+import { buildGridCells } from '@/lib/ocr/table-structure-client'
 
 describe('classifyColumns', () => {
   it('marks column as numeric when all non-empty cells are numeric', () => {
@@ -130,5 +131,70 @@ describe('correctTableCells', () => {
     const grid = [['Foo', 'Bar']]
     const result = correctTableCells(grid, [false, false])
     expect(result[0]).toEqual(['Foo', 'Bar'])
+  })
+})
+
+describe('buildGridCells', () => {
+  const row0 = { score: 0.99, label: 'table row', box: { xmin: 0, ymin: 0,  xmax: 500, ymax: 30 } }
+  const row1 = { score: 0.99, label: 'table row', box: { xmin: 0, ymin: 30, xmax: 500, ymax: 60 } }
+  const col0 = { score: 0.99, label: 'table column', box: { xmin: 0,   ymin: 0, xmax: 150, ymax: 60 } }
+  const col1 = { score: 0.99, label: 'table column', box: { xmin: 150, ymin: 0, xmax: 300, ymax: 60 } }
+  const col2 = { score: 0.99, label: 'table column', box: { xmin: 300, ymin: 0, xmax: 500, ymax: 60 } }
+
+  it('returns one cell per row×column intersection', () => {
+    const cells = buildGridCells([row0, row1, col0, col1])
+    expect(cells).toHaveLength(4)
+  })
+
+  it('assigns correct row and column indices', () => {
+    const cells = buildGridCells([row0, row1, col0, col1])
+    const at = (r: number, c: number) => cells.find(cell => cell.row === r && cell.col === c)
+    expect(at(0, 0)).toBeDefined()
+    expect(at(0, 1)).toBeDefined()
+    expect(at(1, 0)).toBeDefined()
+    expect(at(1, 1)).toBeDefined()
+  })
+
+  it('uses column x-range and row y-range for cell bbox', () => {
+    const cells = buildGridCells([row0, col0])
+    expect(cells[0]).toMatchObject({ xmin: 0, xmax: 150, ymin: 0, ymax: 30 })
+  })
+
+  it('sorts rows by ymin regardless of input order', () => {
+    const cells = buildGridCells([row1, row0, col0]) // row1 before row0
+    expect(cells[0].row).toBe(0)
+    expect(cells[0].ymin).toBe(0)  // row0 is the first row
+  })
+
+  it('sorts columns by xmin regardless of input order', () => {
+    const cells = buildGridCells([row0, col2, col0, col1])
+    expect(cells.find(c => c.row === 0 && c.col === 0)?.xmin).toBe(0)
+    expect(cells.find(c => c.row === 0 && c.col === 2)?.xmin).toBe(300)
+  })
+
+  it('treats table column header rows the same as table rows', () => {
+    const header = { score: 0.99, label: 'table column header', box: { xmin: 0, ymin: 0, xmax: 500, ymax: 25 } }
+    const cells = buildGridCells([header, row1, col0])
+    expect(cells).toHaveLength(2)
+    expect(cells[0].row).toBe(0)
+    expect(cells[1].row).toBe(1)
+  })
+
+  it('ignores non-row non-column labels (table, table spanning cell)', () => {
+    const table = { score: 0.99, label: 'table', box: { xmin: 0, ymin: 0, xmax: 500, ymax: 60 } }
+    const cells = buildGridCells([table, row0, col0])
+    expect(cells).toHaveLength(1)
+  })
+
+  it('returns empty array when no rows detected', () => {
+    expect(buildGridCells([col0, col1])).toEqual([])
+  })
+
+  it('returns empty array when no columns detected', () => {
+    expect(buildGridCells([row0, row1])).toEqual([])
+  })
+
+  it('returns empty array for empty input', () => {
+    expect(buildGridCells([])).toEqual([])
   })
 })

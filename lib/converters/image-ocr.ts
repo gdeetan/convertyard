@@ -1149,31 +1149,95 @@ export async function imageOcrConvert(
       let perCellGrid: string[][] | null = null
       let perCellConfidence: number[][] | null = null
       if (mode === 'excel' || mode === 'table-csv') {
+        // TATR path: use Table Transformer for structure detection, then OCR each cell
         try {
-          // Use deskewed blob if available; preprocess fresh since binaryPreprocessed
-          // was derived from the original (pre-deskew) blob.
-          const layoutBlobForCols = deskewedBlob
-            ? await preprocessForOcr(deskewedBlob)
-            : (binaryPreprocessed ?? await preprocessForOcr(blob))
-          const bmp = await createImageBitmap(layoutBlobForCols)
-          const W = bmp.width
-          const H = bmp.height
-          bmp.close()
-          const cols = await detectColumnBoundaries(layoutBlobForCols, W, H)
-          if (cols) detectedColBoundaries = cols
+          const { detectTableStructure, buildGridCells } = await import('@/lib/ocr/table-structure-client')
+          onProgress?.(i, 35)
+          const detections = await detectTableStructure(blob, p => onProgress?.(i, 35 + Math.round(p * 0.3)))
+          const cells = buildGridCells(detections)
 
-          // Attempt per-cell OCR: detect row boundaries → crop + OCR each cell
-          const rows = await detectRowBoundaries(layoutBlobForCols, W, H)
-          if (cols && rows) {
-            const perCellResult = await recognizeTablePerCell(layoutBlobForCols, W, H, lang, cols, rows)
-            if (perCellResult) {
-              perCellGrid = correctNumericGrid(perCellResult.grid)
-              perCellGrid = correctTableCells(perCellGrid, classifyColumns(perCellGrid))
-              perCellConfidence = perCellResult.confidence
+          if (cells.length > 0 && typeof OffscreenCanvas !== 'undefined') {
+            const bitmap = await createImageBitmap(blob)
+            const numericColsForWhitelist = new Set<number>()
+            const rawGrid: Map<string, string> = new Map()
+            const rawConf: Map<string, number> = new Map()
+            let maxRow = 0
+            let maxCol = 0
+
+            for (const cell of cells) {
+              const w = Math.round(cell.xmax - cell.xmin)
+              const h = Math.round(cell.ymax - cell.ymin)
+              if (w < 4 || h < 4) continue
+              const cellBlob = await cropToBlob(bitmap, Math.round(cell.xmin), Math.round(cell.ymin), w, h)
+              const result = await recognizePage(cellBlob, lang, { oem: 1, psm: 6 })
+              rawGrid.set(`${cell.row},${cell.col}`, (result.text ?? '').trim())
+              rawConf.set(`${cell.row},${cell.col}`, result.confidence ?? 100)
+              maxRow = Math.max(maxRow, cell.row)
+              maxCol = Math.max(maxCol, cell.col)
             }
+            bitmap.close()
+
+            // Build 2D grid
+            const grid: string[][] = Array.from({ length: maxRow + 1 }, (_, r) =>
+              Array.from({ length: maxCol + 1 }, (_, c) => rawGrid.get(`${r},${c}`) ?? '')
+            )
+            const conf: number[][] = Array.from({ length: maxRow + 1 }, (_, r) =>
+              Array.from({ length: maxCol + 1 }, (_, c) => rawConf.get(`${r},${c}`) ?? 100)
+            )
+
+            // Whitelist retry: re-OCR numeric column cells to prevent letter↔digit errors
+            const numericCols = classifyColumns(grid)
+            numericCols.forEach((isNum, c) => { if (isNum) numericColsForWhitelist.add(c) })
+
+            if (numericColsForWhitelist.size > 0) {
+              const bmp2 = await createImageBitmap(blob)
+              for (const cell of cells) {
+                if (!numericColsForWhitelist.has(cell.col)) continue
+                const w = Math.round(cell.xmax - cell.xmin)
+                const h = Math.round(cell.ymax - cell.ymin)
+                if (w < 4 || h < 4) continue
+                const cellBlob = await cropToBlob(bmp2, Math.round(cell.xmin), Math.round(cell.ymin), w, h)
+                const result = await recognizePage(cellBlob, lang, { oem: 1, psm: 6, whitelist: NUMERIC_WHITELIST })
+                if ((result.confidence ?? 0) >= (conf[cell.row]?.[cell.col] ?? 0)) {
+                  grid[cell.row][cell.col] = (result.text ?? '').trim()
+                  conf[cell.row][cell.col] = result.confidence ?? 100
+                }
+              }
+              bmp2.close()
+            }
+
+            perCellGrid = correctNumericGrid(grid)
+            perCellGrid = correctTableCells(perCellGrid, classifyColumns(perCellGrid))
+            perCellConfidence = conf
           }
-        } catch (colErr) {
-          console.warn('[column-detector] Detection failed, using word-gap voting:', colErr)
+        } catch (tatrErr) {
+          console.warn('[TATR] Table structure detection failed, falling back to heuristic:', tatrErr)
+        }
+
+        // Heuristic fallback if TATR produced no grid
+        if (!perCellGrid) {
+          try {
+            const layoutBlobForCols = deskewedBlob
+              ? await preprocessForOcr(deskewedBlob)
+              : (binaryPreprocessed ?? await preprocessForOcr(blob))
+            const bmp = await createImageBitmap(layoutBlobForCols)
+            const W = bmp.width
+            const H = bmp.height
+            bmp.close()
+            const cols = await detectColumnBoundaries(layoutBlobForCols, W, H)
+            if (cols) detectedColBoundaries = cols
+            const rows = await detectRowBoundaries(layoutBlobForCols, W, H)
+            if (cols && rows) {
+              const perCellResult = await recognizeTablePerCell(layoutBlobForCols, W, H, lang, cols, rows)
+              if (perCellResult) {
+                perCellGrid = correctNumericGrid(perCellResult.grid)
+                perCellGrid = correctTableCells(perCellGrid, classifyColumns(perCellGrid))
+                perCellConfidence = perCellResult.confidence
+              }
+            }
+          } catch (colErr) {
+            console.warn('[column-detector] Detection failed, using word-gap voting:', colErr)
+          }
         }
       }
 

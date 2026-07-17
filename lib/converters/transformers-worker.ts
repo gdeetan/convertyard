@@ -24,7 +24,7 @@ import {
 // Injected at build time — empty string when env var is not set
 declare const __HF_TOKEN__: string
 
-export type ModelType = 'bg-removal' | 'alt-text' | 'ocr'
+export type ModelType = 'bg-removal' | 'alt-text' | 'ocr' | 'table-structure'
 
 interface LoadMsg { type: 'load'; modelType: ModelType }
 interface InferMsg {
@@ -56,6 +56,7 @@ let bgModel: unknown = null
 let bgProcessor: unknown = null
 let altModel: unknown = null
 let altProcessor: unknown = null
+let tableStructurePipeline: unknown = null
 // ── Aggregated download progress tracker ──────────────────────────────────────
 
 function makeProgressCallback(modelType: ModelType) {
@@ -1392,6 +1393,35 @@ async function runOcr(id: string, buffer: ArrayBuffer, mimeType: string) {
   self.postMessage({ type: 'infer-result', id, result })
 }
 
+// ── Table structure (TATR) ────────────────────────────────────────────────────
+
+async function loadTableStructureModel() {
+  if (tableStructurePipeline) return
+  await ensureHfAuth()
+  const { pipeline } = await import('@huggingface/transformers')
+  const cb = makeProgressCallback('table-structure')
+  tableStructurePipeline = await pipeline(
+    'object-detection',
+    'Xenova/table-transformer-structure-recognition',
+    { progress_callback: cb, dtype: 'q8' }
+  )
+}
+
+async function runTableStructure(id: string, buffer: ArrayBuffer, mimeType: string) {
+  const { RawImage } = await import('@huggingface/transformers')
+  const blob = new Blob([buffer], { type: mimeType })
+  const image = await RawImage.fromBlob(blob)
+
+  self.postMessage({ type: 'infer-progress', id, progress: 10 })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const detect = tableStructurePipeline as any
+  const output = await detect(image, { threshold: 0.5 })
+
+  self.postMessage({ type: 'infer-progress', id, progress: 95 })
+  self.postMessage({ type: 'infer-result', id, result: JSON.stringify(output) })
+}
+
 // ── Message router ────────────────────────────────────────────────────────────
 
 self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
@@ -1402,6 +1432,7 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
       if (msg.modelType === 'bg-removal') await loadBgModel()
       else if (msg.modelType === 'alt-text') await loadAltModel('alt-text')
       else if (msg.modelType === 'ocr') await loadAltModel('ocr')  // same Florence-2 model
+      else if (msg.modelType === 'table-structure') await loadTableStructureModel()
       self.postMessage({ type: 'model-ready', modelType: msg.modelType })
     } catch (err) {
       if (msg.modelType === 'bg-removal') {
@@ -1424,6 +1455,8 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
         await runAltText(id, buffer, mimeType, opts.maxTokens ?? 50, opts.contextHint, opts.filename)
       } else if (modelType === 'ocr') {
         await runOcr(id, buffer, mimeType)
+      } else if (modelType === 'table-structure') {
+        await runTableStructure(id, buffer, mimeType)
       }
     } catch (err) {
       if (modelType === 'bg-removal') {
