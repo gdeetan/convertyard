@@ -216,6 +216,49 @@ async function cropToBlob(
   return canvas.convertToBlob({ type: 'image/png' })
 }
 
+/** Returns true if the string looks like a number (integer, decimal, %, $, negative). */
+function isNumericish(s: string): boolean {
+  return /^[-–$€£¥]?[\d,.']+[%]?$/.test(s.trim())
+}
+
+/**
+ * For each column that is >60% numeric (by non-empty cells),
+ * apply common OCR→digit substitutions to every cell in that column.
+ */
+function correctNumericGrid(grid: string[][]): string[][] {
+  if (grid.length === 0) return grid
+  const numCols = Math.max(...grid.map(r => r.length))
+  const substitutions: [RegExp, string][] = [
+    [/O/g, '0'], [/o/g, '0'],
+    [/[lI]/g, '1'],
+    [/S/g, '5'],
+    [/B/g, '8'],
+    [/Z/g, '2'],
+    [/G/g, '6'],
+  ]
+
+  for (let c = 0; c < numCols; c++) {
+    const nonEmpty = grid.map(r => r[c] ?? '').filter(v => v.length > 0)
+    if (nonEmpty.length === 0) continue
+    const numericCount = nonEmpty.filter(isNumericish).length
+    if (numericCount / nonEmpty.length < 0.6) continue
+
+    for (const row of grid) {
+      const val = row[c]
+      if (val === undefined || val === '') continue
+      if (isNumericish(val) || /^[-–$€£¥\d,.'%OoIlSBZG\s]+$/.test(val)) {
+        let corrected = val
+        for (const [pat, rep] of substitutions) {
+          corrected = corrected.replace(pat, rep)
+        }
+        row[c] = corrected
+      }
+    }
+  }
+
+  return grid
+}
+
 async function recognizeTablePerCell(
   binaryBlob: Blob,
   imageWidth: number,
@@ -238,7 +281,10 @@ async function recognizeTablePerCell(
     for (let c = 0; c < colEdges.length - 1; c++) {
       const cx = colEdges[c]
       const cw = colEdges[c + 1] - cx
-      if (cw < 4) continue
+      if (cw < 4) {
+        rowCells.push('')   // preserve column position — don't skip
+        continue
+      }
       const cellBlob = await cropToBlob(bitmap, cx, cy, cw, ch)
       const result = await recognizePage(cellBlob, lang, { oem: 1, psm: 7 })
       rowCells.push((result.text ?? '').trim())
@@ -247,7 +293,15 @@ async function recognizeTablePerCell(
   }
 
   bitmap.close()
-  return grid.length >= 2 ? grid : null
+  if (grid.length < 2) return null
+
+  // Pad every row to the same column count so no value shifts left
+  const maxCols = Math.max(...grid.map(r => r.length))
+  for (const row of grid) {
+    while (row.length < maxCols) row.push('')
+  }
+
+  return grid
 }
 
 function gridToExcel(grid: string[][], sheetName: string): Uint8Array {
@@ -962,8 +1016,8 @@ export async function imageOcrConvert(
           // Attempt per-cell OCR: detect row boundaries → crop + OCR each cell
           const rows = await detectRowBoundaries(layoutBlobForCols, W, H)
           if (cols && rows) {
-            const grid = await recognizeTablePerCell(layoutBlobForCols, W, H, lang, cols, rows)
-            if (grid) perCellGrid = grid
+            const rawGrid = await recognizeTablePerCell(layoutBlobForCols, W, H, lang, cols, rows)
+            if (rawGrid) perCellGrid = correctNumericGrid(rawGrid)
           }
         } catch (colErr) {
           console.warn('[column-detector] Detection failed, using word-gap voting:', colErr)
