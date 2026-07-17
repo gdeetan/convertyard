@@ -314,7 +314,7 @@ export function Hero() {
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-fg-muted">
-            Convert 1,000 images, PDFs, videos, or audio files in your browser — in seconds. Nothing uploads. Ever.
+            Convert 1,000 images, PDFs, videos, or audio files — right in your browser. No uploads. Ever.
           </p>
 
           {/* CTAs */}
