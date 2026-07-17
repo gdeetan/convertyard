@@ -271,6 +271,62 @@ export async function gifToMp4(
   return results
 }
 
+export async function movToMp4(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  const quality = (options.quality as string) ?? 'better'
+  const crf = quality === 'best' ? '18' : quality === 'good' ? '28' : '23'
+
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const inputName  = `mov_in_${i}.mov`
+      const outputName = `mov_out_${i}.mp4`
+
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec([
+          '-i', inputName,
+          '-c:v', 'libx264',
+          '-crf', crf,
+          '-preset', 'fast',
+          '-c:a', 'aac',
+          '-b:a', '192k',
+          '-movflags', 'faststart',
+          outputName,
+        ])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+
+      if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      results.push(new File([data], `${baseName}.mp4`, { type: 'video/mp4' }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(toError(err))
+    }
+  }
+
+  return results
+}
+
 const WEBP_CROP_FILTERS: Record<string, string | null> = {
   original: null,
   square: "crop='min(iw,ih)':'min(iw,ih)'",

@@ -51,6 +51,7 @@ import { config as amrToMp3 } from './tools/amr-to-mp3'
 import { config as oggToMp3 } from './tools/ogg-to-mp3'
 import { config as flacToMp3 } from './tools/flac-to-mp3'
 import { config as opusToMp3 } from './tools/opus-to-mp3'
+import { config as movToMp4 } from './tools/mov-to-mp4'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
@@ -107,6 +108,7 @@ export const tools: ToolConfig[] = [
   oggToMp3,
   flacToMp3,
   opusToMp3,
+  movToMp4,
 ]
 
 export const toolBySlug = Object.fromEntries(
