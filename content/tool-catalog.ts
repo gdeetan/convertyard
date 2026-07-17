@@ -108,7 +108,7 @@ export const ALL_TOOLS: CatalogTool[] = [
 
   // Web Tools
   { slug: 'favicon-generator',    title: 'Favicon Generator',    description: 'Generate all favicon sizes from one image.', category: 'web-tools', status: 'live' },
-  { slug: 'og-image-generator',   title: 'OG Image Generator',   description: 'Design Open Graph images for social sharing.', category: 'web-tools', status: 'coming-soon' },
+  { slug: 'og-image-generator',   title: 'OG Image Generator',   description: 'Design Open Graph images for social sharing.', category: 'web-tools', status: 'live' },
   { slug: 'qr-code-generator',    title: 'QR Code Generator',    description: 'Generate QR codes for any URL.', category: 'web-tools', status: 'live' },
   { slug: 'color-picker',         title: 'Color Picker',         description: 'Pick colors and export in any format.', category: 'web-tools', status: 'live' },
   { slug: 'gradient-generator',   title: 'Gradient Generator',   description: 'Build CSS gradients visually.', category: 'web-tools', status: 'live' },
