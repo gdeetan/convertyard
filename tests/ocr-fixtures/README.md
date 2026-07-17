@@ -106,3 +106,16 @@ That determines whether the next code change should be:
 - Florence/TrOCR ensemble
 - structure analysis
 - low-confidence language-model rescoring
+
+## Screenshot fixtures
+
+Four screenshot fixtures need real PNG images from Garrick:
+
+- `screenshot-light.png` — light-mode UI screenshot (any app, dense text)
+- `screenshot-dark.png` — dark-mode screenshot (light text on dark background)
+- `screenshot-small-text.png` — screenshot with ~11–12px rendered text
+- `screenshot-code.png` — code/monospace screenshot (check 0/O, 1/l/I accuracy)
+
+Each needs a hand-typed `.txt` ground truth file. Add the ground truth text
+after obtaining the real PNGs. Run `node scripts/test-ocr-accuracy.mjs` to
+verify CER ≤ 0.5% after Phase 1 is complete.

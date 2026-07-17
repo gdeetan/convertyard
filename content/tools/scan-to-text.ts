@@ -5,39 +5,26 @@ import { OcrReviewPanel } from '@/components/ocr-review'
 export const config: ToolConfig = {
   slug: 'scan-to-text',
   title: 'Scan to Text Converter',
-  subtitle: 'Convert scanned document images into editable text. Accepts TIFF, JPG, PNG.',
+  subtitle: 'Convert scanned document images into editable text. TIFF, JPG, PNG, BMP.',
   category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/tiff', 'image/bmp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp'],
   outputExt: '.txt',
-  convertFn: (files, opts, onProgress) => imageOcrConvert(files, opts, onProgress),
+  convertFn: (files, opts, onProgress) =>
+    imageOcrConvert(files, { ...opts, preprocessingMode: 'screenshot' }, onProgress),
   reviewPanel: OcrReviewPanel,
 
   limitationNote: {
-    summary: 'OCR is CPU-intensive',
-    body: 'Text recognition runs on your device. For large batches of scanned pages, keep the tab open and allow extra time.',
+    summary: 'Reads cleanest from 200+ DPI scans with good contrast',
+    body: 'Faded ink, bleed-through, and sub-200 DPI scans reduce accuracy. Most flatbed scans at default settings read well.',
   },
 
   options: [
     {
-      type: 'radio',
-      name: 'recognitionEngine',
-      label: 'Recognition engine',
-      choices: [
-        { value: 'standard', label: 'Standard — all languages, no download' },
-        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~262MB (may be cached)' },
-      ],
-      default: 'standard',
-      conditionalHints: {
-        standard: 'Tesseract OCR with image preprocessing. Works with all languages. Best for clean, printed text.',
-        'ai-enhanced': 'Florence-2 + TrOCR: processes the full page at once without line segmentation, then falls back to TrOCR for lines Florence-2 misses. Downloads ~262MB on first use — shared with the Image Description tool so may already be cached. English only.',
-      },
-    },
-    {
       type: 'dropdown',
       name: 'language',
       label: 'Language',
-      hint: 'Choose the language in the scanned document. Standard engine only — AI-Enhanced uses English.',
+      hint: 'Pick the language shown in the scanned document.',
       choices: [
         { value: 'eng', label: 'English' },
         { value: 'fra', label: 'French' },
@@ -74,7 +61,7 @@ export const config: ToolConfig = {
       type: 'toggle' as const,
       name: 'autoCorrect',
       label: 'Fix common OCR errors',
-      hint: 'English only. Fixes classic OCR mistakes (rn→m, O→0, etc.) using a dictionary. Only touches low-confidence words — everything is revertible in the review panel.',
+      hint: 'Fixes classic OCR mistakes (rn→m, O→0, etc.) using a dictionary. Only touches low-confidence words — revertible in the review panel.',
       default: true,
       dependsOn: { name: 'language', value: 'eng' },
     },
@@ -82,25 +69,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'My scanner outputs TIFFs — can I use those directly?',
-      a: 'Yes. TIFF is accepted alongside JPG, PNG, and BMP. You don\'t need to convert scanner output before dropping it here.',
+      q: 'What scan quality do I need?',
+      a: '200 DPI or above at good ink contrast. Most flatbed scanner defaults (300 DPI, black and white or greyscale) produce near-perfect results.',
+    },
+    {
+      q: 'Does it support TIFF?',
+      a: 'Yes. TIFF, JPG, PNG, and BMP are all accepted. TIFF is common from document scanners and is handled the same as any other format.',
     },
     {
       q: 'What about two-sided documents?',
-      a: 'Each scanned page is a separate file. Drop them all at once and use "Combined single file" mode — pages are merged in filename order. Name files 001.tiff, 002.tiff, etc.',
+      a: 'Scan each side separately and drop both files in. Use "Combined" output mode to merge them into one file in filename order.',
     },
     {
-      q: 'Does it handle faded or old documents?',
-      a: 'Faded documents can reduce accuracy. For best results, scan at 300 DPI or higher with good contrast settings on your scanner.',
-    },
-
-    {
-      q: 'How accurate is OCR on scanned documents?',
-      a: 'A clean scan at 300 DPI with good contrast — the kind most modern flatbed scanners produce by default — typically hits 97–99% accuracy on printed text. Accuracy drops with older documents that have yellowed pages, faded ink, or staining. If you\'re scanning something important (a contract, a medical record, historical pages with faded ink), treat the output as a first draft: use the review panel to check amber-underlined words, then do a final read-through before archiving or sharing the file.',
+      q: 'Can it read faded or old documents?',
+      a: 'Light fading often still reads — the tool handles moderate contrast loss. Heavy fading, water damage, or bleed-through from the reverse side reduces accuracy significantly. No software fix compensates for genuinely unreadable ink.',
     },
     {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. OCR runs entirely in your browser. Your scans never leave your device.',
+      q: 'Are files uploaded anywhere?',
+      a: 'No. OCR runs entirely in your browser. Nothing is sent to any server.',
     },
   ],
 
@@ -109,6 +95,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'Scan to Text Converter — ConvertYard',
-    description: 'Convert scanned document images (TIFF, JPG, PNG, BMP) to editable text. Batch convert locally — no uploads. 14 languages supported.',
+    description: 'Convert scanned document images (TIFF, JPG, PNG, BMP) to editable text. Batch up to 1,000 files locally. No uploads. 14 languages supported.',
   },
 }

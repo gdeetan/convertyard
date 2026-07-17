@@ -1,5 +1,5 @@
 import { recognizePage, terminateOcrWorker, type OcrOptions, type OcrPageResult } from '@/lib/ocr/tesseract-client'
-import { preprocessForOcr, preprocessForOcrDual } from '@/lib/ocr/preprocessing'
+import { preprocessForOcr, preprocessForOcrDual, preprocessForScreenshot } from '@/lib/ocr/preprocessing'
 import { detectLines } from '@/lib/ocr/line-detector'
 import { correctWords } from '@/lib/ocr/correction-client'
 import type { ConversionResult, OcrWordMeta, OcrResultMeta, ToolOptions } from '@/lib/types'
@@ -673,6 +673,8 @@ export async function imageOcrConvert(
   const lang = typeof opts.language === 'string' ? opts.language : 'eng'
   const mode = (opts.outputMode as OcrMode | undefined) ?? 'text'
   const engine = (opts.recognitionEngine as string | undefined) ?? 'standard'
+  const preprocessingMode = (opts.preprocessingMode as string | undefined) ?? 'document'
+  const useScreenshotPath = preprocessingMode === 'screenshot'
   const style = (opts.handwritingStyle as string | undefined) ?? 'mixed'
   const quality = (opts.qualityMode as string | undefined) !== 'fast'
   const receiptModeRequested = mode === 'receipt-csv'
@@ -897,14 +899,16 @@ export async function imageOcrConvert(
       } else {
         // Standard path: preprocess → Tesseract with OEM/PSM tuning
         onProgress?.(i, 20)
-        binaryPreprocessed = await preprocessForOcr(blob, receiptMode ? receiptMinWidth : undefined)
+        binaryPreprocessed = useScreenshotPath
+          ? await preprocessForScreenshot(blob)
+          : await preprocessForOcr(blob, receiptMode ? receiptMinWidth : undefined)
         onProgress?.(i, 30)
         const tableMode = mode === 'excel' || mode === 'table-csv'
         let result = receiptMode
           ? await recognizeReceiptPage(binaryPreprocessed, lang, receiptAllowRetry)
           : await recognizePage(binaryPreprocessed, lang, {
               oem: 1,
-              psm: tableMode ? 6 : psmForStyle(style),
+              psm: tableMode ? 6 : (useScreenshotPath ? 6 : psmForStyle(style)),
             });
         if (receiptMode && !iosDetected && originalReceiptBlob && originalReceiptBlob !== blob) {
           const originalBinary = await preprocessForOcr(originalReceiptBlob, receiptMinWidth)

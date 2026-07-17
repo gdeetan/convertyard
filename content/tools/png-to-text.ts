@@ -5,39 +5,26 @@ import { OcrReviewPanel } from '@/components/ocr-review'
 export const config: ToolConfig = {
   slug: 'png-to-text',
   title: 'PNG to Text Converter',
-  subtitle: 'Extract text from PNG images. Transparent backgrounds handled automatically.',
+  subtitle: 'Extract text from PNG screenshots. Transparent backgrounds handled automatically.',
   category: 'image-to-text',
   accepts: ['image/png'],
   acceptsExt: ['.png'],
   outputExt: '.txt',
-  convertFn: (files, opts, onProgress) => imageOcrConvert(files, opts, onProgress),
+  convertFn: (files, opts, onProgress) =>
+    imageOcrConvert(files, { ...opts, preprocessingMode: 'screenshot' }, onProgress),
   reviewPanel: OcrReviewPanel,
 
   limitationNote: {
-    summary: 'OCR is CPU-intensive',
-    body: 'Text recognition runs on your device. Expect a few seconds per image.',
+    summary: 'Tuned for PNG screenshots and clean exports',
+    body: 'Transparent backgrounds are composited onto white automatically. Accuracy drops on low-res or blurry sources — not a PNG problem specifically, just a sharpness one.',
   },
 
   options: [
     {
-      type: 'radio',
-      name: 'recognitionEngine',
-      label: 'Recognition engine',
-      choices: [
-        { value: 'standard', label: 'Standard — all languages, no download' },
-        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~262MB (may be cached)' },
-      ],
-      default: 'standard',
-      conditionalHints: {
-        standard: 'Tesseract OCR with image preprocessing. Works with all languages. Best for clean, printed text.',
-        'ai-enhanced': 'Florence-2 + TrOCR: processes the full page at once without line segmentation, then falls back to TrOCR for lines Florence-2 misses. Downloads ~262MB on first use — shared with the Image Description tool so may already be cached. English only.',
-      },
-    },
-    {
       type: 'dropdown',
       name: 'language',
       label: 'Language',
-      hint: 'Pick the language shown in the PNG. Standard engine only — AI-Enhanced uses English.',
+      hint: 'Pick the language shown in the image.',
       choices: [
         { value: 'eng', label: 'English' },
         { value: 'fra', label: 'French' },
@@ -76,7 +63,7 @@ export const config: ToolConfig = {
       type: 'toggle' as const,
       name: 'autoCorrect',
       label: 'Fix common OCR errors',
-      hint: 'English only. Fixes classic OCR mistakes (rn→m, O→0, etc.) using a dictionary. Only touches low-confidence words — everything is revertible in the review panel.',
+      hint: 'Fixes classic OCR mistakes (rn→m, O→0, etc.) using a dictionary. Only touches low-confidence words — revertible in the review panel.',
       default: true,
       dependsOn: { name: 'language', value: 'eng' },
     },
@@ -84,24 +71,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'Does it handle PNGs with transparent backgrounds?',
-      a: 'Yes. The tool composites your image onto a white background before running OCR, so text on transparent or semi-transparent layers extracts correctly.',
+      q: 'What PNG images work best?',
+      a: 'UI captures, cropped screenshots, diagram labels, and any clean export from a design tool. PNGs are lossless so character detail is preserved exactly — great for precise extraction.',
     },
     {
-      q: 'Can I extract text from PNG screenshots of code?',
-      a: 'Yes. Syntax-highlighted code extracts well — you get the raw text without the colour formatting. Good for pulling code snippets from tutorial screenshots.',
+      q: 'What happens with transparent backgrounds?',
+      a: 'Composited onto white before recognition runs. A transparent PNG with dark text reads the same as a white-background image.',
     },
     {
-      q: 'What about PNG images with text overlays, like infographics?',
-      a: 'Text overlaid on solid or near-solid backgrounds extracts reliably. Very low-contrast overlays (white text on light background) may produce more errors.',
+      q: 'Can it read text in code screenshots?',
+      a: 'Yes, though monospace fonts with ambiguous characters (0/O, 1/l/I) are the most error-prone part. The review panel lets you catch and fix those quickly.',
     },
     {
-      q: 'How reliable is the text extraction from PNG files?',
-      a: 'PNG is lossless, so if the text is rendered digitally (a screenshot, an exported slide, a UI mockup), you\'ll often get near-perfect results. Where accuracy dips is with decorative or script fonts, very small text under ~10px, and low-contrast colour combinations like grey text on a light background. If you\'re pulling text from a PNG that started life as a photo (not a render), treat it the same as a JPG — give the output a proofread before committing it anywhere.',
+      q: 'What about screenshots with coloured text or highlights?',
+      a: 'Converted to greyscale before recognition. Colour itself doesn\'t affect accuracy — contrast between text and background does. Dark text on a light background reads cleanly regardless of the specific colours.',
     },
     {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. OCR runs entirely in your browser using Tesseract.js. Your files never leave your device.',
+      q: 'Are files uploaded anywhere?',
+      a: 'No. OCR runs entirely in your browser. Files never leave your device.',
     },
   ],
 
@@ -110,6 +97,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'PNG to Text Converter — ConvertYard',
-    description: 'Extract text from PNG images — transparent backgrounds handled automatically. Batch convert locally in your browser. No uploads, no account.',
+    description: 'Extract text from PNG images — UI captures, diagram labels, transparent-background exports. Batch up to 1,000 files locally. No uploads, no account.',
   },
 }

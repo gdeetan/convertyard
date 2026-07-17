@@ -5,39 +5,26 @@ import { OcrReviewPanel } from '@/components/ocr-review'
 export const config: ToolConfig = {
   slug: 'jpg-to-text',
   title: 'JPG to Text Converter',
-  subtitle: 'Extract text from JPG images. Runs in your browser, no uploads.',
+  subtitle: 'Extract text from JPG screenshots and exported slides. No uploads.',
   category: 'image-to-text',
   accepts: ['image/jpeg'],
   acceptsExt: ['.jpg', '.jpeg'],
   outputExt: '.txt',
-  convertFn: (files, opts, onProgress) => imageOcrConvert(files, opts, onProgress),
+  convertFn: (files, opts, onProgress) =>
+    imageOcrConvert(files, { ...opts, preprocessingMode: 'screenshot' }, onProgress),
   reviewPanel: OcrReviewPanel,
 
   limitationNote: {
-    summary: 'OCR is CPU-intensive',
-    body: 'Text recognition runs on your device. Expect a few seconds per image. Speed depends on your device and image resolution.',
+    summary: 'Tuned for JPG screenshots and clean exports',
+    body: 'Heavily compressed JPGs lose fine character detail — export at higher quality if accuracy matters. Blurry or low-res sources reduce results regardless of settings.',
   },
 
   options: [
     {
-      type: 'radio',
-      name: 'recognitionEngine',
-      label: 'Recognition engine',
-      choices: [
-        { value: 'standard', label: 'Standard — all languages, no download' },
-        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~262MB (may be cached)' },
-      ],
-      default: 'standard',
-      conditionalHints: {
-        standard: 'Tesseract OCR with image preprocessing. Works with all languages. Best for clean, printed text.',
-        'ai-enhanced': 'Florence-2 + TrOCR: processes the full page at once without line segmentation, then falls back to TrOCR for lines Florence-2 misses. Downloads ~262MB on first use — shared with the Image Description tool so may already be cached. English only.',
-      },
-    },
-    {
       type: 'dropdown',
       name: 'language',
       label: 'Document language',
-      hint: 'Choose the language in your image. Standard engine only — AI-Enhanced uses English.',
+      hint: 'Pick the language shown in the image.',
       choices: [
         { value: 'eng', label: 'English' },
         { value: 'fra', label: 'French' },
@@ -76,7 +63,7 @@ export const config: ToolConfig = {
       type: 'toggle' as const,
       name: 'autoCorrect',
       label: 'Fix common OCR errors',
-      hint: 'English only. Fixes classic OCR mistakes (rn→m, O→0, etc.) using a dictionary. Only touches low-confidence words — everything is revertible in the review panel.',
+      hint: 'Fixes classic OCR mistakes (rn→m, O→0, etc.) using a dictionary. Only touches low-confidence words — revertible in the review panel.',
       default: true,
       dependsOn: { name: 'language', value: 'eng' },
     },
@@ -84,28 +71,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What\'s the difference between this and a PDF OCR tool?',
-      a: 'This tool extracts text from JPG image files. If your document is a .pdf containing scanned images (not selectable text), use the OCR PDF tool. If you\'ve exported a PDF page as a JPG, this tool handles it.',
+      q: 'What JPG images work best?',
+      a: 'Exported slides, chat screenshots saved as JPG, screenshotted articles or emails. Quality matters more than size — a high-quality 800×600 JPG reads better than a heavily compressed 2000×1500.',
     },
     {
-      q: 'Can I extract text from a JPG containing a table?',
-      a: 'Yes. For plain text tables, the standard output works well. For tables you want as a spreadsheet, use the Image to Excel tool instead.',
+      q: 'JPG compresses images — does that hurt OCR?',
+      a: 'At moderate quality (70%+) you won\'t notice a difference. Heavy compression creates ringing artefacts around letter edges that confuse character recognition. Export at 80%+ quality when you have a choice.',
     },
     {
-      q: 'Does JPEG work the same as JPG?',
-      a: 'Yes — .jpeg and .jpg are the same format. Both are accepted by this tool.',
+      q: 'What languages are supported?',
+      a: '14 languages including English, French, German, Spanish, Chinese (Simplified and Traditional), Japanese, Korean, Arabic, Hindi, Russian, Portuguese, Italian, and Dutch.',
     },
     {
-      q: 'How many files can I process at once?',
-      a: 'There is no hard limit. For large batches (50+ files), processing continues in the background — keep the tab open until it finishes.',
+      q: 'Can I batch-convert a folder of screenshots?',
+      a: 'Yes. Drop up to 1,000 files at once. Each produces a separate .txt, or choose "Combined" to merge them into one file sorted by filename.',
     },
     {
-      q: 'Should I check the output before using it?',
-      a: 'Yes, at least briefly. A clean, high-resolution scan of a typed document can hit 99% accuracy, but a heavily compressed or low-res JPG (common with old scans or attachments that were emailed multiple times) will have noticeably more errors. The most common mistakes are o/0 swaps, rn reading as m, and stray characters near image edges. The review panel underlines uncertain words in amber — that\'s the quickest way to spot the places that need a second look.',
-    },
-    {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. OCR runs entirely in your browser using Tesseract.js and WebAssembly. Your files never leave your device.',
+      q: 'Are files uploaded anywhere?',
+      a: 'No. Everything runs in your browser with WebAssembly. Files never leave your device.',
     },
   ],
 
@@ -114,6 +97,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'JPG to Text Converter — ConvertYard',
-    description: 'Extract text from JPG images with free browser-based OCR. Batch up to 1,000 files locally — no uploads, no account. 14 languages supported.',
+    description: 'Extract text from JPG images locally — exported slides, chat screenshots, JPG exports. Batch up to 1,000 files in your browser. No uploads, no account.',
   },
 }
