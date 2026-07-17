@@ -97,6 +97,8 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'ogg-to-mp3',   title: 'OGG to MP3',   description: 'Convert OGG Vorbis audio to MP3. Works on Discord and Telegram voice notes.', category: 'video-audio', status: 'live' },
   { slug: 'flac-to-mp3',  title: 'FLAC to MP3',  description: 'Convert lossless FLAC audio to MP3. Batch convert, no uploads.', category: 'video-audio', status: 'live' },
   { slug: 'opus-to-mp3',  title: 'OPUS to MP3',  description: 'Convert Opus voice notes and WhatsApp audio to MP3.', category: 'video-audio', status: 'live' },
+  { slug: 'mov-to-mp4',  title: 'MOV to MP4',   description: 'Convert MOV files to MP4. Works with iPhone videos and Mac exports. No uploads.', category: 'video-audio', status: 'live' },
+  { slug: 'webm-to-mp4', title: 'WebM to MP4',  description: 'Convert WebM to MP4 for broad device compatibility. Batch convert, no uploads.', category: 'video-audio', status: 'live' },
 
   // Developer — all coming soon
   { slug: 'json-formatter', title: 'JSON Formatter',         description: 'Format, validate, and minify JSON.', category: 'developer', status: 'live' },
