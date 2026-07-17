@@ -145,7 +145,6 @@ const TOOLS: Tool[] = [
   { slug: 'handwriting-to-text',   name: 'Handwriting to Text',   category: 'ocr',         desc: 'Transcribe handwritten notes with a dedicated model.' },
   { slug: 'image-to-excel',        name: 'Image to Excel',        category: 'ocr',         desc: 'Extract tables from images into .xlsx spreadsheets.' },
   { slug: 'receipt-to-text',       name: 'Receipt to Text',       category: 'ocr',         desc: 'Extract receipt data into CSV. Batch up to 500.' },
-  { slug: 'table-image-to-text',   name: 'Table Image to Text',   category: 'ocr',         desc: 'Extract tables from images into CSV or TSV.' },
   { slug: 'business-card-to-text', name: 'Business Card to Text', category: 'ocr',         desc: 'Scan business cards and extract contacts as CSV.' },
   { slug: 'heic-to-text',          name: 'HEIC to Text',          category: 'ocr',         desc: 'Extract text from iPhone HEIC photos directly.' },
   { slug: 'jpeg-to-text',          name: 'JPEG to Text',          category: 'ocr',         desc: 'Extract text from JPEG files.' },

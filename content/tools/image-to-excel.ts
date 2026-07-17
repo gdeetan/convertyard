@@ -4,7 +4,7 @@ import type { ConversionResult, ToolConfig, ToolOptions } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'image-to-excel',
   title: 'Image to Excel Converter',
-  subtitle: 'Extract tables from images into .xlsx spreadsheets. No retyping.',
+  subtitle: 'Drop a table screenshot. Get a clean .xlsx file.',
   category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
@@ -13,30 +13,15 @@ export const config: ToolConfig = {
     imageOcrConvert(files, { ...opts, outputMode: 'excel' }, onProgress),
 
   limitationNote: {
-    summary: 'OCR-based — spot-check numbers and column alignment',
-    body: 'Standard mode uses Tesseract OCR with column detection. Tables with consistent column alignment extract accurately — the thing to spot-check is whether numbers stayed in the right column on tightly-spaced or slightly skewed images. For denser tables or stylized fonts, switch to AI-Enhanced recognition (English only) in the options below — it uses Florence-2 + TrOCR and often reads tricky characters more accurately.',
+    summary: 'OCR-based — spot-check column alignment on dense tables',
+    body: 'The converter detects column boundaries from the image and OCRs each cell individually. Results are most accurate on screenshots with consistent spacing. Always verify numbers match the source before using in calculations.',
   },
 
   options: [
     {
-      type: 'radio',
-      name: 'recognitionEngine',
-      label: 'Recognition engine',
-      choices: [
-        { value: 'standard', label: 'Standard — all languages, no download' },
-        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~262MB (may be cached)' },
-      ],
-      default: 'standard',
-      conditionalHints: {
-        standard: 'Tesseract OCR with column detection. Best for clean printed text in any language.',
-        'ai-enhanced': 'Florence-2 + TrOCR: processes the full page at once, better on dense or stylized fonts. Downloads ~262MB on first use — shared with other OCR tools so may already be cached. English only.',
-      },
-    },
-    {
       type: 'dropdown',
       name: 'language',
       label: 'Language',
-      hint: 'Language of text in the table. Standard engine only — AI-Enhanced uses English.',
       choices: [
         { value: 'eng', label: 'English' },
         { value: 'fra', label: 'French' },
@@ -52,27 +37,23 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'How does this work?',
-      a: 'The tool uses Tesseract OCR with pixel-level column detection to reconstruct the table grid from the image. Words are assigned to cells based on their horizontal position, and the result is written to .xlsx. This approach cannot invent data — it can only misread a character, never fabricate a row or shuffle a value between columns.',
+      a: 'The tool detects column and row boundaries from the image pixels, then OCRs each cell individually. The result is written to a .xlsx file with the same layout as the original table.',
     },
     {
-      q: 'When should I use AI-Enhanced recognition?',
-      a: 'Switch to AI-Enhanced when standard OCR misreads characters — common on dense tables, bold or italic headers, or text that runs close together. It uses Florence-2 + TrOCR instead of Tesseract, which handles complex layouts without line-by-line segmentation. Downloads ~262MB on first use (shared with other OCR tools on this site, so it may already be cached). English only.',
+      q: 'What types of tables work best?',
+      a: 'Screenshots of spreadsheets, web tables, and reports with consistent column spacing. Both bordered tables (visible grid lines) and borderless tables are supported.',
     },
     {
       q: 'Can I open the output directly in Excel or Google Sheets?',
       a: 'Yes. The output is a standard .xlsx file — open it directly in Excel, Google Sheets, or LibreOffice Calc.',
     },
     {
-      q: 'What types of tables does it handle best?',
-      a: 'Bordered tables (with visible grid lines) and borderless tables with consistent column spacing extract most reliably. If column values are very close together or the image has slight skew, spot-check the column alignment after export.',
+      q: 'Should I verify the spreadsheet before using it in calculations?',
+      a: 'Yes — especially for numbers. Scan a few rows to confirm column alignment and spot-check totals against the source image before building formulas.',
     },
     {
       q: 'Does it work on invoice or receipt images?',
-      a: 'For structured receipts with line items, yes. For receipts where you need vendor, date, and total extracted into specific fields, use the Receipt to Text tool instead.',
-    },
-    {
-      q: 'Should I verify the spreadsheet before using it in calculations?',
-      a: 'Yes — especially numbers. Scan a few rows to confirm column alignment, and for tables with totals, spot-check those against the original image before building formulas on top of the data.',
+      a: 'For receipts where you need vendor, date, and total extracted into specific fields, use the Receipt to Text tool instead.',
     },
     {
       q: 'Are my files uploaded anywhere?',
@@ -80,11 +61,11 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['receipt-to-text', 'table-image-to-text', 'jpg-to-text'],
+  relatedTools: ['receipt-to-text', 'jpg-to-text', 'ocr-pdf'],
   relatedArticles: [],
 
   meta: {
     title: 'Image to Excel Converter — ConvertYard',
-    description: 'Extract tables from images into .xlsx spreadsheets. Browser-based OCR — no uploads, no account. Batch convert screenshots and photos to Excel in seconds.',
+    description: 'Convert table screenshots to Excel. Drop an image, get a .xlsx file with the same layout. No uploads, no account — runs in your browser.',
   },
 }

@@ -133,7 +133,6 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'handwriting-to-text',   title: 'Handwriting to Text',    description: 'Transcribe handwritten notes with a model trained on handwriting.',   category: 'image-to-text', status: 'live' },
   { slug: 'image-to-excel',        title: 'Image to Excel',         description: 'Extract tables from images into .xlsx spreadsheets.',                 category: 'image-to-text', status: 'live' },
   { slug: 'receipt-to-text',       title: 'Receipt to Text',        description: 'Extract receipt data into CSV. Batch up to 500 receipts.',            category: 'image-to-text', status: 'live' },
-  { slug: 'table-image-to-text',   title: 'Table Image to Text',    description: 'Extract tables from images into structured CSV or TSV.',              category: 'image-to-text', status: 'live' },
   { slug: 'business-card-to-text', title: 'Business Card to Text',  description: 'Scan business cards and extract contact details as CSV.',             category: 'image-to-text', status: 'live' },
   { slug: 'heic-to-text',          title: 'HEIC to Text',           description: 'Extract text from iPhone HEIC photos without converting first.',      category: 'image-to-text', status: 'live' },
 
