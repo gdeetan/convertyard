@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'table-image-to-text',
   title: 'Table Image to Text Converter',
-  subtitle: 'Extract tables from images into CSV. Research papers, price grids, reports.',
+  subtitle: 'Extract tables from images into CSV. No upload, no model download, no wait.',
   category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
@@ -13,30 +13,16 @@ export const config: ToolConfig = {
     imageOcrConvert(files, { ...opts, outputMode: 'table-csv' }, onProgress),
 
   limitationNote: {
-    summary: 'Works best on structured tables',
-    body: 'Tables with consistent column alignment extract well. Merged cells and complex nested tables may need manual cleanup after export.',
+    summary: 'Works best on structured tables with consistent alignment',
+    body: 'Merged cells and complex nested tables may need manual cleanup. For tables where column spacing is very tight or irregular, spot-check the first few rows against the original image.',
   },
 
   options: [
     {
-      type: 'radio',
-      name: 'recognitionEngine',
-      label: 'Recognition engine',
-      choices: [
-        { value: 'standard', label: 'Standard — all languages, no download' },
-        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~262MB (may be cached)' },
-      ],
-      default: 'standard',
-      conditionalHints: {
-        standard: 'Tesseract OCR with image preprocessing. Works with all languages. Best for clean, printed text.',
-        'ai-enhanced': 'Florence-2 + TrOCR: processes the full page at once without line segmentation, then falls back to TrOCR for lines Florence-2 misses. Downloads ~262MB on first use — shared with the Image Description tool so may already be cached. English only.',
-      },
-    },
-    {
       type: 'dropdown',
       name: 'language',
       label: 'Language',
-      hint: 'Choose the language of text in the table. Standard engine only — AI-Enhanced uses English.',
+      hint: 'Language of text in the table. Tesseract supports all six languages natively.',
       choices: [
         { value: 'eng', label: 'English' },
         { value: 'fra', label: 'French' },
@@ -51,24 +37,28 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What types of tables does it handle best?',
-      a: 'Bordered tables (with visible grid lines) and borderless tables with consistent column spacing extract most reliably. Common sources: research paper tables, pricing grids, comparison charts, annual report data tables.',
+      q: 'What types of tables extract most accurately?',
+      a: 'Bordered tables (visible grid lines) and borderless tables with consistent column spacing. Common sources that work well: research paper data tables, pricing grids, comparison charts, annual report figures. Tables with erratic spacing or hand-drawn borders are harder.',
     },
     {
       q: 'Should I use this or the Image to Excel tool?',
-      a: 'Use this for CSV output (the universal format for data work). Use Image to Excel if you specifically need a .xlsx file you can open directly in Excel or Google Sheets.',
+      a: 'Use this for CSV — the universal format for spreadsheets, Python/R scripts, and database imports. Use Image to Excel if you need a .xlsx file you can open directly in Excel or Google Sheets without an import step.',
     },
     {
-      q: 'Can I process multiple table images at once?',
-      a: 'Yes. Drop as many images as you need — each produces its own .csv file, downloaded together as a ZIP. For tables spanning multiple images, combine the CSVs in your spreadsheet tool after export.',
+      q: 'Can I convert multiple table images at once?',
+      a: 'Yes — drop as many as you need. Each image produces its own .csv file, bundled into a ZIP. For a table that spans multiple pages, combine the resulting CSVs in your spreadsheet tool after export.',
     },
     {
-      q: 'How accurate is the extracted table data?',
-      a: 'Individual cell text is usually accurate, but the part worth checking is column alignment — specifically whether numbers stayed in the right column. Tables where values are close together or where the image has slight skew are the most likely to have a number drift one column left or right. Before you use the CSV in any analysis, spot-check a few rows against the original image. It takes 30 seconds and catches the kind of misalignment that would be annoying to find later.',
+      q: 'How accurate is the extracted data?',
+      a: 'Cell text is usually accurate. The thing worth checking is column alignment: whether a number stayed in the column it belongs to. Tables with tight column spacing or slight image skew are most likely to produce drift. Before using the CSV in any analysis, scan a few rows against the original. It takes about 30 seconds and catches the kind of misalignment that would be annoying to find later.',
+    },
+    {
+      q: 'Does it handle numbers accurately?',
+      a: 'The tool applies digit-specific correction to columns it detects as numeric — substituting common OCR confusions like O for 0, l for 1, and S for 5. For columns with mixed text and numbers, check the original if precision matters.',
     },
     {
       q: 'Are my files uploaded anywhere?',
-      a: 'No. OCR runs entirely in your browser. Your images never leave your device.',
+      a: 'No. Everything runs in your browser via WebAssembly. Your images never leave your device.',
     },
   ],
 
@@ -77,6 +67,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'Table Image to Text Converter — ConvertYard',
-    description: 'Extract tables from images into CSV — research papers, reports, price lists. Browser-based OCR, no uploads, no account.',
+    description: 'Extract tables from images into CSV — research papers, price lists, annual reports. Browser-based OCR, no uploads, no account required.',
   },
 }
