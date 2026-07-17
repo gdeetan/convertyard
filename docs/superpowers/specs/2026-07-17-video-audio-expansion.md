@@ -464,14 +464,14 @@ All 13 are confirmed builds. The ffmpeg.wasm implementation for each is a one-li
 |---|---|---|
 | webm-to-mp4 | ✅ **Done** (2026-07-17) | 180,000 (estimated) |
 | mov-to-mp4 | ✅ **Done** (2026-07-17) | 450,000 (estimated) |
-| avi-to-mp4 | **Build.** Legacy format with ongoing demand from old camcorder users | 160,000 (estimated) |
-| mkv-to-mp4 | **Build.** Stream-copy path is near-instant — unique advantage | 140,000 (estimated) |
-| mp4-to-webm | **Build.** Web devs preparing video assets; moderate volume | 55,000 (estimated) |
-| mp4-to-mov | **Build.** Lower volume but no clean local alternative; trivial ffmpeg | 28,000 (estimated) |
-| mp3-to-wav | **Build.** Solid volume; required for DAW imports and lossless archiving | 120,000 (estimated) |
-| aac-to-mp3 | **Build.** High volume; AAC is the default from Apple ecosystem exports | 90,000 (estimated) |
-| mp3-to-ogg | **Build.** Moderate volume; narrow use case but trivial alongside other audio converters | 60,000 (estimated) |
-| mp3-to-aac | **Build.** Moderate volume; pairs naturally with aac-to-mp3 | 18,000 (estimated) |
+| avi-to-mp4 | ✅ **Done** (2026-07-17) | 160,000 (estimated) |
+| mkv-to-mp4 | ✅ **Done** (2026-07-17) | 140,000 (estimated) |
+| mp4-to-webm | ✅ **Done** (2026-07-17) | 55,000 (estimated) |
+| mp4-to-mov | ✅ **Done** (2026-07-17) | 28,000 (estimated) |
+| mp3-to-wav | ✅ **Done** (2026-07-17) | 120,000 (estimated) |
+| aac-to-mp3 | ✅ **Done** (2026-07-17) | 90,000 (estimated) |
+| mp3-to-ogg | ✅ **Done** (2026-07-17) | 60,000 (estimated) |
+| mp3-to-aac | ✅ **Done** (2026-07-17) | 18,000 (estimated) |
 | flac-to-wav | **Build.** Lower volume; audiophile audience — high-intent users | 45,000 (estimated) |
 | wav-to-flac | **Build.** Pairs naturally with flac-to-wav; archiving use case | 40,000 (estimated) |
 | ogg-to-wav | **Build.** Lowest volume; trivial implementation; completes the audio converter matrix | 20,000 (estimated) |
