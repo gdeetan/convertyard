@@ -31,3 +31,18 @@
 - The Playwright harness (e2e/ocr-accuracy.spec.ts) requires the dev server: `npm run dev`
 - Run: `npx playwright test e2e/ocr-accuracy.spec.ts --reporter=list`
 - Record printed CER/WER numbers above after each gate
+
+## After Phase 1 — near-passthrough preprocessing
+
+| Fixture | CER (raw Tesseract) | CER (screenshot path) | Notes |
+|---------|--------------------|-----------------------|-------|
+| scan-clean | 0.0% | [run after Phase 1] | Regression gate: must be ≤ raw |
+| photo-printed | 0.0% | [run after Phase 1] | |
+| photo-lowres | 1.4% | [run after Phase 1] | |
+| screenshot-light | — | [run after Garrick adds PNG] | Goal: ≤ 0.5% |
+| screenshot-dark | — | [run after Garrick adds PNG] | Goal: ≤ 0.5% |
+| screenshot-small-text | — | [run after Garrick adds PNG] | Goal: ≤ 1.0% |
+| screenshot-code | — | [run after Garrick adds PNG] | Goal: ≤ 1.0% |
+
+Regression gate: if any existing fixture's CER under the new path exceeds its
+raw Tesseract baseline, report before merging.
