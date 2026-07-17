@@ -462,7 +462,7 @@ All 13 are confirmed builds. The ffmpeg.wasm implementation for each is a one-li
 
 | Converter | Verdict | Est. Monthly Searches |
 |---|---|---|
-| webm-to-mp4 | **Build.** High volume, trivial ffmpeg.wasm, clean competitor gap | 180,000 (estimated) |
+| webm-to-mp4 | ✅ **Done** (2026-07-17) | 180,000 (estimated) |
 | mov-to-mp4 | ✅ **Done** (2026-07-17) | 450,000 (estimated) |
 | avi-to-mp4 | **Build.** Legacy format with ongoing demand from old camcorder users | 160,000 (estimated) |
 | mkv-to-mp4 | **Build.** Stream-copy path is near-instant — unique advantage | 140,000 (estimated) |
