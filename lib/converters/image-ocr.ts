@@ -4,7 +4,7 @@ import { detectLines } from '@/lib/ocr/line-detector'
 import { correctWords } from '@/lib/ocr/correction-client'
 import type { ConversionResult, OcrWordMeta, OcrResultMeta, ToolOptions } from '@/lib/types'
 import * as XLSX from 'xlsx'
-import { detectColumnBoundaries, detectRowBoundaries } from '@/lib/ocr/column-detector'
+import { detectColumnBoundaries, detectRowBoundaries, deskewBlob } from '@/lib/ocr/column-detector'
 import { diagLog, diagError, diagMemory } from '@/lib/debug/mobile-diagnostics'
 
 interface TrOcrLineResult {
@@ -266,30 +266,38 @@ async function recognizeTablePerCell(
   lang: string,
   colBounds: number[],
   rowBounds: number[],
-): Promise<string[][] | null> {
+): Promise<{ grid: string[][], confidence: number[][] } | null> {
   if (typeof OffscreenCanvas === 'undefined') return null
   const bitmap = await createImageBitmap(binaryBlob)
   const colEdges = [0, ...colBounds, imageWidth]
   const rowEdges = rowBounds
   const grid: string[][] = []
+  const confidence: number[][] = []
 
   for (let r = 0; r < rowEdges.length - 1; r++) {
     const cy = rowEdges[r]
     const ch = rowEdges[r + 1] - cy
     if (ch < 4) continue
     const rowCells: string[] = []
+    const rowConf: number[] = []
     for (let c = 0; c < colEdges.length - 1; c++) {
       const cx = colEdges[c]
       const cw = colEdges[c + 1] - cx
       if (cw < 4) {
         rowCells.push('')   // preserve column position — don't skip
+        rowConf.push(100)
         continue
       }
       const cellBlob = await cropToBlob(bitmap, cx, cy, cw, ch)
-      const result = await recognizePage(cellBlob, lang, { oem: 1, psm: 7 })
+      // PSM 6 (uniform block) supports multi-line wrapped cells; PSM 7 (single line) misses them
+      const result = await recognizePage(cellBlob, lang, { oem: 1, psm: 6 })
       rowCells.push((result.text ?? '').trim())
+      rowConf.push(result.confidence ?? 100)
     }
-    if (rowCells.length > 0) grid.push(rowCells)
+    if (rowCells.length > 0) {
+      grid.push(rowCells)
+      confidence.push(rowConf)
+    }
   }
 
   bitmap.close()
@@ -297,11 +305,11 @@ async function recognizeTablePerCell(
 
   // Pad every row to the same column count so no value shifts left
   const maxCols = Math.max(...grid.map(r => r.length))
-  for (const row of grid) {
-    while (row.length < maxCols) row.push('')
+  for (let r = 0; r < grid.length; r++) {
+    while (grid[r].length < maxCols) { grid[r].push(''); confidence[r].push(100) }
   }
 
-  return grid
+  return { grid, confidence }
 }
 
 function gridToExcel(grid: string[][], sheetName: string): Uint8Array {
@@ -707,6 +715,25 @@ function parseToExcel(text: string, sheetName: string, words?: OcrWordMeta[], fo
   return new Uint8Array(buf)
 }
 
+// Estimate skew angle (radians) from word baseline regression.
+// Returns 0 if fewer than 6 words have bboxes or angle is outside 0.5–8°.
+function estimateSkewAngle(words: OcrWordMeta[]): number {
+  const pts = words
+    .filter(w => w.bbox)
+    .map(w => ({ x: (w.bbox!.x0 + w.bbox!.x1) / 2, y: w.bbox!.y1 }))
+  if (pts.length < 6) return 0
+  const n = pts.length
+  let sX = 0, sY = 0, sXY = 0, sX2 = 0
+  for (const { x, y } of pts) { sX += x; sY += y; sXY += x * y; sX2 += x * x }
+  const denom = n * sX2 - sX * sX
+  if (Math.abs(denom) < 1e-6) return 0
+  const slope = (n * sXY - sX * sY) / denom
+  const angle = Math.atan(slope)
+  const DEG = Math.PI / 180
+  if (Math.abs(angle) < 0.5 * DEG || Math.abs(angle) > 8 * DEG) return 0
+  return angle
+}
+
 // ── Main converter ────────────────────────────────────────────────────────────
 
 export type OcrMode =
@@ -996,15 +1023,34 @@ export async function imageOcrConvert(
         }
       }
 
+      // Deskew: estimate rotation from word baselines and correct before pixel-based
+      // column/row detection. Tesseract handles mild skew in text extraction, but the
+      // pixel-based column detector is not skew-tolerant — a 2° tilt shifts columns.
+      let deskewedBlob: Blob | undefined
+      if ((mode === 'excel' || mode === 'table-csv') && pageWords.some(w => w.bbox)) {
+        const skewAngle = estimateSkewAngle(pageWords)
+        if (skewAngle !== 0) {
+          try {
+            deskewedBlob = await deskewBlob(blob, skewAngle)
+            diagLog('deskew', `angle=${(skewAngle * 180 / Math.PI).toFixed(2)}deg`)
+          } catch {
+            // non-fatal: column detection proceeds on original
+          }
+        }
+      }
+
       // Detect column boundaries from image pixels for table/excel modes.
       // Tries Hough gridline detection first, then vertical projection profile.
       // If neither finds signal, parseTableFromWords uses word-gap voting.
       let detectedColBoundaries: number[] | undefined
       let perCellGrid: string[][] | null = null
+      let perCellConfidence: number[][] | null = null
       if (mode === 'excel' || mode === 'table-csv') {
         try {
-          const layoutBlobForCols = useAi
-            ? await preprocessForOcr(blob)
+          // Use deskewed blob if available; preprocess fresh since binaryPreprocessed
+          // was derived from the original (pre-deskew) blob.
+          const layoutBlobForCols = deskewedBlob
+            ? await preprocessForOcr(deskewedBlob)
             : (binaryPreprocessed ?? await preprocessForOcr(blob))
           const bmp = await createImageBitmap(layoutBlobForCols)
           const W = bmp.width
@@ -1016,8 +1062,11 @@ export async function imageOcrConvert(
           // Attempt per-cell OCR: detect row boundaries → crop + OCR each cell
           const rows = await detectRowBoundaries(layoutBlobForCols, W, H)
           if (cols && rows) {
-            const rawGrid = await recognizeTablePerCell(layoutBlobForCols, W, H, lang, cols, rows)
-            if (rawGrid) perCellGrid = correctNumericGrid(rawGrid)
+            const perCellResult = await recognizeTablePerCell(layoutBlobForCols, W, H, lang, cols, rows)
+            if (perCellResult) {
+              perCellGrid = correctNumericGrid(perCellResult.grid)
+              perCellConfidence = perCellResult.confidence
+            }
           }
         } catch (colErr) {
           console.warn('[column-detector] Detection failed, using word-gap voting:', colErr)
@@ -1100,7 +1149,24 @@ export async function imageOcrConvert(
           const csv = perCellGrid
             ? perCellGrid.map(row => row.map(cell => `"${cell.replace(/"/g, '""')}"`).join(',')).join('\n')
             : parseTableText(text, pageWords, detectedColBoundaries)
-          outFile = new File([csv], `${baseName}.csv`, { type: 'text/csv' })
+          // Prepend UTF-8 BOM so Excel auto-detects encoding for non-ASCII content
+          const bom = /[^\x00-\x7F]/.test(csv) ? '﻿' : ''
+          outFile = new File([bom + csv], `${baseName}.csv`, { type: 'text/csv' })
+          // Build ocrMeta so the review panel can flag low-confidence cells
+          if (perCellGrid && perCellConfidence) {
+            const words: OcrResultMeta['words'] = []
+            for (let r = 0; r < perCellGrid.length; r++) {
+              for (let c = 0; c < perCellGrid[r].length; c++) {
+                const cellText = perCellGrid[r][c]
+                const conf = perCellConfidence[r][c] ?? 100
+                words.push({ text: cellText || '(empty)', confidence: conf })
+              }
+            }
+            const lines = perCellGrid.map(row => row.join('\t'))
+            results.push({ file: outFile, ocrMeta: { kind: 'ocr', words, lines, sourceIndex: i } })
+            onProgress?.(i, 100)
+            continue
+          }
           break
         }
         case 'excel': {

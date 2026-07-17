@@ -275,3 +275,31 @@ export async function detectRowBoundaries(
   bounds.push(imageHeight)
   return bounds.length >= 4 ? bounds : null
 }
+
+/**
+ * Rotate a blob by -angleRad to correct skew.
+ * Uses diagonal-sized canvas to avoid clipping corners, then crops back.
+ * Returns original blob if OffscreenCanvas unavailable or angle is negligible.
+ */
+export async function deskewBlob(blob: Blob, angleRad: number): Promise<Blob> {
+  if (typeof OffscreenCanvas === 'undefined' || Math.abs(angleRad) < 0.0002) return blob
+  const bmp = await createImageBitmap(blob)
+  const W = bmp.width
+  const H = bmp.height
+  const cos = Math.abs(Math.cos(angleRad))
+  const sin = Math.abs(Math.sin(angleRad))
+  const newW = Math.ceil(W * cos + H * sin)
+  const newH = Math.ceil(W * sin + H * cos)
+  const canvas = new OffscreenCanvas(newW, newH)
+  const ctx = canvas.getContext('2d')
+  if (!ctx) { bmp.close(); return blob }
+  ctx.fillStyle = '#ffffff'
+  ctx.fillRect(0, 0, newW, newH)
+  ctx.save()
+  ctx.translate(newW / 2, newH / 2)
+  ctx.rotate(-angleRad)
+  ctx.drawImage(bmp, -W / 2, -H / 2)
+  ctx.restore()
+  bmp.close()
+  return canvas.convertToBlob({ type: 'image/png' })
+}
