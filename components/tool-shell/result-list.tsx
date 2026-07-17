@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Download, Archive, CheckCircle2, XCircle, Loader2, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
@@ -11,13 +11,14 @@ import type { FileEntry } from '@/lib/types'
 interface ResultListProps {
   entries: FileEntry[]
   zipName?: string
+  resultMode?: 'per-file' | 'combined-output'
 }
 
 const ROW_H = 72
 const VIRTUALIZE_AT = 50
 const MAX_LIST_H = 480
 
-export function ResultList({ entries, zipName = 'convertyard.zip' }: ResultListProps) {
+export function ResultList({ entries, zipName = 'convertyard.zip', resultMode = 'per-file' }: ResultListProps) {
   const parentRef = useRef<HTMLDivElement>(null)
   const [zipping, setZipping] = useState(false)
   const useVirt = entries.length > VIRTUALIZE_AT
@@ -52,6 +53,16 @@ export function ResultList({ entries, zipName = 'convertyard.zip' }: ResultListP
     } finally {
       setZipping(false)
     }
+  }
+
+  if (resultMode === 'combined-output') {
+    return (
+      <CombinedOutputResult
+        entries={entries}
+        resultEntry={succeeded[0]}
+        failedCount={failed.length}
+      />
+    )
   }
 
   return (
@@ -141,6 +152,139 @@ export function ResultList({ entries, zipName = 'convertyard.zip' }: ResultListP
       </div>
     </div>
   )
+}
+
+function CombinedOutputResult({
+  entries,
+  resultEntry,
+  failedCount,
+}: {
+  entries: FileEntry[]
+  resultEntry?: FileEntry
+  failedCount: number
+}) {
+  const result = resultEntry?.result
+  const objectUrl = useObjectUrl(result)
+  const sourceCount = entries.length
+  const sourceBytes = entries.reduce((sum, entry) => sum + entry.file.size, 0)
+  const canPreview = Boolean(result?.type.startsWith('image/') && objectUrl)
+
+  if (!result) {
+    const firstError = entries.find((entry) => entry.status === 'error')?.error
+    return (
+      <div className="rounded-lg border border-border bg-bg-elevated p-4">
+        <div className="flex items-start gap-3">
+          <XCircle className="mt-0.5 h-4 w-4 shrink-0 text-error" aria-hidden="true" />
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-fg">Animated GIF could not be created</p>
+            <p className="mt-1 text-xs text-error">
+              {firstError ?? `${failedCount || sourceCount} file${sourceCount !== 1 ? 's' : ''} failed.`}
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-semibold text-fg">
+            Animated GIF created from {sourceCount} PNG file{sourceCount !== 1 ? 's' : ''}
+          </p>
+          <p className="text-xs text-fg-muted">
+            {formatBytes(sourceBytes)} source sequence → {formatBytes(result.size)} GIF
+          </p>
+        </div>
+
+        <a
+          href={objectUrl ?? '#'}
+          download={result.name}
+          data-testid="download-combined-output"
+          onClick={(event) => {
+            if (objectUrl) return
+            event.preventDefault()
+            downloadFile(result)
+          }}
+          className={cn(
+            'flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5',
+            'bg-primary text-primary-fg text-sm font-medium',
+            'transition-colors hover:bg-primary-hover',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+          )}
+          aria-label={`Download ${result.name}`}
+        >
+          <Download className="h-4 w-4" aria-hidden="true" />
+          Download GIF
+        </a>
+      </div>
+
+      <div className="overflow-hidden rounded-lg border border-border bg-bg-elevated">
+        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
+          <div className="flex h-36 w-full items-center justify-center overflow-hidden rounded-md border border-border bg-bg-muted sm:w-48">
+            {canPreview ? (
+              <img
+                src={objectUrl ?? undefined}
+                alt={`Preview of ${result.name}`}
+                className="max-h-full max-w-full object-contain"
+              />
+            ) : (
+              <span className="text-xs text-fg-muted">Preview unavailable</span>
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+              <span className="truncate text-sm font-medium text-fg" title={result.name}>
+                {result.name}
+              </span>
+            </div>
+            <p className="mt-1 text-xs text-fg-muted">
+              {sourceCount} frame{sourceCount !== 1 ? 's' : ''} · {formatBytes(result.size)}
+            </p>
+          </div>
+
+          <a
+            href={objectUrl ?? '#'}
+            download={result.name}
+            onClick={(event) => {
+              if (objectUrl) return
+              event.preventDefault()
+              downloadFile(result)
+            }}
+            className={cn(
+              'flex shrink-0 items-center justify-center h-9 w-9 rounded-lg',
+              'border border-border text-fg-muted transition-colors',
+              'hover:border-primary hover:text-primary hover:bg-bg-muted',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+            )}
+            aria-label={`Download ${result.name}`}
+          >
+            <Download className="h-4 w-4" aria-hidden="true" />
+          </a>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function useObjectUrl(file?: File) {
+  const [url, setUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!file) {
+      setUrl(null)
+      return
+    }
+
+    const nextUrl = URL.createObjectURL(file)
+    setUrl(nextUrl)
+    return () => URL.revokeObjectURL(nextUrl)
+  }, [file])
+
+  return url
 }
 
 function ResultRow({ entry }: { entry: FileEntry }) {

@@ -139,6 +139,7 @@ export interface ToolConfig {
   accepts: string[]       // MIME types, e.g. ['image/jpeg']
   acceptsExt: string[]    // display extensions, e.g. ['.jpg', '.jpeg']
   outputExt: string       // e.g. '.webp'
+  resultMode?: 'per-file' | 'combined-output'
   convertFn: (
     files: File[],
     options: ToolOptions,

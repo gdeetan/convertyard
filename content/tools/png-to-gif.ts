@@ -9,6 +9,7 @@ export const config: ToolConfig = {
   accepts: ['image/png'],
   acceptsExt: ['.png'],
   outputExt: '.gif',
+  resultMode: 'combined-output',
   convertFn: (files, opts, onProgress) => gifConvert(files, opts, onProgress),
   limitationNote: {
     summary: 'PNG transparency becomes binary in GIF',

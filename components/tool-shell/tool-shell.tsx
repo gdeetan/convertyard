@@ -45,7 +45,7 @@ type Action =
   | { type: 'SET_RESULT'; fileIndex: number; result: File; resultMeta?: CompressionMeta; ocrMeta?: OcrResultMeta }
   | { type: 'SET_ERROR'; fileIndex: number; error: string }
   | { type: 'START_CONVERTING' }
-  | { type: 'FINISH' }
+  | { type: 'FINISH'; resultMode?: ToolConfig['resultMode'] }
   | { type: 'RESET' }
   | { type: 'EDIT_RESULT'; fileIndex: number; newFile: File }
 
@@ -124,6 +124,13 @@ function reducer(state: State, action: Action): State {
       const done = state.entries.filter((e) => e.status === 'done').length
       const failed = state.entries.filter((e) => e.status === 'error').length
       const total = state.entries.length
+      if (action.resultMode === 'combined-output') {
+        const msg =
+          failed === 0 && done > 0
+            ? `Done. 1 animated GIF created from ${total} PNG file${total > 1 ? 's' : ''}.`
+            : `Done. Animated GIF creation failed.`
+        return { ...state, phase: 'done', announcement: msg }
+      }
       const msg =
         failed === 0
           ? `Done. ${done} file${done > 1 ? 's' : ''} ready to download.`
@@ -235,7 +242,7 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions,
         dispatch({ type: 'SET_RESULT', fileIndex: i, result: r.file, resultMeta: r.meta })
       }
     }
-    dispatch({ type: 'FINISH' })
+    dispatch({ type: 'FINISH', resultMode: config.resultMode })
     const anySucceeded = results.some((r) => !(r instanceof Error))
     if (anySucceeded) record(config.slug, config.title)
     if (onResults) {
@@ -432,7 +439,7 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions,
                 }
               />
             )}
-            <ResultList entries={entries} zipName={zipName} />
+            <ResultList entries={entries} zipName={zipName} resultMode={config.resultMode} />
             <div className="border-t border-border pt-4">
               <button
                 type="button"
