@@ -50,6 +50,38 @@ function wer(predicted, groundTruth) {
   return 1 - Math.min(matched, gWords.length) / gWords.length
 }
 
+/**
+ * Compare a predicted CSV string against ground-truth CSV.
+ * Returns { cellAccuracy, colAlignAccuracy }.
+ * cellAccuracy = fraction of cells with exactly correct text (after trim).
+ * colAlignAccuracy = fraction of ground-truth cell values that appear somewhere in the same predicted row.
+ */
+export function csvAccuracy(predicted, groundTruth) {
+  const parseCSV = (s) =>
+    s.trim().split('\n').map(line =>
+      line.split(',').map(cell => cell.replace(/^"|"$/g, '').replace(/""/g, '"').trim())
+    )
+  const pred = parseCSV(predicted)
+  const truth = parseCSV(groundTruth)
+  const maxCols = Math.max(...[...pred, ...truth].map(r => r.length))
+  let total = 0, correct = 0, colAligned = 0
+
+  for (let r = 0; r < Math.min(pred.length, truth.length); r++) {
+    for (let c = 0; c < maxCols; c++) {
+      const p = pred[r]?.[c]?.toLowerCase() ?? ''
+      const t = truth[r]?.[c]?.toLowerCase() ?? ''
+      total++
+      if (p === t) correct++
+      if (t && pred[r]?.some(cell => cell.toLowerCase() === t)) colAligned++
+    }
+  }
+
+  return {
+    cellAccuracy: total > 0 ? (correct / total) : 0,
+    colAlignAccuracy: total > 0 ? (colAligned / total) : 0,
+  }
+}
+
 // ── Dictionary correction (basic, for --correct mode) ────────────────────────
 
 const CONFUSION_PAIRS = [
