@@ -1205,52 +1205,84 @@ export async function imageOcrConvert(
         try {
           const { detectTableStructure, buildGridCells } = await import('@/lib/ocr/table-structure-client')
           onProgress?.(i, 35)
-          const detections = await detectTableStructure(blob, p => onProgress?.(i, 35 + Math.round(p * 0.3)))
+          const detections = await detectTableStructure(blob, p => onProgress?.(i, 35 + Math.round(p * 0.15)))
           const cells = buildGridCells(detections)
 
           if (cells.length > 0 && typeof OffscreenCanvas !== 'undefined') {
-            const bitmap = await createImageBitmap(blob)
-            const numericColsForWhitelist = new Set<number>()
-            const rawGrid: Map<string, string> = new Map()
-            const rawConf: Map<string, number> = new Map()
+            onProgress?.(i, 50)
+
+            // Single full-page OCR pass — PSM 11 (sparse text) returns all word positions
+            // without imposing reading order; TATR cell bboxes handle the structure.
+            const layoutResult = await recognizePage(blob, lang, { oem: 1, psm: 11 })
+            const pageWords = layoutResult.words.filter(w => w.bbox && w.text.trim())
+            const assignments = assignWordsToCells(pageWords, cells)
+
             let maxRow = 0
             let maxCol = 0
-
             for (const cell of cells) {
-              const w = Math.round(cell.xmax - cell.xmin)
-              const h = Math.round(cell.ymax - cell.ymin)
-              if (w < 4 || h < 4) continue
-              const cellBlob = await cropToBlob(bitmap, Math.round(cell.xmin), Math.round(cell.ymin), w, h)
-              const result = await recognizePage(cellBlob, lang, { oem: 1, psm: 6 })
-              rawGrid.set(`${cell.row},${cell.col}`, (result.text ?? '').trim())
-              rawConf.set(`${cell.row},${cell.col}`, result.confidence ?? 100)
               maxRow = Math.max(maxRow, cell.row)
               maxCol = Math.max(maxCol, cell.col)
             }
-            bitmap.close()
 
-            // Build 2D grid
-            const grid: string[][] = Array.from({ length: maxRow + 1 }, (_, r) =>
-              Array.from({ length: maxCol + 1 }, (_, c) => rawGrid.get(`${r},${c}`) ?? '')
+            const grid: string[][] = Array.from({ length: maxRow + 1 }, () =>
+              Array.from({ length: maxCol + 1 }, () => '')
             )
-            const conf: number[][] = Array.from({ length: maxRow + 1 }, (_, r) =>
-              Array.from({ length: maxCol + 1 }, (_, c) => rawConf.get(`${r},${c}`) ?? 100)
+            const conf: number[][] = Array.from({ length: maxRow + 1 }, () =>
+              Array.from({ length: maxCol + 1 }, () => 100)
             )
 
-            // Whitelist retry: re-OCR numeric column cells to prevent letter↔digit errors
+            for (const [key, assignment] of assignments) {
+              const [r, c] = key.split(',').map(Number)
+              if (r <= maxRow && c <= maxCol) {
+                grid[r][c] = assignment.text
+                conf[r][c] = assignment.confidence
+              }
+            }
+
+            onProgress?.(i, 65)
+
+            // Targeted per-cell retry: only empty cells or low-confidence assignments
+            const RETRY_CONF_THRESHOLD = 70
+            const retryCells = cells.filter(cell => {
+              const val = grid[cell.row][cell.col]
+              const cellConf = conf[cell.row][cell.col]
+              return val === '' || cellConf < RETRY_CONF_THRESHOLD
+            })
+
+            if (retryCells.length > 0) {
+              const bitmap = await createImageBitmap(blob)
+              for (const cell of retryCells) {
+                const cw = Math.round(cell.xmax - cell.xmin)
+                const ch = Math.round(cell.ymax - cell.ymin)
+                if (cw < 4 || ch < 4) continue
+                const cellBlob = await cropToBlob(bitmap, Math.round(cell.xmin), Math.round(cell.ymin), cw, ch)
+                const result = await recognizePage(cellBlob, lang, { oem: 1, psm: 6 })
+                grid[cell.row][cell.col] = (result.text ?? '').trim()
+                conf[cell.row][cell.col] = result.confidence ?? 100
+              }
+              bitmap.close()
+            }
+
+            onProgress?.(i, 80)
+
+            // Smarter whitelist retry: only numeric cells that look wrong OR low-confidence
             const numericCols = classifyColumns(grid)
-            numericCols.forEach((isNum, c) => { if (isNum) numericColsForWhitelist.add(c) })
+            const needsWhitelistRetry = cells.filter(cell => {
+              if (!numericCols[cell.col]) return false
+              const val = grid[cell.row][cell.col]
+              const cellConf = conf[cell.row][cell.col]
+              return val !== '' && (!isNumericish(val) || cellConf < 80)
+            })
 
-            if (numericColsForWhitelist.size > 0) {
+            if (needsWhitelistRetry.length > 0) {
               const bmp2 = await createImageBitmap(blob)
-              for (const cell of cells) {
-                if (!numericColsForWhitelist.has(cell.col)) continue
-                const w = Math.round(cell.xmax - cell.xmin)
-                const h = Math.round(cell.ymax - cell.ymin)
-                if (w < 4 || h < 4) continue
-                const cellBlob = await cropToBlob(bmp2, Math.round(cell.xmin), Math.round(cell.ymin), w, h)
+              for (const cell of needsWhitelistRetry) {
+                const cw = Math.round(cell.xmax - cell.xmin)
+                const ch = Math.round(cell.ymax - cell.ymin)
+                if (cw < 4 || ch < 4) continue
+                const cellBlob = await cropToBlob(bmp2, Math.round(cell.xmin), Math.round(cell.ymin), cw, ch)
                 const result = await recognizePage(cellBlob, lang, { oem: 1, psm: 6, whitelist: NUMERIC_WHITELIST })
-                if ((result.confidence ?? 0) >= (conf[cell.row]?.[cell.col] ?? 0)) {
+                if ((result.confidence ?? 0) >= (conf[cell.row][cell.col] ?? 0)) {
                   grid[cell.row][cell.col] = (result.text ?? '').trim()
                   conf[cell.row][cell.col] = result.confidence ?? 100
                 }
