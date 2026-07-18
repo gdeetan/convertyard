@@ -107,6 +107,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'mp4-to-webm', title: 'MP4 to WebM',  description: 'Convert MP4 to WebM for web delivery. VP9 video, Opus audio. Batch, no uploads.', category: 'video-audio', status: 'live' },
   { slug: 'mp3-to-aac',  title: 'MP3 to AAC',   description: 'Convert MP3 to AAC at 192 kbps. Native on Apple devices. Batch, no uploads.', category: 'video-audio', status: 'live' },
   { slug: 'mp4-to-mov',  title: 'MP4 to MOV',   description: 'Convert MP4 to MOV. Stream copy — no re-encode, no quality loss, near-instant.', category: 'video-audio', status: 'live' },
+  { slug: 'video-trimmer', title: 'Video Trimmer', description: 'Trim MP4, MOV, MKV, WebM clips in your browser. Fast mode is instant — no re-encode.', category: 'video-audio', status: 'live' },
 
   // Developer — all coming soon
   { slug: 'json-formatter', title: 'JSON Formatter',         description: 'Format, validate, and minify JSON.', category: 'developer', status: 'live' },
