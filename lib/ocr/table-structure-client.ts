@@ -39,6 +39,9 @@ export function buildGridCells(detections: TatrDetection[]): TableCellBBox[] {
 
 let tatrWorker: Worker | null = null
 let tatrReady = false
+let tatrInitializing = false
+const tatrInitQueue: Array<() => void> = []
+const tatrRejectQueue: Array<(err: Error) => void> = []
 
 export function detectTableStructure(
   imageBlob: Blob,
@@ -53,9 +56,23 @@ export function detectTableStructure(
           { type: 'module' }
         )
         tatrReady = false
-        tatrWorker.addEventListener('error', () => { tatrWorker = null; tatrReady = false })
+        tatrInitializing = false
+        // Reset both queues when worker is replaced
+        tatrInitQueue.length = 0
+        tatrRejectQueue.length = 0
+        tatrWorker.addEventListener('error', () => {
+          // Worker crashed at OS/browser level — drain all waiting callers
+          const err = new Error('TATR worker crashed')
+          for (const rej of tatrRejectQueue) rej(err)
+          tatrInitQueue.length = 0
+          tatrRejectQueue.length = 0
+          tatrWorker = null
+          tatrReady = false
+          tatrInitializing = false
+        })
       }
 
+      // w is a snapshot so removeEventListener calls work even after tatrWorker is reset
       const w = tatrWorker
       const id = crypto.randomUUID()
 
@@ -70,13 +87,19 @@ export function detectTableStructure(
           catch { resolve([]) }
         } else if (d.type === 'error') {
           w.removeEventListener('message', inferHandler)
-          tatrWorker = null; tatrReady = false
+          // Remove this call's reject from the queue so onerror won't double-call it
+          const idx = tatrRejectQueue.indexOf(reject)
+          if (idx !== -1) tatrRejectQueue.splice(idx, 1)
+          tatrWorker = null; tatrReady = false; tatrInitializing = false
           reject(new Error(d.message as string))
         }
       }
       w.addEventListener('message', inferHandler)
 
       const doInfer = () => {
+        // Remove from reject queue — this call is now actively inferring
+        const idx = tatrRejectQueue.indexOf(reject)
+        if (idx !== -1) tatrRejectQueue.splice(idx, 1)
         imageBlob.arrayBuffer().then(buffer => {
           w.postMessage(
             { type: 'infer', id, modelType: 'table-structure', buffer, mimeType: imageBlob.type || 'image/png', opts: {} },
@@ -88,19 +111,35 @@ export function detectTableStructure(
       if (tatrReady) {
         doInfer()
       } else {
-        const readyHandler = (e: MessageEvent) => {
-          if (e.data.type === 'model-ready' && e.data.modelType === 'table-structure') {
-            w.removeEventListener('message', readyHandler)
-            tatrReady = true
-            doInfer()
-          } else if (e.data.type === 'error' && !e.data.id) {
-            w.removeEventListener('message', readyHandler)
-            tatrWorker = null; tatrReady = false
-            reject(new Error(e.data.message as string))
+        // Track this caller's reject for onerror recovery
+        tatrRejectQueue.push(reject)
+        if (!tatrInitializing) {
+          // First caller to request init — send load and set up shared readyHandler
+          tatrInitializing = true
+          const readyHandler = (e: MessageEvent) => {
+            if (e.data.type === 'model-ready' && e.data.modelType === 'table-structure') {
+              w.removeEventListener('message', readyHandler)
+              tatrReady = true
+              tatrInitializing = false
+              // Drain all queued callers
+              const queued = tatrInitQueue.splice(0)
+              doInfer()
+              for (const fn of queued) fn()
+            } else if (e.data.type === 'error' && !e.data.id) {
+              w.removeEventListener('message', readyHandler)
+              const err = new Error(e.data.message as string)
+              const rejects = tatrRejectQueue.splice(0)
+              tatrInitQueue.length = 0
+              tatrWorker = null; tatrReady = false; tatrInitializing = false
+              for (const rej of rejects) rej(err)
+            }
           }
+          w.addEventListener('message', readyHandler)
+          w.postMessage({ type: 'load', modelType: 'table-structure' })
+        } else {
+          // Init already in flight — queue this caller's doInfer for when ready fires
+          tatrInitQueue.push(doInfer)
         }
-        w.addEventListener('message', readyHandler)
-        w.postMessage({ type: 'load', modelType: 'table-structure' })
       }
     })
   })
