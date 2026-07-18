@@ -110,6 +110,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'video-trimmer', title: 'Video Trimmer', description: 'Trim MP4, MOV, MKV, WebM clips in your browser. Fast mode is instant — no re-encode.', category: 'video-audio', status: 'live' },
   { slug: 'video-muter', title: 'Mute Video', description: 'Remove the audio track from any video. Stream-copied — instant, no re-encode.', category: 'video-audio', status: 'live' },
   { slug: 'rotate-video', title: 'Rotate Video', description: 'Fix sideways phone recordings — rotate 90°, 180°, or flip. Batch, no uploads.', category: 'video-audio', status: 'live' },
+  { slug: 'ringtone-maker', title: 'Ringtone Maker', description: 'Cut any song to an iPhone ringtone (.m4r). Set start and end time, download instantly.', category: 'video-audio', status: 'live' },
 
   // Developer — all coming soon
   { slug: 'json-formatter', title: 'JSON Formatter',         description: 'Format, validate, and minify JSON.', category: 'developer', status: 'live' },
