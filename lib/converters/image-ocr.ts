@@ -1,4 +1,5 @@
-import { recognizePage, terminateOcrWorker, type OcrOptions, type OcrPageResult } from '@/lib/ocr/tesseract-client'
+import { recognizePage, terminateOcrWorker, type OcrOptions, type OcrPageResult, type OcrWord } from '@/lib/ocr/tesseract-client'
+import type { TableCellBBox } from '@/lib/ocr/table-structure-client'
 import { preprocessForOcr, preprocessForOcrDual, preprocessForScreenshot } from '@/lib/ocr/preprocessing'
 import { detectLines } from '@/lib/ocr/line-detector'
 import { correctWords } from '@/lib/ocr/correction-client'
@@ -304,6 +305,57 @@ export function correctTableCells(grid: string[][], colIsNumeric: boolean[]): st
     }
   }
   return grid
+}
+
+interface WordAssignment {
+  text: string
+  confidence: number
+}
+
+/**
+ * Assigns OCR words to TATR cell bounding boxes by word-center containment.
+ * Words whose center falls outside all cells are assigned to the nearest cell.
+ * Returns a Map keyed by "row,col".
+ */
+export function assignWordsToCells(
+  words: OcrWord[],
+  cells: TableCellBBox[],
+): Map<string, WordAssignment> {
+  const wordGroups = new Map<string, OcrWord[]>()
+
+  for (const word of words) {
+    if (!word.bbox || !word.text.trim()) continue
+
+    const cx = (word.bbox.x0 + word.bbox.x1) / 2
+    const cy = (word.bbox.y0 + word.bbox.y1) / 2
+
+    let target = cells.find(c => cx >= c.xmin && cx <= c.xmax && cy >= c.ymin && cy <= c.ymax)
+
+    if (!target && cells.length > 0) {
+      let minDist = Infinity
+      for (const c of cells) {
+        const dist = Math.hypot(cx - (c.xmin + c.xmax) / 2, cy - (c.ymin + c.ymax) / 2)
+        if (dist < minDist) { minDist = dist; target = c }
+      }
+    }
+
+    if (!target) continue
+
+    const key = `${target.row},${target.col}`
+    const existing = wordGroups.get(key)
+    if (existing) existing.push(word)
+    else wordGroups.set(key, [word])
+  }
+
+  const result = new Map<string, WordAssignment>()
+  for (const [key, ws] of wordGroups) {
+    const sorted = ws.slice().sort((a, b) => a.bbox!.x0 - b.bbox!.x0)
+    result.set(key, {
+      text: sorted.map(w => w.text).join(' ').trim(),
+      confidence: sorted.reduce((s, w) => s + w.confidence, 0) / sorted.length,
+    })
+  }
+  return result
 }
 
 async function recognizeTablePerCell(
