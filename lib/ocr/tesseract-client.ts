@@ -35,15 +35,34 @@ export interface OcrOptions {
 
 let workerInstance: Tesseract.Worker | null = null
 let currentLang: string | null = null
+let currentHardKey: string | null = null
 let currentOpts: string | null = null
 
 async function getWorker(lang: string, opts: OcrOptions): Promise<Tesseract.Worker> {
-  const optsKey = `${lang}:oem${opts.oem ?? 1}:psm${opts.psm ?? 3}:dpi${opts.dpi ?? 0}:sp${opts.preserveSpaces ? 1 : 0}:wl${opts.whitelist ?? ''}`
-  if (workerInstance && currentLang === lang && currentOpts === optsKey) return workerInstance
+  // Hard key: params that require a new worker (engine init, lang pack load)
+  const hardKey = `${lang}:oem${opts.oem ?? 1}:dpi${opts.dpi ?? 0}:sp${opts.preserveSpaces ? 1 : 0}`
+  // Soft key: params updatable on a live worker via setParameters
+  const softKey = `psm${opts.psm ?? 3}:wl${opts.whitelist ?? ''}`
+  const fullKey = `${hardKey}:${softKey}`
+
+  if (workerInstance && currentHardKey === hardKey) {
+    if (currentOpts !== fullKey) {
+      // Update PSM and whitelist without recreating the worker
+      await workerInstance.setParameters({
+        tessedit_pageseg_mode: opts.psm ?? 3,
+        tessedit_char_whitelist: opts.whitelist ?? '',
+      } as Record<string, unknown>)
+      currentOpts = fullKey
+    }
+    return workerInstance
+  }
+
+  // Hard key changed — recreate worker
   if (workerInstance) {
     await workerInstance.terminate()
     workerInstance = null
   }
+
   try {
     diagLog('tesseract-worker-create', lang)
     diagMemory('before-tesseract-worker')
@@ -56,12 +75,14 @@ async function getWorker(lang: string, opts: OcrOptions): Promise<Tesseract.Work
       ...(opts.whitelist ? { tessedit_char_whitelist: opts.whitelist } : {}),
     } as Record<string, unknown>)
     currentLang = lang
-    currentOpts = optsKey
+    currentHardKey = hardKey
+    currentOpts = fullKey
     diagLog('tesseract-worker-ready', lang)
   } catch (err) {
     diagError('tesseract-worker-create-fail', err)
     workerInstance = null
     currentLang = null
+    currentHardKey = null
     currentOpts = null
     throw err
   }
@@ -108,6 +129,7 @@ export async function recognizePage(
     const w = workerInstance
     workerInstance = null
     currentLang = null
+    currentHardKey = null
     currentOpts = null
     await w?.terminate()
     throw err
@@ -119,6 +141,7 @@ export async function terminateOcrWorker(): Promise<void> {
     await workerInstance.terminate()
     workerInstance = null
     currentLang = null
+    currentHardKey = null
     currentOpts = null
   }
 }
