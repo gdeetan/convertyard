@@ -1252,3 +1252,485 @@ export async function trimAudio(
 
   return results
 }
+
+export async function trimVideo(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  const startTime = typeof options.startTime === 'number' && options.startTime > 0 ? options.startTime : null
+  const endTime   = typeof options.endTime   === 'number' && options.endTime   > 0 ? options.endTime   : null
+  const precise   = options.precise === true
+
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const ext = file.name.split('.').pop() ?? 'mp4'
+      const inputName  = `tv_in_${i}.${ext}`
+      const outputName = `tv_out_${i}.${ext}`
+
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+
+      if (startTime !== null && endTime !== null && startTime >= endTime) {
+        throw new Error(`Start time (${startTime}s) must be less than end time (${endTime}s).`)
+      }
+
+      let args: string[]
+      if (precise) {
+        // Input-seeking after -i for frame-accurate cuts (requires re-encode)
+        const timeArgs: string[] = []
+        if (startTime !== null) timeArgs.push('-ss', String(startTime))
+        if (endTime   !== null) timeArgs.push('-to', String(endTime))
+        args = ['-i', inputName, ...timeArgs, outputName]
+      } else {
+        // Fast mode: seek before -i, stream copy
+        const seekArgs: string[] = []
+        if (startTime !== null) seekArgs.push('-ss', String(startTime))
+        if (endTime   !== null) seekArgs.push('-to', String(endTime))
+        args = [...seekArgs, '-i', inputName, '-c', 'copy', outputName]
+      }
+
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec(args)
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Trim produced no output')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      results.push(new File([data], `${baseName}_trimmed.${ext}`, { type: file.type }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
+export async function muteVideo(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const ext = file.name.split('.').pop() ?? 'mp4'
+      const inputName  = `mute_in_${i}.${ext}`
+      const outputName = `mute_out_${i}.mp4`
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec(['-i', inputName, '-c:v', 'copy', '-an', outputName])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Mute produced no output')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      results.push(new File([data], `${baseName}_muted.mp4`, { type: 'video/mp4' }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
+const ROTATE_FILTERS: Record<string, string> = {
+  '90cw':   'transpose=1',
+  '90ccw':  'transpose=2',
+  '180':    'transpose=2,transpose=2',
+  'flip-h': 'hflip',
+  'flip-v': 'vflip',
+}
+
+export async function rotateVideo(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  const rotation = typeof options.rotation === 'string' ? options.rotation : '90cw'
+  const vf = ROTATE_FILTERS[rotation] ?? ROTATE_FILTERS['90cw']
+
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const ext = file.name.split('.').pop() ?? 'mp4'
+      const inputName  = `rot_in_${i}.${ext}`
+      const outputName = `rot_out_${i}.mp4`
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec(['-i', inputName, '-vf', vf, '-c:a', 'copy', outputName])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Rotate produced no output')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      results.push(new File([data], `${baseName}_rotated.mp4`, { type: 'video/mp4' }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
+export async function makeRingtone(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  const startTime = typeof options.startTime === 'number' && options.startTime >= 0 ? options.startTime : 0
+  const rawEnd    = typeof options.endTime   === 'number' && options.endTime   >  0 ? options.endTime   : 30
+  const endTime   = Math.min(rawEnd, startTime + 40)
+
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const ext = file.name.split('.').pop() ?? 'mp3'
+      const inputName  = `rt_in_${i}.${ext}`
+      const outputName = `rt_out_${i}.m4r`
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec([
+          '-i', inputName,
+          '-ss', String(startTime),
+          '-to', String(endTime),
+          '-vn',
+          '-acodec', 'aac',
+          '-b:a', '128k',
+          '-ar', '44100',
+          '-movflags', '+faststart',
+          outputName,
+        ])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Ringtone conversion produced no output')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      results.push(new File([data], `${baseName}.m4r`, { type: 'audio/x-m4r' }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
+function buildAtempoChain(speed: number): string {
+  const filters: string[] = []
+  let s = speed
+  while (s > 2.0 + 1e-9) { filters.push('atempo=2.0'); s /= 2.0 }
+  while (s < 0.5 - 1e-9) { filters.push('atempo=0.5'); s /= 0.5 }
+  filters.push(`atempo=${s.toFixed(4)}`)
+  return filters.join(',')
+}
+
+function audioCodecForExt(ext: string): { codec: string; mime: string } {
+  switch (ext.toLowerCase()) {
+    case 'mp3':  return { codec: 'libmp3lame', mime: 'audio/mpeg' }
+    case 'aac':
+    case 'm4a':  return { codec: 'aac',        mime: 'audio/mp4' }
+    case 'wav':  return { codec: 'pcm_s16le',  mime: 'audio/wav' }
+    case 'ogg':  return { codec: 'libvorbis',  mime: 'audio/ogg' }
+    case 'flac': return { codec: 'flac',       mime: 'audio/flac' }
+    default:     return { codec: 'libmp3lame', mime: 'audio/mpeg' }
+  }
+}
+
+export async function changeVideoSpeed(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  const speed = typeof options.speed === 'number' ? options.speed : 2
+  const ptsMultiplier = (1 / speed).toFixed(6)
+  const atempoChain = buildAtempoChain(speed)
+
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const ext = file.name.split('.').pop() ?? 'mp4'
+      const inputName  = `vs_in_${i}.${ext}`
+      const outputName = `vs_out_${i}.mp4`
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        await ffmpeg.exec([
+          '-i', inputName,
+          '-vf', `setpts=${ptsMultiplier}*PTS`,
+          '-af', atempoChain,
+          '-c:v', 'libx264', '-crf', '23', '-preset', 'fast',
+          '-c:a', 'aac', '-b:a', '128k',
+          outputName,
+        ])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Speed change produced no output')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      const label = speed === Math.floor(speed) ? `${speed}x` : `${speed}x`
+      results.push(new File([data], `${baseName}_${label}.mp4`, { type: 'video/mp4' }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
+const AUDIO_SPEED_FORMAT_MAP: Record<string, { codec: string; ext: string; mime: string }> = {
+  mp3:  { codec: 'libmp3lame', ext: '.mp3', mime: 'audio/mpeg' },
+  wav:  { codec: 'pcm_s16le',  ext: '.wav', mime: 'audio/wav' },
+  aac:  { codec: 'aac',        ext: '.m4a', mime: 'audio/mp4' },
+  ogg:  { codec: 'libvorbis',  ext: '.ogg', mime: 'audio/ogg' },
+  flac: { codec: 'flac',       ext: '.flac', mime: 'audio/flac' },
+}
+
+export async function changeAudioSpeed(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  const speed  = typeof options.speed  === 'number' ? options.speed  : 1.5
+  const format = typeof options.format === 'string' ? options.format : 'keep'
+  const atempoChain = buildAtempoChain(speed)
+
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 5)
+    try {
+      const ffmpeg = await getFFmpeg()
+      const file = files[i]
+      const inputExt = file.name.split('.').pop() ?? 'mp3'
+      const inputName = `as_in_${i}.${inputExt}`
+
+      const codecInfo = format === 'keep'
+        ? audioCodecForExt(inputExt)
+        : { codec: (AUDIO_SPEED_FORMAT_MAP[format] ?? AUDIO_SPEED_FORMAT_MAP.mp3).codec, mime: (AUDIO_SPEED_FORMAT_MAP[format] ?? AUDIO_SPEED_FORMAT_MAP.mp3).mime }
+      const outputExt = format === 'keep' ? `.${inputExt}` : (AUDIO_SPEED_FORMAT_MAP[format] ?? AUDIO_SPEED_FORMAT_MAP.mp3).ext
+      const outputName = `as_out_${i}${outputExt}`
+
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      onProgress?.(i, 10)
+      const progressHandler = ({ progress }: { progress: number }) => {
+        onProgress?.(i, Math.round(10 + progress * 85))
+      }
+      ffmpeg.on('progress', progressHandler)
+      let data: Uint8Array<ArrayBuffer> | undefined
+      try {
+        const encodeArgs = codecInfo.codec === 'libmp3lame'
+          ? ['-c:a', 'libmp3lame', '-q:a', '2']
+          : ['-c:a', codecInfo.codec]
+        await ffmpeg.exec(['-i', inputName, '-af', atempoChain, ...encodeArgs, outputName])
+        data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } finally {
+        ffmpeg.off('progress', progressHandler)
+        await ffmpeg.deleteFile(inputName).catch(() => {})
+        await ffmpeg.deleteFile(outputName).catch(() => {})
+      }
+      if (!data || data.byteLength === 0) throw new Error('Speed change produced no output')
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      results.push(new File([data], `${baseName}_${speed}x${outputExt}`, { type: codecInfo.mime }))
+      onProgress?.(i, 100)
+    } catch (err) { results.push(toError(err)) }
+  }
+  return results
+}
+
+export async function mergeAudio(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  if (files.length < 2) throw new Error('Select at least 2 audio files to merge.')
+
+  const format = typeof options.format === 'string' ? options.format : 'mp3'
+  const MERGE_AUDIO_FMT: Record<string, { codec: string; ext: string; mime: string }> = {
+    mp3:  { codec: 'libmp3lame', ext: '.mp3',  mime: 'audio/mpeg' },
+    wav:  { codec: 'pcm_s16le',  ext: '.wav',  mime: 'audio/wav'  },
+    aac:  { codec: 'aac',        ext: '.m4a',  mime: 'audio/mp4'  },
+    ogg:  { codec: 'libvorbis',  ext: '.ogg',  mime: 'audio/ogg'  },
+    flac: { codec: 'flac',       ext: '.flac', mime: 'audio/flac' },
+  }
+  const fmt = MERGE_AUDIO_FMT[format] ?? MERGE_AUDIO_FMT.mp3
+
+  const ffmpeg = await getFFmpeg()
+  onProgress?.(0, 5)
+
+  const inputNames: string[] = []
+  for (let i = 0; i < files.length; i++) {
+    const ext = files[i].name.split('.').pop() ?? 'mp3'
+    const name = `ma_in_${i}.${ext}`
+    inputNames.push(name)
+    await ffmpeg.writeFile(name, await fetchFile(files[i]))
+    onProgress?.(0, Math.round(5 + ((i + 1) / files.length) * 20))
+  }
+
+  const listContent = 'ffconcat version 1.0\n' + inputNames.map((n) => `file '${n}'`).join('\n') + '\n'
+  await ffmpeg.writeFile('ma_list.txt', new TextEncoder().encode(listContent))
+  onProgress?.(0, 30)
+
+  const outputName = `ma_out${fmt.ext}`
+  const progressHandler = ({ progress }: { progress: number }) => {
+    onProgress?.(0, Math.round(30 + progress * 65))
+  }
+  ffmpeg.on('progress', progressHandler)
+  let data: Uint8Array<ArrayBuffer> | undefined
+  try {
+    const encodeArgs = fmt.codec === 'libmp3lame'
+      ? ['-c:a', 'libmp3lame', '-q:a', '2']
+      : ['-c:a', fmt.codec]
+    await ffmpeg.exec([
+      '-f', 'concat', '-safe', '0', '-i', 'ma_list.txt',
+      ...encodeArgs,
+      outputName,
+    ])
+    data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+  } finally {
+    ffmpeg.off('progress', progressHandler)
+    for (const name of inputNames) await ffmpeg.deleteFile(name).catch(() => {})
+    await ffmpeg.deleteFile('ma_list.txt').catch(() => {})
+    await ffmpeg.deleteFile(outputName).catch(() => {})
+  }
+  if (!data || data.byteLength === 0) throw new Error('Merge produced no output')
+  return [new File([data], `merged${fmt.ext}`, { type: fmt.mime })]
+}
+
+export async function mergeVideo(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  if (files.length < 2) throw new Error('Select at least 2 video files to merge.')
+
+  const quality = typeof options.quality === 'string' ? options.quality : 'balanced'
+  const CRF = quality === 'high' ? '18' : quality === 'small' ? '28' : '23'
+
+  const ffmpeg = await getFFmpeg()
+
+  const dims = await Promise.all(files.map((f) => probeVideoDimensions(f)))
+  const validHeights = dims.filter(Boolean).map((d) => d!.height)
+  const targetHeight = validHeights.length > 0 ? Math.min(Math.max(...validHeights), 1080) : 1080
+
+  onProgress?.(0, 5)
+
+  // Phase 1: Normalize each file to H.264/AAC at consistent resolution.
+  // Files without an audio track get a synthetic silent track via lavfi anullsrc.
+  const normalizedNames: string[] = []
+  for (let i = 0; i < files.length; i++) {
+    const ext = files[i].name.split('.').pop() ?? 'mp4'
+    const inputName = `mvn_in_${i}.${ext}`
+    const normName  = `mvn_norm_${i}.mp4`
+    normalizedNames.push(normName)
+
+    await ffmpeg.writeFile(inputName, await fetchFile(files[i]))
+    const hasAudio = (await probeAudioInfo(ffmpeg, inputName)) !== null
+
+    const progressHandler = ({ progress }: { progress: number }) => {
+      const base = 5 + (i / files.length) * 70
+      onProgress?.(0, Math.round(base + (progress * 70) / files.length))
+    }
+    ffmpeg.on('progress', progressHandler)
+    try {
+      if (hasAudio) {
+        await ffmpeg.exec([
+          '-i', inputName,
+          '-vf', `scale=-2:${targetHeight},fps=30,setsar=1`,
+          '-c:v', 'libx264', '-crf', CRF, '-preset', 'fast',
+          '-c:a', 'aac', '-b:a', '128k', '-ar', '44100', '-ac', '2',
+          normName,
+        ])
+      } else {
+        await ffmpeg.exec([
+          '-i', inputName,
+          '-f', 'lavfi', '-i', 'anullsrc=r=44100:cl=stereo',
+          '-vf', `scale=-2:${targetHeight},fps=30,setsar=1`,
+          '-c:v', 'libx264', '-crf', CRF, '-preset', 'fast',
+          '-c:a', 'aac', '-b:a', '1k', '-ar', '44100', '-ac', '2',
+          '-map', '0:v:0', '-map', '1:a:0',
+          '-shortest',
+          normName,
+        ])
+      }
+    } finally {
+      ffmpeg.off('progress', progressHandler)
+      await ffmpeg.deleteFile(inputName).catch(() => {})
+    }
+    onProgress?.(0, Math.round(5 + ((i + 1) / files.length) * 70))
+  }
+
+  // Phase 2: Concat normalized files with stream copy (fast, lossless).
+  const listContent = 'ffconcat version 1.0\n' + normalizedNames.map((n) => `file '${n}'`).join('\n') + '\n'
+  await ffmpeg.writeFile('mvn_list.txt', new TextEncoder().encode(listContent))
+  onProgress?.(0, 80)
+
+  const outputName = 'mvn_out.mp4'
+  const progressHandler = ({ progress }: { progress: number }) => {
+    onProgress?.(0, Math.round(80 + progress * 18))
+  }
+  ffmpeg.on('progress', progressHandler)
+  let data: Uint8Array<ArrayBuffer> | undefined
+  try {
+    await ffmpeg.exec([
+      '-f', 'concat', '-safe', '0', '-i', 'mvn_list.txt',
+      '-c', 'copy',
+      outputName,
+    ])
+    data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+  } finally {
+    ffmpeg.off('progress', progressHandler)
+    for (const name of normalizedNames) await ffmpeg.deleteFile(name).catch(() => {})
+    await ffmpeg.deleteFile('mvn_list.txt').catch(() => {})
+    await ffmpeg.deleteFile(outputName).catch(() => {})
+  }
+  if (!data || data.byteLength === 0) throw new Error('Merge produced no output')
+  return [new File([data], 'merged.mp4', { type: 'video/mp4' })]
+}
