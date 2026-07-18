@@ -34,7 +34,6 @@ export interface OcrOptions {
 }
 
 let workerInstance: Tesseract.Worker | null = null
-let currentLang: string | null = null
 let currentHardKey: string | null = null
 let currentOpts: string | null = null
 
@@ -74,14 +73,12 @@ async function getWorker(lang: string, opts: OcrOptions): Promise<Tesseract.Work
       ...(opts.preserveSpaces ? { preserve_interword_spaces: 1 } : {}),
       ...(opts.whitelist ? { tessedit_char_whitelist: opts.whitelist } : {}),
     } as Record<string, unknown>)
-    currentLang = lang
     currentHardKey = hardKey
     currentOpts = fullKey
     diagLog('tesseract-worker-ready', lang)
   } catch (err) {
     diagError('tesseract-worker-create-fail', err)
     workerInstance = null
-    currentLang = null
     currentHardKey = null
     currentOpts = null
     throw err
@@ -128,7 +125,6 @@ export async function recognizePage(
     diagError('tesseract-recognize-fail', err)
     const w = workerInstance
     workerInstance = null
-    currentLang = null
     currentHardKey = null
     currentOpts = null
     await w?.terminate()
@@ -140,7 +136,6 @@ export async function terminateOcrWorker(): Promise<void> {
   if (workerInstance) {
     await workerInstance.terminate()
     workerInstance = null
-    currentLang = null
     currentHardKey = null
     currentOpts = null
   }
