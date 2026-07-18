@@ -42,6 +42,7 @@ let tatrReady = false
 let tatrInitializing = false
 const tatrInitQueue: Array<() => void> = []
 const tatrRejectQueue: Array<(err: Error) => void> = []
+const tatrActiveRejects = new Map<string, (err: Error) => void>()
 
 export function detectTableStructure(
   imageBlob: Blob,
@@ -64,8 +65,10 @@ export function detectTableStructure(
           // Worker crashed at OS/browser level — drain all waiting callers
           const err = new Error('TATR worker crashed')
           for (const rej of tatrRejectQueue) rej(err)
+          for (const rej of tatrActiveRejects.values()) rej(err)
           tatrInitQueue.length = 0
           tatrRejectQueue.length = 0
+          tatrActiveRejects.clear()
           tatrWorker = null
           tatrReady = false
           tatrInitializing = false
@@ -83,10 +86,12 @@ export function detectTableStructure(
           onProgress?.(d.progress as number)
         } else if (d.type === 'infer-result') {
           w.removeEventListener('message', inferHandler)
+          tatrActiveRejects.delete(id)
           try { resolve(JSON.parse(d.result as string) as TatrDetection[]) }
           catch { resolve([]) }
         } else if (d.type === 'error') {
           w.removeEventListener('message', inferHandler)
+          tatrActiveRejects.delete(id)
           // Remove this call's reject from the queue so onerror won't double-call it
           const idx = tatrRejectQueue.indexOf(reject)
           if (idx !== -1) tatrRejectQueue.splice(idx, 1)
@@ -100,6 +105,8 @@ export function detectTableStructure(
         // Remove from reject queue — this call is now actively inferring
         const idx = tatrRejectQueue.indexOf(reject)
         if (idx !== -1) tatrRejectQueue.splice(idx, 1)
+        // Track this call so onerror can reject it if the worker crashes mid-inference
+        tatrActiveRejects.set(id, reject)
         imageBlob.arrayBuffer().then(buffer => {
           w.postMessage(
             { type: 'infer', id, modelType: 'table-structure', buffer, mimeType: imageBlob.type || 'image/png', opts: {} },
