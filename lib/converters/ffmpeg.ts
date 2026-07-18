@@ -1199,9 +1199,9 @@ export async function trimAudio(
       const file      = files[i]
       const inputExt  = file.name.split('.').pop() ?? 'mp3'
       const isAudio   = file.type.startsWith('audio/')
-      const useStreamCopy = isAudio && format === 'keep'
+      const useStreamCopy = isAudio && format === 'original'
 
-      const reEncodeFmt = format === 'keep' ? FORMAT_MAP.aac : (FORMAT_MAP[format] ?? FORMAT_MAP.mp3)
+      const reEncodeFmt = format === 'original' ? FORMAT_MAP.aac : (FORMAT_MAP[format] ?? FORMAT_MAP.mp3)
       const fmt = useStreamCopy
         ? { ext: `.${inputExt}`, mime: file.type, lossless: true }
         : reEncodeFmt
@@ -1482,7 +1482,7 @@ export async function changeVideoSpeed(
   onProgress?: (fileIndex: number, pct: number) => void
 ): Promise<ConversionResult[]> {
   const results: ConversionResult[] = []
-  const speed = typeof options.speed === 'number' ? options.speed : 2
+  const speed = options.speed != null ? parseFloat(String(options.speed)) : 2
   const ptsMultiplier = (1 / speed).toFixed(6)
   const atempoChain = buildAtempoChain(speed)
 
@@ -1540,8 +1540,8 @@ export async function changeAudioSpeed(
   onProgress?: (fileIndex: number, pct: number) => void
 ): Promise<ConversionResult[]> {
   const results: ConversionResult[] = []
-  const speed  = typeof options.speed  === 'number' ? options.speed  : 1.5
-  const format = typeof options.format === 'string' ? options.format : 'keep'
+  const speed  = options.speed  != null ? parseFloat(String(options.speed))  : 1.5
+  const format = typeof options.format === 'string' ? options.format : 'original'
   const atempoChain = buildAtempoChain(speed)
 
   for (let i = 0; i < files.length; i++) {
@@ -1552,10 +1552,10 @@ export async function changeAudioSpeed(
       const inputExt = file.name.split('.').pop() ?? 'mp3'
       const inputName = `as_in_${i}.${inputExt}`
 
-      const codecInfo = format === 'keep'
+      const codecInfo = format === 'original'
         ? audioCodecForExt(inputExt)
         : { codec: (AUDIO_SPEED_FORMAT_MAP[format] ?? AUDIO_SPEED_FORMAT_MAP.mp3).codec, mime: (AUDIO_SPEED_FORMAT_MAP[format] ?? AUDIO_SPEED_FORMAT_MAP.mp3).mime }
-      const outputExt = format === 'keep' ? `.${inputExt}` : (AUDIO_SPEED_FORMAT_MAP[format] ?? AUDIO_SPEED_FORMAT_MAP.mp3).ext
+      const outputExt = format === 'original' ? `.${inputExt}` : (AUDIO_SPEED_FORMAT_MAP[format] ?? AUDIO_SPEED_FORMAT_MAP.mp3).ext
       const outputName = `as_out_${i}${outputExt}`
 
       await ffmpeg.writeFile(inputName, await fetchFile(file))
@@ -1651,8 +1651,7 @@ export async function mergeVideo(
 ): Promise<ConversionResult[]> {
   if (files.length < 2) throw new Error('Select at least 2 video files to merge.')
 
-  const quality = typeof options.quality === 'string' ? options.quality : 'balanced'
-  const CRF = quality === 'high' ? '18' : quality === 'small' ? '28' : '23'
+  const CRF = ['18', '23', '28'].includes(String(options.quality)) ? String(options.quality) : '23'
 
   const ffmpeg = await getFFmpeg()
 

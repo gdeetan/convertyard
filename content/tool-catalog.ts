@@ -111,7 +111,10 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'video-muter', title: 'Mute Video', description: 'Remove the audio track from any video. Stream-copied — instant, no re-encode.', category: 'video-audio', status: 'live' },
   { slug: 'rotate-video', title: 'Rotate Video', description: 'Fix sideways phone recordings — rotate 90°, 180°, or flip. Batch, no uploads.', category: 'video-audio', status: 'live' },
   { slug: 'ringtone-maker', title: 'Ringtone Maker', description: 'Cut any song to an iPhone ringtone (.m4r). Set start and end time, download instantly.', category: 'video-audio', status: 'live' },
-  { slug: 'video-speed', title: 'Video Speed Changer', description: 'Speed up or slow down videos. Presets 0.25× to 4×. No uploads, batch-ready.', category: 'video-audio', status: 'live' },
+  { slug: 'video-speed',   title: 'Video Speed Changer', description: 'Speed up or slow down videos. Presets 0.25× to 4×. No uploads, batch-ready.', category: 'video-audio', status: 'live' },
+  { slug: 'audio-speed',   title: 'Audio Speed Changer', description: 'Speed up or slow down audio files. Presets 0.25× to 4×. No uploads, batch-ready.', category: 'video-audio', status: 'live' },
+  { slug: 'merge-audio',   title: 'Merge Audio Files',   description: 'Join multiple audio files into one. MP3, WAV, M4A, OGG, FLAC. No uploads.', category: 'video-audio', status: 'live' },
+  { slug: 'merge-video',   title: 'Merge Video Files',   description: 'Join multiple videos into one MP4. Handles mixed resolutions and formats. No uploads.', category: 'video-audio', status: 'live' },
 
   // Developer — all coming soon
   { slug: 'json-formatter', title: 'JSON Formatter',         description: 'Format, validate, and minify JSON.', category: 'developer', status: 'live' },
