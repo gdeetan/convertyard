@@ -272,6 +272,9 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions,
             {config.title}
           </h1>
           <p className="mt-2 text-base text-fg-muted">{config.subtitle}</p>
+          {config.bestFor && (
+            <p className="mt-1 text-sm text-fg-subtle">{config.bestFor}</p>
+          )}
           {config.limitationNote && (
             <details className="mt-2 group">
               <summary className="cursor-pointer list-none text-sm text-fg-muted hover:text-fg transition-colors select-none inline-flex items-center gap-1">

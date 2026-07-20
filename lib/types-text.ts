@@ -20,6 +20,7 @@ export interface TextToolConfig {
   slug: string
   title: string
   subtitle: string
+  bestFor?: string       // one sentence: when to reach for this tool
   category: ToolCategory
   inputLabel: string
   inputPlaceholder: string

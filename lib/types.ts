@@ -135,6 +135,7 @@ export interface ToolConfig {
   slug: string
   title: string
   subtitle: string
+  bestFor?: string       // one sentence: when to reach for this tool
   category: ToolCategory
   accepts: string[]       // MIME types, e.g. ['image/jpeg']
   acceptsExt: string[]    // display extensions, e.g. ['.jpg', '.jpeg']

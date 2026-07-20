@@ -327,6 +327,9 @@ export function TextToolShell({ config }: { config: TextToolConfig }) {
         ]} />
         <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">{config.title}</h1>
         <p className="mt-2 text-base text-fg-muted">{config.subtitle}</p>
+        {config.bestFor && (
+          <p className="mt-1 text-sm text-fg-subtle">{config.bestFor}</p>
+        )}
         <div className="mt-3 flex items-center gap-1.5 text-xs text-fg-subtle">
           <Lock className="h-3 w-3 text-primary" aria-hidden="true" />
           Runs entirely in your browser. Nothing is sent to a server.
