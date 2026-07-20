@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'image-upscaler',
   title: 'AI Image Upscaler',
   subtitle: 'Upscale 2×–8× using AI. Runs in your browser. No account needed.',
+  bestFor: 'Best for enlarging product photos, restoring old scans, or preparing web images for large-format print.',
   category: 'ai',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff'],
@@ -63,32 +64,28 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Are my images uploaded to run the upscaler?',
+      a: 'No. The ESRGAN model runs entirely in your browser — no files are sent to any server. The model downloads once on first use (a few MB) and is cached locally for all future sessions.',
+    },
+    {
       q: 'Is AI upscaling better than a standard resize?',
-      a: 'Yes. Standard resizing (bicubic) blurs the image. AI upscaling (ESRGAN) predicts and adds realistic detail — sharper edges, clearer textures — especially on photos and product images.',
+      a: 'For photos with structure, yes. Standard resizing (bicubic) interpolates pixels and blurs edges. ESRGAN predicts texture and adds realistic detail — sharper edges, clearer fabric, crisper faces. The difference is most visible at 4× and above.',
     },
     {
       q: 'Which scale should I pick?',
-      a: '4× is the best balance of quality and speed for most uses. Use 2× when you only need a small enlargement or want faster processing. Use 8× for maximum enlargement — ideal for printing a small web image at large format.',
+      a: '4× is the best balance of quality and speed for most uses. Use 2× for small enlargements or faster results. Use 8× for maximum enlargement — best for printing a small web image at large format, though processing time and file size increase significantly.',
     },
     {
-      q: 'How much larger will my files be?',
-      a: '4× upscaling makes the image 16× more pixels, so file sizes grow significantly. A 200 KB JPEG may become 1–3 MB. PNG files grow more because they are lossless.',
-    },
-    {
-      q: 'Does it work on photos of people?',
-      a: 'Yes. ESRGAN handles faces well. It works best on front-facing, reasonably lit portraits. Very dark or blurry source images will still upscale but with less detail recovery.',
+      q: 'What types of images produce poor results?',
+      a: 'Abstract art, flat-colour illustrations, and very low-resolution inputs (under 50px on either side) tend to produce visible artifacts or over-sharpened edges at high scale ratios. ESRGAN is trained on photographic content — it works best on images with real-world texture and structure.',
     },
     {
       q: 'What scale should I use for printing?',
-      a: '4× is recommended for printing web images. A 500×500 px web image becomes 2000×2000 px — suitable for a 6×6 inch print at 300 DPI. Use 8× for even larger prints.',
-    },
-    {
-      q: 'Does it work offline?',
-      a: 'Yes, after the first model download (~2 MB, cached after first use). Subsequent uses work completely offline.',
+      a: 'A 500×500 px web image upscaled 4× becomes 2000×2000 px — suitable for a 6×6 inch print at 300 DPI. Use 8× for larger prints, but expect file sizes in the tens of megabytes.',
     },
     {
       q: 'How many files can I process at once?',
-      a: 'Up to 200 files recommended. Each file is processed sequentially using your device GPU via WebGL. Processing time scales with image dimensions.',
+      a: 'Up to 200 files recommended. Files are processed one at a time. Very large images (above 4000×4000 px) may exhaust browser memory — if a file fails, try processing it individually.',
     },
   ],
 

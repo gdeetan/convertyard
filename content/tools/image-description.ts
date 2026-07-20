@@ -4,6 +4,7 @@ export const config: ToolConfig = {
   slug: 'image-description',
   title: 'AI Image Description Generator',
   subtitle: 'Generate product descriptions, captions, or accessibility text from photos. Export as CSV.',
+  bestFor: 'Best for e-commerce teams writing product copy, social media managers captioning image batches, or docs teams needing image descriptions at scale.',
   category: 'ai',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff', 'image/heic'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff', '.heic'],
@@ -13,28 +14,28 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'How is this different from the Alt Text Generator?',
-      a: 'Alt text is short (50–100 characters) and optimized for screen readers and SEO. Image descriptions are longer (1–3 sentences), human-readable, and suited for product listings, social captions, and accessibility documentation.',
+      q: 'Are my images uploaded to generate descriptions?',
+      a: 'No. The Florence-2 model runs locally in your browser via transformers.js. Your images are never sent to a server — all processing happens on your device.',
     },
     {
-      q: 'Can I edit descriptions before downloading?',
-      a: 'Yes. Click any description to edit it inline before exporting. The CSV download uses your edited text.',
+      q: 'How is this different from the Alt Text Generator?',
+      a: 'Alt text is short (50–100 characters) and optimised for screen readers and SEO. Image descriptions are longer (1–3 sentences), human-readable, and suited for product listings, social captions, and accessibility documentation.',
     },
     {
       q: 'What is the best mode for Amazon or Shopify product listings?',
-      a: 'Use Detailed length. It generates 2–3 sentences describing the product, color, texture, and context — a solid starting point to edit and publish.',
+      a: 'Use Detailed length. It generates 2–3 sentences describing the product, colour, texture, and context — a solid starting point to edit before publishing.',
     },
     {
-      q: 'Does it understand complex images?',
-      a: 'Florence-2 handles most product photos, nature scenes, and common objects well. Very dark, abstract, or heavily text-based images may produce generic descriptions.',
+      q: 'What kinds of images produce poor descriptions?',
+      a: 'Very dark images, images dominated by text (infographics, screenshots), abstract art, and images with multiple equal-prominence subjects tend to produce generic or inaccurate descriptions. The model describes visual content, not meaning — it cannot infer brand context.',
     },
     {
       q: 'How many images can I process at once?',
-      a: 'Up to 200 images recommended. Florence-2 is memory-efficient (~260 MB, much lighter than BLIP-large). Processing time is ~3–10 seconds per image depending on your device.',
+      a: 'Up to 200 images recommended. Florence-2 is memory-efficient (~260 MB). Processing is sequential — one image at a time — at roughly 3–10 seconds per image on a modern laptop.',
     },
     {
-      q: 'Does it work offline?',
-      a: 'Yes, after the first model download (~260 MB, cached). If you have already used the Alt Text Generator, the model is already cached — no additional download needed.',
+      q: 'Can I edit descriptions before exporting?',
+      a: 'Yes. Click any description to edit it inline. The CSV download uses your edited text, not the original AI output.',
     },
   ],
 

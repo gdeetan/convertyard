@@ -10,6 +10,7 @@ export const config: ToolConfig = {
   title: 'Transcribe Audio & Video',
   subtitle:
     'Powered by OpenAI Whisper, running entirely in your browser. 50+ languages.',
+  bestFor: 'Best for transcribing interviews, meeting recordings, or video captions without uploading audio to a cloud service.',
   category: 'ai',
   accepts: [
     'audio/mpeg',
@@ -29,28 +30,28 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What languages does it support?',
-      a: 'Whisper supports 50+ languages including English, Spanish, French, German, Japanese, Portuguese, Arabic, and Hindi. Select a language or leave it on Auto-detect.',
+      q: 'Is my audio uploaded to transcribe it?',
+      a: 'No. Whisper runs locally in your browser via transformers.js — your audio files are never sent to a server. The model downloads once on first use and is cached in your browser for all future sessions.',
     },
     {
-      q: 'How accurate is it?',
-      a: 'Balanced mode (Whisper-base) achieves ~90%+ word accuracy on clear English audio. Accurate mode (Whisper-small) is noticeably better on accented speech and technical vocabulary.',
+      q: 'How accurate is the transcription?',
+      a: 'Balanced mode (Whisper-base) achieves ~90%+ word accuracy on clear, accented-neutral English speech. Accurate mode (Whisper-small) is noticeably better for accented speech and technical vocabulary. Both models struggle with heavy background noise, multiple overlapping speakers (crosstalk), and domain-specific jargon.',
+    },
+    {
+      q: 'What languages does it support?',
+      a: 'Whisper supports 50+ languages including English, Spanish, French, German, Japanese, Portuguese, Arabic, and Hindi. Select a language manually or leave it on Auto-detect for automatic language identification.',
     },
     {
       q: 'Can it transcribe video files?',
-      a: 'Yes. Upload MP4, WebM, or MOV files — the tool extracts the audio track automatically before transcribing.',
-    },
-    {
-      q: 'What is the maximum file length?',
-      a: 'Files up to 30 minutes are supported. For longer recordings, split them first using an audio editor.',
+      a: 'Yes. Upload MP4, WebM, or MOV files — the tool extracts the audio track in-browser before transcribing. The video itself is never sent anywhere.',
     },
     {
       q: 'What is the difference between TXT and SRT output?',
-      a: 'TXT is plain text — the full transcript as one block. SRT is a subtitle format with timestamps, suitable for adding captions to video in any editor.',
+      a: 'TXT is plain text — the full transcript as one continuous block. SRT is a subtitle format with timestamps for each segment, suitable for adding captions to video in any editor (DaVinci Resolve, Premiere, CapCut, etc.).',
     },
     {
-      q: 'Does it work offline?',
-      a: 'Yes, after the first model download. The model is cached in your browser and subsequent uses work completely offline.',
+      q: 'What is the maximum recording length?',
+      a: 'Files up to 30 minutes are supported. For longer recordings, split them into segments first using an audio or video editor, then transcribe each segment.',
     },
   ],
 
