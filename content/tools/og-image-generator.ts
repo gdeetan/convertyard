@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   title: 'OG Image Generator',
   subtitle:
     'Create a 1200x630 Open Graph image for social previews. Add your title, brand colors, logo, and export locally with no watermark.',
+  bestFor: 'Best for marketers and developers creating shareable link previews for blog posts, product pages, or social campaigns.',
   category: 'web',
   accepts: ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'],
   acceptsExt: ['.png', '.jpg', '.jpeg', '.svg', '.webp'],

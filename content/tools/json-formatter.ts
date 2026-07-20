@@ -6,6 +6,7 @@ export const config: TextToolConfig = {
   slug: 'json-formatter',
   title: 'JSON Formatter & Validator',
   subtitle: 'Format, validate, and minify JSON. Shareable URLs. Entirely in your browser.',
+  bestFor: 'Best for developers debugging API responses, reviewing config files, or sharing a pre-filled JSON snippet with a teammate.',
   category: 'dev',
   inputLabel: 'Paste your JSON',
   inputPlaceholder: '{ "name": "ConvertYard", "tools": 60 }',

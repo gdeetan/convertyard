@@ -6,6 +6,7 @@ export const config: TextToolConfig = {
   slug: 'base64',
   title: 'Base64 Encoder / Decoder',
   subtitle: 'Encode and decode Base64 strings and files. URL-safe mode. All in your browser.',
+  bestFor: 'Best for developers embedding binary data in HTML/CSS data URIs, inspecting JWT tokens, or decoding Base64 API responses.',
   category: 'dev',
   inputLabel: 'Paste text or load a file',
   inputPlaceholder: 'Hello, ConvertYard!',

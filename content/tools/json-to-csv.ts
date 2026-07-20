@@ -6,6 +6,7 @@ export const config: TextToolConfig = {
   slug: 'json-to-csv',
   title: 'JSON to CSV Converter',
   subtitle: 'Convert JSON arrays to CSV. Preview before download. Entirely in your browser.',
+  bestFor: 'Best for analysts and developers flattening API responses or database exports into a spreadsheet-ready format.',
   category: 'dev',
   inputLabel: 'Paste your JSON array',
   inputPlaceholder: '[{"name":"Alice","age":30},{"name":"Bob","age":25}]',

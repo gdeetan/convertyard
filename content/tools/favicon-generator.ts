@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'favicon-generator',
   title: 'Favicon Generator',
   subtitle: 'Upload one image, get every favicon size: ICO, PNG, Apple touch icon, and web manifest. No upload to any server.',
+  bestFor: 'Best for developers launching a new site or updating a brand — generate all favicon variants from one source image in seconds.',
   category: 'web',
   accepts: ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'],
   acceptsExt: ['.png', '.jpg', '.jpeg', '.svg', '.webp'],
@@ -15,6 +16,10 @@ export const config: ToolConfig = {
     body: 'Smaller source images will be upscaled, which may cause blurriness at larger sizes. Use a square PNG or SVG of at least 512×512 pixels for best results. Non-square images are center-cropped automatically.',
   },
   faq: [
+    {
+      q: 'Is my logo uploaded to generate favicons?',
+      a: 'No. All resizing and ICO packaging runs in your browser using Canvas. Your source image never leaves your device.',
+    },
     {
       q: 'Why do I need so many favicon sizes?',
       a: 'Different platforms request different sizes: browsers use 16×16 and 32×32 for tabs, iOS uses 180×180 for "Add to Home Screen", Android uses 192×192 and 512×512 via the web manifest, and the ICO file bundles 16, 32, and 48 for older Windows/IE compatibility.',
