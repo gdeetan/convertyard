@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   slug: 'handwriting-to-text',
   title: 'Handwriting to Text Converter',
   subtitle: 'Transcribe handwritten notes and forms into digital text.',
+  bestFor: 'Best for digitizing handwritten notes, filled forms, and letters you need to search or edit.',
   category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'],
@@ -113,48 +114,28 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Are my handwritten notes uploaded anywhere to run OCR?',
+      a: 'No. All OCR — including the AI-Enhanced model — runs entirely in your browser. Your files never leave your device.',
+    },
+    {
       q: 'What is the difference between Standard and AI-Enhanced mode?',
-      a: 'Standard mode uses Tesseract OCR — it works for all 12 languages and starts immediately, but was originally designed for printed text. AI-Enhanced mode uses TrOCR, a transformer model trained specifically on handwritten text — it handles cursive and mixed styles much better, but only supports English and downloads ~400MB on first use (stored in your browser permanently after that).',
+      a: 'Standard mode uses Tesseract OCR — works for all 12 languages and starts immediately, but was trained on printed text. AI-Enhanced mode uses Florence-2 and TrOCR, models trained specifically on handwritten input — handles cursive and mixed styles better, but supports English only and downloads ~262MB on first use (cached in your browser after that).',
     },
     {
       q: 'Does it work on cursive handwriting?',
-      a: 'With Standard mode, accuracy on cursive is lower and you should expect to correct errors. With AI-Enhanced mode (English), cursive accuracy improves significantly — transformer models understand joined strokes in a way traditional OCR cannot.',
+      a: 'With Standard mode, accuracy on cursive is lower and you should expect to correct errors. AI-Enhanced mode (English) handles cursive noticeably better — transformer models understand joined strokes in a way traditional OCR cannot. Messy or doctor-style scrawl will still produce errors in both modes.',
     },
     {
-      q: 'Why is AI-Enhanced Quality mode slower?',
-      a: 'Quality mode uses beam search — it evaluates 4 candidate readings per token and picks the most likely sequence. This catches ambiguous letter pairs that greedy decoding misses (a/o, l/1, u/n), but takes roughly 3× longer per line. For a 10-line page: Quality takes ~20–30s, Fast takes ~5–10s. Switch to Fast mode if speed matters more than accuracy.',
-    },
-    {
-      q: 'Why is AI-Enhanced mode English-only?',
-      a: 'The TrOCR model used is trained on English handwriting datasets. Multilingual handwriting models are available but require 500MB+ downloads, which is impractical for browser use.',
-    },
-    {
-      q: 'Can it handle angled or skewed photos?',
-      a: 'Yes. The preprocessing pipeline automatically detects the document boundary and corrects perspective warp (the trapezoid effect from phone photos taken at an angle). It also corrects rotation up to ±20°.',
-    },
-    {
-      q: 'What is the JSON output format?',
-      a: 'JSON mode outputs per-line text with a quality flag. Lines that are empty or very short — likely missed by the OCR engine — are flagged for review. Available in both Standard and AI-Enhanced modes.',
+      q: 'How accurate should I expect the output to be?',
+      a: 'Handwriting is the hardest input for OCR. Neat, upright print on a white background with AI-Enhanced mode can reach 90–95% accuracy. Casual cursive, mixed styles, or anything on a coloured or patterned background will be lower. Treat the output as a first draft — the review panel underlines low-confidence words in amber so you can focus corrections quickly.',
     },
     {
       q: 'Can it handle filled-in paper forms?',
       a: 'Yes. Printed form labels extract cleanly in both modes. Handwritten answers in the blanks extract with variable accuracy — AI-Enhanced mode improves the handwritten portions.',
     },
     {
-      q: 'What does "Fix common OCR errors" do?',
-      a: 'After OCR completes, a dictionary pass checks each low-confidence word against a 370,000-word English dictionary. Only alphabetic words below 85% confidence are candidates. It looks for matches via known OCR confusion pairs — rn→m, O→0, l→1, S→5, etc. Tokens with digits, prices, IDs, or any mixed alphanumeric content are never touched. English only.',
-    },
-    {
       q: 'Can I edit the extracted text before downloading?',
-      a: 'Yes. After conversion, a review panel appears below your results. Words with low OCR confidence are underlined in amber; auto-corrected words have a blue dotted underline. Tap a blue-underlined word to see the original and revert it in one tap. Click "Apply changes" to lock in your edits — the download then uses the edited version.',
-    },
-    {
-      q: 'How accurate should I expect the output to be?',
-      a: 'Handwriting is the hardest thing OCR has to deal with, so the honest answer is: it varies. Neat, upright printing on a white background with AI-Enhanced mode can hit 90–95% accuracy. Casual cursive, mixed styles, or anything on a coloured or patterned background will be lower. Treat the output as a first draft — the review panel underlines low-confidence words in amber so you can focus your corrections quickly. If a word looks obviously wrong but isn\'t underlined, that usually means the engine was confident about the wrong reading, so a full read-through is still worth it for anything important.',
-    },
-    {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. All OCR — including the AI model — runs entirely in your browser. Your files and the model never leave your device.',
+      a: 'Yes. After conversion, a review panel shows words flagged with low OCR confidence underlined in amber. Auto-corrected words have a blue dotted underline — click to see the original and revert. Click "Apply changes" to lock edits before downloading.',
     },
   ],
 

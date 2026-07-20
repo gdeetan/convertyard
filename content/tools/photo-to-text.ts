@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   slug: 'photo-to-text',
   title: 'Photo to Text Converter',
   subtitle: 'Extract text from clear photos of documents. Straight-on shot, decent light.',
+  bestFor: 'Best for pulling text from phone photos of paper documents, signs, and printed pages.',
   category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'],
@@ -71,28 +72,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What kind of photos work best?',
-      a: 'A printed page or document photographed flat under consistent overhead light, with the camera held directly above. Avoid shadows from your hand or lamp.',
+      q: 'Are my photos uploaded anywhere to run OCR?',
+      a: 'No. OCR runs entirely in your browser. Nothing leaves your device.',
     },
     {
-      q: 'My photo came out blurry — can the tool fix it?',
-      a: 'No. Blur reduces accuracy below the level any OCR setting can recover. Retake the photo with more light and a steady hand — the result will be better than any software correction.',
+      q: 'What kind of photos give the best results?',
+      a: 'A printed page photographed flat under consistent overhead light, with the camera held directly above. Avoid shadows from your hand or a nearby lamp. The page should fill most of the frame.',
     },
     {
-      q: 'Does it handle HEIC from iPhone?',
-      a: 'Yes. HEIC files are decoded automatically before recognition.',
+      q: 'My photo came out blurry or at an angle — can the tool fix it?',
+      a: 'Blur cannot be recovered by any OCR setting — retake the photo with more light and a steady hand. Moderate angle can be corrected automatically, but steep angles (more than about 20°) will reduce multi-line accuracy. Take the photo from directly above for best results.',
     },
     {
       q: 'What about photos of books with page curvature?',
-      a: 'Moderate curvature works. Heavy curvature warps the text line geometry enough to hurt multi-line accuracy. Flatten the page or use a book scanner cradle for dense content.',
+      a: 'Moderate curvature works. Heavy curvature warps the text line geometry enough to hurt accuracy on longer lines. Flatten the page as much as possible, or use a dedicated book scanning app for dense content.',
     },
     {
-      q: 'Can I review and fix the extracted text?',
-      a: 'Yes. The review panel shows each word flagged with low recognition confidence. Click any word to correct it, or toggle auto-correct to fix common OCR errors automatically.',
-    },
-    {
-      q: 'Are files uploaded anywhere?',
-      a: 'No. OCR runs in your browser. Nothing leaves your device.',
+      q: 'Does it handle HEIC photos from iPhone?',
+      a: 'Yes. HEIC files are decoded automatically before recognition runs — no need to convert to JPG first.',
     },
   ],
 

@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   slug: 'png-to-text',
   title: 'PNG to Text Converter',
   subtitle: 'Extract text from PNG screenshots. Transparent backgrounds handled automatically.',
+  bestFor: 'Best for extracting text from PNG screenshots, UI exports, and diagram labels.',
   category: 'image-to-text',
   accepts: ['image/png'],
   acceptsExt: ['.png'],
@@ -71,24 +72,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What PNG images work best?',
-      a: 'UI captures, cropped screenshots, diagram labels, and any clean export from a design tool. PNGs are lossless so character detail is preserved exactly — great for precise extraction.',
+      q: 'Are my PNG files uploaded anywhere to run OCR?',
+      a: 'No. OCR runs entirely in your browser. Files never leave your device.',
+    },
+    {
+      q: 'What PNG images give the best results?',
+      a: 'UI screenshots, cropped captures, diagram labels, and clean exports from design tools. PNG is lossless, so character detail is preserved exactly — OCR on sharp, high-contrast PNGs is very accurate.',
     },
     {
       q: 'What happens with transparent backgrounds?',
-      a: 'Composited onto white before recognition runs. A transparent PNG with dark text reads the same as a white-background image.',
+      a: 'Transparent areas are composited onto white before recognition runs. A transparent PNG with dark text reads the same as a white-background image.',
     },
     {
-      q: 'Can it read text in code screenshots?',
-      a: 'Yes, though monospace fonts with ambiguous characters (0/O, 1/l/I) are the most error-prone part. The review panel lets you catch and fix those quickly.',
+      q: 'Can it read text from code screenshots?',
+      a: 'Yes, but monospace fonts with visually similar characters (0/O, 1/l/I) are the most error-prone. The review panel flags low-confidence words so you can catch and fix these quickly.',
     },
     {
-      q: 'What about screenshots with coloured text or highlights?',
-      a: 'Converted to greyscale before recognition. Colour itself doesn\'t affect accuracy — contrast between text and background does. Dark text on a light background reads cleanly regardless of the specific colours.',
-    },
-    {
-      q: 'Are files uploaded anywhere?',
-      a: 'No. OCR runs entirely in your browser. Files never leave your device.',
+      q: 'What about dark-mode screenshots or coloured text?',
+      a: 'Converted to greyscale before recognition. Colour does not affect accuracy directly — contrast between text and background is what matters. Dark text on a light background reads cleanly regardless of the specific colours involved.',
     },
   ],
 

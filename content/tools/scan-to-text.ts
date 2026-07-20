@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   slug: 'scan-to-text',
   title: 'Scan to Text Converter',
   subtitle: 'Convert scanned document images into editable text. TIFF, JPG, PNG, BMP.',
+  bestFor: 'Best for extracting text from paper documents scanned on a flatbed scanner or phone scanning app.',
   category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/tiff', 'image/bmp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.tiff', '.tif', '.bmp'],
@@ -69,24 +70,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What scan quality do I need?',
-      a: '200 DPI or above at good ink contrast. Most flatbed scanner defaults (300 DPI, black and white or greyscale) produce near-perfect results.',
+      q: 'Are my scanned documents uploaded anywhere to run OCR?',
+      a: 'No. OCR runs entirely in your browser. Nothing is sent to any server.',
     },
     {
-      q: 'Does it support TIFF?',
-      a: 'Yes. TIFF, JPG, PNG, and BMP are all accepted. TIFF is common from document scanners and is handled the same as any other format.',
+      q: 'What scan quality do I need for accurate OCR?',
+      a: '300 DPI is the standard minimum for clean printed text. Below 150 DPI, characters start merging or getting skipped. Most flatbed scanner defaults (300 DPI, black-and-white or greyscale) produce near-perfect results. Phone scanning apps typically shoot at 200–400 DPI, which is sufficient.',
     },
     {
-      q: 'What about two-sided documents?',
-      a: 'Scan each side separately and drop both files in. Use "Combined" output mode to merge them into one file in filename order.',
+      q: 'My OCR output has gibberish or wrong characters. What went wrong?',
+      a: 'The most common causes are: scan resolution below 200 DPI, a page photographed at an angle, faded or low-contrast ink, or the wrong language selected. Try rescanning at a higher DPI with the page flat and well-lit, and confirm the language setting matches your document.',
     },
     {
       q: 'Can it read faded or old documents?',
-      a: 'Light fading often still reads — the tool handles moderate contrast loss. Heavy fading, water damage, or bleed-through from the reverse side reduces accuracy significantly. No software fix compensates for genuinely unreadable ink.',
+      a: 'Light fading often still reads — the tool handles moderate contrast loss. Heavy fading, water damage, or bleed-through from the reverse side reduces accuracy significantly. No OCR setting compensates for ink that is genuinely unreadable.',
     },
     {
-      q: 'Are files uploaded anywhere?',
-      a: 'No. OCR runs entirely in your browser. Nothing is sent to any server.',
+      q: 'What about two-sided documents or multi-page scans?',
+      a: 'Scan each page separately and drop all files in together. Use "Combined" output mode to merge them into one file in filename order. Name files 001.tiff, 002.tiff, etc. to control page order.',
     },
   ],
 

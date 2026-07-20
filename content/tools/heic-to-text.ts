@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   slug: 'heic-to-text',
   title: 'HEIC to Text Converter',
   subtitle: 'Extract text from iPhone photos without converting first.',
+  bestFor: 'Best for iPhone users who want to OCR HEIC photos without converting to JPG first.',
   category: 'image-to-text',
   accepts: ['image/heic', 'image/heif'],
   acceptsExt: ['.heic', '.heif'],
@@ -66,24 +67,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Are my iPhone photos uploaded anywhere to run OCR?',
+      a: 'No. HEIC decoding and OCR both run in your browser. Your photos never leave your device.',
+    },
+    {
       q: 'Why does my iPhone save photos as HEIC?',
-      a: 'HEIC (High Efficiency Image Container) is Apple\'s default since iOS 11. It produces smaller files than JPG at similar quality. Most OCR tools make you convert to JPG first — this tool accepts HEIC directly.',
+      a: 'HEIC (High Efficiency Image Container) is Apple\'s default since iOS 11. It produces smaller files than JPG at similar quality. Most OCR tools require you to convert to JPG first — this tool accepts HEIC directly.',
+    },
+    {
+      q: 'How accurate is text extraction from iPhone HEIC photos?',
+      a: 'iPhone cameras are sharp enough that a well-framed, well-lit photo of a document typically reads at 94–98% accuracy on printed text. Accuracy drops when the page is at a steep angle, partly in shadow, or contains handwriting mixed with print. Check the review panel\'s amber highlights before using the text in anything important.',
+    },
+    {
+      q: 'Why does HEIC take longer to process than JPG?',
+      a: 'HEIC files must be decoded to PNG before OCR can run — this adds a few extra seconds per file compared to JPG. The quality of the output is the same once decoding is done.',
     },
     {
       q: 'Does this work on HEIF files too?',
-      a: 'Yes. HEIC and HEIF are essentially the same format. Both are accepted.',
-    },
-    {
-      q: 'Can I just change my iPhone to save as JPG instead?',
-      a: 'Yes — Settings > Camera > Formats > Most Compatible switches to JPG. But if you already have HEIC photos you want to extract text from, drop them here without converting.',
-    },
-    {
-      q: 'How accurate is the text extraction from iPhone photos?',
-      a: 'iPhone cameras are good enough that a well-framed photo of a document in decent light will come out pretty clean — typically 94–98% accurate on printed text. The weak spots are the same ones that fool your eye: text at a steep angle, a page half in shadow, or handwriting mixed with print. Before you use the extracted text for anything that matters (a form, a quote, a medical document), scan through the review panel\'s amber highlights. It won\'t take long and it catches the things you\'d otherwise miss.',
-    },
-    {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. HEIC decode and OCR both run in your browser. Your photos never leave your device.',
+      a: 'Yes. HEIC and HEIF are the same format with different extensions. Both are accepted.',
     },
   ],
 

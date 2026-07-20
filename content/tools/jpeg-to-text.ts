@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   slug: 'jpeg-to-text',
   title: 'JPEG to Text Converter',
   subtitle: 'Extract text from JPEG files. Same as JPG, just spelled differently.',
+  bestFor: 'Best for extracting text from JPEG images when tools or scripts specifically require .jpeg files.',
   category: 'image-to-text',
   accepts: ['image/jpeg'],
   acceptsExt: ['.jpeg', '.jpg'],
@@ -70,24 +71,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What\'s the difference between JPEG and JPG?',
-      a: 'Nothing. JPEG is the full name of the format; JPG is the three-letter extension used on Windows where extensions were historically limited to three characters. The files are identical.',
+      q: 'Are my JPEG files uploaded anywhere to run OCR?',
+      a: 'No. OCR runs entirely in your browser. Your files never leave your device.',
     },
     {
-      q: 'Is this the same as the JPG to Text tool?',
-      a: 'Yes, exactly the same functionality. Both accept .jpg and .jpeg files.',
+      q: 'What\'s the difference between JPEG and JPG?',
+      a: 'Nothing meaningful. JPEG is the full format name; JPG is the three-letter extension that became common on Windows when extensions were limited to three characters. The files are identical — this tool accepts both.',
+    },
+    {
+      q: 'Does JPEG compression hurt OCR accuracy?',
+      a: 'At moderate quality (70%+) you won\'t notice a difference. Heavy compression creates ringing artefacts around letter edges that confuse character recognition — thin serifs, punctuation, and small numbers are the first things to suffer. If you have a choice, export at 80%+ quality.',
     },
     {
       q: 'How many files can I process at once?',
-      a: 'There is no hard limit. For large batches (50+ files), processing continues in the background — keep the tab open until it finishes.',
+      a: 'There is no hard limit. For large batches (50+ files), processing runs in the background — keep the tab open until it finishes.',
     },
     {
-      q: 'Is the output accurate enough to use directly?',
-      a: 'For most clean document scans, yes — but "most" is doing real work in that sentence. JPEG compression chews up fine details like thin serifs, punctuation, and small numbers. The higher the compression (the smaller the file), the more errors you\'ll see. It\'s worth doing a read-through of anything you plan to paste into a document, email, or form before you hit send. The review panel helps by flagging the words the engine had the most trouble with.',
-    },
-    {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. OCR runs entirely in your browser. Your files never leave your device.',
+      q: 'Should I review the output before using it?',
+      a: 'For most clean document scans the output is usable directly, but check anything you plan to paste into a form, email, or legal document. The review panel flags words the engine had low confidence on — those are the most likely errors.',
     },
   ],
 

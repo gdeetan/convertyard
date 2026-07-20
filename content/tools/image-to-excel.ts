@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'image-to-excel',
   title: 'Image to Excel Converter',
   subtitle: 'Drop a table screenshot. Get a clean .xlsx file.',
+  bestFor: 'Best for copying tables from screenshots, reports, or web pages into an editable spreadsheet.',
   category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
@@ -36,28 +37,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'How does this work?',
-      a: 'The tool detects column and row boundaries from the image pixels, then OCRs each cell individually. The result is written to a .xlsx file with the same layout as the original table.',
-    },
-    {
-      q: 'What types of tables work best?',
-      a: 'Screenshots of spreadsheets, web tables, and reports with consistent column spacing. Both bordered tables (visible grid lines) and borderless tables are supported.',
-    },
-    {
-      q: 'Can I open the output directly in Excel or Google Sheets?',
-      a: 'Yes. The output is a standard .xlsx file — open it directly in Excel, Google Sheets, or LibreOffice Calc.',
-    },
-    {
-      q: 'Should I verify the spreadsheet before using it in calculations?',
-      a: 'Yes — especially for numbers. Scan a few rows to confirm column alignment and spot-check totals against the source image before building formulas.',
-    },
-    {
-      q: 'Does it work on invoice or receipt images?',
-      a: 'For receipts where you need vendor, date, and total extracted into specific fields, use the Receipt to Text tool instead.',
-    },
-    {
-      q: 'Are my files uploaded anywhere?',
+      q: 'Are my images uploaded anywhere to extract the table?',
       a: 'No. All processing runs entirely in your browser. Your images never leave your device.',
+    },
+    {
+      q: 'What types of tables give the best results?',
+      a: 'Tables with clearly visible grid lines, consistent column spacing, and high-contrast text on a white background. Borderless tables are supported but cell boundaries are harder to detect. Merged cells and multi-row headers often get split or misaligned.',
+    },
+    {
+      q: 'Why are some cells in the wrong column or row?',
+      a: 'The converter detects column boundaries from pixel spacing. Tables without borders or with inconsistent column widths can confuse the boundary detection. Try cropping tightly to the table area — removing surrounding whitespace or UI chrome helps.',
+    },
+    {
+      q: 'Should I verify the numbers before using them in calculations?',
+      a: 'Yes. OCR can misread digits — 0 and 8, 1 and 7, 5 and 6 are common confusion pairs. Spot-check a few totals against the source image before building formulas.',
+    },
+    {
+      q: 'Does this work on receipt or invoice images?',
+      a: 'For receipts where you need vendor, date, and total in named fields, the Receipt to Text tool is a better fit. For invoices that are structured as tables, try this tool and verify the output.',
     },
   ],
 

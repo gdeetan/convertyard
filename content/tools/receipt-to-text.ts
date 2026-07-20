@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   slug: 'receipt-to-text',
   title: 'Receipt to Text Converter',
   subtitle: 'Extract receipt text and key fields. Download as readable text or CSV. Batch up to 500.',
+  bestFor: 'Best for extracting vendor, date, and total from receipt photos for manual expense logging.',
   category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
@@ -37,24 +38,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Are my receipt photos uploaded anywhere?',
+      a: 'No. OCR runs entirely in your browser. Your receipt photos never leave your device.',
+    },
+    {
       q: 'What fields does it extract?',
-      a: 'Vendor name (first text line), date (first date pattern found), and total amount (last dollar figure or labeled total). In text mode, the full raw OCR text follows below. In CSV mode, all fields appear as columns in one row per receipt.',
+      a: 'Vendor name (first text line), date (first date pattern found), and total amount (last dollar figure or labeled total). The full raw OCR text is also included. In CSV mode, all fields appear as columns — one row per receipt.',
+    },
+    {
+      q: 'Does the output give me a parsed expense report?',
+      a: 'No. The output is extracted text with vendor, date, and total detected automatically. It is not a structured expense entry — you still need to review and import the values into your accounting tool manually. Think of it as a first pass that saves you from typing everything out.',
     },
     {
       q: 'Does it work on thermal receipt paper photos?',
-      a: 'Yes. Thermal receipts — the shiny ones from card readers — photograph as light grey text on white. Use a well-lit photo for best contrast.',
+      a: 'Yes, but thermal receipts are one of the hardest inputs for OCR — the ink fades, the contrast is low, and the text is usually very small. Take the photo in good natural light with the receipt as flat as possible. Always verify totals before submitting to accounting.',
     },
     {
       q: 'Can I import the CSV into QuickBooks, FreshBooks, or Xero?',
-      a: 'Yes — choose CSV output format. The file has filename, vendor, date, total, and raw text columns. Map vendor, date, and total to your accounting tool\'s field names.',
-    },
-    {
-      q: 'How reliable is the extracted data — should I verify before submitting an expense report?',
-      a: 'Yes, always verify the totals. Thermal receipt paper (the shiny kind) is one of the hardest inputs for OCR: the ink fades, the contrast is often low, and the text is usually tiny. The tool does its best to find the vendor, date, and total, but a misread digit in an amount is easy to miss and easy to catch in 5 seconds. Totals and dates are the two things most worth a double-check before you submit anything to accounting.',
-    },
-    {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. OCR runs entirely in your browser. Your receipt photos never leave your device.',
+      a: 'Yes — choose CSV output format. The file has filename, vendor, date, total, and raw text columns. Map those to your accounting tool\'s field names on import.',
     },
   ],
 

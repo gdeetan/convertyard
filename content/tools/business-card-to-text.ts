@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'business-card-to-text',
   title: 'Business Card to Text Converter',
   subtitle: 'Scan business cards and extract contact details into CSV.',
+  bestFor: 'Best for quickly capturing contact details from physical business cards collected at events.',
   category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
@@ -35,24 +36,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'Does it extract email addresses and phone numbers automatically?',
-      a: 'Yes. Email addresses, phone numbers, and URLs are detected using pattern matching and placed in separate columns. The raw text is also included if you need anything else.',
+      q: 'Are my business card photos uploaded anywhere?',
+      a: 'No. OCR runs locally in your browser. Your images never leave your device.',
     },
     {
-      q: 'Can I import the results into my contacts app?',
-      a: 'The CSV output can be imported into Google Contacts, Apple Contacts, Outlook, Salesforce, HubSpot, or any CRM that accepts CSV. You may need to map the column names to your app\'s field names.',
+      q: 'Does the output give me structured contact fields (name, email, phone)?',
+      a: 'The CSV has separate columns for detected email addresses, phone numbers, and URLs — extracted using pattern matching. Name and title are not reliably separated from the rest of the card text; they appear in the raw text column. You will need to assign those fields manually in your contacts app.',
     },
     {
-      q: 'My business cards have a dark background with light text — will it work?',
-      a: 'Yes. The tool pre-processes PNG files to handle contrast issues. For best results with dark-background cards, photograph or scan at high resolution.',
+      q: 'What kind of business cards work best?',
+      a: 'Cards with high contrast — black or dark text on a white or light background — and a standard font work best. Cards with foil effects, embossed text, very small print, or light text on a coloured background are harder to read accurately.',
     },
     {
-      q: 'How accurate is the contact information extraction?',
-      a: 'Phone numbers and email addresses are detected using pattern matching, so they tend to come out reliably even when the surrounding text has errors. The harder parts are names (especially non-Western names or unusual spellings) and titles, which OCR can misread if the font is stylised or the card has a coloured background. Before importing the CSV into your CRM or contacts app, it\'s worth scanning down the name column — correcting five names now saves hunting for a contact you can\'t find in six months.',
+      q: 'The OCR missed part of the card or got letters wrong. What helps?',
+      a: 'Take the photo in good natural light, parallel to the card surface, with no flash glare. Avoid shadows across the card. A photo taken at an angle or in low light is the most common reason for poor output.',
     },
     {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. OCR runs entirely in your browser. Your files never leave your device.',
+      q: 'Can I import the CSV into my CRM or contacts app?',
+      a: 'Yes. The CSV imports into Google Contacts, Apple Contacts, Outlook, Salesforce, HubSpot, and any app that accepts CSV. You may need to map column names to your app\'s field names — the exact labels vary by app.',
     },
   ],
 

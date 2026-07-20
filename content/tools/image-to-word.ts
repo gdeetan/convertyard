@@ -5,7 +5,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'image-to-word',
   title: 'Image to Word Converter',
-  subtitle: 'Local-first OCR. Built for batches.',
+  subtitle: 'Extract text from images and save as editable Word documents.',
+  bestFor: 'Best for converting scanned pages or document photos into editable DOCX files.',
   category: 'image-to-text',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff', '.tif'],
@@ -103,19 +104,15 @@ export const config: ToolConfig = {
     },
     {
       q: 'How accurate is the text extraction?',
-      a: 'Accuracy depends on image quality. Clear, high-contrast printed text typically achieves 95%+ accuracy. Low-resolution scans, handwriting, or decorative fonts will be less accurate.',
-    },
-    {
-      q: 'Can I convert multiple images at once?',
-      a: 'Yes. Drop up to 1000 images and each one is converted to its own DOCX file, then downloaded as a ZIP.',
-    },
-    {
-      q: 'Does it work offline?',
-      a: 'After the OCR engine loads on your first visit, the tool works with no internet connection.',
+      a: 'Clear, high-contrast printed text on a white background typically reads at 95%+ accuracy. Low-resolution scans, handwriting, decorative fonts, and text over complex backgrounds will all reduce accuracy. Use the Document mode for scanned pages and the Screenshot mode for UI captures.',
     },
     {
       q: 'Why does the Word file look different from my original image?',
-      a: 'This tool extracts text only — it does not replicate the original layout, fonts, or images. The output is plain reflowed text in a Word document.',
+      a: 'This tool extracts text only — it does not replicate the original layout, column structure, fonts, or embedded images. The output is reflowed plain text in a Word document. Complex multi-column layouts may appear in a different order than the original.',
+    },
+    {
+      q: 'Can I convert multiple images at once?',
+      a: 'Yes. Drop up to 1000 images and each one becomes its own DOCX file, downloaded as a ZIP.',
     },
   ],
 

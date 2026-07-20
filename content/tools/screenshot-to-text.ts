@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   slug: 'screenshot-to-text',
   title: 'Screenshot to Text Converter',
   subtitle: 'Extract text from screenshots — up to 500 at once, no uploads.',
+  bestFor: 'Best for copying text from UI screenshots, error messages, chat logs, and software menus.',
   category: 'image-to-text',
   accepts: ['image/png', 'image/jpeg', 'image/webp'],
   acceptsExt: ['.png', '.jpg', '.jpeg', '.webp'],
@@ -71,28 +72,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What kinds of screenshots work best?',
-      a: 'Clear screenshots of UI text — error messages, Slack or Discord posts, settings screens, article paragraphs. Anything you can read comfortably on screen will read cleanly here.',
+      q: 'Are my screenshots uploaded anywhere to run OCR?',
+      a: 'No. OCR runs entirely in your browser using Tesseract.js and WebAssembly. Nothing is sent to any server.',
+    },
+    {
+      q: 'What kinds of screenshots give the best results?',
+      a: 'Clear UI screenshots — error messages, Slack or Discord posts, settings screens, article text. Anything you can read comfortably on screen will extract cleanly.',
     },
     {
       q: 'Does it work on dark-mode screenshots?',
-      a: 'Yes. Dark backgrounds are automatically detected and inverted before recognition runs, so light text on dark reads the same as dark text on light.',
-    },
-    {
-      q: 'Can I extract text from a screenshot of a PDF?',
-      a: 'Yes. For actual .pdf files, the OCR PDF tool is faster. If you have a screenshot of a PDF page, this is the right tool.',
-    },
-    {
-      q: 'What about multi-column layouts?',
-      a: 'Works for most cases. Dense layouts sometimes merge adjacent columns. Crop to a single column first if that happens.',
+      a: 'Yes. Dark backgrounds are detected and inverted before recognition runs, so light text on dark reads the same as dark text on light.',
     },
     {
       q: 'What trips it up?',
-      a: 'Small labels under 12px, light-grey placeholder text, monospace code with ambiguous characters (0/O, 1/l/I), and unusual fonts. For most standard UI screenshots you\'ll find little or nothing to fix.',
+      a: 'Text smaller than about 12px (tiny tooltip labels, status-bar text), light-grey placeholder text on near-white backgrounds, and monospace code with visually similar characters (0/O, 1/l/I). Most standard UI screenshots will have little or nothing to fix.',
     },
     {
-      q: 'Are my screenshots uploaded anywhere?',
-      a: 'No. OCR runs entirely in your browser using Tesseract.js and WebAssembly. Nothing is sent to any server.',
+      q: 'What about multi-column layouts or screenshots with mixed UI and text?',
+      a: 'Multi-column layouts work in most cases but dense layouts can sometimes merge adjacent columns. Crop to a single column first if that happens. UI chrome (menus, toolbars, sidebars) around the text you want can also add noise — cropping tightly helps.',
     },
   ],
 

@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   slug: 'jpg-to-text',
   title: 'JPG to Text Converter',
   subtitle: 'Extract text from JPG screenshots and exported slides. No uploads.',
+  bestFor: 'Best for pulling text out of JPG screenshots, exported slide decks, and saved chat images.',
   category: 'image-to-text',
   accepts: ['image/jpeg'],
   acceptsExt: ['.jpg', '.jpeg'],
@@ -71,24 +72,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What JPG images work best?',
-      a: 'Exported slides, chat screenshots saved as JPG, screenshotted articles or emails. Quality matters more than size — a high-quality 800×600 JPG reads better than a heavily compressed 2000×1500.',
+      q: 'Are my JPG files uploaded anywhere to run OCR?',
+      a: 'No. Everything runs in your browser with WebAssembly. Files never leave your device.',
     },
     {
-      q: 'JPG compresses images — does that hurt OCR?',
-      a: 'At moderate quality (70%+) you won\'t notice a difference. Heavy compression creates ringing artefacts around letter edges that confuse character recognition. Export at 80%+ quality when you have a choice.',
+      q: 'What JPG images work best?',
+      a: 'Exported slides, screenshots of articles or emails, and chat images saved as JPG. Image quality matters more than resolution — a high-quality 800×600 JPG reads better than a heavily compressed 2000×1500.',
+    },
+    {
+      q: 'Does JPEG compression affect OCR accuracy?',
+      a: 'At moderate quality (70%+) the effect is small. Heavy compression creates ringing artefacts around letter edges that confuse character recognition — thin serifs and small punctuation are the first casualties. Export at 80%+ quality when you have a choice.',
+    },
+    {
+      q: 'Can I batch-convert a folder of JPG screenshots?',
+      a: 'Yes. Drop up to 1,000 files at once. Each produces a separate .txt, or choose "Combined" to merge everything into one file sorted by filename.',
     },
     {
       q: 'What languages are supported?',
-      a: '14 languages including English, French, German, Spanish, Chinese (Simplified and Traditional), Japanese, Korean, Arabic, Hindi, Russian, Portuguese, Italian, and Dutch.',
-    },
-    {
-      q: 'Can I batch-convert a folder of screenshots?',
-      a: 'Yes. Drop up to 1,000 files at once. Each produces a separate .txt, or choose "Combined" to merge them into one file sorted by filename.',
-    },
-    {
-      q: 'Are files uploaded anywhere?',
-      a: 'No. Everything runs in your browser with WebAssembly. Files never leave your device.',
+      a: '14 languages: English, French, German, Spanish, Chinese (Simplified and Traditional), Japanese, Korean, Arabic, Hindi, Russian, Portuguese, Italian, and Dutch.',
     },
   ],
 
