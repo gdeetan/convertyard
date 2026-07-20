@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   slug: 'rotate-pdf',
   title: 'Rotate PDF Pages',
   subtitle: 'Rotate individual pages or the whole PDF permanently. Preview thumbnails before saving. Nothing leaves your browser.',
+  bestFor: 'Best for fixing sideways pages in a scanned document before sending or printing.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
@@ -14,28 +15,28 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Are my PDFs uploaded to a server during rotation?',
+      a: 'Never. Rotation runs entirely in your browser using WebAssembly. Your PDF does not leave your device at any point.',
+    },
+    {
       q: 'Is the rotation saved permanently to the file?',
-      a: 'Yes. We use pdf-lib to encode the rotation directly into the PDF page specification. When you open the output file in Adobe Reader, Preview, or any other PDF viewer, the page will be rotated. This is not a view preference — it is permanently written into the file.',
-    },
-    {
-      q: 'Can I rotate just one page?',
-      a: 'Yes. Click the rotate buttons directly on the page thumbnail you want to change. Other pages are left untouched.',
-    },
-    {
-      q: 'Can I rotate all pages at once?',
-      a: 'Yes. Use the "Rotate all left" or "Rotate all right" buttons above the grid to apply 90° rotation to every page in one click.',
+      a: 'Yes. The rotation is encoded directly into the PDF page specification using pdf-lib. When you open the output in any PDF viewer, the page will be correctly oriented. This is not a viewer preference — it is permanently written into the file.',
     },
     {
       q: 'Will rotation reduce the quality of my PDF?',
-      a: 'No. Rotation is encoded as metadata in the page dictionary. The page content — text, images, vectors — is never re-rendered or re-encoded. File size changes by less than 1KB.',
+      a: 'No. Rotation is encoded as metadata in the page dictionary. The page content — text, images, vectors — is never re-rendered or re-encoded. The file size changes by less than 1 KB.',
+    },
+    {
+      q: 'Can I rotate just one page without affecting the rest?',
+      a: 'Yes. Click the rotate buttons on the individual page thumbnail. Other pages are left exactly as they are.',
     },
     {
       q: 'Can I rotate a password-protected PDF?',
-      a: 'If the PDF has a read password, your browser may prompt you to enter it. If it is copy-protected without a password prompt, rotation will still work — we open the file with encryption ignored for read-only operations.',
+      a: 'PDFs protected with an open password cannot be processed here. Remove the password first using the Unlock PDF tool. PDFs with copy or print restrictions but no open password can usually be rotated without issue.',
     },
     {
-      q: 'Are my files uploaded to a server?',
-      a: 'Never. Rotation runs entirely in your browser using WebAssembly. Your PDF does not leave your device at any point.',
+      q: 'What is the rotation increment?',
+      a: 'Rotation is applied in 90° increments only — left (counter-clockwise) or right (clockwise). There is no support for arbitrary angles like 15° or 45°.',
     },
   ],
 

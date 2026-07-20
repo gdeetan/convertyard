@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'pdf-to-png',
   title: 'PDF to PNG Converter',
   subtitle: 'Export every PDF page as a high-resolution PNG — up to 600 DPI. Useful for thumbnails, slides, and image pipelines.',
+  bestFor: 'Best for extracting PDF pages as lossless images for design work or archival.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
@@ -49,32 +50,28 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What DPI should I choose?',
-      a: '72 DPI is fine for web thumbnails or quick previews. 150 DPI works well for email and presentations — clear and readable without large files. 300 DPI is print-quality, suitable for professional workflows. 600 DPI produces archival-quality images where every fine detail is preserved. No competing free tool offers 600 DPI — most cap at 150–200.',
+      q: 'Are my PDFs uploaded to your servers during rendering?',
+      a: 'Never. All rendering happens in your browser via WebAssembly. Your PDFs never leave your device.',
     },
     {
       q: 'Why is the PNG file larger than the original PDF?',
-      a: 'PDFs store content as vector instructions and compressed data. Rendering to PNG rasterizes those instructions into pixels — a 300 DPI render of an A4 page produces a 2480×3508 pixel image. The PNG stores every one of those pixels uncompressed (losslessly). A 1MB PDF can easily become a 15MB PNG at 300 DPI. If file size matters, use 150 DPI or choose PDF to JPG instead.',
+      a: 'PDFs store content as vector instructions and compressed data. Rendering to PNG rasterises those instructions into pixels — a 300 DPI render of an A4 page produces a 2480×3508 pixel image. The PNG stores every pixel losslessly. A 1MB PDF can easily become a 15MB PNG at 300 DPI. Use 150 DPI or PDF to JPG if file size matters.',
     },
     {
       q: 'What does transparent background do?',
-      a: 'When enabled, areas of the PDF with no content — typically the page background — become transparent in the PNG output instead of white. Useful for PDFs containing vector graphics or logos you want to composite onto other images.',
-    },
-    {
-      q: 'Can I export only specific pages?',
-      a: 'Yes. Set "From page" and "To page" to a range. For example, set both to 3 to export only page 3, or set From to 2 and To to 5 to export pages 2 through 5. Leave "To page" at 9999 to export all pages from your start point.',
+      a: 'Areas of the PDF with no content — typically the page background — become transparent instead of white. This is useful for PDFs containing vector graphics or logos you want to composite onto a coloured background in another tool.',
     },
     {
       q: 'How is PDF to PNG different from PDF to JPG?',
-      a: 'PNG uses lossless compression — every pixel is preserved exactly, and transparent backgrounds are supported. JPG uses lossy compression — smaller files, slight quality loss, no transparency. For PDFs with text or vector graphics, PNG is the better choice. For scanned photo-heavy documents, JPG at 85 quality looks identical at a much smaller size.',
+      a: 'PNG uses lossless compression — every pixel is preserved exactly, and transparent backgrounds are supported. JPG uses lossy compression — smaller files, no transparency. For PDFs with text or line art, PNG is sharper at the same DPI. For scanned photo-heavy documents, JPG at quality 85+ looks the same at a fraction of the size.',
     },
     {
-      q: 'How does a multi-page PDF export?',
-      a: 'Each page becomes a separate PNG file, named with the page number appended — for example, "report-page-1.png", "report-page-2.png". All pages download together in a single ZIP.',
+      q: 'Can I export only specific pages?',
+      a: 'Yes. Set "From page" and "To page" to select a range. Set both to the same number to export a single page. Leave "To page" at 9999 to export from your start page to the end of the document.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. All rendering happens in your browser via WebAssembly. Your PDFs never leave your device.',
+      q: 'Why would I use 600 DPI?',
+      a: 'Archival workflows — where a scan must be reproduced at print quality — benefit from 600 DPI. It is also useful for extracting very small text or fine line art that looks blurry at 300 DPI. The output files are large (often 50–100 MB per page); only use 600 DPI when the detail genuinely requires it.',
     },
   ],
 

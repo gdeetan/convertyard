@@ -8,6 +8,7 @@ export const config: ToolConfig = {
   slug: 'protect-pdf',
   title: 'Protect PDF',
   subtitle: 'Password-protect PDFs with AES encryption. Set permissions. Browser-only.',
+  bestFor: 'Best for locking a confidential PDF before sharing it with specific recipients.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
@@ -15,28 +16,24 @@ export const config: ToolConfig = {
   convertFn: _noopForToolShell,
   faq: [
     {
-      q: 'What encryption is used?',
-      a: 'AES-256 by default — the strongest encryption supported by all modern PDF readers. AES-128 is available for compatibility with older software.',
-    },
-    {
-      q: 'What is the difference between user password and owner password?',
-      a: "The user password is required to open the PDF. The owner password is required to change its permissions or remove protection. If you set only a user password, the owner password defaults to the same value.",
-    },
-    {
-      q: 'What permissions can I set?',
-      a: "You can restrict printing, copying text, editing, and filling forms. When restrictions are set, users who only have the user password cannot perform those actions. The owner password bypasses all restrictions.",
-    },
-    {
-      q: 'What if I forget the password?',
-      a: "There is no way to recover a lost password. Store it in a password manager. The encryption is real — if the password is lost, the file contents are inaccessible.",
-    },
-    {
-      q: 'Is my password sent to your servers?',
+      q: 'Does my password get sent to your servers?',
       a: 'Never. Encryption runs entirely in your browser using WebAssembly. Your PDF and your password never leave your device.',
     },
     {
-      q: 'Can I batch-protect multiple PDFs with the same password?',
-      a: 'Yes. Set the password once and all dropped PDFs are protected with that password.',
+      q: 'What is the difference between user password and owner password?',
+      a: 'The user password is required to open the PDF. The owner password is required to change permissions or remove protection. If you set only a user password, the owner password defaults to the same value. Most use cases only need a user password.',
+    },
+    {
+      q: 'What permissions can I restrict?',
+      a: 'You can restrict printing, copying text, editing content, and filling forms. Users who only have the user password cannot perform those actions. The owner password bypasses all restrictions.',
+    },
+    {
+      q: 'Will AES-256 protection prevent someone from printing the PDF?',
+      a: 'Yes — PDF readers that follow the specification will honour print restrictions. However, screen capture is always possible regardless of permissions, and some third-party PDF tools ignore permission flags. Restrictions are a deterrent, not a technical lock.',
+    },
+    {
+      q: 'What if I forget the password?',
+      a: 'There is no recovery. Store it in a password manager before protecting the file. The AES encryption is real — a lost password means the file contents are permanently inaccessible.',
     },
   ],
   relatedTools: ['unlock-pdf', 'redact-pdf', 'compress-pdf', 'watermark-pdf'],

@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'split-pdf',
   title: 'Split PDF',
   subtitle: 'Split by page range, extract specific pages, or divide into equal chunks. Nothing leaves your browser.',
+  bestFor: 'Best for extracting specific pages or breaking a long PDF into separate documents.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
@@ -59,28 +60,28 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What does "one file per page" do?',
-      a: 'Each page of your PDF becomes a separate PDF file. A 10-page document produces 10 individual files. They all download together in a ZIP. This is the fastest way to separate a PDF into individual pages.',
+      q: 'Does splitting upload my PDF to your servers?',
+      a: 'No. The split runs in your browser using WebAssembly. Your PDF never leaves your device.',
     },
     {
-      q: 'How does "every N pages" work?',
-      a: 'The PDF is divided into sequential chunks. For example, a 10-page PDF split every 3 pages produces: pages 1–3, pages 4–6, pages 7–9, and page 10. The last chunk may be shorter than N.',
+      q: 'What happens to bookmarks and internal links when I split a PDF?',
+      a: 'Bookmarks and internal hyperlinks pointing to pages outside the extracted range are removed. Links to external URLs and links within extracted pages are preserved.',
     },
     {
-      q: 'Can I extract just a few specific pages?',
-      a: 'Yes. Choose "Extract page range" and set From and To. For example, From: 2, To: 5 extracts pages 2, 3, 4, and 5 into a single PDF. To extract a single page, set both From and To to the same number.',
+      q: 'Can I split a scanned PDF?',
+      a: 'Yes. Splitting works on any PDF, including scanned ones. It reorganises pages without altering or re-encoding page content.',
     },
     {
-      q: 'Does this work on batches?',
-      a: 'Yes. Drop multiple PDFs and the same split settings are applied to each. Each PDF produces its own set of output files. Everything downloads as a ZIP.',
+      q: 'Why does "every N pages" produce one fewer file than I expected?',
+      a: 'If the page count is not evenly divisible by N, the last chunk contains the remaining pages rather than being discarded. A 10-page PDF split every 3 pages produces files of 3, 3, 3, and 1 page.',
     },
     {
       q: 'Will the quality of my PDF change after splitting?',
       a: 'No. Pages are copied exactly as-is using pdf-lib. No re-rendering, no re-encoding. Text, images, and vector graphics are preserved without loss.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Splitting runs entirely in your browser. Your PDFs never leave your device.',
+      q: 'Can I split a password-protected PDF?',
+      a: 'PDFs with an open password cannot be split here. Remove the password first using the Unlock PDF tool, then split.',
     },
   ],
 

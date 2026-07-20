@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'compress-pdf',
   title: 'Compress PDF',
   subtitle: 'Hit exact size targets for email limits and government portals. Target-size mode finds the smallest file that meets your threshold.',
+  bestFor: 'Best for PDFs too large to email or upload to a government form.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
@@ -189,64 +190,28 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What gets removed or changed during compression?',
-      a: 'At Medium and High levels, document metadata is stripped — title, author, subject, keywords, producer, and creator fields. The internal object structure is also rewritten using more efficient cross-reference streams. At Low level, only the structure is optimised; metadata is kept.',
+      q: 'Does compression require uploading my PDF?',
+      a: 'No. Compression runs entirely in your browser using WebAssembly. Your PDF is never sent to a server — ConvertYard only delivers the tool code.',
     },
     {
-      q: 'Will text and images inside my PDF look different after compression?',
-      a: 'Text is never affected — it is lossless. In Quick mode, images are not re-compressed either, so quality is preserved exactly. In Target size mode, embedded JPEG images may be re-encoded at lower quality to reach your target.',
+      q: 'Will compressing make the PDF unsearchable?',
+      a: 'No. Text in PDFs is stored as vector data, not pixels, so it stays sharp and fully searchable regardless of compression level. Only embedded images are recompressed. The exception is Aggressive mode, which converts every page to an image — that does make text unselectable.',
     },
     {
-      q: 'How much smaller will my PDF get?',
-      a: 'Results vary by document. PDFs heavy in structural overhead (many small objects, rich metadata) can shrink 10–30%. PDFs that are mostly scanned images may see little or no reduction because the image data itself is already compressed. For maximum compression of any PDF, switch to Aggressive mode — it converts each page to an image, guaranteeing a smaller file at the cost of text selectability.',
+      q: 'Why is my compressed PDF sometimes larger than the original?',
+      a: 'This happens when the original already has heavily compressed images or contains mostly text with few images. There is little left to remove, and re-encoding can add overhead. The tool will return whichever version is smaller.',
     },
     {
-      q: 'What is the email attachment size limit I should target?',
-      a: 'Most email providers accept attachments up to 10MB (Gmail, Outlook) or 25MB (some others). If your PDF is still too large after compression, try splitting it into smaller sections first using Split PDF.',
+      q: 'What does the compression level setting actually change?',
+      a: 'Low cleans up internal structure only. Medium strips metadata and rewrites cross-reference streams. High re-encodes embedded JPEG images at 30% quality in addition to metadata removal. Text and vector graphics are unaffected by any setting except Aggressive.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Compression runs entirely in your browser. Your PDFs never leave your device.',
+      q: 'Can I compress a password-protected PDF?',
+      a: 'No. The tool cannot read encrypted PDFs. Remove the password first using the Unlock PDF tool, then compress.',
     },
     {
-      q: 'Can I compress a batch of PDFs at once?',
-      a: 'Yes. Drop multiple PDFs at once and they are all compressed using the same settings. Each compressed PDF downloads individually or you can grab all of them as a ZIP.',
-    },
-    {
-      q: 'How does target-size compression work?',
-      a: 'Enable Target size mode and enter your target. The tool runs up to six passes: first it strips metadata and rewrites the internal structure, then it re-encodes embedded JPEG images at progressively lower quality (80 → 60 → 40 → 30%). Each pass only keeps the result if it made the file smaller. Processing stops as soon as the target is met.',
-    },
-    {
-      q: "What if my file can't reach my target size?",
-      a: "If the PDF is already highly compressed — for example, a scanned document whose images are already low-quality JPEG — there may be nothing left to remove. The tool will return the smallest version it could produce and show you what was achieved versus your target. The file will not be broken; it simply cannot get any smaller without discarding content.",
-    },
-    {
-      q: 'What if my PDF is already smaller than my target?',
-      a: 'We return your original file unchanged. There is no point re-encoding something that is already within your limit — doing so would only degrade quality or strip metadata for no benefit. You will see a message confirming that no compression was needed.',
-    },
-    {
-      q: 'What does DPI mean for PDFs and when should I change it?',
-      a: 'DPI (dots per inch) controls how finely images are rendered inside the PDF. A 300 DPI scan has four times the data of a 150 DPI equivalent image of the same size. If your PDF is mainly images — scanned pages, exported slides — lowering DPI from 300 to 150 typically cuts image data by 75%. Text and vector elements are unaffected by DPI changes.',
-    },
-    {
-      q: 'Will converting to grayscale affect text readability?',
-      a: 'No. Text rendered in black is already grayscale — it will look identical. The grayscale conversion only removes colour data from embedded images. If your PDF contains colour charts, photos, or branded graphics that need to stay in colour, leave this option off.',
-    },
-    {
-      q: 'Can I strip embedded files without affecting the PDF content?',
-      a: 'Yes. Embedded files are attachments stored inside the PDF — like an original Word document or a spreadsheet that was attached by the author. Stripping them removes those attachments but leaves all visible page content (text, images, drawings) completely intact.',
-    },
-    {
-      q: 'How does the visual preview work if files never leave my browser?',
-      a: 'The preview is rendered entirely in your browser using MuPDF, a PDF rendering engine compiled to WebAssembly. When you drop a file, the first page is rendered to an image locally. After compression completes, the compressed file is rendered the same way. No data leaves your device at any point — the rendering, comparison, and download all happen on your machine.',
-    },
-    {
-      q: 'What is font subsetting?',
-      a: 'An embedded font contains data for every character in the typeface — often thousands of glyphs — even if your document only uses a few dozen. Subsetting trims the font down to only the characters actually present in your PDF. A typical unsubsetted font might be 300–500 KB; subsetted, it drops to 20–60 KB.',
-    },
-    {
-      q: 'What does "linearize for fast web view" do?',
-      a: 'A linearized PDF rearranges its internal structure so that page 1\'s data comes first. When you open a linearized PDF in a browser, page 1 renders immediately while the rest of the file continues downloading. Non-linearized PDFs must fully download before any page displays.',
+      q: 'How does target-size mode differ from the compression level slider?',
+      a: 'Target-size mode runs up to six compression passes automatically — structural cleanup, then progressively lower JPEG quality (80 → 60 → 40 → 30%) — stopping as soon as your size target is met. The slider applies a single fixed pass. Use target-size mode when you have a hard limit (email attachment ceiling, government portal cap).',
     },
   ],
 

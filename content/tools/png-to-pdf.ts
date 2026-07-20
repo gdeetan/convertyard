@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'png-to-pdf',
   title: 'PNG to PDF Converter',
   subtitle: 'Combine PNG images into a PDF or create one PDF per image. Browser-only.',
+  bestFor: 'Best for turning screenshots or diagrams into a shareable PDF without losing image quality.',
   category: 'pdf',
   accepts: ['image/png', 'image/jpeg', 'image/webp', 'image/gif', 'image/heic', 'image/heif'],
   acceptsExt: ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.heic', '.heif'],
@@ -56,24 +57,28 @@ export const config: ToolConfig = {
   ],
   faq: [
     {
+      q: 'Are my PNG files uploaded to your servers?',
+      a: 'Never. All image embedding runs in your browser via WebAssembly. Your images never leave your device.',
+    },
+    {
       q: 'What happens to PNG transparency?',
-      a: 'Transparent areas in PNG images are rendered on a white background in the PDF, since PDFs do not support page-level transparency.',
+      a: 'Transparent areas are rendered on a white background in the PDF. PDFs do not support page-level transparency — there is no way to preserve a transparent background in the output.',
     },
     {
-      q: 'How do I set the order of images in the PDF?',
-      a: 'Drag the image rows up or down in the list before clicking Convert.',
+      q: 'Will the PNG image quality be preserved in the PDF?',
+      a: 'Yes. PNGs are embedded as-is using lossless encoding. No JPEG recompression is applied, so there is no quality loss. The pixel dimensions are preserved exactly when using "Fit to image" page size.',
     },
     {
-      q: 'What DPI will my PNG images be in the PDF?',
-      a: 'The pixel dimensions of your PNG are preserved exactly with Fit to image page size.',
+      q: 'Can I combine PNGs and JPGs in the same PDF?',
+      a: 'Yes. This tool accepts PNG, JPG, WebP, GIF, and HEIC files in the same batch. Drag them into the list in any order before converting.',
     },
     {
-      q: 'Can I also add JPG and WebP files?',
-      a: 'Yes. This tool accepts PNG, JPG, WebP, GIF, and HEIC files in the same batch.',
+      q: 'How do I control the page order?',
+      a: 'Drag the image rows up or down in the list before clicking Convert. The order shown is the order they appear as pages in the PDF.',
     },
     {
-      q: 'Are my files uploaded anywhere?',
-      a: 'Never. All image embedding runs in your browser. Your images never leave your device.',
+      q: 'Why is my PDF very large after converting PNGs?',
+      a: 'PNGs are embedded losslessly, so a high-resolution PNG becomes a high-resolution page in the PDF with no size reduction. If the file is too large, compress the PNGs first or run the output through Compress PDF.',
     },
   ],
   relatedTools: ['jpg-to-pdf', 'merge-pdf', 'compress-pdf', 'pdf-to-png'],

@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   slug: 'watermark-pdf',
   title: 'Watermark PDF',
   subtitle: 'Add text or image watermarks to PDFs. Live preview. Browser-only.',
+  bestFor: 'Best for marking draft, sample, or confidential PDFs before distributing them.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
@@ -117,28 +118,28 @@ export const config: ToolConfig = {
   ],
   faq: [
     {
-      q: 'What is the difference between text and image watermarks?',
-      a: 'Text watermarks use a built-in font and let you set the color, size, and rotation. Image watermarks use a PNG or JPG you upload — PNGs with transparency work well for logos.',
+      q: 'Are my PDFs uploaded to your servers during watermarking?',
+      a: 'Never. All watermarking runs in your browser using WebAssembly. Your PDFs never leave your device.',
     },
     {
-      q: 'Can I use a logo as a watermark?',
-      a: 'Yes. Upload a PNG file with a transparent background as the image watermark. The transparency is respected in the output PDF.',
+      q: 'Can someone remove the watermark from the output PDF?',
+      a: 'A text watermark added above content can be removed by someone with PDF editing software, just like any PDF element. Watermarking is a deterrent, not a technical lock. For sensitive documents, combine watermarking with password protection.',
     },
     {
       q: 'What does "Above content" vs "Behind content" do?',
-      a: '"Above content" places the watermark on top of the page — always visible. "Behind content" places it underneath, so it shows in empty areas but may be obscured by existing page content.',
+      a: '"Above content" places the watermark on top of the page — always visible regardless of what is on the page. "Behind content" places it underneath, so it appears in blank areas but is obscured by existing text and images.',
+    },
+    {
+      q: 'Will the watermark make the PDF text unsearchable?',
+      a: 'No. The watermark is added as a visual layer on top of the page. Existing text in the PDF remains fully searchable and selectable.',
+    },
+    {
+      q: 'Can I use a company logo as a watermark?',
+      a: 'Yes. Upload a PNG with a transparent background as the image watermark. The transparency is respected in the output PDF so the logo blends with the page content.',
     },
     {
       q: 'Can I apply the watermark to only specific pages?',
-      a: 'Currently you can apply to all pages or the first page only. Per-page range selection is on the roadmap.',
-    },
-    {
-      q: 'Will the watermark affect text searchability?',
-      a: 'No. The watermark is added as a visual layer. Existing text in the PDF remains fully searchable.',
-    },
-    {
-      q: 'Are my files uploaded anywhere?',
-      a: 'Never. All watermarking runs in your browser using WebAssembly. Your PDFs never leave your device.',
+      a: 'Currently you can apply to all pages or the first page only. Per-page range selection is not yet available.',
     },
   ],
   relatedTools: ['protect-pdf', 'merge-pdf', 'compress-pdf', 'redact-pdf'],

@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'jpg-to-pdf',
   title: 'JPG to PDF Converter',
   subtitle: 'Combine photos into one PDF or create one PDF per image. Drag to reorder pages. No upload required.',
+  bestFor: 'Best for packaging photos or screenshots into a single document to send by email.',
   category: 'pdf',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.heic', '.heif'],
@@ -58,28 +59,28 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Are my photos uploaded to your servers during conversion?',
+      a: 'No. All image embedding runs in your browser via WebAssembly and the Web Canvas API. Your images never leave your device.',
+    },
+    {
+      q: 'What image formats are supported?',
+      a: 'JPG, PNG, WebP, GIF, and HEIC/HEIF (from iPhone/iPad). JPEG images are embedded directly. All other formats are decoded to PNG before embedding to ensure compatibility.',
+    },
+    {
       q: 'How do I set the order of images in the PDF?',
       a: 'Drag the image rows up or down in the list before clicking Convert. The order shown is the order they appear in the PDF.',
     },
     {
-      q: 'What image formats are supported?',
-      a: 'JPG, PNG, WebP, GIF, and HEIC/HEIF (from iPhone/iPad). JPEG images are embedded directly. All other formats are decoded to PNG before embedding to ensure full compatibility.',
-    },
-    {
       q: 'What does "Fit to image" page size do?',
-      a: 'Each page in the PDF is sized exactly to match the dimensions of the image. This preserves every pixel without scaling or margins. A 1920×1080 image becomes a 1920×1080 PDF page.',
+      a: 'Each page in the PDF is sized exactly to match the image dimensions. This preserves every pixel without scaling or margins. A 1920×1080 image becomes a 1920×1080 PDF page. Use A4 or Letter if you need consistent page sizes for printing.',
     },
     {
-      q: 'Can I convert one image per page into separate PDFs?',
-      a: 'Yes. Choose "One PDF per image" and each image produces its own PDF file. They all download as a ZIP.',
+      q: 'What happens to HEIC photos from iPhone?',
+      a: 'HEIC files are decoded to a rasterised format in the browser before embedding. The conversion is lossless within the resolution of the original file. HEIC decoding may take longer than JPEG for the same file size.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. All image embedding runs in your browser via WebAssembly and the Web Canvas API. Your images never leave your device.',
-    },
-    {
-      q: 'What is the maximum number of images I can combine?',
-      a: 'There is no hard limit imposed by the tool — it depends on your device memory. Hundreds of images work without issue. For very large batches (1000+), use the "One PDF per image" mode to avoid a single oversized output file.',
+      q: 'Why is my combined PDF very large?',
+      a: 'Each image is embedded at its original resolution. A batch of 20 photos at 4MB each produces roughly an 80MB PDF. If you need a smaller file, compress the images before converting or use Compress PDF on the output.',
     },
   ],
 

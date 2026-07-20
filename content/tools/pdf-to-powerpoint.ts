@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'pdf-to-powerpoint',
   title: 'PDF to PowerPoint Converter',
   subtitle: 'Convert PDFs into PPTX presentations. Each page becomes a slide. Browser-only.',
+  bestFor: 'Best for repurposing a PDF report into a slide deck you can present from PowerPoint.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
@@ -39,28 +40,28 @@ export const config: ToolConfig = {
   ],
   faq: [
     {
-      q: 'Can I edit the text in the slides after conversion?',
-      a: "No. Each slide is an image of your PDF page — the text is not editable. For editable text, use PDF to Word first, then copy the text into PowerPoint slides.",
+      q: 'Are my PDFs uploaded to a server during conversion?',
+      a: 'No. PDF pages are rendered using WebAssembly in your browser and the PPTX is assembled locally. Your files never leave your device.',
     },
     {
-      q: 'What DPI setting should I use?',
-      a: '150 DPI is the recommended balance between file size and quality. 300 DPI produces sharper slides but very large .pptx files.',
+      q: 'Can I edit the text in the slides after conversion?',
+      a: 'No. Each slide is an image of your PDF page — the text is not editable in PowerPoint. For editable text, use PDF to Word first, then copy the content into PowerPoint slides manually.',
+    },
+    {
+      q: 'Why are the slides images instead of editable text?',
+      a: 'Converting PDF content to native PowerPoint objects (editable text boxes, shapes) requires reconstructing the document structure from scratch, which is unreliable for complex layouts. The image approach guarantees the slide looks exactly like the original PDF page.',
     },
     {
       q: 'What slide size should I use?',
-      a: '16:9 is the modern widescreen format used by most projectors and screens. Use 4:3 only for older projectors or legacy templates.',
+      a: '16:9 is the modern widescreen format used by most projectors and screens. 4:3 is the legacy format — use it only if the venue requires it or you are inserting slides into an existing 4:3 presentation.',
     },
     {
-      q: 'How many slides will the output have?',
-      a: 'One slide per PDF page. A 10-page PDF becomes a 10-slide .pptx file.',
+      q: 'Why is my PPTX file very large?',
+      a: 'Each slide embeds a full-resolution image of a PDF page. At 300 DPI, a single A4 page renders to roughly 2–5 MB as a JPEG. A 20-page PDF at 300 DPI produces a 40–100 MB .pptx file. Use 150 DPI to keep file sizes manageable for most presentations.',
     },
     {
       q: 'Can I open the PPTX in Google Slides?',
-      a: 'Yes. Upload the .pptx to Google Drive and open it in Google Slides.',
-    },
-    {
-      q: 'Are my files uploaded anywhere?',
-      a: 'Never. PDF pages are rendered using WebAssembly in your browser and the PPTX is assembled locally. Your files never leave your device.',
+      a: 'Yes. Upload the .pptx to Google Drive and open it with Google Slides. The image slides are fully supported.',
     },
   ],
   relatedTools: ['pdf-to-jpg', 'pdf-to-png', 'pdf-to-word', 'merge-pdf'],

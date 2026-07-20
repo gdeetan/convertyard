@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'pdf-to-excel',
   title: 'PDF to Excel Converter',
   subtitle: 'Extract tables and data from PDFs into Excel. Browser-only.',
+  bestFor: 'Best for pulling editable data from bank statements, invoices, or financial reports.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
@@ -44,24 +45,24 @@ export const config: ToolConfig = {
   ],
   faq: [
     {
-      q: 'When does PDF to Excel work well?',
-      a: 'It works best on PDFs where text is clearly arranged in rows and columns — bank statements, financial reports, data tables, invoices.',
+      q: 'Are my PDFs uploaded to your servers during extraction?',
+      a: 'Never. All extraction runs in your browser using WebAssembly. Your PDFs never leave your device.',
     },
     {
-      q: 'When does it not work well?',
-      a: "Scanned PDFs (photos of documents), PDFs with merged cells, or complex multi-column layouts may produce imperfect results. For scanned PDFs, OCR runs automatically — select the correct language in options for non-English documents.",
+      q: 'When does PDF to Excel work well?',
+      a: 'It works best on PDFs where text is clearly arranged in rows and columns — bank statements, financial reports, invoices, data exports. The tool uses text-position heuristics to detect column boundaries.',
+    },
+    {
+      q: 'When does the table extraction produce bad results?',
+      a: 'PDFs with merged cells, rotated headers, footnotes embedded mid-table, or very narrow column gaps often produce misaligned rows. The output is usable as a starting point but may need cleanup. Complex layouts are an inherent limitation of extracting from PDF.',
+    },
+    {
+      q: 'How are scanned PDFs handled?',
+      a: 'Scanned PDFs have no text layer, so OCR runs automatically using Tesseract. Select the correct language for best accuracy. Table extraction from OCR output is best-effort — accuracy depends on scan quality and table complexity.',
     },
     {
       q: 'How are multi-page PDFs handled?',
-      a: "By default, each page becomes its own worksheet. Toggle 'Combine all pages' to stack all pages into a single worksheet.",
-    },
-    {
-      q: 'What format is the output?',
-      a: 'Standard .xlsx (Excel 2007+). Open in Microsoft Excel, Google Sheets, LibreOffice Calc, or Numbers.',
-    },
-    {
-      q: 'Are my files uploaded anywhere?',
-      a: 'Never. All extraction runs in your browser using WebAssembly. Your PDFs never leave your device.',
+      a: 'By default, each page becomes its own worksheet. Toggle "Combine all pages" to stack all pages into a single worksheet. Use combine mode when your table spans multiple pages.',
     },
   ],
   relatedTools: ['pdf-to-csv', 'excel-to-pdf', 'pdf-to-text', 'merge-pdf'],

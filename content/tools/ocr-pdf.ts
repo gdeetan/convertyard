@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   slug: 'ocr-pdf',
   title: 'OCR PDF — Make Scanned PDFs Searchable',
   subtitle: 'Make scanned PDFs searchable and selectable. Runs entirely in your browser.',
+  bestFor: 'Best for scanned contracts or archived documents you need to search or copy text from.',
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
@@ -57,36 +58,28 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Does my PDF leave my device during OCR?',
+      a: 'No. OCR runs entirely in your browser using Tesseract.js and WebAssembly. Your PDF never leaves your device. Language model files (~10–15 MB per language) are downloaded from a public CDN on first use and cached — that is the only network request during processing.',
+    },
+    {
       q: 'What kinds of PDFs does this work on?',
-      a: "PDFs made from scans — where the pages are images with no selectable text. Common sources: documents photographed and exported to PDF, fax-to-PDF output, or PDFs exported from a scanner. If you can already select text in your PDF, it doesn't need OCR.",
-    },
-    {
-      q: 'How accurate is the text recognition?',
-      a: 'Clean, high-contrast printed text on a white background: very high accuracy (95%+). Handwriting: not supported — Tesseract is designed for printed text only. Faded, skewed, or low-resolution scans: accuracy drops. The tool works best with 300 DPI or higher scans.',
-    },
-    {
-      q: 'Why is this slower than other ConvertYard tools?',
-      a: "OCR runs on your device's CPU rather than a server. The tradeoff is that your document never leaves your browser. Most tools here are instant because they use optimised WASM libraries. OCR is computationally heavier — a few seconds per page is normal.",
+      a: 'PDFs made from scans — pages that are images with no selectable text. Common sources: documents photographed and exported to PDF, fax-to-PDF output, or PDFs exported from a scanner. If you can already select text in your PDF, it does not need OCR.',
     },
     {
       q: 'Will the PDF look different after OCR?',
-      a: "No. In Searchable PDF mode, the original scan is preserved exactly. An invisible text layer is added — you can't see it, but search tools and screen readers can find the text.",
+      a: 'No. In Searchable PDF mode, the original scan is preserved exactly. An invisible text layer is added underneath — you cannot see it, but Ctrl+F, screen readers, and copy-paste can find the text.',
     },
     {
-      q: 'What\'s the difference between "Searchable PDF" and "Extract text"?',
-      a: 'Searchable PDF keeps the original document layout and adds a hidden text layer. Extract text strips the PDF entirely and outputs just the recognised words in a plain .txt file. Use "Extract text" when you only care about the content, not the layout.',
+      q: 'Why does the recognised text look garbled in places?',
+      a: 'Three common causes: wrong language selected (fix this first), low scan resolution (below 150 DPI accuracy drops sharply), or unusual fonts and handwriting. Tesseract is trained on printed text — handwriting is not supported.',
     },
     {
-      q: 'Can I OCR a PDF that\'s already partially searchable?',
-      a: 'Yes. The tool adds an OCR text layer regardless of whether the PDF already has text. Pages with existing text will have a duplicate layer — this is harmless but unnecessary. For mixed PDFs (some pages scanned, some already text), the result is still usable.',
+      q: 'What is the difference between Searchable PDF and Extract text?',
+      a: 'Searchable PDF keeps the original scan layout and adds a hidden text layer on top. Extract text outputs just the recognised words in a plain .txt file with no images. Use Extract text when you only care about the content, not the layout.',
     },
     {
-      q: 'Does the language setting affect accuracy a lot?',
-      a: 'Yes. Always select the language that matches your document. The wrong language model will produce garbled output even on a clean scan. For a document that mixes two languages, pick the dominant one.',
-    },
-    {
-      q: 'Is my document uploaded anywhere?',
-      a: "No. OCR runs entirely in your browser using Tesseract.js and WebAssembly. Your PDF never leaves your device. Language model files (~10–15 MB per language) are downloaded from a public CDN on first use and cached — this is the only network request during processing.",
+      q: 'Why is OCR slower than other ConvertYard tools?',
+      a: 'OCR runs on your device\'s CPU rather than a server — the tradeoff is that your document never leaves your browser. A few seconds per page is normal; a 20-page document may take a minute on a mid-range laptop.',
     },
   ],
 
