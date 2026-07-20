@@ -143,6 +143,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'receipt-to-text',       title: 'Receipt to Text',        description: 'Extract receipt data into CSV. Batch up to 500 receipts.',            category: 'image-to-text', status: 'live' },
   { slug: 'business-card-to-text', title: 'Business Card to Text',  description: 'Scan business cards and extract contact details as CSV.',             category: 'image-to-text', status: 'live' },
   { slug: 'heic-to-text',          title: 'HEIC to Text',           description: 'Extract text from iPhone HEIC photos without converting first.',      category: 'image-to-text', status: 'live' },
+  { slug: 'image-to-word',         title: 'Image to Word Converter', description: 'Extract text from images and save as editable Word documents. Batch OCR, runs in your browser.', category: 'image-to-text', status: 'live' },
 
   // AI Tools — all coming soon
   { slug: 'alt-text-generator',  title: 'Alt Text Generator',  description: 'Generate descriptive alt text for any image.', category: 'ai-tools', status: 'live', badge: 'AI' },

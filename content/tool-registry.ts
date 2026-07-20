@@ -61,6 +61,7 @@ import { config as mp3ToOgg } from './tools/mp3-to-ogg'
 import { config as mp4ToWebm } from './tools/mp4-to-webm'
 import { config as mp3ToAac } from './tools/mp3-to-aac'
 import { config as mp4ToMov } from './tools/mp4-to-mov'
+import { config as imageToWord } from './tools/image-to-word'
 import type { ToolConfig } from '@/lib/types'
 
 export const tools: ToolConfig[] = [
@@ -127,6 +128,7 @@ export const tools: ToolConfig[] = [
   mp4ToWebm,
   mp3ToAac,
   mp4ToMov,
+  imageToWord,
 ]
 
 export const toolBySlug = Object.fromEntries(
