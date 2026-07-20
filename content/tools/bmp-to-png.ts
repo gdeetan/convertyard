@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'bmp-to-png',
   title: 'BMP to PNG Converter',
   subtitle: 'Convert BMP to lossless PNG without quality loss. Drop 1,000+ files — no upload, no server.',
+  bestFor: 'Best for converting BMP screenshots or UI assets to a portable lossless format editors can open.',
   category: 'images',
   accepts: ['image/bmp', 'image/x-bmp', 'image/x-ms-bmp'],
   acceptsExt: ['.bmp'],
@@ -51,24 +52,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Are my BMP files uploaded to convert them?',
+      a: 'No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+    },
+    {
       q: 'Why convert BMP to PNG instead of JPG?',
-      a: 'PNG is lossless — every pixel is preserved exactly. This makes it the right choice for screenshots, diagrams, logos, UI mockups, and any image with text or hard edges. JPG\'s compression creates visible artifacts on sharp edges and flat-color areas, which look bad for these use cases. For photographs where you need maximum compatibility and can accept minor quality loss, convert to JPG instead.',
+      a: 'PNG is lossless — every pixel is preserved exactly. This is the right choice for screenshots, diagrams, logos, and anything with text or hard edges. JPG compression creates visible artifacts on sharp edges and flat-color areas. For photographs where file size matters more than pixel perfection, JPG is the better choice.',
     },
     {
-      q: 'Will the PNG be smaller than the BMP?',
-      a: 'Always. PNG uses lossless compression, while BMP stores every pixel uncompressed. For screenshots and diagrams with large flat-color areas, PNG can be 5–10x smaller than BMP. For photographs with complex color gradients, PNG may only be 20–40% smaller (since there\'s less redundancy to compress). For photos needing small files, JPG is more efficient.',
+      q: 'Is BMP to PNG truly lossless?',
+      a: 'Yes — every pixel in the output PNG is identical to the input BMP. The only differences are the file size (PNG is smaller thanks to lossless compression) and the format container. No pixel data is altered.',
     },
     {
-      q: 'Does conversion change my image in any way?',
-      a: 'No — BMP to PNG is lossless end to end. Every pixel in the output PNG is identical to the input BMP. The only differences are file size (smaller) and format container.',
+      q: 'Will the PNG always be smaller than the BMP?',
+      a: 'Yes, always. PNG uses lossless compression while BMP stores every pixel raw. For screenshots and diagrams with large flat-color areas, PNG can be 5–10x smaller. For photographs with complex color gradients, PNG may only be 20–40% smaller. If you need very small files from photographic BMPs, JPG is more efficient.',
     },
     {
       q: 'Can I convert 1,000 BMP files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes them in your browser — no uploads, no server. Download all results as a single ZIP when done.',
-    },
-    {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+      a: 'Yes. Drop them all in and ConvertYard processes them in your browser — no uploads, no server. BMP files are large in memory, so 1,000 large BMPs may take more RAM than other formats. Download all results as a single ZIP.',
     },
   ],
 

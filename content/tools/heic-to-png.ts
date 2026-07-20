@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'heic-to-png',
   title: 'HEIC to PNG Converter',
   subtitle: 'iPhone HEIC photos to lossless PNG — full quality, transparency intact. No iCloud, no plugins needed.',
+  bestFor: 'Best for photographers who need to edit iPhone photos in apps that accept PNG but not HEIC.',
   category: 'images',
   accepts: ['image/heic', 'image/heif'],
   acceptsExt: ['.heic', '.heif'],
@@ -48,28 +49,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Are my iPhone photos uploaded to convert them?',
+      a: "No. Conversion runs entirely in your browser using WebAssembly. Your HEIC files never leave your device — ConvertYard's servers only deliver the tool's code.",
+    },
+    {
       q: 'Why convert HEIC to PNG instead of JPG?',
-      a: 'PNG is lossless — every pixel from your iPhone photo is preserved exactly. JPG is lossy and introduces compression artifacts. Convert to PNG when you need to edit the images in a photo editor (to avoid re-compression degradation), when maximum quality matters, or when the destination requires lossless input. For sharing and web use where file size matters, JPG is usually the better choice.',
+      a: 'PNG is lossless — every pixel from your iPhone photo is preserved exactly. JPG is lossy and introduces compression artifacts. Convert to PNG when you need to edit the images repeatedly in a photo editor (to avoid re-compression degradation each time), or when the destination requires lossless input. For sharing and web use, JPG is a better size-to-quality tradeoff.',
     },
     {
       q: 'Does HEIC to PNG lose any quality?',
-      a: 'No. HEIC stores photos with high-quality compression. Converting to PNG unpacks that data into a lossless container — nothing is discarded. The output PNG contains every pixel of your original iPhone photo. PNG files will be larger than the source HEIC files because PNG\'s lossless compression is less efficient than HEIC\'s algorithm.',
+      a: 'No. Converting to PNG unpacks the HEIC data into a lossless container — nothing is discarded. The output PNG contains every pixel of your original iPhone photo. PNG files will be larger than the HEIC sources because PNG\'s lossless compression is less efficient than HEIC\'s algorithm.',
     },
     {
-      q: 'Can I open HEIC files on Windows without converting?',
-      a: 'Windows can open HEIC files with the free "HEIF Image Extensions" from the Microsoft Store. However, most design and editing apps (older Photoshop, Lightroom pre-2018, most non-Adobe tools) can\'t read HEIC directly. PNG has universal support across every application and operating system.',
+      q: 'Can a green or pink cast appear in PNG output from HEIC?',
+      a: 'Yes, this can happen with HDR HEIC photos from newer iPhones. The HEIC is encoded in Display P3 color space, which can be misinterpreted during conversion. The result is a slight color shift in a small percentage of photos — mostly those taken in bright sunlight or with Smart HDR enabled.',
     },
     {
-      q: 'Do iPhone photos have transparency in PNG format?',
-      a: 'Standard iPhone photos do not have transparency — they are fully opaque RGB images. The PNG output will also be fully opaque. Transparency is only relevant if you\'ve made a specific edit (like removing the background in Photos) before converting. In that case, ConvertYard preserves the alpha channel.',
-    },
-    {
-      q: 'Can I convert 1,000 HEIC files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes them in your browser — no uploads, no server queue. PNG files are larger than HEIC, so your output ZIP will be bigger than the source files. Download everything as a single ZIP when done.',
-    },
-    {
-      q: 'Are my photos uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your photos never leave your device — ConvertYard\'s servers only deliver the tool\'s code.',
+      q: 'Will the output PNG be larger than the source HEIC?',
+      a: 'Yes — typically 3–6x larger. HEIC uses very efficient lossy compression. PNG is lossless, so it stores the full decoded pixel data. This is expected: PNG gives you a pixel-perfect editable file, but at the cost of file size.',
     },
   ],
 

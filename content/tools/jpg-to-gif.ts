@@ -4,7 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'jpg-to-gif',
   title: 'JPG to GIF Converter',
-  subtitle: 'Convert JPG images into GIF. Set frame rate and loop count.',
+  subtitle: 'Turn a sequence of JPGs into an animated GIF. Set frame rate, size, and loop count in your browser.',
+  bestFor: 'Best for turning a sequence of JPG frames into a simple animated GIF for embedding on the web.',
   category: 'images',
   accepts: ['image/jpeg'],
   acceptsExt: ['.jpg', '.jpeg'],
@@ -48,20 +49,24 @@ export const config: ToolConfig = {
   ],
   faq: [
     {
+      q: 'Are my JPG files uploaded to convert them?',
+      a: 'No. Conversion uses ffmpeg.wasm entirely in your browser. Your files never leave your device.',
+    },
+    {
+      q: 'Why do my GIF colors look wrong after converting from JPG?',
+      a: 'GIF is hard-limited to 256 colors per frame. JPG photos typically contain millions of distinct colors — converting to GIF quantizes them down to the closest 256, causing visible banding and color shifts in gradients and skin tones. This is inherent to the GIF format, not a conversion error. If color fidelity matters, use WebP or MP4 instead.',
+    },
+    {
       q: 'How do I control the animation speed?',
-      a: 'Use the frame rate slider. 10fps is typical for simple animations. Higher fps = faster animation but larger file.',
+      a: 'Use the frame rate slider. 10fps is typical for simple web animations. 24fps matches standard video. Higher fps means faster animation and a larger file. Lower fps creates a more slideshow-like effect with a smaller file.',
     },
     {
       q: 'Can I make a GIF that plays once and stops?',
-      a: 'Yes — set loop count to 1. Default is infinite loop (0).',
+      a: 'Yes — set the loop count to 1. The default (0) loops infinitely. You can also set exact loop counts for situations where you want the animation to play a specific number of times before freezing.',
     },
     {
-      q: 'The colours in my GIF look wrong — why?',
-      a: 'GIF is limited to 256 colours per frame. Photos with gradients and many colours will show banding. This is inherent to the GIF format.',
-    },
-    {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. Conversion uses ffmpeg.wasm in your browser. Your files never leave your device.',
+      q: 'Should I use JPG to GIF or JPG to WebP for animations?',
+      a: 'If you need broad compatibility (old email clients, Slack, older social platforms), GIF is still the safest choice. If you are publishing to a modern web page, animated WebP is 25–40% smaller and supports full color. GIF is the universal fallback; WebP is the modern upgrade.',
     },
   ],
   relatedTools: ['png-to-gif', 'webp-to-gif', 'jpg-to-webp'],

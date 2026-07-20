@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'avif-to-png',
   title: 'AVIF to PNG Converter',
   subtitle: 'AVIF to lossless PNG — transparency preserved. Batch 1,000+ files entirely in your browser.',
+  bestFor: 'Best for designers who need to edit AVIF images in software that does not yet support the format.',
   category: 'images',
   accepts: ['image/avif'],
   acceptsExt: ['.avif'],
@@ -41,28 +42,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'Why convert AVIF to PNG?',
-      a: "PNG is the most universally supported lossless format. Convert AVIF to PNG when you need to: edit the image in software that doesn't support AVIF (Photoshop, older GIMP versions, Microsoft Office), use it in a print workflow, upload to a platform that doesn't accept AVIF, or preserve every pixel for further editing. PNG will be larger than AVIF, but supports editing without re-encoding loss.",
+      q: 'Are my AVIF files uploaded to convert them?',
+      a: "No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device. ConvertYard's servers only deliver the tool's code; they never see your images.",
+    },
+    {
+      q: 'Why convert AVIF to PNG instead of JPG?',
+      a: "PNG is lossless — every pixel is preserved exactly. Convert to PNG when you need to edit the image further (to avoid re-compression degradation), when the destination requires lossless input, or when the AVIF has transparency you want to keep. For sharing or web use where file size matters, JPG is usually smaller.",
     },
     {
       q: 'Will the PNG be larger than the original AVIF?',
-      a: 'Yes, significantly. PNG is a lossless format and AVIF is lossy by default. The PNG output will faithfully capture the decoded pixels of the AVIF, but PNG cannot match the compression efficiency of AVIF. Expect PNG files to be 3–8x larger than their AVIF counterparts for photographs.',
+      a: 'Yes — significantly. AVIF is a lossy format with very efficient compression; PNG is lossless. Expect PNG files to be 3–8x larger than their AVIF source for photographs. This is the tradeoff for getting a pixel-perfect, editable file.',
     },
     {
       q: 'Is transparency preserved when converting AVIF to PNG?',
-      a: "Yes. If your AVIF has an alpha channel (transparent areas), those will be preserved in the output PNG. PNG has full alpha transparency support, so no data is lost in the conversion.",
+      a: 'Yes. If your AVIF has an alpha channel (transparent areas), those are preserved in the output PNG. PNG has full alpha transparency support, so nothing is lost in that aspect of the conversion.',
     },
     {
-      q: 'Can I batch convert hundreds of AVIF files at once?',
-      a: 'Yes. Drop all your AVIF files in at once. ConvertYard processes them in your browser with per-file progress. When done, download all PNGs as a single ZIP file.',
-    },
-    {
-      q: 'Does this work with AVIF files that have HDR or wide color gamut?',
-      a: 'wasm-vips handles color space conversion during decode. Most AVIF files with HDR or P3 color profiles will be tone-mapped to sRGB PNG correctly. For professional color-critical work, verify the output in a color-managed application.',
-    },
-    {
-      q: 'Are my files uploaded to your servers?',
-      a: "Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device. ConvertYard's servers only deliver the tool's code; they never see your images.",
+      q: 'What happens to HDR or wide-gamut AVIF files?',
+      a: 'Most AVIF files with HDR or Display P3 color profiles are tone-mapped to standard sRGB during conversion. The result is a valid PNG but color-critical content may shift slightly. For professional color-managed work, verify the output in a color-managed application.',
     },
   ],
 

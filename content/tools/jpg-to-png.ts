@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'jpg-to-png',
   title: 'JPG to PNG Converter',
   subtitle: 'JPG to lossless PNG — no generation loss, every pixel preserved. Batch 1,000 files in your browser.',
+  bestFor: 'Best for converting JPGs to an editable lossless format before compositing, masking, or further processing.',
   category: 'images',
   accepts: ['image/jpeg'],
   acceptsExt: ['.jpg', '.jpeg'],
@@ -58,24 +59,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'Why convert JPG to PNG?',
-      a: 'PNG is a lossless format — once you have a PNG, no further re-encoding will reduce quality. This makes it useful if you need to edit an image repeatedly, composite it with other elements, add transparency later, or submit it to a platform that requires PNG. It\'s also the right format for screenshots, UI assets, logos, and anything with text or hard edges.',
+      q: 'Are my JPG files uploaded to convert them?',
+      a: 'No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
     },
     {
-      q: 'Will converting JPG to PNG improve the image quality?',
-      a: 'No. Converting to PNG stops further lossy degradation, but it cannot recover data already lost by the original JPG compression. If your JPG has compression artifacts, the PNG will have the same artifacts — preserved losslessly. The only way to get a better image is to start from the original uncompressed source.',
+      q: 'Why convert JPG to PNG?',
+      a: 'PNG is lossless — once you have a PNG, no further re-encoding will degrade quality. Convert to PNG when you need to edit an image repeatedly, composite it with other elements, add transparency later, or submit to a platform that requires PNG. It is also the right format for screenshots, UI assets, and anything with text or hard edges.',
+    },
+    {
+      q: 'Will converting JPG to PNG add a transparent background?',
+      a: 'No. JPG has no transparency data, and converting to PNG does not create any. The output PNG will be a fully opaque image. Transparency must be added manually in an image editor after conversion.',
+    },
+    {
+      q: 'Will converting JPG to PNG improve quality?',
+      a: 'No. Converting to PNG stops further lossy degradation, but it cannot recover data already lost when the JPG was first saved. If your JPG has compression artifacts, the PNG will have the same artifacts — preserved losslessly. To get a better image, start from the original uncompressed source.',
     },
     {
       q: 'How much larger will the PNG be compared to the JPG?',
       a: 'For photographs, PNG files are typically 3–8x larger than equivalent JPGs. PNG\'s lossless compression is much less efficient than JPG\'s lossy compression for continuous-tone images. This is the tradeoff: PNG preserves every pixel, JPG trades some pixel accuracy for dramatically smaller files.',
-    },
-    {
-      q: 'Can I convert 1,000 JPGs at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes them one at a time in your browser — no uploads, no server queue. Download all results as a single ZIP when done.',
-    },
-    {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
     },
   ],
 

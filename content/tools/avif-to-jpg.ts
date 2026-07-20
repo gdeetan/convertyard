@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'avif-to-jpg',
   title: 'AVIF to JPG Converter',
   subtitle: 'AVIF is great for the web, but JPG plays everywhere. Convert 1,000+ files without a server or plugin.',
+  bestFor: 'Best for making AVIF web images compatible with older software, email clients, and print workflows.',
   category: 'images',
   accepts: ['image/avif'],
   acceptsExt: ['.avif'],
@@ -51,28 +52,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Are my AVIF files uploaded to convert them?',
+      a: "No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device. ConvertYard's servers only deliver the tool's code; they never see your images.",
+    },
+    {
       q: 'Why would I convert AVIF back to JPG?',
-      a: "AVIF has excellent browser coverage, but some older software, CMS platforms, email clients, and devices don't support it yet. Converting to JPG gives you the most universally compatible format. Common cases: uploading to a CMS that rejects AVIF, sending images via email, sharing with someone on an older device, or printing (most print workflows expect JPEG or TIFF).",
+      a: "AVIF has excellent browser support but older software, CMS platforms, email clients, and print workflows often reject it. JPG is the most universally accepted image format. Common cases: uploading to a CMS that rejects AVIF, sending via email, sharing with someone on an older device, or submitting to a print lab.",
     },
     {
-      q: 'Will I lose quality converting AVIF to JPG?',
-      a: 'Some quality loss is unavoidable when converting between two lossy formats. At the default quality of 90, the result is visually excellent — differences are imperceptible in normal viewing. For maximum fidelity, use quality 95–100. Avoid converting AVIF→JPG→AVIF repeatedly; each round trip compounds the loss.',
+      q: 'What do I lose going from AVIF to JPG?',
+      a: 'AVIF supports HDR, wide color gamut (Display P3), and transparency — none of these survive in JPG. HDR content gets tone-mapped to standard range, transparency is filled with white, and wide-gamut colors are clipped to sRGB. For standard sRGB web images, the output is visually identical at quality 90.',
     },
     {
-      q: 'Is JPG still worth using in 2026?',
-      a: "JPG remains the most universally compatible image format. It's supported in every browser, every OS, every printer, every CMS, and every image editor on earth. For final delivery to web audiences on modern browsers, AVIF or WebP are superior. For compatibility, archiving, or interoperability, JPG is still the right choice.",
+      q: 'Will converting AVIF to JPG lose quality?',
+      a: 'Some quality loss is unavoidable when converting between two lossy formats. At quality 90, the result is visually excellent. Avoid converting AVIF→JPG→AVIF repeatedly; each round trip compounds the loss.',
     },
     {
-      q: 'Can I batch convert hundreds of AVIF files at once?',
-      a: 'Yes. Drop all your AVIF files in at once. ConvertYard processes them sequentially in your browser with a per-file progress indicator. When done, download all JPGs as a single ZIP file. No file size limits, no account required.',
-    },
-    {
-      q: 'Does this tool support AVIF files created on iPhone?',
-      a: "iPhones shoot in HEIC, not AVIF. If you're converting iPhone photos, use the HEIC to JPG tool instead. AVIF is a web format used by browsers and image editing tools, not a camera capture format.",
-    },
-    {
-      q: 'Are my files uploaded to your servers?',
-      a: "Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device. ConvertYard's servers only deliver the tool's code; they never see your images.",
+      q: 'Does this work with AVIF files created on iPhone?',
+      a: "iPhones capture in HEIC, not AVIF. If you're converting iPhone photos, use the HEIC to JPG tool instead. AVIF is a web-delivery format produced by browsers and image editing tools, not a camera capture format.",
     },
   ],
 

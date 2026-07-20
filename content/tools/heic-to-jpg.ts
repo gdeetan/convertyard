@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'heic-to-jpg',
   title: 'HEIC to JPG Converter',
   subtitle: 'iPhone photos to universal JPGs in your browser. Drop 1,000 at once — no iCloud, no Lightroom needed.',
+  bestFor: 'Best for making iPhone photos viewable on Windows PCs, Android devices, and apps that reject HEIC.',
   category: 'images',
   accepts: ['image/heic', 'image/heif'],
   acceptsExt: ['.heic', '.heif'],
@@ -58,28 +59,28 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What is HEIC format and why do iPhones use it?',
-      a: 'HEIC (High Efficiency Image Container) is Apple\'s default photo format since iOS 11. It uses the HEIF compression standard, which produces files roughly half the size of equivalent JPGs at the same perceived quality. Apple chose it to save storage on your iPhone — a 4MB JPG typically becomes a 2MB HEIC file. The trade-off is compatibility: Windows, most Android apps, and many web services still expect JPG.',
+      q: 'Are my iPhone photos uploaded to convert them?',
+      a: "No. Conversion runs entirely in your browser using WebAssembly. Your HEIC files never leave your device. ConvertYard's servers only deliver the tool's code; they never see your images, filenames, or GPS data.",
     },
     {
-      q: 'Can I open HEIC files on Windows without converting?',
-      a: 'Windows 10 and 11 can open HEIC files if you install the free "HEIF Image Extensions" from the Microsoft Store. However, most apps (Photoshop pre-2018, older Lightroom, most email clients) still cannot read HEIC. Converting to JPG is the reliable choice for any file you need to share, edit in non-Apple software, or upload to a service.',
+      q: 'Why can\'t Windows open HEIC files?',
+      a: 'HEIC uses Apple\'s implementation of the HEIF format, which requires a licensed codec not installed by default on Windows. Windows 10/11 can open HEIC files if you install the free "HEIF Image Extensions" from the Microsoft Store, but most other apps still cannot read them. Converting to JPG works universally.',
+    },
+    {
+      q: 'My converted JPG has a greenish or purplish cast. Why?',
+      a: 'This can happen with HDR or wide-gamut HEIC photos taken on newer iPhones. The HEIC is encoded in Display P3 color space, which can be misinterpreted during conversion on non-Apple systems. It affects a small percentage of photos, particularly those shot in bright outdoor light or with Smart HDR enabled.',
     },
     {
       q: 'Does converting HEIC to JPG reduce quality?',
-      a: 'At the default quality setting of 90, the difference is imperceptible. JPG at 90 is an excellent format — the re-encoding introduces minimal degradation that is invisible in normal viewing. If you\'re planning to edit the images further, convert at 95–100 to preserve maximum data. For sharing and web use, 85–90 is the sweet spot.',
+      a: 'At quality 90, the difference is imperceptible. The re-encoding introduces minimal degradation that is invisible in normal viewing. If you plan to edit the images further, convert at 95–100 to preserve maximum data. For sharing and web use, 85–90 is the sweet spot.',
     },
     {
       q: 'Why is my iPhone photo sideways after converting?',
-      a: 'iPhones store the photo upright but embed the rotation in EXIF metadata rather than rotating the pixels. Some apps respect this metadata; others ignore it and display the raw pixel orientation. ConvertYard\'s Auto-orient option (enabled by default) reads the EXIF rotation and bakes it into the output pixels, so the JPG displays correctly everywhere.',
+      a: 'iPhones store the photo upright but embed the rotation in EXIF metadata rather than rotating the pixels. Some apps respect this metadata; others ignore it. The Auto-orient option (enabled by default) reads the EXIF rotation and bakes it into the output pixels, so the JPG displays correctly everywhere.',
     },
     {
-      q: 'Can I convert 1,000 HEIC files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes them one at a time in your browser — no uploads, no server queue. Speed depends on your device and image dimensions. On a modern laptop, 1,000 average iPhone photos typically finishes in 10–20 minutes. Download them all as a single ZIP when done.',
-    },
-    {
-      q: 'Are my photos uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your photos never leave your device. ConvertYard\'s servers only deliver the tool\'s code; they never see your images, filenames, or GPS data.',
+      q: 'Will Live Photos convert correctly?',
+      a: 'Only the still frame converts. The motion component of a Live Photo is stored separately in a video file and is not included in the HEIC. You get the still image, not the video loop.',
     },
   ],
 

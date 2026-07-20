@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'gif-to-webp',
   title: 'GIF to Animated WebP Converter',
   subtitle: 'Convert animated GIFs to animated WebP — 25–40% smaller, same motion. Drop 1,000 at once.',
+  bestFor: 'Best for web developers replacing heavy animated GIFs with smaller animated WebP on modern sites.',
   category: 'images',
   accepts: ['image/gif'],
   acceptsExt: ['.gif'],
@@ -54,24 +55,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'Does this preserve the GIF animation?',
-      a: 'Yes. The output WebP file contains all frames and timing data from the original GIF. The animation plays exactly as in the original — animated WebP is a direct replacement for animated GIF with much better compression.',
+      q: 'Are my GIF files uploaded to convert them?',
+      a: 'No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+    },
+    {
+      q: 'Does this preserve the full GIF animation?',
+      a: 'Yes. The output WebP file contains all frames and timing data from the original GIF. The animation plays exactly as in the original — animated WebP is a direct replacement for animated GIF in modern browsers.',
     },
     {
       q: 'How much smaller is animated WebP compared to GIF?',
-      a: 'Typically 25–40% smaller than an equivalent GIF. WebP uses more modern compression that handles the repeated patterns in animation frames far more efficiently than GIF\'s LZW compression.',
+      a: 'Typically 25–40% smaller. WebP uses modern compression that handles the repeated patterns in animation frames far more efficiently than GIF\'s LZW compression. For GIFs with large flat-color areas or repeated content, savings can reach 50%.',
     },
     {
-      q: 'Does animated WebP work everywhere?',
-      a: 'Animated WebP is supported in all modern browsers: Chrome, Edge, Firefox, and Safari (since version 14). It\'s also supported on iOS and Android. The only platforms that still need GIF are very old systems and some email clients.',
+      q: 'What does GIF lose that WebP keeps?',
+      a: 'GIF is limited to 256 colors per frame, uses a 1-bit transparency mask (pixel is either fully transparent or fully opaque), and can only loop at fixed intervals. Animated WebP supports full 24-bit color, proper alpha transparency, and more precise timing — though for most web animations these differences are not visible.',
     },
     {
-      q: 'Can I convert 1,000 GIF files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes each in your browser — no uploads, no server. Each animated GIF produces one animated WebP. Download all results as a single ZIP.',
-    },
-    {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+      q: 'Does animated WebP work in all browsers?',
+      a: 'Animated WebP is supported in Chrome, Edge, Firefox, and Safari (since version 14, 2020). It also works on iOS and Android. The only platforms that still require GIF are old email clients and legacy systems.',
     },
   ],
 

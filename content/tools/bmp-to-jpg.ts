@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'bmp-to-jpg',
   title: 'BMP to JPG Converter',
   subtitle: 'BMP files are 10× larger than JPG. Batch convert 1,000+ bitmaps to compressed JPG — no upload required.',
+  bestFor: 'Best for shrinking Windows BMP exports from legacy apps, game engines, or screen capture tools.',
   category: 'images',
   accepts: ['image/bmp', 'image/x-bmp', 'image/x-ms-bmp'],
   acceptsExt: ['.bmp'],
@@ -58,24 +59,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'What is BMP format and why are the files so large?',
-      a: 'BMP (Bitmap) is an uncompressed image format native to Windows. Every pixel is stored individually with no compression, which means a 1920×1080 BMP at 24-bit color is exactly 5.93MB — always, regardless of content. JPG applies lossy compression, so a photo that is 6MB as BMP typically becomes 300–600KB as JPG at quality 85, with no visible difference.',
+      q: 'Are my BMP files uploaded to convert them?',
+      a: 'No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
     },
     {
-      q: 'Does converting BMP to JPG reduce quality?',
-      a: 'At quality 85, the difference between a BMP and its JPG equivalent is imperceptible for photographs and most graphics. JPG compression is "lossy" — it discards some pixel data — but at 85 this is invisible to the human eye. If you need pixel-perfect output, convert to PNG instead (lossless).',
+      q: 'What is BMP and why are the files so large?',
+      a: 'BMP (Bitmap) is an uncompressed image format native to Windows. Every pixel is stored directly with no compression — a 1920×1080 BMP at 24-bit color is always 5.93MB regardless of content. JPG applies lossy compression, so the same photo becomes 300–600KB at quality 85 with no visible difference.',
+    },
+    {
+      q: 'Does converting BMP to JPG lose quality?',
+      a: 'At quality 85, the difference is imperceptible for photographs and most graphics. JPG compression discards some pixel data, but at 85 this is invisible in normal viewing. If you need pixel-perfect output (for text, line art, or logos), convert to PNG instead — it is lossless.',
     },
     {
       q: 'How much smaller will my JPG files be?',
-      a: 'Dramatically smaller. A typical BMP photo becomes 5–20x smaller as a JPG. A 6MB BMP photograph typically produces a 300–600KB JPG at quality 85. Screenshots and diagrams with large flat-color areas may compress even more aggressively. ConvertYard shows you the exact byte savings per file in your results.',
+      a: 'A typical BMP photo becomes 5–20x smaller as a JPG. A 6MB BMP photograph typically produces a 300–600KB JPG at quality 85. Screenshots and diagrams with large flat-color areas may compress even more. ConvertYard shows you the exact byte savings per file in the results.',
     },
     {
-      q: 'Can I convert 1,000 BMP files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes them in your browser — no uploads, no server. BMP files are uncompressed so they can be large in memory; 1,000 BMP files may take more time than other formats. Download all results as a single ZIP when done.',
-    },
-    {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+      q: 'Can I batch convert 1,000 BMP files at once?',
+      a: 'Yes. Drop them all in and ConvertYard processes them in your browser — no uploads, no server. BMP files are uncompressed and can be large in memory, so 1,000 BMPs may take more RAM than other formats. Download all results as a single ZIP when done.',
     },
   ],
 

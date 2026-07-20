@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'gif-to-jpg',
   title: 'GIF to JPG Converter',
   subtitle: 'Extracts the first frame of animated GIFs or converts static GIFs to JPG. Drop 1,000 at once.',
+  bestFor: 'Best for pulling a static thumbnail from an animated GIF to use as a preview or social share image.',
   category: 'images',
   accepts: ['image/gif'],
   acceptsExt: ['.gif'],
@@ -51,24 +52,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'Does this tool convert the whole GIF animation or just one frame?',
-      a: 'This tool extracts the first frame of the GIF and saves it as a static JPG. The animation is not preserved. If you need a static thumbnail or preview image from a GIF, this is the right tool. If you need video output from an animation, look for a GIF-to-video converter instead.',
+      q: 'Are my GIF files uploaded to convert them?',
+      a: 'No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
     },
     {
-      q: 'Why would I convert a GIF frame to JPG?',
-      a: 'Common reasons: creating a static thumbnail for a GIF, extracting a preview image for social sharing, reducing file size when the animation is unnecessary, or making the image compatible with tools and systems that do not support GIF. JPG is universally supported and far smaller than GIF for photographic content.',
+      q: 'Does this convert the whole animation or just one frame?',
+      a: 'This tool extracts the first frame of the GIF and saves it as a static JPG. The animation is not preserved — all subsequent frames are discarded. If you need to keep the animation, use the GIF to WebP tool instead.',
     },
     {
-      q: 'What happens to transparent areas in the GIF?',
-      a: 'JPG does not support transparency. Any transparent areas in the GIF are filled with the background color you choose in the options — white by default. If your GIF has a transparent background, pick a color that matches your use case.',
+      q: 'What happens to GIF transparency in the JPG output?',
+      a: 'JPG does not support transparency. Any transparent areas in the GIF are filled with the background color you choose in the options — white by default. If your GIF has a transparent background, set the color that matches your use case before converting.',
+    },
+    {
+      q: 'Why do GIF photos look worse than the original?',
+      a: 'GIF is limited to 256 colors per frame. Photographs that start as GIFs already have significant color banding built in. Converting that first frame to JPG captures exactly what was in the GIF — including that banding. If the source GIF looks poor, the JPG will too.',
     },
     {
       q: 'Can I convert 1,000 GIF files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes each one in your browser — no uploads, no server. Each GIF produces one JPG from its first frame. Download all results as a single ZIP when done.',
-    },
-    {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+      a: 'Yes. Drop them all in and ConvertYard processes each one in your browser — no uploads, no server. Each GIF produces one JPG from its first frame. Download all results as a single ZIP.',
     },
   ],
 

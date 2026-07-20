@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'heic-to-webp',
   title: 'HEIC to WebP Converter',
   subtitle: 'Convert iPhone HEIC photos to modern WebP — smaller than JPG, wider support than HEIC. No iCloud needed.',
+  bestFor: 'Best for converting iPhone photos to a web-ready format that is smaller than JPG and works in all modern browsers.',
   category: 'images',
   accepts: ['image/heic', 'image/heif'],
   acceptsExt: ['.heic', '.heif'],
@@ -68,24 +69,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'Why convert HEIC to WebP instead of JPG?',
-      a: 'WebP is typically 25–35% smaller than JPG at the same quality, and it\'s supported in all modern browsers (Chrome, Edge, Firefox, Safari 14+). If you\'re converting iPhone photos for use on the web, WebP gives you better quality-per-byte than JPG. For maximum compatibility with older software or services, convert to JPG instead.',
+      q: 'Are my iPhone photos uploaded to convert them?',
+      a: "No. Conversion runs entirely in your browser. Your HEIC files never leave your device. ConvertYard's servers only deliver the tool's code.",
     },
     {
-      q: 'Does this preserve image quality from HEIC?',
-      a: 'At quality 80, WebP output is visually indistinguishable from the original HEIC for most photos. Both formats use perceptual compression, and WebP at 80 is roughly equivalent to HEIC at its default quality. Enable lossless mode for pixel-perfect output.',
+      q: 'Why convert HEIC to WebP instead of JPG?',
+      a: 'WebP is typically 25–35% smaller than JPG at the same quality, and it is supported in all modern browsers. If you are converting iPhone photos for web use, WebP gives better quality-per-byte than JPG while being universally supported. For compatibility with older software or services that still reject WebP, convert to JPG instead.',
+    },
+    {
+      q: 'What is the difference between HEIC and WebP?',
+      a: 'HEIC is Apple\'s camera format — great compression, but limited to Apple devices without special software. WebP is Google\'s open web standard, supported in all major browsers since 2020. Converting HEIC to WebP trades a small amount of Apple-ecosystem efficiency for universal browser compatibility.',
+    },
+    {
+      q: 'Can I get a green or pink cast after converting HEIC to WebP?',
+      a: 'Yes, occasionally. HDR or Display P3 HEIC photos from newer iPhones can have a slight color shift when decoded on non-Apple systems. It affects a small percentage of photos taken in bright light or with Smart HDR. The lossless mode does not prevent this — it is a color space mapping issue, not a compression issue.',
     },
     {
       q: 'Does WebP work in all browsers?',
-      a: 'WebP is supported in all modern browsers: Chrome, Edge, Firefox, and Safari (since version 14, released 2020). That covers over 97% of global web traffic. For iOS apps or software that predates 2020, convert to JPG instead.',
-    },
-    {
-      q: 'Can I convert 1,000 HEIC files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes them one at a time in your browser — no uploads, no server queue. HEIC decoding happens locally via WebAssembly. On a modern laptop, 1,000 average iPhone photos typically finishes in 15–25 minutes. Download all results as a single ZIP when done.',
-    },
-    {
-      q: 'Are my photos uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser. Your photos never leave your device. ConvertYard\'s servers only deliver the tool\'s code.',
+      a: 'WebP is supported in Chrome, Edge, Firefox, and Safari (since version 14, 2020). That covers over 97% of global web traffic. For desktop software or services that predate 2020, convert to JPG instead.',
     },
   ],
 

@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'jpg-to-avif',
   title: 'JPG to AVIF Converter',
   subtitle: 'AVIF compresses 30–50% better than JPG at the same quality. Convert your archive without uploading a single file.',
+  bestFor: 'Best for web developers converting JPG photo libraries to AVIF to cut page weight on image-heavy sites.',
   category: 'images',
   accepts: ['image/jpeg'],
   acceptsExt: ['.jpg', '.jpeg'],

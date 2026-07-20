@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'bmp-to-avif',
   title: 'BMP to AVIF Converter',
   subtitle: 'Compress legacy BMP files into modern AVIF. Up to 98% smaller.',
+  bestFor: 'Best for modernising BMP asset libraries for web delivery — game assets, screenshots, or scanned diagrams.',
   category: 'images',
   accepts: ['image/bmp', 'image/x-bmp', 'image/x-ms-bmp'],
   acceptsExt: ['.bmp'],
@@ -52,24 +53,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Are my BMP files uploaded to convert them?',
+      a: 'No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+    },
+    {
       q: 'How much smaller will the AVIF be compared to the original BMP?',
-      a: 'BMP is an uncompressed format — AVIF typically reduces file size by 95–98%. A 10MB BMP becomes roughly 200–500KB AVIF at quality 70. Exact results depend on image content; flat graphics compress further than photographic images.',
+      a: 'BMP is uncompressed — AVIF typically reduces file size by 95–98%. A 10MB BMP becomes roughly 200–500KB AVIF at quality 70. Flat graphics like screenshots or diagrams compress further than photographic images.',
     },
     {
-      q: 'Why use AVIF instead of WebP or JPG for BMP conversion?',
-      a: 'AVIF is 30–50% smaller than WebP at equivalent quality, and 40–50% smaller than JPG. For web publishing, asset pipelines, or archiving large BMP libraries, AVIF gives you the best file sizes. If you need broader compatibility with older software, convert to WebP or JPG instead.',
+      q: 'Why does BMP exist if it is so inefficient?',
+      a: 'BMP was designed for simplicity, not storage efficiency. Every pixel is stored directly with no compression. This makes it trivially fast to read and write in software, and it avoids any codec licensing. That is why old Windows applications, embedded systems, and game engines still use it — but it makes terrible sense for web delivery.',
     },
     {
-      q: 'Does AVIF work in all modern browsers?',
-      a: 'AVIF is supported in Chrome (since 85), Edge (since 121), Firefox (since 93), and Safari (since 16). That covers over 90% of global web traffic. For environments where AVIF support is uncertain, WebP is a safer choice.',
+      q: 'Why choose AVIF over JPG for this conversion?',
+      a: 'AVIF is 30–50% smaller than JPG at the same visual quality. If you are converting BMPs for web delivery, AVIF gives the best file sizes. If you need to support older browsers or software that predates AVIF, convert to WebP or JPG instead.',
     },
     {
-      q: 'Can I convert 1,000 BMP files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes each one in your browser — no uploads, no server queue. BMP files are large but fast to decode since they\'re uncompressed. AVIF encoding takes slightly longer than JPG or WebP. Download all results as a single ZIP when done.',
-    },
-    {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+      q: 'Will AVIF encoding take longer for BMP files?',
+      a: 'BMP files are fast to decode because there is no compression to unpack. But AVIF encoding itself is slower than JPG or WebP — expect 2–5x longer encode times. Lower the compression effort slider to speed things up at a small file size cost.',
     },
   ],
 

@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'avif-to-webp',
   title: 'AVIF to WebP Converter',
   subtitle: 'Both modern formats, both smaller than JPG. Convert your AVIF files to WebP without uploading anything.',
+  bestFor: 'Best for switching to WebP when a CMS, CDN, or tool accepts WebP but not AVIF.',
   category: 'images',
   accepts: ['image/avif'],
   acceptsExt: ['.avif'],
@@ -68,24 +69,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Are my AVIF files uploaded to convert them?',
+      a: 'No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+    },
+    {
       q: 'Why convert AVIF to WebP?',
-      a: 'AVIF is the newer format with slightly better compression, but WebP has broader software support — particularly in image editing apps, CMS platforms, and older CDNs. Convert to WebP when a service accepts WebP but not AVIF, or when you need a format with more universal tooling support while still being smaller than JPG.',
+      a: 'AVIF is the newer format with slightly better compression, but WebP has broader software support — particularly in image editing apps, CMS platforms, and CDNs that predate 2022. Convert to WebP when a service accepts WebP but not AVIF.',
+    },
+    {
+      q: 'What is the actual difference between AVIF and WebP?',
+      a: 'AVIF achieves 10–20% better compression than WebP at equal quality, supports HDR and wide color gamut, and is based on AV1. WebP is faster to encode, has wider tool support, and has been around since 2010. For browser delivery both are excellent; for software compatibility WebP wins.',
     },
     {
       q: 'Will I lose quality converting AVIF to WebP?',
-      a: 'At quality 80, the visual difference is imperceptible for most images. Both formats use advanced perceptual compression. The conversion does involve re-encoding (AVIF decode → WebP encode), so there is a small generation loss — enable lossless mode to avoid any quality reduction.',
+      a: 'At quality 80, the visual difference is imperceptible for most images. The conversion does involve re-encoding (AVIF decode → WebP encode), which introduces a small generation loss. Enable lossless mode to avoid any quality reduction — the output will be larger but pixel-perfect.',
     },
     {
-      q: 'Which format is better for web use?',
-      a: 'AVIF achieves 10–20% better compression than WebP at equal quality, but WebP is supported more broadly in older browsers and tools. For new web projects targeting modern browsers (Chrome 85+, Firefox 93+, Safari 16+), AVIF is the better choice. For maximum compatibility, WebP is the safer default.',
-    },
-    {
-      q: 'Can I convert 1,000 AVIF files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes them in your browser. No uploads, no server queue. Download all results as a single ZIP.',
-    },
-    {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly and the Canvas API. Your files never leave your device.',
+      q: 'Can AVIF transparency be preserved in WebP?',
+      a: 'Yes. WebP supports alpha transparency, so any transparent areas in your AVIF are carried through to the WebP output. No background fill is applied.',
     },
   ],
 

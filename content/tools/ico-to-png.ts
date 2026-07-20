@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'ico-to-png',
   title: 'ICO to PNG Converter',
   subtitle: 'Extract every embedded PNG from an ICO file — 16×16 through 256×256. No upload, no software needed.',
+  bestFor: 'Best for designers and developers who need to extract a high-resolution PNG from a Windows .ico file.',
   category: 'images',
   accepts: ['image/x-icon', 'image/vnd.microsoft.icon'],
   acceptsExt: ['.ico'],

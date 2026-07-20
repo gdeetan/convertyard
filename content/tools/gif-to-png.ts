@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'gif-to-png',
   title: 'GIF to PNG Converter',
   subtitle: 'Convert GIF to lossless PNG — transparency preserved. Handles animated and static GIFs. No upload required.',
+  bestFor: 'Best for extracting a GIF frame as a transparent PNG to use in design tools or image editors.',
   category: 'images',
   accepts: ['image/gif'],
   acceptsExt: ['.gif'],
@@ -44,24 +45,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'Does this tool convert the whole GIF animation or just one frame?',
-      a: 'This tool extracts the first frame of the GIF and saves it as a static PNG. The animation is not preserved. PNG is a single-image format; use this when you need a still thumbnail or preview from a GIF, not a moving image.',
+      q: 'Are my GIF files uploaded to convert them?',
+      a: 'No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
     },
     {
-      q: 'Why convert a GIF to PNG instead of JPG?',
-      a: 'PNG is lossless and preserves transparency. If your GIF has a transparent background and you need that transparency kept in the output, PNG is the right choice. JPG fills transparent areas with a solid color and applies lossy compression. For pixel-perfect or transparent-background output, use PNG.',
+      q: 'Does this convert the whole animation or just one frame?',
+      a: 'This tool extracts the first frame of the GIF and saves it as a static PNG. All animation frames after the first are discarded. To keep the animation, use the GIF to WebP tool which preserves all frames as animated WebP.',
     },
     {
-      q: 'Is the conversion lossless?',
-      a: 'Yes. PNG is a lossless format. Every pixel from the first frame of the GIF is reproduced exactly in the output. The compression level setting only affects file size and encoding speed — not image quality.',
+      q: 'Why choose PNG over JPG for a GIF conversion?',
+      a: 'PNG is lossless and preserves transparency. If your GIF has a transparent background and you need that transparency in the output, PNG is the right choice. JPG fills transparent areas with a solid background color and applies lossy compression. For pixel-perfect or transparency-preserving output, PNG wins.',
+    },
+    {
+      q: 'Is GIF to PNG truly lossless?',
+      a: 'Yes. PNG is a lossless format — every pixel from the first GIF frame is reproduced exactly. Note that GIF itself was already limited to 256 colors, so the PNG faithfully captures those 256-color pixels. Any color banding already in the GIF will be present in the PNG.',
     },
     {
       q: 'Can I convert 1,000 GIF files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes each one in your browser — no uploads, no server. Each GIF produces one PNG from its first frame. PNG files are larger than JPG so high-resolution batches may take a moment. Download all results as a single ZIP when done.',
-    },
-    {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+      a: 'Yes. Drop them all in and ConvertYard processes each one in your browser — no uploads, no server. Each GIF produces one PNG. PNG files are larger than JPG so high-resolution batches may take a moment. Download all results as a single ZIP.',
     },
   ],
 

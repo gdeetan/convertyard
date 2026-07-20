@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'bmp-to-webp',
   title: 'BMP to WebP Converter',
   subtitle: 'BMP to modern WebP — dramatically smaller files, wider web support. Batch 1,000+ images in your browser.',
+  bestFor: 'Best for converting BMP assets to a web-ready format without the compatibility concerns of AVIF.',
   category: 'images',
   accepts: ['image/bmp', 'image/x-bmp', 'image/x-ms-bmp'],
   acceptsExt: ['.bmp'],
@@ -61,24 +62,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'Why convert BMP to WebP?',
-      a: 'BMP files are enormous — uncompressed, every pixel stored individually. WebP gives you 20–40x smaller files for photographs, and even lossless WebP is typically 3–5x smaller than the equivalent BMP. WebP is the right modern format for web use: supported in all current browsers, dramatically smaller than BMP, and better than JPG at the same quality.',
+      q: 'Are my BMP files uploaded to convert them?',
+      a: 'No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
     },
     {
-      q: 'How much smaller will my WebP files be?',
-      a: 'At quality 80, expect 10–50x smaller than the original BMP. A 6MB BMP photo typically becomes 150–400KB as WebP. ConvertYard shows the exact byte savings per file so you can see the reduction immediately.',
+      q: 'How does WebP compare to BMP?',
+      a: 'BMP is uncompressed — every pixel stored raw. WebP uses modern lossy or lossless compression. At quality 80, expect 10–50x smaller files than the original BMP. A 6MB BMP photo typically becomes 150–400KB as WebP. Lossless WebP is still typically 3–5x smaller than BMP.',
+    },
+    {
+      q: 'When should I choose WebP over AVIF for BMP conversion?',
+      a: 'WebP has broader software support than AVIF — it works in image editing apps, CMS platforms, and CDNs that predate 2022. If your target environment definitely supports AVIF, it will give you slightly smaller files. If you are not sure, WebP is the safer choice and still dramatically smaller than BMP.',
     },
     {
       q: 'Does WebP support all browsers?',
-      a: 'WebP is supported in all modern browsers: Chrome, Edge, Firefox, and Safari (since version 14, 2020). That covers over 97% of global web traffic. For use in desktop software or services that don\'t support WebP, convert to JPG instead.',
+      a: 'WebP is supported in all modern browsers: Chrome, Edge, Firefox, and Safari (since version 14, 2020). That covers over 97% of global web traffic. For desktop software or services that do not support WebP, convert to JPG instead.',
     },
     {
-      q: 'Can I convert 1,000 BMP files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes them in your browser — no uploads, no server queue. Download all results as a single ZIP when done.',
-    },
-    {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+      q: 'Can I batch convert 1,000 BMP files at once?',
+      a: 'Yes. Drop them all in and ConvertYard processes them in your browser — no uploads, no server queue. BMP files are large in memory so large batches may take time. Download all results as a single ZIP when done.',
     },
   ],
 

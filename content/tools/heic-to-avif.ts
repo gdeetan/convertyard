@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'heic-to-avif',
   title: 'HEIC to AVIF Converter',
   subtitle: 'Convert iPhone HEIC photos to AVIF — best-in-class compression, up to 50% smaller than JPG. No iCloud needed.',
+  bestFor: 'Best for web publishers converting iPhone photo libraries to the smallest possible web-ready format.',
   category: 'images',
   accepts: ['image/heic', 'image/heif'],
   acceptsExt: ['.heic', '.heif'],
@@ -61,24 +62,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'Why convert HEIC to AVIF instead of JPG?',
-      a: 'AVIF achieves 40–50% better compression than JPG at the same visual quality, and 20–30% better than WebP. If you\'re converting iPhone photos for web use, AVIF gives you the smallest files. Browser support covers Chrome, Edge, Firefox, and Safari 16+.',
+      q: 'Are my iPhone photos uploaded to convert them?',
+      a: 'No. Conversion runs entirely in your browser. Your HEIC files never leave your device.',
     },
     {
-      q: 'Does this preserve image quality from HEIC?',
-      a: 'At quality 70, AVIF output is visually indistinguishable from the original HEIC for most photos. AVIF uses AV1 compression that retains fine detail better than older formats at low file sizes.',
+      q: 'Why convert HEIC to AVIF instead of JPG?',
+      a: 'AVIF achieves 40–50% better compression than JPG at the same visual quality, and 20–30% better than WebP. If you are converting iPhone photos for web use, AVIF gives the smallest files. Browser support covers Chrome, Edge, Firefox, and Safari 16+.',
+    },
+    {
+      q: 'What is the difference between HEIC and AVIF?',
+      a: 'Both are based on modern video codec compression — HEIC uses HEVC (H.265), AVIF uses AV1. AVIF achieves slightly better compression than HEIC at equivalent quality. The key difference is ecosystem: HEIC is Apple\'s camera format, locked to Apple devices. AVIF is an open web standard supported by all major browsers. Converting from one to the other loses no meaningful quality.',
+    },
+    {
+      q: 'Can I get a green or pink cast after converting HEIC to AVIF?',
+      a: 'Yes, this can happen with HDR or wide-gamut HEIC photos taken on newer iPhones. The HEIC is encoded in Display P3 color space, which can be misinterpreted during conversion. AVIF supports wide color gamut too, but the mapping between the two is not always perfect. It affects a small percentage of photos, particularly those shot in bright light or with Smart HDR enabled.',
     },
     {
       q: 'Does AVIF work in all browsers?',
-      a: 'AVIF is supported in Chrome (since 85), Edge (since 121), Firefox (since 93), and Safari (since 16). That covers over 90% of global web traffic. For broader compatibility, use WebP or JPG instead.',
-    },
-    {
-      q: 'Can I convert 1,000 HEIC files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes them one at a time in your browser — no uploads, no server queue. HEIC decoding happens locally via WebAssembly. Download all results as a single ZIP when done.',
-    },
-    {
-      q: 'Are my photos uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser. Your photos never leave your device.',
+      a: 'AVIF is supported in Chrome (since 85), Edge (since 121), Firefox (since 93), and Safari (since 16.4). That covers over 93% of global web traffic. For broader compatibility with older Safari or software, convert to WebP or JPG instead.',
     },
   ],
 
