@@ -15,6 +15,20 @@ export const config: ToolConfig = {
 
   options: [
     {
+      type: 'radio',
+      name: 'imageType',
+      label: 'Image type',
+      choices: [
+        { value: 'document', label: 'Document / photo' },
+        { value: 'screenshot', label: 'Screenshot / chat' },
+      ],
+      default: 'document',
+      conditionalHints: {
+        document: 'Best for scanned pages, photos of paper, and printed documents.',
+        screenshot: 'Best for UI screenshots, chat exports, and screen captures with colored backgrounds.',
+      },
+    },
+    {
       type: 'dropdown',
       name: 'language',
       label: 'Language',

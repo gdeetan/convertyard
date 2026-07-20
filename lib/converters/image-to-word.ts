@@ -1,5 +1,5 @@
 import { recognizePage } from '@/lib/ocr/tesseract-client'
-import { preprocessForOcr } from '@/lib/ocr/preprocessing'
+import { preprocessForOcr, preprocessForScreenshot } from '@/lib/ocr/preprocessing'
 import { Document, Packer, Paragraph, TextRun } from 'docx'
 import type { ToolOptions, ConversionResult, OcrResultMeta } from '@/lib/types'
 
@@ -20,6 +20,7 @@ export async function convertImageToWord(
   const fontFamily = (opts.fontFamily as string | undefined) ?? 'Calibri'
   // docx size is in half-points
   const fontSize = ((opts.fontSize as number | undefined) ?? 11) * 2
+  const isScreenshot = (opts.imageType as string | undefined) === 'screenshot'
 
   return Promise.all(
     files.map(async (file, i): Promise<ConversionResult> => {
@@ -27,7 +28,9 @@ export async function convertImageToWord(
         onProgress?.(i, 0)
 
         const blob = new Blob([await file.arrayBuffer()], { type: file.type })
-        const preprocessed = await preprocessForOcr(blob)
+        const preprocessed = isScreenshot
+          ? await preprocessForScreenshot(blob)
+          : await preprocessForOcr(blob)
         onProgress?.(i, 40)
 
         const ocr = await recognizePage(preprocessed, lang, { oem: 1, psm, dpi: 300 })
