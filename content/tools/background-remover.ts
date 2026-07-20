@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   title: 'AI Background Remover',
   subtitle:
     'Remove image backgrounds with AI. Runs locally in your browser — images never upload.',
+  bestFor: 'Best for product photographers, e-commerce sellers, and designers who need transparent-background images in bulk.',
   category: 'image-editing',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
@@ -35,32 +36,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Are my images uploaded for background removal?',
+      a: 'No. The segmentation model runs locally in your browser using WebAssembly/ONNX. Your images never leave your device — ConvertYard only serves the page and model files.',
+    },
+    {
       q: 'How accurate is the AI background removal?',
-      a: 'It works best when the foreground subject has a clear boundary from the background. Cluttered scenes, glass, smoke, motion blur, shadows, and low-contrast edges may still need cleanup.',
+      a: 'It works best when the foreground subject has a clear, high-contrast boundary from the background. Subjects with fine hair, fur, translucent edges, glass, or smoke are harder to segment cleanly and may need manual cleanup in an image editor after export.',
     },
     {
       q: 'Does it only work on portraits?',
-      a: 'No. The v1 workflow is designed for people, products, vehicles, animals, buildings, signs, and other clear foreground subjects. Portrait-specialized segmentation is kept as a fallback path.',
+      a: 'No. The model handles people, products, vehicles, animals, buildings, and other clear foreground subjects. Portrait-specialised segmentation is kept as a fallback for close-up face shots.',
     },
     {
-      q: 'Can I choose the subject manually?',
-      a: 'Not in v1. The tool automatically chooses the likely foreground and shows confidence warnings when a scene has several possible subjects.',
+      q: 'What output format does it produce?',
+      a: 'Always PNG or WebP — both support an alpha channel (transparency). JPEG does not support transparency, so it is not offered as an output format.',
     },
     {
-      q: 'How large is the AI model? Will it slow my browser?',
-      a: 'The model loads only when you use the remover and is reused for the current browser session. Processing happens locally with WebAssembly/ONNX, so images never upload to our servers.',
-    },
-    {
-      q: 'How long does each image take to process?',
-      a: 'Clear images usually finish in a few seconds on a modern laptop. Older hardware, mobile browsers, and large images can take longer. Very large images may be rejected to avoid browser memory crashes.',
-    },
-    {
-      q: 'What output format does it create?',
-      a: 'The v1 tool exports PNG with an alpha channel so transparency works in design tools, websites, and common image editors.',
-    },
-    {
-      q: 'Are my images uploaded to any server?',
-      a: 'Never. The AI model runs in your browser. ConvertYard only serves the page and model files; your selected images stay on your device.',
+      q: 'Why was my image rejected?',
+      a: 'Very large images (typically above 4000×4000 px) may be rejected to prevent browser memory crashes. Resize the image first using the Batch Image Resizer, then remove the background.',
     },
   ],
 

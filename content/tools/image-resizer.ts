@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'image-resizer',
   title: 'Batch Image Resizer',
   subtitle: 'Resize to exact pixels or let aspect ratio calculate the other dimension. One setting, 1,000 files, one ZIP.',
+  bestFor: 'Best for resizing product photos, social media images, or email attachments in bulk before upload.',
   category: 'image-editing',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],

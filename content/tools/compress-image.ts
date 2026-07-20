@@ -8,6 +8,7 @@ export const config: ToolConfig = {
   slug: 'compress-image',
   title: 'Image Compressor',
   subtitle: 'Compress JPG, PNG, and WebP with a live before/after preview. Set an exact size target per file.',
+  bestFor: 'Best for reducing image weight before publishing to a website, CMS, or email without touching the design team.',
   category: 'image-editing',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],

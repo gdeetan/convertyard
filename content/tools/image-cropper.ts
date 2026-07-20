@@ -6,6 +6,7 @@ export const config: ToolConfig = {
   slug: 'image-cropper',
   title: 'Batch Image Cropper',
   subtitle: 'Crop to exact pixels or preset aspect ratios. Apply the same crop to 1,000 images at once.',
+  bestFor: 'Best for setting a uniform crop across a product photo batch, or generating exam-spec passport photos at exact dimensions.',
   category: 'image-editing',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
