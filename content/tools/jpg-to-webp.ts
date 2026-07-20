@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'jpg-to-webp',
   title: 'JPG to WebP Converter',
   subtitle: 'WebP files average 25–35% smaller than JPG. Batch convert 1,000 at once — see exact savings per file.',
+  bestFor: 'Best for web developers cutting page weight by switching JPG assets to modern WebP.',
   category: 'images',
   accepts: ['image/jpeg'],
   acceptsExt: ['.jpg', '.jpeg'],

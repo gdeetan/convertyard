@@ -4,7 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'webp-to-gif',
   title: 'WebP to GIF Converter',
-  subtitle: 'Convert animated WebP to GIF for platforms that don\'t support WebP yet.',
+  subtitle: 'Convert animated WebP to GIF for email clients and platforms that don\'t support WebP yet.',
+  bestFor: 'Best for converting animated WebP stickers or banners into GIF for email or legacy CMS platforms.',
   category: 'images',
   accepts: ['image/webp'],
   acceptsExt: ['.webp'],
@@ -48,20 +49,24 @@ export const config: ToolConfig = {
   ],
   faq: [
     {
-      q: 'Does it handle both animated and static WebP?',
-      a: 'Yes. Animated WebPs become animated GIFs. Static WebPs become static GIFs.',
-    },
-    {
-      q: 'Why is the GIF larger than the WebP?',
-      a: 'GIF is a less efficient format than WebP — especially for animations. A WebP animation typically becomes 2–5× larger as a GIF. Reduce the frame rate or resize to shrink the output.',
-    },
-    {
-      q: 'What platforms still need GIF instead of WebP?',
-      a: 'As of 2026, some email clients, legacy CMSes, and certain social platforms still don\'t reliably support animated WebP. GIF is the universal animated image fallback.',
-    },
-    {
-      q: 'Are my files uploaded anywhere?',
+      q: 'Are my WebP files uploaded to convert them?',
       a: 'No. Conversion uses ffmpeg.wasm running in your browser. Your files never leave your device.',
+    },
+    {
+      q: 'What happens to WebP colours when converting to GIF?',
+      a: 'GIF supports a maximum of 256 colours per frame, while WebP can represent millions. The converter builds the best 256-colour palette it can and applies dithering to approximate the remaining colours. Smooth gradients will show visible banding; flat-colour graphics and simple animations convert with less visible degradation.',
+    },
+    {
+      q: 'Why is the GIF so much larger than the original WebP?',
+      a: 'GIF is a significantly less efficient format than WebP — especially for animations. An animated WebP typically becomes 2–5× larger as a GIF because GIF can only store 256 colours per frame and uses a simpler compression algorithm. To reduce GIF file size, lower the frame rate or shrink the output width.',
+    },
+    {
+      q: 'Does it handle both animated and static WebP?',
+      a: 'Yes. Animated WebPs become animated GIFs. Static WebPs become single-frame static GIFs.',
+    },
+    {
+      q: 'Which platforms still need GIF instead of WebP?',
+      a: 'As of 2026, most email clients (Outlook, Apple Mail, Gmail on mobile) do not support animated WebP but do support animated GIF. Some legacy CMS platforms and social media embeds also default to GIF for animated content. GIF is the safe fallback when you cannot control what the viewer\'s platform supports.',
     },
   ],
   relatedTools: ['gif-to-webp', 'jpg-to-gif', 'png-to-gif', 'webp-to-jpg'],

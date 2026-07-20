@@ -4,7 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'png-to-svg',
   title: 'PNG to SVG Converter',
-  subtitle: 'Vectorise PNG logos and icons into scalable SVG. No Illustrator needed.',
+  subtitle: 'Trace PNG logos and icons into scalable SVG paths. Works on simple, high-contrast art.',
+  bestFor: 'Best for designers who need an SVG version of a simple logo or icon they only have as a PNG.',
   category: 'images',
   accepts: ['image/png'],
   acceptsExt: ['.png'],
@@ -51,24 +52,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Are my PNG files uploaded to convert them?',
+      a: 'No. Vectorisation runs entirely in your browser using JavaScript. Your PNGs never leave your device.',
+    },
+    {
+      q: 'Is PNG-to-SVG conversion lossless?',
+      a: 'No. This is raster-to-vector tracing, not a lossless conversion. The tool approximates the shapes in your PNG as SVG paths. Simple logos and icons trace accurately; photographs and complex illustrations produce messy SVGs with thousands of tiny paths that are not practical for web or print use.',
+    },
+    {
+      q: 'Why does my vectorised logo have rough or jagged edges?',
+      a: 'Anti-aliasing in the original PNG creates semi-transparent edge pixels that the tracer interprets as new colours, producing rough outlines. Increase the Line threshold slider to smooth curves, and reduce the Number of colours to force the tracer to treat near-edge pixels as either foreground or background.',
+    },
+    {
       q: 'Will it vectorise a photo?',
-      a: 'It will attempt it, but photos produce complex SVGs full of tiny coloured shapes — not useful for web or print. Vectorisation works best on simple, high-contrast images: logos, icons, line drawings, QR codes.',
+      a: 'It will try, but the result is not useful — photos produce thousands of tiny coloured paths approximating pixel colours, not clean scalable shapes. Use this tool on logos, icons, line art, QR codes, and scanned signatures only.',
     },
     {
-      q: 'Why does my vectorised logo have rough edges?',
-      a: 'Increase the Line threshold slider. Higher values smooth curves more aggressively — useful for logos that had anti-aliasing in the original PNG.',
-    },
-    {
-      q: 'Can I vectorise a scanned signature?',
-      a: 'Yes. A clean scan on white paper with dark ink vectorises well. Set Number of colours to 2 (black and white) for the cleanest result.',
-    },
-    {
-      q: 'Is the output SVG editable in Illustrator or Inkscape?',
-      a: 'Yes. The output is standard SVG path data — open it in any vector editor and manipulate paths normally.',
-    },
-    {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. Vectorisation runs entirely in your browser using JavaScript. Your PNGs stay on your device.',
+      q: 'Is the output SVG editable in Inkscape or a vector editor?',
+      a: 'Yes. The output is standard SVG path data. Open it in Inkscape, Figma, or any vector editor and manipulate the paths normally. Complex traces may have hundreds of overlapping paths, which can make editing tedious — simpler source images produce more workable SVGs.',
     },
   ],
 

@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'png-to-webp',
   title: 'PNG to WebP Converter',
   subtitle: 'PNG to WebP with full transparency support. Lossy or lossless — typically 60–80% smaller than the original PNG.',
+  bestFor: 'Best for web developers replacing PNG assets with WebP to cut page weight while keeping transparency.',
   category: 'images',
   accepts: ['image/png'],
   acceptsExt: ['.png'],

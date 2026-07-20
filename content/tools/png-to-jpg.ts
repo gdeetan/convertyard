@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'png-to-jpg',
   title: 'PNG to JPG Converter',
   subtitle: 'PNG to JPG — set your own quality level, strip transparency cleanly. Batch 1,000 files at once.',
+  bestFor: 'Best for shrinking screenshots and PNG exports before emailing or uploading to web.',
   category: 'images',
   accepts: ['image/png'],
   acceptsExt: ['.png'],

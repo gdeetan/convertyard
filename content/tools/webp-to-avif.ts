@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'webp-to-avif',
   title: 'WebP to AVIF Converter',
   subtitle: 'Upgrade from WebP to AVIF — 10–20% smaller files, same quality. No upload needed.',
+  bestFor: 'Best for web developers upgrading existing WebP image libraries to AVIF on modern browser stacks.',
   category: 'images',
   accepts: ['image/webp'],
   acceptsExt: ['.webp'],

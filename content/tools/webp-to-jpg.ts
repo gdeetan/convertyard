@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'webp-to-jpg',
   title: 'WebP to JPG Converter',
   subtitle: 'WebP to universal JPG — compatible with every app, OS, and platform. Batch 1,000+ files at once.',
+  bestFor: 'Best for making WebP images openable in apps, email clients, and tools that don\'t support WebP.',
   category: 'images',
   accepts: ['image/webp'],
   acceptsExt: ['.webp'],

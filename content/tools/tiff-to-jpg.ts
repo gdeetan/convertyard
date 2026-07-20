@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'tiff-to-jpg',
   title: 'TIFF to JPG Converter',
   subtitle: 'TIFF files can be 100× larger than JPG. Convert 1,000+ at once and cut file sizes by 90%. No upload.',
+  bestFor: 'Best for scanning workflows where TIFFs need to be shared, emailed, or uploaded as JPGs.',
   category: 'images',
   accepts: ['image/tiff', 'image/x-tiff'],
   acceptsExt: ['.tif', '.tiff'],

@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'svg-to-jpg',
   title: 'SVG to JPG Converter',
   subtitle: 'Export SVG illustrations as JPG thumbnails. Set background colour and quality.',
+  bestFor: 'Best for exporting SVG illustrations as JPG thumbnails for blog posts and social media previews.',
   category: 'images',
   accepts: ['image/svg+xml'],
   acceptsExt: ['.svg'],
@@ -51,16 +52,24 @@ export const config: ToolConfig = {
   ],
   faq: [
     {
-      q: 'Why would I use JPG instead of PNG from an SVG?',
-      a: 'JPG files are smaller than PNGs for large rasterised illustrations. For blog thumbnails and social media previews where transparency isn\'t needed, JPG loads faster.',
+      q: 'Are my SVG files uploaded to convert them?',
+      a: 'No. Conversion uses your browser\'s Canvas API. Your SVGs never leave your device.',
     },
     {
-      q: 'What background colour is used?',
-      a: 'White (#ffffff) is the default. JPG has no transparency support so every pixel gets a background colour.',
+      q: 'What resolution does the JPG come out at?',
+      a: 'The output resolution depends on the scale multiplier or custom width you set. At 2× scale, a 500×500px SVG produces a 1000×1000px JPG. SVGs are vector — they can be rasterised at any resolution without loss. Set the Custom Width field to a specific pixel dimension if you need an exact output size for social media or a template.',
     },
     {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. Conversion uses your browser\'s Canvas API. Your SVGs stay on your device.',
+      q: 'Why JPG instead of PNG when exporting from SVG?',
+      a: 'JPG produces smaller files for large rasterised illustrations, which makes it better for blog thumbnails and social previews where every kilobyte affects page load. Use PNG instead if you need a transparent background — JPG does not support transparency.',
+    },
+    {
+      q: 'What colour fills the SVG background in the JPG?',
+      a: 'White (#ffffff) by default. You can change this with the Background colour picker. If your SVG is designed for a dark page, set the background to match so the thumbnail looks correct when displayed in isolation.',
+    },
+    {
+      q: 'My SVG uses web fonts — will they render correctly in the JPG?',
+      a: 'Only if the fonts are embedded in the SVG as base64 data. SVGs that reference external font files (Google Fonts, CDN fonts) typically render with a browser fallback font instead. Embed the font in the SVG before converting, or convert text to outlines in your design tool.',
     },
   ],
   relatedTools: ['svg-to-png', 'svg-to-webp', 'jpg-to-webp'],

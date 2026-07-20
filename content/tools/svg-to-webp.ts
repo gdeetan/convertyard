@@ -4,7 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'svg-to-webp',
   title: 'SVG to WebP Converter',
-  subtitle: 'Rasterise SVG to WebP for smaller file sizes on the web.',
+  subtitle: 'Rasterise SVG to WebP — 25–35% smaller than PNG at equal quality, transparency supported.',
+  bestFor: 'Best for web developers exporting SVG icons or illustrations as WebP for lighter page payloads.',
   category: 'images',
   accepts: ['image/svg+xml'],
   acceptsExt: ['.svg'],
@@ -51,16 +52,24 @@ export const config: ToolConfig = {
   ],
   faq: [
     {
-      q: 'Why WebP instead of PNG for SVG exports?',
-      a: 'WebP files are typically 25–35% smaller than equivalent PNGs. For icon sets deployed on high-traffic pages, this reduces page weight noticeably. Both formats support transparency.',
+      q: 'Are my SVG files uploaded to convert them?',
+      a: 'No. Conversion uses your browser\'s Canvas API. Your SVGs never leave your device.',
     },
     {
-      q: 'Should I use lossless or lossy WebP for icons?',
-      a: 'The quality slider controls lossy compression. For icons and logos, use quality 90+ for sharp edges. Lossy WebP at high quality is visually indistinguishable from lossless but produces smaller files.',
+      q: 'Why WebP instead of PNG when exporting from SVG?',
+      a: 'WebP is typically 25–35% smaller than PNG at equivalent visual quality. Both formats support full alpha transparency. For icon sets or illustrations deployed on high-traffic pages, switching from PNG to WebP cuts bandwidth without any visible quality difference.',
     },
     {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. Conversion uses your browser\'s Canvas API. Your SVGs stay on your device.',
+      q: 'Does WebP support SVG transparency?',
+      a: 'Yes. WebP supports full alpha transparency, just like PNG. The Transparent background toggle is on by default — your SVG backgrounds will be transparent in the output WebP. Turn it off if you need a solid fill.',
+    },
+    {
+      q: 'What quality setting should I use for icons and logos?',
+      a: 'Use 90 or above for sharp, clean edges on icons and logos. Lossy WebP at quality 90 is visually indistinguishable from lossless for most icon content, while producing smaller files. Drop below 85 only for illustrative content where edge sharpness is less critical.',
+    },
+    {
+      q: 'My SVG output looks blurry in the WebP — what happened?',
+      a: 'The SVG was rasterised at too low a resolution. Increase the Scale multiplier (2× or 4×) or set a specific Custom Width. The WebP is then displayed at its natural CSS size and will be sharp on all screens.',
     },
   ],
   relatedTools: ['svg-to-png', 'svg-to-jpg', 'png-to-webp'],

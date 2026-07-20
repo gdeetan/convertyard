@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'png-to-ico',
   title: 'PNG to ICO Converter',
   subtitle: 'Generate ICO favicons from PNG — packs 16, 32, 48, 64, and 128px layers into one file. No upload.',
+  bestFor: 'Best for developers creating a favicon.ico from a square logo PNG.',
   category: 'images',
   accepts: ['image/png'],
   acceptsExt: ['.png'],

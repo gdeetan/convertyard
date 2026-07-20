@@ -4,7 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'png-to-gif',
   title: 'PNG to GIF Converter',
-  subtitle: 'Animate PNG sequences or convert single PNGs to GIF.',
+  subtitle: 'Animate PNG sequences or convert single PNGs to GIF. 256-colour palette with dithering.',
+  bestFor: 'Best for animators assembling PNG frame sequences into a shareable GIF.',
   category: 'images',
   accepts: ['image/png'],
   acceptsExt: ['.png'],
@@ -49,16 +50,24 @@ export const config: ToolConfig = {
   ],
   faq: [
     {
+      q: 'Are my PNG files uploaded to convert them?',
+      a: 'No. Conversion runs via ffmpeg.wasm entirely in your browser. Your files never leave your device.',
+    },
+    {
+      q: 'What happens to PNG colours when converting to GIF?',
+      a: 'GIF supports a maximum of 256 colours per frame. PNGs often contain millions of colours. The converter builds the best 256-colour palette it can from your image and applies dithering to approximate the lost colours. Photographs and gradients show visible banding; flat-colour graphics and icons convert cleanly.',
+    },
+    {
       q: 'Does GIF support transparency from PNG?',
-      a: 'GIF supports binary transparency only — pixels are either fully transparent or fully opaque. PNG\'s semi-transparent edges are thresholded. Clean logos on white backgrounds convert well.',
+      a: 'GIF supports binary transparency only — pixels are either fully transparent or fully opaque. PNG alpha channels are thresholded: semi-transparent edges from anti-aliasing become either fully transparent or fully opaque. Clean logos on solid backgrounds convert well; soft shadows will have hard edges.',
     },
     {
       q: 'Can I create an animated GIF from multiple PNGs?',
-      a: 'Yes — drop multiple PNGs and they animate in the order shown. Each file becomes one frame at the specified frame rate.',
+      a: 'Yes. Drop multiple PNGs and they animate in the order shown. Each file becomes one frame at the frame rate you set. File names are sorted alphabetically, so name them sequentially (frame-001.png, frame-002.png, etc.) to control the order.',
     },
     {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. Conversion uses ffmpeg.wasm in your browser. Your files never leave your device.',
+      q: 'Why is my GIF file larger than the original PNGs?',
+      a: 'GIF uses an older LZW compression algorithm that is far less efficient than PNG compression, especially for images with smooth gradients. A high-colour PNG animation can become a very large GIF. Reduce the output width or frame rate to keep the GIF to a manageable size.',
     },
   ],
   relatedTools: ['jpg-to-gif', 'webp-to-gif', 'png-to-webp'],

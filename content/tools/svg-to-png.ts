@@ -4,7 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'svg-to-png',
   title: 'SVG to PNG Converter',
-  subtitle: 'Rasterise SVG files at any resolution. Batch-ready, no uploads.',
+  subtitle: 'Rasterise SVG files at any resolution — 1×, 2×, 4× or custom px. Batch-ready, no uploads.',
+  bestFor: 'Best for designers exporting icon sets or SVG assets as PNG for apps, documents, or platforms that reject SVG.',
   category: 'images',
   accepts: ['image/svg+xml'],
   acceptsExt: ['.svg'],
@@ -41,24 +42,24 @@ export const config: ToolConfig = {
   ],
   faq: [
     {
-      q: 'What resolution should I use for web icons?',
-      a: '2× is the standard for retina screens. If your SVG is 24×24px, 2× outputs 48×48px — sharp on all screens. For app store icons, use the Custom Width field to set the exact pixel dimensions required.',
+      q: 'Are my SVG files uploaded to convert them?',
+      a: 'No. Conversion uses your browser\'s Canvas API. Your SVGs never leave your device.',
+    },
+    {
+      q: 'SVG is scalable — what resolution does the PNG come out at?',
+      a: 'The PNG resolution is determined by the scale multiplier or the custom width you set. A 24×24px SVG at 2× scale outputs a 48×48px PNG. Unlike raster-to-raster conversions, SVG-to-PNG never introduces blur or interpolation artifacts — the vector renders at pixel-perfect sharpness at whatever size you choose.',
+    },
+    {
+      q: 'What scale should I use for web icons?',
+      a: '2× is the standard for retina and high-DPI screens. If your SVG is 24×24px, 2× outputs 48×48px — displayed at 24×24px in the browser, it looks sharp on all screens. For app store submissions, use the Custom Width field to hit exact required dimensions (e.g. 1024px for Apple App Store).',
     },
     {
       q: 'Will the background be transparent?',
-      a: 'Yes, by default. Toggle "Transparent background" off if you need a solid fill.',
+      a: 'Yes, by default. PNG supports alpha transparency, and the Transparent background toggle is on by default. Turn it off and specify a fill colour if you need a solid-background PNG.',
     },
     {
-      q: 'Can I convert SVGs that use embedded fonts?',
-      a: 'SVGs with embedded base64 fonts convert correctly. SVGs that reference external font files may render with fallback fonts — embed the font in the SVG file before converting for reliable output.',
-    },
-    {
-      q: 'Can I batch-convert an icon set at one resolution?',
-      a: 'Yes — set your scale or custom width once, drop all SVGs, and download a ZIP of PNGs at the specified size.',
-    },
-    {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. Conversion uses your browser\'s Canvas API — your SVGs never leave your device.',
+      q: 'My SVG uses an external font — will it render correctly?',
+      a: 'SVGs referencing external fonts (Google Fonts, system fonts by name) may fall back to a different font in the Canvas rendering environment. For reliable text rendering, embed the font in the SVG as base64 data, or convert text to outlines in your design tool before exporting.',
     },
   ],
   relatedTools: ['png-to-svg', 'svg-to-jpg', 'svg-to-webp'],

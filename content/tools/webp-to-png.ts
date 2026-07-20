@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'webp-to-png',
   title: 'WebP to PNG Converter',
   subtitle: 'WebP to lossless PNG — full transparency support. Batch 1,000+ files in your browser. No upload.',
+  bestFor: 'Best for converting WebP images to PNG before editing in tools that don\'t support WebP.',
   category: 'images',
   accepts: ['image/webp'],
   acceptsExt: ['.webp'],

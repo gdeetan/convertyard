@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'tiff-to-png',
   title: 'TIFF to PNG Converter',
   subtitle: 'Convert TIFF to lossless PNG. Handles multi-layer and high-DPI TIFFs. No upload, no server.',
+  bestFor: 'Best for converting archival TIFFs to PNG so they open in any browser, app, or design tool.',
   category: 'images',
   accepts: ['image/tiff', 'image/x-tiff'],
   acceptsExt: ['.tif', '.tiff'],
