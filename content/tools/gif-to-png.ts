@@ -46,11 +46,11 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my GIF files uploaded to convert them?',
-      a: 'No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+      a: 'No. Conversion runs entirely in your browser using WebAssembly — your GIFs never leave your device. ConvertYard\'s servers only deliver the tool\'s code; they never see your files.',
     },
     {
-      q: 'Does this convert the whole animation or just one frame?',
-      a: 'This tool extracts the first frame of the GIF and saves it as a static PNG. All animation frames after the first are discarded. To keep the animation, use the GIF to WebP tool which preserves all frames as animated WebP.',
+      q: 'What happens to animated GIFs? Will my animation be preserved?',
+      a: 'No — only the first frame is extracted as a PNG. The animation is not preserved. If you drop in an animated GIF expecting a moving image, you will get a single static PNG of frame one. To keep the animation, use the GIF to WebP tool, which preserves all frames as an animated WebP.',
     },
     {
       q: 'Why choose PNG over JPG for a GIF conversion?',

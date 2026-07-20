@@ -89,8 +89,8 @@ export const config: ToolConfig = {
       a: 'Yes. Drop them all in and ConvertYard processes them one at a time in your browser — no uploads, no server queue. Speed depends on your device and image dimensions. Download all results as a single ZIP when done.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device. ConvertYard\'s servers only deliver the tool\'s code — they never see your images.',
+      q: 'Are my PNG files uploaded to convert them?',
+      a: 'No. Conversion runs entirely in your browser using WebAssembly — your PNGs never leave your device. ConvertYard\'s servers only deliver the tool\'s code; they never see your images.',
     },
   ],
 

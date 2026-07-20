@@ -43,7 +43,7 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my SVG files uploaded to convert them?',
-      a: 'No. Conversion uses your browser\'s Canvas API. Your SVGs never leave your device.',
+      a: 'No. Conversion uses your browser\'s built-in Canvas API entirely on your device — no data is sent to any server. The SVG is rendered locally inside a canvas element, and the resulting PNG is generated in memory in your browser. ConvertYard\'s servers only deliver the tool\'s code; they never see your files.',
     },
     {
       q: 'SVG is scalable — what resolution does the PNG come out at?',
