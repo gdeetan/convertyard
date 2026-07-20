@@ -1,4 +1,5 @@
 import { convertImageToWord } from '@/lib/converters/image-to-word'
+import { ImageToWordPreviewPanel } from '@/components/image-to-word-preview'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -10,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff', '.tif'],
   outputExt: '.docx',
   convertFn: convertImageToWord,
+  reviewPanel: ImageToWordPreviewPanel,
 
   options: [
     {

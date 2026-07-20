@@ -1,7 +1,7 @@
 import { recognizePage } from '@/lib/ocr/tesseract-client'
 import { preprocessForOcr } from '@/lib/ocr/preprocessing'
 import { Document, Packer, Paragraph, TextRun } from 'docx'
-import type { ToolOptions, ConversionResult } from '@/lib/types'
+import type { ToolOptions, ConversionResult, OcrResultMeta } from '@/lib/types'
 
 const PSM_MAP: Record<string, number> = {
   auto: 3,
@@ -30,10 +30,11 @@ export async function convertImageToWord(
         const preprocessed = await preprocessForOcr(blob)
         onProgress?.(i, 40)
 
-        const ocr = await recognizePage(preprocessed, lang, { psm })
+        const ocr = await recognizePage(preprocessed, lang, { oem: 1, psm, dpi: 300 })
         onProgress?.(i, 80)
 
-        const paragraphs = ocr.text.split('\n').map(
+        const lines = ocr.text.split('\n')
+        const paragraphs = lines.map(
           (line) =>
             new Paragraph({
               children: [new TextRun({ text: line, font: fontFamily, size: fontSize })],
@@ -50,8 +51,20 @@ export async function convertImageToWord(
           { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }
         )
 
+        const ocrMeta: OcrResultMeta = {
+          kind: 'ocr',
+          words: ocr.words.map((w) => ({
+            text: w.text,
+            confidence: w.confidence,
+            bbox: w.bbox,
+            lineIndex: w.lineIndex,
+          })),
+          lines: lines.filter((l) => l.trim().length > 0),
+          sourceIndex: i,
+        }
+
         onProgress?.(i, 100)
-        return outFile
+        return { file: outFile, ocrMeta }
       } catch (err) {
         return err instanceof Error ? err : new Error(String(err))
       }
