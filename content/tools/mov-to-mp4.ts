@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'mov-to-mp4',
   title: 'MOV to MP4 Converter',
   subtitle: 'Convert MOV to MP4. Batch-ready, stays in your browser.',
+  bestFor: 'Best for sharing iPhone or Mac video recordings with Windows users or uploading to platforms that reject MOV.',
   category: 'video-audio',
   accepts: ['video/quicktime'],
   acceptsExt: ['.mov'],
@@ -44,8 +45,8 @@ export const config: ToolConfig = {
       a: 'Yes. Drop as many as you need. Each MOV is converted separately in your browser using ffmpeg.wasm, and the results download as a ZIP. There is no queue, no upload, and no per-file limit on count.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files do not leave your device at any point.',
+      q: 'Does my MOV file leave my device to convert it?',
+      a: 'No. Conversion runs in your browser using ffmpeg.wasm — a full media engine compiled to WebAssembly. Your video never touches a server.',
     },
     {
       q: 'Is there a file size limit?',

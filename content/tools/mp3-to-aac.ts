@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'mp3-to-aac',
   title: 'MP3 to AAC Converter',
   subtitle: 'Convert MP3 to AAC. Batch-ready, stays in your browser.',
+  bestFor: 'Best for importing MP3s into Apple-ecosystem video projects or iOS apps that require native AAC audio.',
   category: 'video-audio',
   accepts: ['audio/mpeg', 'audio/mp3'],
   acceptsExt: ['.mp3'],
@@ -15,24 +16,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
+      q: 'Does my MP3 file leave my device to convert it?',
+      a: 'No. Conversion runs in your browser using ffmpeg.wasm — a full media engine compiled to WebAssembly. Your audio never touches a server.',
+    },
+    {
       q: 'Why convert MP3 to AAC?',
-      a: 'AAC is the default audio format for Apple devices and generally produces better quality than MP3 at the same file size. If you\'re importing audio into an Apple ecosystem tool, adding sound to a video project, or need audio that plays natively on iOS without additional codecs, AAC is the right choice.',
+      a: 'AAC is the default audio format for Apple devices and produces better quality than MP3 at the same file size. Use this when importing audio into iMovie, Final Cut Pro, or any iOS app that expects AAC, or when you need the file to play natively on Apple hardware without extra codecs.',
     },
     {
       q: 'Will quality improve after converting to AAC?',
-      a: 'No. MP3 is lossy, so quality reduction from the original encoding is permanent. Converting to AAC re-encodes the already-compressed audio — the output quality matches the MP3 source, not the original recording. For archiving, keep your source files.',
+      a: 'No. MP3 is lossy — quality lost during the original MP3 encoding is permanent. Converting to AAC re-encodes the already-compressed audio, so the output matches the MP3 source quality, not the original recording.',
     },
     {
       q: 'What bitrate does the output use?',
-      a: '192 kbps — a solid balance between file size and audio quality for most content. This produces files roughly 40% smaller than a 320 kbps MP3 at comparable perceptual quality.',
+      a: '192 kbps AAC — a solid balance between file size and quality. At this bitrate, AAC sounds comparable to a 256 kbps MP3, and the file is roughly 40% smaller than a 320 kbps MP3.',
     },
     {
       q: 'Can I convert multiple MP3 files at once?',
-      a: 'Yes. Drop as many as you need. Each file converts separately in your browser, and the results download as a ZIP.',
-    },
-    {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files do not leave your device.',
+      a: 'Yes. Drop as many files as you need. Each converts separately in your browser and results download as a ZIP.',
     },
   ],
 

@@ -6,7 +6,8 @@ const LARGE_FILE_BYTES = 200 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'mp3-to-mp4',
   title: 'MP3 to MP4 Converter',
-  subtitle: 'Turn any audio file into an MP4 with a static image or animated waveform. Ready for YouTube or any platform that needs a video file. Everything runs in your browser.',
+  subtitle: 'Wrap audio in an MP4 with album art or waveform. Ready for YouTube. Stays in your browser.',
+  bestFor: 'Best for uploading podcast episodes, music tracks, or audiobooks to YouTube or platforms that only accept video files.',
   category: 'video-audio',
   accepts: ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/flac', 'audio/aac'],
   acceptsExt: ['.mp3', '.wav', '.ogg', '.flac', '.aac'],

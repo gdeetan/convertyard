@@ -7,6 +7,7 @@ export const config: ToolConfig = {
   slug: 'amr-to-mp3',
   title: 'AMR to MP3 Converter',
   subtitle: 'Convert AMR voice recordings to MP3. Runs in your browser, no uploads.',
+  bestFor: 'Best for opening voice notes from old Android phones or Nokia devices on any modern player.',
   category: 'video-audio',
   accepts: ['audio/amr', 'audio/3gpp'],
   acceptsExt: ['.amr', '.3gp'],

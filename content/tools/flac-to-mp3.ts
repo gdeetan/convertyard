@@ -7,6 +7,7 @@ export const config: ToolConfig = {
   slug: 'flac-to-mp3',
   title: 'FLAC to MP3 Converter',
   subtitle: 'Convert FLAC to MP3 in your browser. No uploads, batch ready.',
+  bestFor: 'Best for making lossless music files small enough to upload to streaming platforms or sync to your phone.',
   category: 'video-audio',
   accepts: ['audio/flac'],
   acceptsExt: ['.flac'],

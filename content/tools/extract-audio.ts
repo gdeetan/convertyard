@@ -6,7 +6,8 @@ const LARGE_FILE_BYTES = 500 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'extract-audio',
   title: 'Extract Audio from Video',
-  subtitle: 'Local-first audio extraction. Built for batches.',
+  subtitle: 'Pull audio tracks from MP4, MOV, MKV, and more. Local-first, built for batches.',
+  bestFor: 'Best for pulling the audio from a recorded interview, lecture, or YouTube video saved locally.',
   category: 'video-audio',
   accepts: [
     'video/mp4',

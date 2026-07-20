@@ -7,6 +7,7 @@ export const config: ToolConfig = {
   slug: 'm4a-to-mp3',
   title: 'M4A to MP3 Converter',
   subtitle: 'Convert M4A voice memos and audio files to MP3. No uploads, no software.',
+  bestFor: 'Best for sharing iPhone voice memos with people on Android, Windows, or older devices that reject M4A.',
   category: 'video-audio',
   accepts: ['audio/mp4', 'audio/x-m4a'],
   acceptsExt: ['.m4a'],

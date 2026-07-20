@@ -4,7 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'audio-speed',
   title: 'Audio Speed Changer',
-  subtitle: 'Speed up or slow down audio files. Local-first. Built for batches.',
+  subtitle: 'Speed up or slow down audio without changing pitch. Batch-ready, stays in your browser.',
+  bestFor: 'Best for listening to lectures or podcasts at 1.5×–2×, or slowing down music to learn an instrument part.',
   category: 'video-audio',
   accepts: [
     'audio/mpeg',
@@ -49,24 +50,24 @@ export const config: ToolConfig = {
   ],
   faq: [
     {
-      q: 'Are my files uploaded to a server?',
-      a: 'Never. All processing runs in your browser using ffmpeg.wasm. Your files never leave your device.',
+      q: 'Does my audio file leave my device to change its speed?',
+      a: 'No. Speed adjustment runs in your browser using ffmpeg.wasm — a full media engine compiled to WebAssembly. Your files never touch a server.',
     },
     {
-      q: 'Does changing speed affect audio pitch?',
-      a: "No. The tool uses ffmpeg's atempo filter, which adjusts playback speed without changing pitch.",
+      q: 'Does changing speed affect pitch?',
+      a: "No. The tool uses ffmpeg's atempo filter, which time-stretches the audio while keeping pitch constant. Speech stays at normal pitch at 2× speed; slowed-down music stays in the original key.",
     },
     {
-      q: 'Which output format should I choose?',
-      a: '"Keep original" re-encodes to the same format as the input. Choose MP3 for maximum compatibility or WAV for lossless quality.',
+      q: 'What are the speed limits and why?',
+      a: "ffmpeg's atempo filter supports 0.5× to 2× per pass. To hit 0.25× or 4×, the tool chains two atempo filters in sequence. The result sounds natural within reason — extreme values like 0.25× will make audio sound artificially sluggish.",
     },
     {
-      q: 'Can I change the speed of multiple files at once?',
-      a: 'Yes. All files get the same speed applied. Results are packaged in a single ZIP.',
+      q: 'Will the output quality be lower than the input?',
+      a: 'Slightly. Speed adjustment requires re-encoding, which adds a small quality cost. For voice and podcasts this is inaudible. For high-fidelity music, choose WAV output to minimize codec losses.',
     },
     {
-      q: 'What are the speed limits?',
-      a: 'The tool supports 0.25× to 4×. Extreme values (0.25× and 4×) chain multiple atempo filters internally to stay within ffmpeg limits.',
+      q: 'Can I apply the same speed to 100 files at once?',
+      a: 'Yes. Drop as many files as you need — all get the same speed multiplier. Results are packaged in a ZIP.',
     },
   ],
   relatedTools: ['video-speed', 'audio-trimmer', 'extract-audio', 'ringtone-maker'],

@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'mkv-to-mp4',
   title: 'MKV to MP4 Converter',
   subtitle: 'Convert MKV to MP4. Batch-ready, stays in your browser.',
+  bestFor: 'Best for making MKV files from media servers or Linux systems play on Apple devices and smart TVs.',
   category: 'video-audio',
   accepts: ['video/x-matroska', 'video/mkv'],
   acceptsExt: ['.mkv'],
@@ -44,8 +45,8 @@ export const config: ToolConfig = {
       a: 'Yes. Drop as many as you need. Each file converts separately in your browser, and the results download as a ZIP.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files do not leave your device.',
+      q: 'Does my MKV file leave my device to convert it?',
+      a: 'No. Conversion runs in your browser using ffmpeg.wasm — a full media engine compiled to WebAssembly. Your video never touches a server.',
     },
     {
       q: 'Is there a file size limit?',

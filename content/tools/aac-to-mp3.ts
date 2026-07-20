@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'aac-to-mp3',
   title: 'AAC to MP3 Converter',
   subtitle: 'Convert AAC to MP3. Batch-ready, stays in your browser.',
+  bestFor: 'Best for making iPhone recordings or iTunes audio play on car stereos, older phones, or non-Apple gear.',
   category: 'video-audio',
   accepts: ['audio/aac', 'audio/x-aac', 'audio/mp4'],
   acceptsExt: ['.aac', '.m4a'],
@@ -15,24 +16,24 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'Why convert AAC to MP3?',
-      a: 'AAC is the default audio format on Apple devices — iTunes purchases, Voice Memos, and most iPhone recordings save as AAC or M4A. MP3 has broader compatibility with older hardware, car stereos, non-Apple devices, and software that predates AAC support.',
+      q: 'Does my AAC file leave my device to convert it?',
+      a: 'No. Conversion runs in your browser using ffmpeg.wasm — a full media engine compiled to WebAssembly. Your audio never touches a server.',
     },
     {
-      q: 'Will quality change after conversion?',
-      a: 'Both AAC and MP3 are lossy formats, so converting between them involves a second round of lossy compression. The output quality is good but not identical to the source. For archiving, keep the original AAC. For sharing or compatibility, MP3 is fine.',
+      q: 'Will quality change after converting AAC to MP3?',
+      a: 'Yes, slightly. Both AAC and MP3 are lossy formats, so you go through a second round of compression. The output is good enough for playback and sharing, but not identical to the source. Keep the original AAC if you need to archive or re-edit.',
     },
     {
       q: 'Does this work with M4A files?',
-      a: 'Yes. M4A is an AAC audio stream inside an MPEG-4 container — this tool handles both .aac and .m4a files.',
+      a: 'Yes. M4A is AAC audio inside an MPEG-4 container — this tool accepts both .aac and .m4a files and outputs MP3.',
     },
     {
-      q: 'Can I convert multiple AAC files at once?',
-      a: 'Yes. Drop as many as you need. Each file converts separately in your browser, and the results download as a ZIP.',
+      q: 'When should I use AAC-to-MP3 instead of just keeping the AAC?',
+      a: 'Convert when the destination device or software does not support AAC — common cases are older car stereos, some Android media players, and legacy audio software. For anything modern, AAC is the better format.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files do not leave your device.',
+      q: 'What happens if the AAC file is already low bitrate?',
+      a: 'The output MP3 will reflect the same low quality — converting cannot recover audio detail that was discarded during the original AAC encoding. If the source sounds bad, the MP3 will too.',
     },
   ],
 

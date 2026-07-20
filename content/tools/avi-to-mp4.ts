@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'avi-to-mp4',
   title: 'AVI to MP4 Converter',
   subtitle: 'Convert AVI to MP4. Batch-ready, stays in your browser.',
+  bestFor: 'Best for making old Windows video files play on phones, smart TVs, or any platform that rejects AVI.',
   category: 'video-audio',
   accepts: ['video/x-msvideo', 'video/avi'],
   acceptsExt: ['.avi'],
@@ -44,8 +45,8 @@ export const config: ToolConfig = {
       a: 'Yes. Drop as many as you need. Each file converts separately in your browser, and the results download as a ZIP. No queue, no upload, no per-file count limit.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files do not leave your device.',
+      q: 'Does my AVI file leave my device to convert it?',
+      a: 'No. Conversion runs in your browser using ffmpeg.wasm — a full media engine compiled to WebAssembly. Your video never touches a server.',
     },
     {
       q: 'Is there a file size limit?',

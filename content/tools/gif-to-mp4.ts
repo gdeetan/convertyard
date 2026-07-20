@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'gif-to-mp4',
   title: 'GIF to MP4 Converter',
   subtitle: 'Convert GIF animations to H.264 MP4 — up to 95% smaller, smoother playback. Drop 1,000 at once.',
+  bestFor: 'Best for replacing heavy GIFs on web pages with lightweight looping MP4 videos.',
   category: 'video-audio',
   accepts: ['image/gif'],
   acceptsExt: ['.gif'],
@@ -62,8 +63,8 @@ export const config: ToolConfig = {
       a: 'Yes. Drop them all in and ConvertYard processes each in your browser using ffmpeg.wasm — no uploads, no server. Each GIF produces one MP4. Download all results as a single ZIP.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser. Your files never leave your device.',
+      q: 'Does my GIF file leave my device to convert it?',
+      a: 'No. Conversion runs in your browser using ffmpeg.wasm — a full media engine compiled to WebAssembly. Your GIF never touches a server.',
     },
   ],
 

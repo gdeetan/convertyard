@@ -7,6 +7,7 @@ export const config: ToolConfig = {
   slug: 'audio-trimmer',
   title: 'Audio Trimmer',
   subtitle: 'Local-first audio trimming. No uploads, no re-encoding for lossless cuts.',
+  bestFor: 'Best for cutting down voice memos, interview clips, or podcast segments before sharing.',
   category: 'video-audio',
   accepts: [
     'audio/mpeg',

@@ -7,6 +7,7 @@ export const config: ToolConfig = {
   slug: 'compress-video',
   title: 'Video Compressor',
   subtitle: 'Local-first video compression. No uploads, no file size cap. Built for batches.',
+  bestFor: 'Best for shrinking screen recordings or footage before uploading to Slack, email, or a web form.',
   category: 'video-audio',
   accepts: [
     'video/mp4',
