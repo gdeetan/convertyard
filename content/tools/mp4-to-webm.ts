@@ -4,7 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'mp4-to-webm',
   title: 'MP4 to WebM Converter',
-  subtitle: 'Convert MP4 to WebM. Batch-ready, stays in your browser.',
+  subtitle: 'Convert MP4 to open-format WebM for HTML5 video and web apps.',
+  bestFor: 'Best for web developers embedding video that needs to avoid H.264 licensing.',
   category: 'video-audio',
   accepts: ['video/mp4'],
   acceptsExt: ['.mp4'],
@@ -40,12 +41,16 @@ export const config: ToolConfig = {
       a: 'No. Safari and iOS do not support WebM playback. If you need cross-device compatibility, stay with MP4. WebM is best for web applications where you control the browser environment or are targeting Chrome/Firefox users.',
     },
     {
-      q: 'Can I convert multiple MP4 files at once?',
-      a: 'Yes, but process them in smaller batches if the files are large — VP9 encoding is RAM-intensive and converting many large files simultaneously may exceed available memory.',
+      q: 'MP4 to WebM vs staying with MP4 — when does WebM win?',
+      a: 'WebM wins when you need a patent-free format for an HTML5 `<video>` tag, when you\'re deploying to a Linux environment that avoids H.264 licensing, or when you want to pair VP9\'s compression efficiency with Opus audio for web streaming. If your audience includes iOS Safari users, serve MP4 as a fallback.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files do not leave your device.',
+      q: 'What can go wrong when converting MP4 to WebM?',
+      a: 'The conversion requires full VP9 re-encoding, so large or long files can take many minutes and are RAM-intensive in the browser. Converting very large batches simultaneously may cause the browser tab to crash. Process 3–5 large files at a time to stay within memory limits.',
+    },
+    {
+      q: 'Do my MP4 files leave my device during conversion?',
+      a: 'No. Conversion runs entirely in your browser using ffmpeg.wasm. Your video files never leave your device — the server only delivers the tool code.',
     },
   ],
 

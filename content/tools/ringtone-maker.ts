@@ -5,6 +5,7 @@ export const config: ToolConfig = {
   slug: 'ringtone-maker',
   title: 'Ringtone Maker',
   subtitle: 'Cut any song to an iPhone ringtone (.m4r). No uploads, no software.',
+  bestFor: 'Best for anyone who wants a custom ringtone from a song on their computer.',
   category: 'video-audio',
   accepts: [
     'audio/mpeg',
@@ -43,8 +44,8 @@ export const config: ToolConfig = {
   ],
   faq: [
     {
-      q: 'Are my files uploaded to a server?',
-      a: "Never. All processing runs in your browser using ffmpeg.wasm. Your files never leave your device.",
+      q: 'What makes an iPhone ringtone different from a regular audio file?',
+      a: 'iPhone ringtones must be in the M4R format — AAC audio inside an MP4 container with the .m4r extension. iOS will not recognize a standard MP3 or M4A file as a ringtone. The file must also be 40 seconds or shorter. This tool outputs .m4r directly, sized and formatted for iOS.',
     },
     {
       q: 'How do I get the .m4r file onto my iPhone?',
@@ -59,8 +60,12 @@ export const config: ToolConfig = {
       a: 'MP3, M4A, WAV, OGG, FLAC, AAC, and audio from MP4 or MOV video files. The output is always .m4r (AAC audio in an MP4 container).',
     },
     {
-      q: 'Can I make ringtones from a video file?',
-      a: 'Yes. Drop an MP4 or MOV file — the tool extracts the audio and converts it to .m4r. Only the audio track is used; the video is discarded.',
+      q: 'What can go wrong when making a ringtone?',
+      a: 'The .m4r file transfers to iPhone via AirDrop or Finder sync — it cannot be used by simply copying the file to a folder on iOS. If AirDrop doesn\'t offer to install it as a ringtone, make sure the file has the .m4r extension (not .m4a or .mp3). Also, third-party ringtone apps are not required — iOS handles .m4r natively if you use Finder or iTunes to sync.',
+    },
+    {
+      q: 'Do my audio files leave my device when I use this tool?',
+      a: 'No. Ringtone creation runs entirely in your browser using ffmpeg.wasm. Your audio files never leave your device.',
     },
   ],
   relatedTools: ['audio-trimmer', 'm4a-to-mp3', 'extract-audio', 'audio-speed'],

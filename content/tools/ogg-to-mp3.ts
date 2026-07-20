@@ -6,7 +6,8 @@ const LARGE_FILE_BYTES = 500 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'ogg-to-mp3',
   title: 'OGG to MP3 Converter',
-  subtitle: 'Convert OGG audio files to MP3. Runs in your browser, no uploads.',
+  subtitle: 'Convert OGG Vorbis audio to MP3 for universal playback. Runs in your browser.',
+  bestFor: 'Best for making game audio or Linux voice recordings play on any device.',
   category: 'video-audio',
   accepts: ['audio/ogg'],
   acceptsExt: ['.ogg'],
@@ -62,12 +63,12 @@ export const config: ToolConfig = {
       a: 'Modern WhatsApp voice notes use the Opus codec inside an OGG container. This tool handles OGG Vorbis well, but Opus-in-OGG may not always work as expected here. If your WhatsApp OGG files don\'t convert correctly, try the OPUS to MP3 tool instead — it\'s specifically designed for that format.',
     },
     {
-      q: 'Can I batch convert OGG files?',
-      a: 'Yes. Drop as many OGG files as you need. ConvertYard processes them one at a time in your browser and packages all the MP3s into a single ZIP for download. There is no hard file count limit, though very large batches will take proportionally longer.',
+      q: 'What can go wrong when converting OGG to MP3?',
+      a: 'If the OGG file uses Opus audio rather than Vorbis (common with WhatsApp and Discord voice notes), the output may be silent or fail entirely — use the Opus to MP3 tool for those files. Very long or large OGG files may take several minutes in the browser. Files recorded at unusual sample rates (16 kHz voice notes) will produce small MP3s with tinny sound — that is the source quality, not the converter.',
     },
     {
-      q: 'Are my files uploaded to a server?',
-      a: 'Never. Conversion runs entirely in your browser using ffmpeg.wasm — a full media processing engine compiled to WebAssembly. Your files never leave your device. ConvertYard\'s servers only deliver the tool code — they never see your files.',
+      q: 'Do my OGG files leave my device when I convert them?',
+      a: 'No. Conversion runs entirely in your browser using ffmpeg.wasm. Your OGG files never leave your device — ConvertYard\'s servers only deliver the tool code.',
     },
   ],
   relatedTools: ['opus-to-mp3', 'amr-to-mp3', 'audio-trimmer', 'extract-audio'],

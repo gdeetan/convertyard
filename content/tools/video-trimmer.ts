@@ -7,6 +7,7 @@ export const config: ToolConfig = {
   slug: 'video-trimmer',
   title: 'Video Trimmer',
   subtitle: 'Trim any video clip. Fast mode is instant — no re-encode, no upload.',
+  bestFor: 'Best for cutting intros and outros off recordings without installing software.',
   category: 'video-audio',
   accepts: [
     'video/mp4',
@@ -54,12 +55,12 @@ export const config: ToolConfig = {
   ],
   faq: [
     {
-      q: 'Are my files uploaded to a server?',
-      a: "Never. All trimming runs in your browser using ffmpeg.wasm — a full media processing engine compiled to WebAssembly. Your files never leave your device.",
-    },
-    {
       q: 'What is the difference between Fast and Precise mode?',
       a: 'Fast mode copies the video without re-encoding — trimming a 1 GB file takes seconds and produces no quality loss. Cuts land at the nearest keyframe, which may be off by up to a second. Precise mode re-encodes from the exact start point, giving frame-accurate cuts at the cost of longer processing time.',
+    },
+    {
+      q: 'Why do the first few frames look black in Fast mode?',
+      a: 'Fast mode cuts at the nearest keyframe before your chosen start time. If the cut lands between keyframes, the video decoder may produce black or corrupt frames until the next keyframe. This is a known limitation of keyframe-based seeking in stream copy mode. Switch to Precise mode to get clean output starting exactly at your chosen point.',
     },
     {
       q: 'Can I trim multiple videos at once?',
@@ -72,6 +73,10 @@ export const config: ToolConfig = {
     {
       q: 'What does leaving End time at 0 do?',
       a: 'A zero End time means "keep everything after the Start time" — it trims the beginning only. Set both Start and End to trim a middle section.',
+    },
+    {
+      q: 'Do my video files leave my device when I trim them?',
+      a: 'No. All trimming runs in your browser using ffmpeg.wasm. Your files never leave your device.',
     },
   ],
   relatedTools: ['audio-trimmer', 'compress-video', 'extract-audio', 'video-muter'],

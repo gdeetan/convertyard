@@ -7,6 +7,7 @@ export const config: ToolConfig = {
   slug: 'video-muter',
   title: 'Mute Video',
   subtitle: 'Remove audio from any video. Stream-copied — instant, no quality loss.',
+  bestFor: 'Best for stripping sound before sharing a screen recording or repurposing footage.',
   category: 'video-audio',
   accepts: [
     'video/mp4',
@@ -28,10 +29,6 @@ export const config: ToolConfig = {
   options: [],
   faq: [
     {
-      q: 'Are my files uploaded to a server?',
-      a: "Never. All processing runs in your browser using ffmpeg.wasm. Your files never leave your device.",
-    },
-    {
       q: 'How fast is muting?',
       a: 'Near-instant. The video track is copied without re-encoding — only the audio track is removed. A 2 GB video takes the same time as a 10 MB one.',
     },
@@ -40,12 +37,20 @@ export const config: ToolConfig = {
       a: 'No. The video track is copied byte-for-byte. No re-encoding means no quality loss.',
     },
     {
-      q: 'Can I mute multiple videos at once?',
-      a: 'Yes. Drop as many files as you need — results are packaged in a single ZIP.',
-    },
-    {
       q: 'What is the output format?',
       a: 'MP4. The video codec and resolution are preserved exactly as in the original. Only the audio track is stripped.',
+    },
+    {
+      q: 'Mute video vs extract audio — what\'s the difference?',
+      a: 'Muting keeps the video and removes the audio. Extracting audio keeps the audio and removes the video. Use the Mute Video tool when you want the visual footage without sound. Use the Extract Audio tool when you want the audio track as a standalone file.',
+    },
+    {
+      q: 'What can go wrong when muting a video?',
+      a: 'If the source video has no audio track (already silent), the output is identical to the input — no error, just the same file. Files with unusual or corrupt audio tracks may cause the remux to fail; if that happens, try the file individually. Very large files (over 500 MB) may take a moment to load into browser memory before processing starts.',
+    },
+    {
+      q: 'Do my video files leave my device when I mute them?',
+      a: 'No. Muting runs entirely in your browser using ffmpeg.wasm — the audio strip is a stream copy with no re-encoding. Your files never leave your device.',
     },
   ],
   relatedTools: ['extract-audio', 'video-trimmer', 'compress-video', 'video-speed'],

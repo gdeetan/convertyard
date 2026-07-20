@@ -4,7 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'mp3-to-ogg',
   title: 'MP3 to OGG Converter',
-  subtitle: 'Convert MP3 to OGG Vorbis. Batch-ready, stays in your browser.',
+  subtitle: 'Convert MP3 to OGG Vorbis for games, Linux apps, and open-source projects.',
+  bestFor: 'Best for game developers and Linux users who need patent-free audio.',
   category: 'video-audio',
   accepts: ['audio/mpeg', 'audio/mp3'],
   acceptsExt: ['.mp3'],
@@ -24,15 +25,19 @@ export const config: ToolConfig = {
     },
     {
       q: 'Will OGG files play on all devices?',
-      a: 'Not all. OGG plays natively in Chrome, Firefox, and most Android devices. Safari and iOS do not support OGG — they require MP3 or AAC. If you need cross-platform compatibility, stay with MP3.',
+      a: 'Not all. OGG plays natively in Chrome, Firefox, and most Android devices. Safari and iOS do not support OGG — they require MP3 or AAC. If you need cross-platform compatibility, stay with MP3. For web use, always provide an MP3 fallback alongside any OGG file.',
     },
     {
-      q: 'Can I convert multiple MP3 files at once?',
-      a: 'Yes. Drop as many as you need. Each file converts separately in your browser, and the results download as a ZIP.',
+      q: 'MP3 to OGG vs staying with MP3 — when does OGG actually matter?',
+      a: 'OGG matters when the target system explicitly requires a patent-free codec. Godot Engine, for example, uses OGG as its primary audio format. Web browser games often prefer OGG. Outside of those contexts, MP3 has better device support and there is little reason to convert.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files do not leave your device.',
+      q: 'What can go wrong when converting MP3 to OGG?',
+      a: 'The most common issue is that the output OGG won\'t play on iOS or in iTunes — those environments don\'t support OGG. Additionally, since you\'re re-encoding a lossy file to another lossy format, at very low bitrates (under 96 kbps) you may notice audible degradation. Use 128 kbps or higher to keep quality acceptable.',
+    },
+    {
+      q: 'Do my MP3 files leave my device when I convert them here?',
+      a: 'No. Converting MP3 to OGG runs entirely in your browser using ffmpeg.wasm. Your audio files never leave your device — ConvertYard\'s servers only serve the page code and never see your files.',
     },
   ],
 

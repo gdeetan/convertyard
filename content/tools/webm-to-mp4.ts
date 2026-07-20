@@ -4,7 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'webm-to-mp4',
   title: 'WebM to MP4 Converter',
-  subtitle: 'Convert WebM to MP4. Batch-ready, stays in your browser.',
+  subtitle: 'Convert WebM recordings to MP4 for universal device playback.',
+  bestFor: 'Best for sharing screen recordings or browser captures on any device.',
   category: 'video-audio',
   accepts: ['video/webm'],
   acceptsExt: ['.webm'],
@@ -44,12 +45,12 @@ export const config: ToolConfig = {
       a: 'Quality controls the H.264 CRF (constant rate factor). Best (CRF 18) produces the sharpest image at the cost of a larger file. Good (CRF 28) cuts file size noticeably with a visible quality reduction on detailed footage. Better (CRF 23) is the balanced default.',
     },
     {
-      q: 'Can I convert multiple WebM files at once?',
-      a: 'Yes. Drop as many as you need. Each file converts separately in your browser using ffmpeg.wasm, and the results download as a ZIP. No queue, no upload, no per-file count limit.',
+      q: 'What can go wrong when converting WebM to MP4?',
+      a: 'WebM files recorded by screen-capture tools sometimes have a variable frame rate (VFR), which can cause audio sync issues in the MP4 output. If audio drifts out of sync, the source WebM may have been recorded with VFR. Very long WebM files from browser recordings may also have timing issues in the header that cause conversion to stall — try splitting them before converting.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files do not leave your device at any point.',
+      q: 'Do my WebM files leave my device during conversion?',
+      a: 'No. Conversion runs entirely in your browser using ffmpeg.wasm. Your files do not leave your device at any point.',
     },
   ],
 

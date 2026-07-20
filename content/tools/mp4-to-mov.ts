@@ -4,7 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'mp4-to-mov',
   title: 'MP4 to MOV Converter',
-  subtitle: 'Convert MP4 to MOV. Batch-ready, stays in your browser.',
+  subtitle: 'Convert MP4 to MOV for Final Cut Pro and Apple workflows. Near-instant.',
+  bestFor: 'Best for editors handing off footage to Apple production pipelines.',
   category: 'video-audio',
   accepts: ['video/mp4'],
   acceptsExt: ['.mp4'],
@@ -27,12 +28,16 @@ export const config: ToolConfig = {
       a: 'Barely. The video and audio data is identical — only the container wrapper changes. Expect within 1% of the original file size.',
     },
     {
-      q: 'Can I convert multiple MP4 files at once?',
-      a: 'Yes. Drop as many as you need. Each file converts separately in your browser, and the results download as a ZIP.',
+      q: 'MP4 vs MOV — what actually differs?',
+      a: 'Almost nothing. Both formats share the same MPEG-4 foundation. MOV is Apple\'s variant; MP4 is the ISO standard. The main practical difference is that some Apple tools (older versions of Final Cut, iMovie, QuickTime Player 7) default to .mov and may not accept .mp4. Modern Apple software handles both interchangeably.',
     },
     {
-      q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files do not leave your device.',
+      q: 'What can go wrong when converting MP4 to MOV?',
+      a: 'If the source MP4 uses a non-H.264 codec (like HEVC/H.265 or VP9), the stream copy may not work correctly in the MOV container — some Apple apps don\'t handle HEVC in MOV. If playback is broken after conversion, the source codec may need transcoding rather than a simple container swap.',
+    },
+    {
+      q: 'Do my MP4 files leave my device when I use this tool?',
+      a: 'No. The conversion is a container swap that runs entirely in your browser using ffmpeg.wasm. Your video files never leave your device.',
     },
   ],
 

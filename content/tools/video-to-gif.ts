@@ -7,6 +7,7 @@ export const config: ToolConfig = {
   slug: 'video-to-gif',
   title: 'Video to GIF Converter',
   subtitle: 'Turn short video clips into shareable GIFs. Trim, resize, and lower frame rate to keep files manageable — no uploads.',
+  bestFor: 'Best for making reaction GIFs or short looping clips for chat apps and forums.',
   category: 'video-audio',
   accepts: ['video/mp4', 'video/webm', 'video/quicktime'],
   acceptsExt: ['.mp4', '.webm', '.mov'],
@@ -77,19 +78,27 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Why is GIF larger than the source video?',
-      a: 'GIF is an old format with limited compression. A short MP4 clip can become much larger as a GIF, especially at high frame rates or large dimensions. Reduce the width, trim the duration, or lower the frame rate to keep the output manageable.',
+      a: 'GIF is an old format with limited compression. A short MP4 clip can become much larger as a GIF, especially at high frame rates or large dimensions. Reduce the width to 480 px or less, trim the duration to under 5 seconds, or lower frame rate to 10 FPS to keep the output manageable.',
     },
     {
       q: 'When should I use GIF instead of MP4 or WebP?',
-      a: 'Use GIF when you need maximum compatibility for chat apps, older platforms, or places that still treat video badly. For websites and product docs, animated WebP or MP4 is usually smaller and better.',
+      a: 'Use GIF when you need maximum compatibility for chat apps, older platforms, or places that still treat video badly. For websites and product docs, animated WebP or MP4 is usually smaller and better. GIF is also the only format many GitHub README files animate correctly.',
+    },
+    {
+      q: 'GIF vs animated WebP — which should I choose?',
+      a: 'Animated WebP is typically 25–35% smaller than GIF at equivalent quality and supports full color (not just 256 colors). Use WebP for websites and product docs. Use GIF for Slack, GitHub, old email clients, or any platform that does not yet support WebP.',
     },
     {
       q: 'Can I turn an audio-only MP4 into a GIF?',
       a: 'No. This tool needs a video track. Audio-only MP4 or M4A files are rejected before conversion starts.',
     },
     {
-      q: 'Are my files uploaded anywhere?',
-      a: 'No. Conversion runs in your browser using ffmpeg.wasm. Your files stay on your device.',
+      q: 'What can go wrong when converting video to GIF?',
+      a: 'GIF supports only 256 colors — footage with gradients, skin tones, or complex backgrounds will show visible banding or dithering. Long clips at high frame rates produce huge files that may crash the browser tab. Keep clips under 10 seconds and set width to 480 px or less for reliable results.',
+    },
+    {
+      q: 'Do my video files leave my device when I convert them to GIF?',
+      a: 'No. Conversion runs in your browser using ffmpeg.wasm. Your files stay on your device — nothing is uploaded.',
     },
   ],
   relatedTools: ['mp4-to-webp', 'gif-to-mp4', 'webp-to-gif', 'mp4-to-mp3'],

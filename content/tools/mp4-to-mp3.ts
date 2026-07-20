@@ -6,7 +6,8 @@ const LARGE_FILE_BYTES = 500 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'mp4-to-mp3',
   title: 'MP4 to MP3 Converter',
-  subtitle: 'Extract audio from MP4, WebM, or MOV. Format your video as MP3 in seconds — no software, no uploads.',
+  subtitle: 'Extract audio from MP4, WebM, or MOV. Choose bitrate up to 320 kbps — no uploads.',
+  bestFor: 'Best for extracting a podcast, lecture, or music track from a video file.',
   category: 'video-audio',
   accepts: ['video/mp4', 'video/webm', 'video/quicktime'],
   acceptsExt: ['.mp4', '.webm', '.mov'],
@@ -64,20 +65,12 @@ export const config: ToolConfig = {
       a: 'Yes. This tool accepts MP4, WebM, and MOV — the three most common video formats. Drop any of them and the audio track will be extracted and saved as MP3. The video stream is discarded entirely.',
     },
     {
-      q: 'Can I convert multiple videos at once?',
-      a: 'Yes. Drop as many files as you need. ConvertYard processes them one at a time in your browser and packages all the MP3s into a single ZIP for download. There is no hard file count limit, though very large batches will take proportionally longer. Keep individual files under 500 MB for best results.',
+      q: 'What can go wrong when extracting audio from an MP4?',
+      a: 'If the video has no audio track (muted screen recording, silent clip), the conversion will produce an empty or near-empty MP3. Videos over 500 MB can also be slow to process in the browser — for very long files, expect several minutes of processing time. If you get a corrupt output, the source file may have an unusual audio codec that ffmpeg.wasm cannot decode.',
     },
     {
-      q: 'Are my video files uploaded to a server?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly — your video files never leave your device. ConvertYard\'s servers only deliver the tool\'s code. They never see your files, filenames, or audio content.',
-    },
-    {
-      q: 'How do I switch an MP4 file to MP3?',
-      a: 'Drop your MP4 into the tool above, choose a bitrate, and click Convert. The audio track is extracted and saved as an MP3 — the video is discarded. No software to install, no account needed. If you have multiple files, drop them all at once and download everything as a ZIP when done.',
-    },
-    {
-      q: 'What does it mean to transform an MP4 into MP3?',
-      a: 'Transforming an MP4 into an MP3 means stripping out the video and keeping only the audio track. MP4 is a video container — it holds both picture and sound. MP3 is audio-only. The result is a much smaller file: a 500 MB MP4 video might produce a 4 MB MP3. This tool does that extraction entirely in your browser, so nothing gets uploaded anywhere.',
+      q: 'Do my video files leave my device when I use this tool?',
+      a: 'No. Conversion runs entirely in your browser using ffmpeg.wasm — your video files never leave your device. ConvertYard\'s servers only deliver the tool code. They never see your files, filenames, or audio content.',
     },
   ],
 
