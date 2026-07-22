@@ -58,7 +58,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'image-resizer',      title: 'Image Resizer',      description: 'Resize to exact pixels or percent — batch.', category: 'image-editing', status: 'live' },
   { slug: 'image-cropper',      title: 'Image Cropper',      description: 'Crop to exact ratios — 1:1, passport, and more.', category: 'image-editing', status: 'live' },
 
-  // PDF — 21 live
+  // PDF — 26 live
   { slug: 'merge-pdf',    title: 'Merge PDF',    description: 'Combine multiple PDFs into one.', category: 'pdf', status: 'live' },
   { slug: 'compress-pdf', title: 'Compress PDF', description: 'Shrink PDFs without destroying quality.', category: 'pdf', status: 'live' },
   { slug: 'pdf-to-jpg',   title: 'PDF to JPG',   description: 'Every page becomes a high-res JPG.', category: 'pdf', status: 'live' },
@@ -81,6 +81,11 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'watermark-pdf',     title: 'Watermark PDF',      description: 'Add text or image watermarks with live preview.',      category: 'pdf', status: 'live' },
   { slug: 'pdf-to-powerpoint', title: 'PDF to PowerPoint',  description: 'Each PDF page becomes a slide in a .pptx file.',      category: 'pdf', status: 'live' },
   { slug: 'ocr-pdf',           title: 'OCR PDF',            description: 'Make scanned PDFs searchable. Runs in your browser.',   category: 'pdf', status: 'live' },
+  { slug: 'extract-pages',     title: 'Extract Pages',      description: 'Pull specific pages or ranges into a new PDF.',          category: 'pdf', status: 'live' },
+  { slug: 'delete-pages',      title: 'Delete Pages',       description: 'Remove unwanted pages and download the trimmed PDF.',    category: 'pdf', status: 'live' },
+  { slug: 'crop-pdf',          title: 'Crop PDF',           description: 'Trim margins off every page with mm presets.',           category: 'pdf', status: 'live' },
+  { slug: 'page-numbers',      title: 'Add Page Numbers',   description: 'Stamp page numbers in 6 positions with 4 formats.',     category: 'pdf', status: 'live' },
+  { slug: 'extract-images',    title: 'Extract Images',     description: 'Pull embedded images or render pages as PNG.',           category: 'pdf', status: 'live' },
 
   // Video & Audio — all coming soon
   { slug: 'mp4-to-mp3',       title: 'MP4 to MP3',       description: 'Strip audio from video in seconds.', category: 'video-audio', status: 'live' },
