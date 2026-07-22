@@ -9,6 +9,10 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    environmentMatchGlobs: [
+      ['**/lib/hooks/**', 'happy-dom'],
+    ],
+    setupFiles: ['lib/hooks/__tests__/setup.ts'],
     include: ['lib/**/__tests__/**/*.test.ts'],
     coverage: {
       provider: 'v8',
