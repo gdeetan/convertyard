@@ -168,8 +168,8 @@ export interface ToolConfig {
     onResultEdit: (index: number, newFile: File) => void
   }>
   advancedOptions?: ToolOption[]
-  presetBar?: React.ComponentType<{ onApply: (values: ToolOptions) => void }>
-  enablePresets?: true
+  presetBar?: React.ComponentType<{ onApply: (values: ToolOptions) => void }> // hardcoded quick-start presets (renders below OptionsPanel)
+  enablePresets?: true // user-saved presets via localStorage (renders above OptionsPanel); safe to combine with presetBar
   faq: FAQItem[]
   relatedTools: string[]    // tool slugs, 3-5
   relatedArticles: string[] // article slugs, 2-3
