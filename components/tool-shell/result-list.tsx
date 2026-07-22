@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Download, Archive, CheckCircle2, XCircle, Loader2, AlertTriangle } from 'lucide-react'
+import { Download, Archive, CheckCircle2, XCircle, Loader2, AlertTriangle, FileIcon } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { downloadFile, formatBytes } from '@/lib/utils/download'
 import { downloadAsZip } from '@/lib/utils/zip'
+import { ImageLightbox } from './image-lightbox'
 import type { FileEntry } from '@/lib/types'
 
 interface ResultListProps {
@@ -14,14 +15,23 @@ interface ResultListProps {
   resultMode?: 'per-file' | 'combined-output'
 }
 
-const ROW_H = 72
+const ROW_H = 80
 const VIRTUALIZE_AT = 50
 const MAX_LIST_H = 480
 
 export function ResultList({ entries, zipName = 'convertyard.zip', resultMode = 'per-file' }: ResultListProps) {
   const parentRef = useRef<HTMLDivElement>(null)
   const [zipping, setZipping] = useState(false)
+  const [lightbox, setLightbox] = useState<{
+    entry: FileEntry
+    side: 'before' | 'after'
+  } | null>(null)
   const useVirt = entries.length > VIRTUALIZE_AT
+
+  const handleOpenLightbox = useCallback(
+    (entry: FileEntry) => setLightbox({ entry, side: 'after' }),
+    []
+  )
 
   const succeeded = entries.filter((e) => e.status === 'done' && e.result)
   const failed = entries.filter((e) => e.status === 'error')
@@ -133,6 +143,7 @@ export function ResultList({ entries, zipName = 'convertyard.zip', resultMode = 
             {virtualizer.getVirtualItems().map((vi) => (
               <div
                 key={vi.key}
+                role="listitem"
                 style={{
                   position: 'absolute',
                   top: 0,
@@ -142,14 +153,32 @@ export function ResultList({ entries, zipName = 'convertyard.zip', resultMode = 
                   transform: `translateY(${vi.start}px)`,
                 }}
               >
-                <ResultRow entry={entries[vi.index]} />
+                <ResultRow
+                  entry={entries[vi.index]}
+                  onOpenLightbox={handleOpenLightbox}
+                />
               </div>
             ))}
           </div>
         ) : (
-          entries.map((entry) => <ResultRow key={entry.id} entry={entry} />)
+          entries.map((entry) => (
+            <ResultRow
+              key={entry.id}
+              entry={entry}
+              onOpenLightbox={handleOpenLightbox}
+            />
+          ))
         )}
       </div>
+
+      {lightbox && (
+        <ImageLightbox
+          entry={lightbox.entry}
+          side={lightbox.side}
+          onSideChange={(side) => setLightbox((prev) => prev ? { ...prev, side } : null)}
+          onClose={() => setLightbox(null)}
+        />
+      )}
     </div>
   )
 }
@@ -287,16 +316,29 @@ function useObjectUrl(file?: File) {
   return url
 }
 
-function ResultRow({ entry }: { entry: FileEntry }) {
+function isImageFile(file: File) {
+  return file.type.startsWith('image/')
+}
+
+function ResultRow({
+  entry,
+  onOpenLightbox,
+}: {
+  entry: FileEntry
+  onOpenLightbox: (entry: FileEntry) => void
+}) {
   const { file, status, result, error } = entry
-  const isDone = status === 'done' && result
+  const doneResult = status === 'done' && result ? result : null
+  const isDone = doneResult !== null
   const isError = status === 'error'
-  const saved = isDone && result ? file.size - result.size : 0
+  const saved = doneResult ? file.size - doneResult.size : 0
   const savedPct = isDone && file.size > 0 ? Math.round((saved / file.size) * 100) : 0
+
+  const thumbnailUrl = useObjectUrl(doneResult && isImageFile(doneResult) ? doneResult : undefined)
+  const canPreview = Boolean(thumbnailUrl)
 
   return (
     <div
-      role="listitem"
       data-testid={isDone ? 'result-success' : 'result-error'}
       className={cn(
         'flex items-center gap-3 border-b border-border px-4 last:border-0',
@@ -304,6 +346,28 @@ function ResultRow({ entry }: { entry: FileEntry }) {
       )}
       style={{ height: ROW_H }}
     >
+      {/* Thumbnail */}
+      <div className="shrink-0">
+        {canPreview ? (
+          <button
+            type="button"
+            onClick={() => onOpenLightbox(entry)}
+            className="h-16 w-16 overflow-hidden rounded-md border border-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            aria-label={`Preview ${file.name}`}
+          >
+            <img
+              src={thumbnailUrl!}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </button>
+        ) : (
+          <div className="flex h-16 w-16 items-center justify-center rounded-md border border-border bg-bg-muted">
+            <FileIcon className="h-6 w-6 text-fg-subtle" aria-hidden="true" />
+          </div>
+        )}
+      </div>
+
       {/* Status icon */}
       <div className="shrink-0">
         {isDone
@@ -316,9 +380,9 @@ function ResultRow({ entry }: { entry: FileEntry }) {
       <div className="min-w-0 flex-1">
         <span
           className="block truncate text-sm font-medium text-fg"
-          title={isDone ? result!.name : file.name}
+          title={isDone ? doneResult!.name : file.name}
         >
-          {isDone ? result!.name : file.name}
+          {isDone ? doneResult!.name : file.name}
         </span>
         <span className="text-xs text-fg-muted">
           {isError ? (
@@ -327,7 +391,7 @@ function ResultRow({ entry }: { entry: FileEntry }) {
             <>
               {formatBytes(file.size)}
               {' → '}
-              {formatBytes(result!.size)}
+              {formatBytes(doneResult!.size)}
               {savedPct > 0 && (
                 <span className="ml-1 text-success">−{savedPct}%</span>
               )}
@@ -369,14 +433,14 @@ function ResultRow({ entry }: { entry: FileEntry }) {
       {isDone && (
         <button
           type="button"
-          onClick={() => downloadFile(result!)}
+          onClick={() => downloadFile(doneResult!)}
           className={cn(
             'shrink-0 flex items-center justify-center h-9 w-9 rounded-lg',
             'border border-border text-fg-muted transition-colors',
             'hover:border-primary hover:text-primary hover:bg-bg-muted',
             'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
           )}
-          aria-label={`Download ${result!.name}`}
+          aria-label={`Download ${doneResult!.name}`}
         >
           <Download className="h-4 w-4" aria-hidden="true" />
         </button>
