@@ -64,6 +64,8 @@ export const config: ToolConfig = {
     },
   ],
 
+  enablePresets: true,
+
   advancedOptions: [
     { type: 'section-header' as const, label: 'Images' },
     {
