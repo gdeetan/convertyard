@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils/cn'
 import { formatBytes } from '@/lib/utils/download'
 import { Dropzone } from './dropzone'
 import { OptionsPanel } from './options-panel'
+import { UserPresetBar } from './user-preset-bar'
 import { ProgressList } from './progress-list'
 import { ResultList } from './result-list'
 import { FAQAccordion } from './faq-accordion'
@@ -340,6 +341,14 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions,
               <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
                 {fileWarning}
               </div>
+            )}
+
+            {config.enablePresets && (config.options?.length ?? 0) > 0 && (
+              <UserPresetBar
+                slug={config.slug}
+                currentValues={options}
+                onApply={handlePresetApply}
+              />
             )}
 
             {config.options && config.options.length > 0 && (
