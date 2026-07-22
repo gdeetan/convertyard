@@ -75,7 +75,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['pdf-to-jpg', 'compress-pdf', 'merge-pdf', 'jpg-to-pdf'],
+  relatedTools: ['extract-images', 'pdf-to-jpg', 'compress-pdf', 'merge-pdf'],
   relatedArticles: [],
 
   meta: {

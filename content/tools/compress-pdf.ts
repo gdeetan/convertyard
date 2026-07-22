@@ -217,7 +217,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['merge-pdf', 'pdf-to-jpg'],
+  relatedTools: ['merge-pdf', 'extract-images', 'pdf-to-jpg'],
   relatedArticles: ['compress-pdf-without-uploading-privacy-guide', 'merge-pdf-without-uploading', 'convertyard-vs-adobe-acrobat-pro'],
 
   meta: {

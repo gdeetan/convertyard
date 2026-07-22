@@ -39,7 +39,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['compress-pdf', 'pdf-to-jpg'],
+  relatedTools: ['extract-pages', 'split-pdf', 'compress-pdf', 'pdf-to-jpg'],
   relatedArticles: ['merge-pdf-without-uploading', 'convertyard-vs-ilovepdf', 'compress-pdf-without-uploading-privacy-guide'],
 
   meta: {

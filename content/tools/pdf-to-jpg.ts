@@ -39,7 +39,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['compress-pdf', 'merge-pdf'],
+  relatedTools: ['extract-images', 'compress-pdf', 'merge-pdf'],
   relatedArticles: [],
 
   meta: {

@@ -85,7 +85,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['merge-pdf', 'compress-pdf', 'pdf-to-jpg', 'pdf-to-png'],
+  relatedTools: ['extract-pages', 'delete-pages', 'merge-pdf', 'compress-pdf'],
   relatedArticles: [],
 
   meta: {

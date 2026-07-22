@@ -1,4 +1,5 @@
 import { PDFDocument, PDFRawStream, PDFName, PDFNumber, PDFDict, degrees, rgb, StandardFonts, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
+import { zipSync } from 'fflate'
 import { getPageCount, renderPage, renderPagePng, extractText, extractStructuredText } from './mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
@@ -1580,6 +1581,316 @@ export async function pdfToPptx(
           type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
         })
       )
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(err instanceof Error ? err : new Error(String(err)))
+    }
+  }
+
+  return results
+}
+
+// ── Page Range Parser ─────────────────────────────────────────────────────────
+
+export function parsePageRanges(input: string, pageCount: number): number[] {
+  const indices = new Set<number>()
+  const parts = input.split(',').map(s => s.trim()).filter(Boolean)
+  if (parts.length === 0) throw new Error('Page range is empty.')
+
+  for (const part of parts) {
+    if (part.includes('-')) {
+      const dashIdx = part.indexOf('-')
+      const fromStr = part.slice(0, dashIdx).trim()
+      const toStr = part.slice(dashIdx + 1).trim()
+      const from = parseInt(fromStr, 10)
+      const to = parseInt(toStr, 10)
+      if (isNaN(from) || isNaN(to) || from < 1 || to < from) throw new Error(`Invalid range: "${part}".`)
+      for (let p = from; p <= to; p++) {
+        if (p >= 1 && p <= pageCount) indices.add(p - 1)
+      }
+    } else {
+      const n = parseInt(part, 10)
+      if (isNaN(n) || n < 1) throw new Error(`Invalid page number: "${part}".`)
+      if (n <= pageCount) indices.add(n - 1)
+    }
+  }
+
+  if (indices.size === 0) {
+    throw new Error(`No valid pages found. This PDF has ${pageCount} page${pageCount !== 1 ? 's' : ''}.`)
+  }
+  return Array.from(indices).sort((a, b) => a - b)
+}
+
+// ── Extract Pages ─────────────────────────────────────────────────────────────
+
+export async function extractPages(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  const pageRange = (options.pageRange as string) ?? '1'
+  const separatePages = options.separatePages === true || options.separatePages === 'true'
+
+  for (let i = 0; i < files.length; i++) {
+    try {
+      onProgress?.(i, 5)
+      const buffer = await files[i].arrayBuffer()
+      const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+      const pageCount = srcDoc.getPageCount()
+      const indices = parsePageRanges(pageRange, pageCount)
+      const baseName = files[i].name.replace(/\.[^.]+$/, '')
+
+      onProgress?.(i, 20)
+
+      if (separatePages) {
+        for (let j = 0; j < indices.length; j++) {
+          const outDoc = await PDFDocument.create()
+          const [copied] = await outDoc.copyPages(srcDoc, [indices[j]])
+          outDoc.addPage(copied)
+          const bytes = await outDoc.save({ useObjectStreams: true, addDefaultPage: false })
+          const outName = `${baseName}-page-${indices[j] + 1}.pdf`
+          results.push(new File([bytes as Uint8Array<ArrayBuffer>], outName, { type: 'application/pdf' }))
+          onProgress?.(i, Math.round(20 + ((j + 1) / indices.length) * 75))
+        }
+      } else {
+        const outDoc = await PDFDocument.create()
+        const copied = await outDoc.copyPages(srcDoc, indices)
+        for (const page of copied) outDoc.addPage(page)
+        const bytes = await outDoc.save({ useObjectStreams: true, addDefaultPage: false })
+        const outName = `${baseName}-extracted.pdf`
+        results.push(new File([bytes as Uint8Array<ArrayBuffer>], outName, { type: 'application/pdf' }))
+        onProgress?.(i, 95)
+      }
+
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(err instanceof Error ? err : new Error(String(err)))
+    }
+  }
+
+  return results
+}
+
+// ── Delete Pages ──────────────────────────────────────────────────────────────
+
+export async function deletePages(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  const pageRange = (options.pageRange as string) ?? '1'
+
+  for (let i = 0; i < files.length; i++) {
+    try {
+      onProgress?.(i, 5)
+      const buffer = await files[i].arrayBuffer()
+      const srcDoc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+      const pageCount = srcDoc.getPageCount()
+      const deleteSet = new Set(parsePageRanges(pageRange, pageCount))
+
+      const keepIndices = Array.from({ length: pageCount }, (_, k) => k).filter(k => !deleteSet.has(k))
+      if (keepIndices.length === 0) throw new Error('Cannot delete all pages from the PDF.')
+
+      onProgress?.(i, 20)
+      const outDoc = await PDFDocument.create()
+      const copied = await outDoc.copyPages(srcDoc, keepIndices)
+      for (const page of copied) outDoc.addPage(page)
+      const bytes = await outDoc.save({ useObjectStreams: true, addDefaultPage: false })
+      const outName = files[i].name.replace(/\.pdf$/i, '') + '-trimmed.pdf'
+      results.push(new File([bytes as Uint8Array<ArrayBuffer>], outName, { type: 'application/pdf' }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(err instanceof Error ? err : new Error(String(err)))
+    }
+  }
+
+  return results
+}
+
+// ── Crop PDF ──────────────────────────────────────────────────────────────────
+
+const MM_TO_PT = 2.8346
+
+export async function cropPdf(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+
+  const preset = (options.preset as string) ?? '10mm'
+  let topMm = 10, rightMm = 10, bottomMm = 10, leftMm = 10
+
+  if (preset === 'custom') {
+    topMm = typeof options.topMm === 'number' ? options.topMm : 10
+    rightMm = typeof options.rightMm === 'number' ? options.rightMm : 10
+    bottomMm = typeof options.bottomMm === 'number' ? options.bottomMm : 10
+    leftMm = typeof options.leftMm === 'number' ? options.leftMm : 10
+  } else {
+    const mm = parseFloat(preset)
+    if (!isNaN(mm)) { topMm = rightMm = bottomMm = leftMm = mm }
+  }
+
+  const topPt = topMm * MM_TO_PT
+  const rightPt = rightMm * MM_TO_PT
+  const bottomPt = bottomMm * MM_TO_PT
+  const leftPt = leftMm * MM_TO_PT
+
+  for (let i = 0; i < files.length; i++) {
+    try {
+      onProgress?.(i, 5)
+      const buffer = await files[i].arrayBuffer()
+      const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+      const pages = doc.getPages()
+
+      for (const page of pages) {
+        const mb = page.getMediaBox()
+        const newX = mb.x + leftPt
+        const newY = mb.y + bottomPt
+        const newW = mb.width - leftPt - rightPt
+        const newH = mb.height - topPt - bottomPt
+        if (newW <= 0 || newH <= 0) throw new Error('Margins are too large for the page size.')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        page.node.set(PDFName.of('CropBox'), doc.context.obj([newX, newY, newX + newW, newY + newH]) as any)
+      }
+
+      onProgress?.(i, 80)
+      const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+      const outName = files[i].name.replace(/\.pdf$/i, '') + '-cropped.pdf'
+      results.push(new File([bytes as Uint8Array<ArrayBuffer>], outName, { type: 'application/pdf' }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(err instanceof Error ? err : new Error(String(err)))
+    }
+  }
+
+  return results
+}
+
+// ── Add Page Numbers ──────────────────────────────────────────────────────────
+
+export async function addPageNumbers(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+
+  const position = (options.position as string) ?? 'bottom-center'
+  const format = (options.format as string) ?? 'Page N of T'
+  const fontSize = typeof options.fontSize === 'number' ? Math.max(6, Math.min(24, options.fontSize)) : 10
+  const startNumber = typeof options.startNumber === 'number' ? Math.max(1, options.startNumber) : 1
+  const MARGIN = 30
+
+  for (let i = 0; i < files.length; i++) {
+    try {
+      onProgress?.(i, 5)
+      const buffer = await files[i].arrayBuffer()
+      const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+      const font = await doc.embedFont(StandardFonts.Helvetica)
+      const pages = doc.getPages()
+      const total = pages.length
+
+      for (let p = 0; p < pages.length; p++) {
+        const page = pages[p]
+        const { width, height } = page.getSize()
+        const pageNum = startNumber + p
+
+        const label = format
+          .replace('N', String(pageNum))
+          .replace('T', String(total + startNumber - 1))
+
+        const textWidth = font.widthOfTextAtSize(label, fontSize)
+
+        let x: number, y: number
+        const isTop = position.startsWith('top')
+        const isLeft = position.endsWith('left')
+        const isRight = position.endsWith('right')
+
+        if (isLeft) x = MARGIN
+        else if (isRight) x = width - textWidth - MARGIN
+        else x = (width - textWidth) / 2
+
+        if (isTop) y = height - MARGIN - fontSize
+        else y = MARGIN
+
+        page.drawText(label, { x, y, size: fontSize, font, color: rgb(0, 0, 0), opacity: 1 })
+        onProgress?.(i, Math.round(5 + ((p + 1) / pages.length) * 85))
+      }
+
+      const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+      const outName = files[i].name.replace(/\.pdf$/i, '') + '-numbered.pdf'
+      results.push(new File([bytes as Uint8Array<ArrayBuffer>], outName, { type: 'application/pdf' }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(err instanceof Error ? err : new Error(String(err)))
+    }
+  }
+
+  return results
+}
+
+// ── Extract Images ────────────────────────────────────────────────────────────
+
+export async function extractImages(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  const mode = (options.mode as string) ?? 'embedded'
+  const dpi = typeof options.dpi === 'number' ? Math.max(72, Math.min(300, options.dpi)) : 150
+
+  for (let i = 0; i < files.length; i++) {
+    try {
+      onProgress?.(i, 5)
+      const buffer = await files[i].arrayBuffer()
+      const baseName = files[i].name.replace(/\.[^.]+$/, '')
+
+      if (mode === 'rasterize') {
+        const pageCount = await getPageCount(buffer)
+        const padLen = String(pageCount).length
+        const zipEntries: Record<string, Uint8Array> = {}
+
+        for (let p = 0; p < pageCount; p++) {
+          const pngBuffer = await renderPagePng(buffer, p, dpi)
+          const name = `${baseName}/page-${String(p + 1).padStart(padLen, '0')}.png`
+          zipEntries[name] = new Uint8Array(pngBuffer)
+          onProgress?.(i, Math.round(10 + ((p + 1) / pageCount) * 80))
+        }
+
+        const zipped = zipSync(zipEntries)
+        const outName = `${baseName}-pages.zip`
+        results.push(new File([zipped], outName, { type: 'application/zip' }))
+      } else {
+        const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+        const context = doc.context
+        const zipEntries: Record<string, Uint8Array> = {}
+        let imgCount = 0
+
+        for (const [, obj] of context.enumerateIndirectObjects()) {
+          if (!(obj instanceof PDFRawStream)) continue
+          const subtype = obj.dict.get(PDFName.of('Subtype'))
+          if (subtype?.toString() !== '/Image') continue
+          const filter = obj.dict.get(PDFName.of('Filter'))
+          if (filter?.toString() !== '/DCTDecode') continue
+          imgCount++
+          const padded = String(imgCount).padStart(3, '0')
+          zipEntries[`${baseName}/img-${padded}.jpg`] = obj.contents
+        }
+
+        if (imgCount === 0) {
+          throw new Error('No embedded JPEG images found. Try "Render pages as PNG" mode instead.')
+        }
+
+        onProgress?.(i, 80)
+        const zipped = zipSync(zipEntries)
+        const outName = `${baseName}-images.zip`
+        results.push(new File([zipped], outName, { type: 'application/zip' }))
+      }
+
       onProgress?.(i, 100)
     } catch (err) {
       results.push(err instanceof Error ? err : new Error(String(err)))
