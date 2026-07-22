@@ -169,6 +169,7 @@ export interface ToolConfig {
   }>
   advancedOptions?: ToolOption[]
   presetBar?: React.ComponentType<{ onApply: (values: ToolOptions) => void }>
+  enablePresets?: true
   faq: FAQItem[]
   relatedTools: string[]    // tool slugs, 3-5
   relatedArticles: string[] // article slugs, 2-3
