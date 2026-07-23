@@ -3,12 +3,13 @@
 import { useState } from 'react'
 import { HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
-import type { ToolOption, ToolOptions, NumberWithChipsOption, RadioOption, SectionHeaderOption } from '@/lib/types'
+import type { ToolOption, ToolOptions, NumberWithChipsOption, RadioOption, SectionHeaderOption, PositionDiagramOption } from '@/lib/types'
+import { PositionDiagram } from './position-diagram'
 
-type RenderableOption = Exclude<ToolOption, SectionHeaderOption>
+type RenderableOption = Exclude<ToolOption, SectionHeaderOption | PositionDiagramOption>
 
 function isRenderableOption(opt: ToolOption): opt is RenderableOption {
-  return opt.type !== 'section-header'
+  return opt.type !== 'section-header' && opt.type !== 'position-diagram'
 }
 
 interface OptionsPanelProps {
@@ -33,6 +34,7 @@ export function OptionsPanel({ options, values, onChange, disabled = false }: Op
       {options
         .filter((opt) => {
           if (opt.type === 'section-header') return true
+          if (opt.type === 'position-diagram') return true
           if (!opt.dependsOn) return true
           return String(values[opt.dependsOn.name]) === opt.dependsOn.value
         })
@@ -45,6 +47,16 @@ export function OptionsPanel({ options, values, onChange, disabled = false }: Op
               >
                 {opt.label}
               </h4>
+            )
+          }
+          if (opt.type === 'position-diagram') {
+            return (
+              <div key="position-diagram" className="py-1">
+                <PositionDiagram
+                  position={(values.position as string) ?? 'bottom-center'}
+                  margin={(values.margin as number) ?? 30}
+                />
+              </div>
             )
           }
           return (

@@ -148,11 +148,11 @@ function reducer(state: State, action: Action): State {
 function buildDefaultOptions(config: ToolConfig): ToolOptions {
   const opts: ToolOptions = {}
   for (const opt of config.options ?? []) {
-    if (opt.type === 'section-header') continue
+    if (opt.type === 'section-header' || opt.type === 'position-diagram') continue
     opts[opt.name] = opt.default
   }
   for (const opt of config.advancedOptions ?? []) {
-    if (opt.type !== 'section-header') {
+    if (opt.type !== 'section-header' && opt.type !== 'position-diagram') {
       opts[opt.name] = opt.default
     }
   }

@@ -42,7 +42,7 @@ const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
 function buildDefaultOptions(config: TextToolConfig): ToolOptions {
   const opts: ToolOptions = {}
   for (const opt of config.options ?? []) {
-    if (opt.type === 'section-header') continue
+    if (opt.type === 'section-header' || opt.type === 'position-diagram') continue
     opts[opt.name] = opt.default
   }
   return opts
