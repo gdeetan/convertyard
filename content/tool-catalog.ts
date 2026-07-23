@@ -94,6 +94,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'header-footer',  title: 'Header & Footer',   description: 'Stamp headers and footers on every page — date, page number, custom text.', category: 'pdf', status: 'live' },
   { slug: 'edit-metadata',  title: 'Edit PDF Metadata',  description: 'Set or clear title, author, subject, and keywords on any PDF.',              category: 'pdf', status: 'live' },
   { slug: 'flatten-pdf',    title: 'Flatten PDF',         description: 'Lock form fields and annotations into static page content.',                  category: 'pdf', status: 'live' },
+  { slug: 'compare-pdfs',  title: 'Compare PDFs',        description: 'Visual pixel diff between two PDF versions — highlights what changed per page.', category: 'pdf', status: 'live' },
 
   // Video & Audio — all coming soon
   { slug: 'mp4-to-mp3',       title: 'MP4 to MP3',       description: 'Strip audio from video in seconds.', category: 'video-audio', status: 'live' },
