@@ -91,6 +91,9 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'heic-to-pdf',      title: 'HEIC to PDF',       description: 'Convert iPhone HEIC photos to PDF — one per image or all combined.',           category: 'pdf', status: 'live' },
   { slug: 'extract-tables',   title: 'Extract Tables',    description: 'Pull tables out of PDFs as CSV files — one CSV per detected table.',           category: 'pdf', status: 'live' },
   { slug: 'epub-to-pdf',      title: 'EPUB to PDF',       description: 'Convert ebooks to text-searchable PDFs — chapters in reading order.',         category: 'pdf', status: 'live' },
+  { slug: 'header-footer',  title: 'Header & Footer',   description: 'Stamp headers and footers on every page — date, page number, custom text.', category: 'pdf', status: 'live' },
+  { slug: 'edit-metadata',  title: 'Edit PDF Metadata',  description: 'Set or clear title, author, subject, and keywords on any PDF.',              category: 'pdf', status: 'live' },
+  { slug: 'flatten-pdf',    title: 'Flatten PDF',         description: 'Lock form fields and annotations into static page content.',                  category: 'pdf', status: 'live' },
 
   // Video & Audio — all coming soon
   { slug: 'mp4-to-mp3',       title: 'MP4 to MP3',       description: 'Strip audio from video in seconds.', category: 'video-audio', status: 'live' },
