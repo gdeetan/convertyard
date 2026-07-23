@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Lock, RefreshCcw, Pen, Type, Trash2 } from 'lucide-react'
+import { Lock, RefreshCcw, Pen, Type, Trash2, ChevronLeft, ChevronRight, Move } from 'lucide-react'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
 import { RelatedToolsStrip } from '@/components/tool-shell/related-tools-strip'
@@ -24,6 +24,8 @@ export default function Page() {
   const [typedName, setTypedName] = useState('')
   const [sigDataUrl, setSigDataUrl] = useState<string | null>(null)
   const [pagePreviewUrl, setPagePreviewUrl] = useState<string | null>(null)
+  const [pageCount, setPageCount] = useState(1)
+  const [selectedPage, setSelectedPage] = useState(0)
   const [sigPos, setSigPos] = useState<SignaturePos>({ x: 0.1, y: 0.7 })
   const [dragging, setDragging] = useState(false)
   const [resultUrl, setResultUrl] = useState<string | null>(null)
@@ -35,21 +37,31 @@ export default function Page() {
   const isDrawing = useRef(false)
   const dragStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
 
-  // Render page 0 preview when file is set
+  // Render preview when file or selected page changes
   useEffect(() => {
     if (!file) return
     let cancelled = false
     ;(async () => {
-      const { renderPagePng } = await import('@/lib/converters/mupdf-client')
       const buf = await file.arrayBuffer()
-      const pngBuf = await renderPagePng(buf, 0, 96)
+
+      // Get page count on first load
+      if (selectedPage === 0) {
+        const doc = await PDFDocument.load(buf, { ignoreEncryption: true })
+        setPageCount(doc.getPageCount())
+      }
+
+      const { renderPagePng } = await import('@/lib/converters/mupdf-client')
+      const pngBuf = await renderPagePng(buf, selectedPage, 96)
       if (cancelled) return
       const url = URL.createObjectURL(new Blob([new Uint8Array(pngBuf)], { type: 'image/png' }))
-      setPagePreviewUrl(url)
+      setPagePreviewUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev)
+        return url
+      })
       setPhase('signing')
     })()
     return () => { cancelled = true }
-  }, [file])
+  }, [file, selectedPage])
 
   // Drawing canvas handlers
   const getPos = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -92,7 +104,7 @@ export default function Page() {
       if (!typedName.trim()) return
       const canvas = document.createElement('canvas')
       canvas.width = 400
-      canvas.height = 120
+      canvas.height = 160
       const ctx = canvas.getContext('2d')!
       ctx.font = 'italic 56px Georgia, serif'
       ctx.fillStyle = '#1a1a1a'
@@ -101,31 +113,52 @@ export default function Page() {
     }
   }, [mode, typedName])
 
-  // Signature drag on preview
-  const startDrag = (e: React.MouseEvent<HTMLImageElement>) => {
+  // Unified drag start for mouse and touch
+  const beginDrag = (clientX: number, clientY: number) => {
     if (!previewRef.current) return
     setDragging(true)
-    dragStart.current = { mx: e.clientX, my: e.clientY, px: sigPos.x, py: sigPos.y }
+    dragStart.current = { mx: clientX, my: clientY, px: sigPos.x, py: sigPos.y }
+  }
+
+  const startDrag = (e: React.MouseEvent<HTMLDivElement>) => {
+    beginDrag(e.clientX, e.clientY)
+    e.preventDefault()
+  }
+
+  const startTouchDrag = (e: React.TouchEvent<HTMLDivElement>) => {
+    const touch = e.touches[0]
+    beginDrag(touch.clientX, touch.clientY)
     e.preventDefault()
   }
 
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
+    const onMove = (clientX: number, clientY: number) => {
       if (!dragging || !dragStart.current || !previewRef.current) return
       const rect = previewRef.current.getBoundingClientRect()
-      const dx = (e.clientX - dragStart.current.mx) / rect.width
-      const dy = (e.clientY - dragStart.current.my) / rect.height
+      const dx = (clientX - dragStart.current.mx) / rect.width
+      const dy = (clientY - dragStart.current.my) / rect.height
       setSigPos({
         x: Math.max(0, Math.min(0.85, dragStart.current.px + dx)),
         y: Math.max(0, Math.min(0.9, dragStart.current.py + dy)),
       })
     }
+
+    const onMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY)
+    const onTouchMove = (e: TouchEvent) => {
+      onMove(e.touches[0].clientX, e.touches[0].clientY)
+      e.preventDefault()
+    }
     const onUp = () => setDragging(false)
-    window.addEventListener('mousemove', onMove)
+
+    window.addEventListener('mousemove', onMouseMove)
     window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', onUp)
     return () => {
-      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onUp)
     }
   }, [dragging])
 
@@ -139,14 +172,14 @@ export default function Page() {
 
       const buffer = await file.arrayBuffer()
       const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
-      const page = doc.getPages()[0]
+      const page = doc.getPages()[selectedPage]
       const { width: pageW, height: pageH } = page.getSize()
 
       const pdfX = sigPos.x * pageW
       const pdfY = pageH - sigPos.y * pageH
 
       const sigPdfW = (sigDisplayW / previewW) * pageW
-      const sigPdfH = sigPdfW * (120 / 400)
+      const sigPdfH = sigPdfW * (160 / 400)
 
       const sigBlob = await fetch(sigDataUrl).then(r => r.blob())
       const sigBytes = new Uint8Array(await sigBlob.arrayBuffer())
@@ -166,7 +199,7 @@ export default function Page() {
       setError(err instanceof Error ? err.message : 'Failed to apply signature')
       setPhase('error')
     }
-  }, [file, sigDataUrl, pagePreviewUrl, sigPos, resultUrl])
+  }, [file, sigDataUrl, pagePreviewUrl, sigPos, selectedPage, resultUrl])
 
   const handleReset = () => {
     if (resultUrl) URL.revokeObjectURL(resultUrl)
@@ -175,6 +208,8 @@ export default function Page() {
     setPhase('idle')
     setSigDataUrl(null)
     setPagePreviewUrl(null)
+    setPageCount(1)
+    setSelectedPage(0)
     setResultUrl(null)
     setResultName('')
     setError('')
@@ -238,7 +273,7 @@ export default function Page() {
                 <canvas
                   ref={drawCanvas}
                   width={400}
-                  height={160}
+                  height={220}
                   className="w-full rounded-xl border border-border bg-white cursor-crosshair"
                   onMouseDown={startDraw}
                   onMouseMove={draw}
@@ -259,7 +294,7 @@ export default function Page() {
                 value={typedName}
                 onChange={(e) => setTypedName(e.target.value)}
                 placeholder="Type your name"
-                className="w-full rounded-xl border border-border bg-white px-4 py-6 text-3xl italic text-fg-muted placeholder:text-fg-subtle focus:border-primary focus:outline-none"
+                className="w-full rounded-xl border border-border bg-white px-4 py-10 text-3xl italic text-fg-muted placeholder:text-fg-subtle focus:border-primary focus:outline-none"
                 style={{ fontFamily: 'Georgia, serif' }}
               />
             )}
@@ -275,20 +310,64 @@ export default function Page() {
 
           {/* PDF preview with draggable signature */}
           <div>
-            <p className="mb-2 text-sm text-fg-muted">Drag signature to position</p>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-sm text-fg-muted">
+                {sigDataUrl
+                  ? 'Drag signature to reposition'
+                  : 'Sign, then drag to position'}
+              </p>
+              {pageCount > 1 && (
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    disabled={selectedPage === 0}
+                    onClick={() => setSelectedPage(p => p - 1)}
+                    className="rounded p-1 text-fg-muted hover:text-fg disabled:opacity-30"
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="text-xs text-fg-muted tabular-nums">
+                    {selectedPage + 1} / {pageCount}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={selectedPage === pageCount - 1}
+                    onClick={() => setSelectedPage(p => p + 1)}
+                    className="rounded p-1 text-fg-muted hover:text-fg disabled:opacity-30"
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
+              )}
+            </div>
+
             <div ref={previewRef} className="relative select-none overflow-hidden rounded-xl border border-border bg-white">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={pagePreviewUrl} alt="PDF page 1 preview" className="w-full" draggable={false} />
+              <img src={pagePreviewUrl} alt={`PDF page ${selectedPage + 1} preview`} className="w-full" draggable={false} />
               {sigDataUrl && (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={sigDataUrl}
-                  alt="Signature"
-                  className="absolute cursor-move"
-                  style={{ left: `${sigPos.x * 100}%`, top: `${sigPos.y * 100}%`, width: '15%' }}
+                <div
+                  className={cn(
+                    'absolute cursor-move rounded border-2 border-dashed border-primary/70 bg-white/10 p-0.5 touch-none',
+                    dragging && 'opacity-80'
+                  )}
+                  style={{ left: `${sigPos.x * 100}%`, top: `${sigPos.y * 100}%`, width: '18%' }}
                   onMouseDown={startDrag}
-                  draggable={false}
-                />
+                  onTouchStart={startTouchDrag}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={sigDataUrl}
+                    alt="Signature"
+                    className="w-full"
+                    draggable={false}
+                  />
+                  <div className="absolute -top-5 left-0 flex items-center gap-0.5 rounded bg-primary px-1 py-0.5 text-[10px] font-medium text-primary-fg">
+                    <Move className="h-2.5 w-2.5" />
+                    Drag
+                  </div>
+                </div>
               )}
             </div>
 
