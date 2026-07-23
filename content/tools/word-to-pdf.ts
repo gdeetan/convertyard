@@ -14,6 +14,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.docx', '.doc'],
   outputExt: '.pdf',
   convertFn: wordToPdf,
+  enablePresets: true,
   limitationNote: {
     summary: 'Best for text-heavy documents',
     body: "Text, headings, basic tables, and lists convert well. Highly designed layouts (custom columns, Word themes, ActiveX, macros) may shift. For pixel-perfect output, use Word's built-in Print → Save as PDF.",

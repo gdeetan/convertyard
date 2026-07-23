@@ -13,6 +13,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.mp4', '.webm', '.mov'],
   outputExt: '.webp',
   convertFn: mp4ToWebp,
+  enablePresets: true,
   limitationNote: {
     summary: 'Video clips only',
     body: 'Audio-only MP4 or M4A files are not supported. This tool converts video tracks into animated WebP, so files with sound but no picture will fail immediately with a clear message.',

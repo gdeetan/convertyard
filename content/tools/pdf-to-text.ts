@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.pdf'],
   outputExt: '.txt',
   convertFn: pdfToText,
+  enablePresets: true,
 
   options: [
     {

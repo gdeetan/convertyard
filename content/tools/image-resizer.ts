@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '',
   convertFn: (files, opts, onProgress) => imageResize(files, opts, onProgress),
+  enablePresets: true,
 
   options: [
     {

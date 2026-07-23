@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.pdf'],
   outputExt: '.pptx',
   convertFn: pdfToPptx,
+  enablePresets: true,
   limitationNote: {
     summary: 'Slides are image-based, not editable text',
     body: "Each PDF page is rendered as a high-resolution image and placed as a slide background. Text in the slides cannot be edited in PowerPoint. For editable text, use PDF to Word first, then copy into PowerPoint.",

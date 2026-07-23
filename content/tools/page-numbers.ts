@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.pdf'],
   outputExt: '.pdf',
   convertFn: addPageNumbers,
+  enablePresets: true,
 
   options: [
     {

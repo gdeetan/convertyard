@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.pdf'],
   outputExt: '.docx',
   convertFn: pdfToWord,
+  enablePresets: true,
 
   options: [
     {

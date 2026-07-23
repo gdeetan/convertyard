@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.avif'],
   outputExt: '.jpg',
   convertFn: (files, opts, onProgress) =>
+  enablePresets: true,
     libvipsConvert(files, 'jpg', opts, onProgress),
 
   options: [

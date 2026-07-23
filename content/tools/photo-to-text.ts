@@ -12,6 +12,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'],
   outputExt: '.txt',
   convertFn: (files, opts, onProgress) =>
+  enablePresets: true,
     imageOcrConvert(files, { ...opts, preprocessingMode: 'screenshot' }, onProgress),
   reviewPanel: OcrReviewPanel,
 

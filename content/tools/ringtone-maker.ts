@@ -22,6 +22,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.mp3', '.m4a', '.wav', '.ogg', '.flac', '.aac', '.mp4', '.mov'],
   outputExt: '.m4r',
   convertFn: makeRingtone,
+  enablePresets: true,
   options: [
     {
       type: 'number',

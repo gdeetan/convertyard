@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.heic', '.heif'],
   outputExt: '.png',
   convertFn: (files, opts, onProgress) =>
+  enablePresets: true,
     libvipsConvert(files, 'png', opts, onProgress),
 
   options: [

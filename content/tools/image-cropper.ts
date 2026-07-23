@@ -12,6 +12,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '',
   convertFn: (files, opts, onProgress) => imageCrop(files, opts, onProgress),
+  enablePresets: true,
   interactivePanel: CropBox,
 
   options: [

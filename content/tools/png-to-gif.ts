@@ -12,6 +12,7 @@ export const config: ToolConfig = {
   outputExt: '.gif',
   resultMode: 'combined-output',
   convertFn: (files, opts, onProgress) => gifConvert(files, opts, onProgress),
+  enablePresets: true,
   limitationNote: {
     summary: 'PNG transparency becomes binary in GIF',
     body: 'PNG supports full alpha transparency; GIF supports only binary transparency. Semi-transparent edges from anti-aliasing will be thresholded — logos on solid backgrounds convert cleanly, but soft shadows will have hard edges.',

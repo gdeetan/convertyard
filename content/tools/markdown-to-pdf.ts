@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.md', '.markdown'],
   outputExt: '.pdf',
   convertFn: markdownToPdf,
+  enablePresets: true,
   options: [
     {
       type: 'dropdown',

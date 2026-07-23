@@ -12,6 +12,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.pdf'],
   outputExt: '.pdf',
   convertFn: ocrPdf,
+  enablePresets: true,
 
   limitationNote: {
     summary: 'OCR is CPU-intensive',

@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.csv'],
   outputExt: '.pdf',
   convertFn: csvToPdf,
+  enablePresets: true,
   options: [
     {
       type: 'toggle',

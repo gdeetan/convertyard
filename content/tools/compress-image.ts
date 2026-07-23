@@ -14,6 +14,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '',
   convertFn: (files, opts, onProgress) => imageCompress(files, opts, onProgress),
+  enablePresets: true,
 
   interactivePanel: ImageAnalyzerPanel,
   previewPanel: ImageCompressionPreview,

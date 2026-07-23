@@ -32,6 +32,7 @@ export const config: ToolConfig = {
   ],
   outputExt: '',
   convertFn: trimAudio,
+  enablePresets: true,
   warningFn: (files) => {
     const hasLarge = files.some((f) => f.size > LARGE_FILE_BYTES)
     return hasLarge

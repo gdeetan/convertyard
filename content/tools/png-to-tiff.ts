@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.png'],
   outputExt: '.tiff',
   convertFn: (files, opts, onProgress) => libvipsConvert(files, 'tiff', opts, onProgress),
+  enablePresets: true,
   options: [
     {
       type: 'dropdown',

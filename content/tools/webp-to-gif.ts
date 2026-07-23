@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.webp'],
   outputExt: '.gif',
   convertFn: (files, opts, onProgress) => gifConvert(files, opts, onProgress),
+  enablePresets: true,
   limitationNote: {
     summary: 'GIF is larger than WebP',
     body: 'GIF is a less efficient format than WebP — an animated WebP typically becomes 2–5× larger as a GIF. Reduce the frame rate or output width to keep file sizes manageable.',

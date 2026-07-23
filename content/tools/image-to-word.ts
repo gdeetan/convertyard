@@ -12,6 +12,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff', '.tif'],
   outputExt: '.docx',
   convertFn: convertImageToWord,
+  enablePresets: true,
   reviewPanel: ImageToWordPreviewPanel,
 
   options: [

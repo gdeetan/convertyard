@@ -13,6 +13,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.mp4', '.webm', '.mov'],
   outputExt: '.mp3',
   convertFn: mp4ToMp3,
+  enablePresets: true,
   warningFn: (files) => {
     const hasLarge = files.some((f) => f.size > LARGE_FILE_BYTES)
     return hasLarge

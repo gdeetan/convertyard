@@ -13,6 +13,7 @@ export const config: TextToolConfig = {
   acceptsFile: ['*/*'],
   acceptsFileExt: ['any file'],
   convertFn: convertBase64,
+  enablePresets: true,
   fileToTextFn: fileToBase64Text,
   options: [
     {

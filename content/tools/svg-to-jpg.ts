@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.svg'],
   outputExt: '.jpg',
   convertFn: (files, opts, onProgress) => svgConvert(files, 'jpg', opts, onProgress),
+  enablePresets: true,
   options: [
     {
       type: 'slider',

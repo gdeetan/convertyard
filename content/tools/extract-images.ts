@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.pdf'],
   outputExt: '.zip',
   convertFn: extractImages,
+  enablePresets: true,
 
   options: [
     {

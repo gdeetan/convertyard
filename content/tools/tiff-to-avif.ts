@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.tiff', '.tif'],
   outputExt: '.avif',
   convertFn: (files, opts, onProgress) => libvipsConvert(files, 'avif', opts, onProgress),
+  enablePresets: true,
   options: [
     {
       type: 'slider',

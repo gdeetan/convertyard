@@ -19,6 +19,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.mp3', '.m4a', '.wav', '.ogg', '.flac', '.aac'],
   outputExt: '.mp3',
   convertFn: changeAudioSpeed,
+  enablePresets: true,
   options: [
     {
       type: 'radio',

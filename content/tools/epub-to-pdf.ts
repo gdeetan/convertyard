@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.epub'],
   outputExt: '.pdf',
   convertFn: epubToPdf,
+  enablePresets: true,
   options: [
     {
       type: 'dropdown',

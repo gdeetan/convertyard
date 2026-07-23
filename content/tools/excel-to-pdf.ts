@@ -15,6 +15,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.xlsx', '.xls', '.xlsm', '.csv'],
   outputExt: '.pdf',
   convertFn: excelToPdf,
+  enablePresets: true,
   options: [
     {
       type: 'radio',

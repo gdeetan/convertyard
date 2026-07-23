@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.pdf'],
   outputExt: '.xlsx',
   convertFn: pdfToExcel,
+  enablePresets: true,
   limitationNote: {
     summary: 'Works best on text-based PDFs with clear table structure',
     body: 'Extracts text with positional data and groups into rows/columns. Works well on clean tabular PDFs (bank statements, reports, invoices). Scanned PDFs are processed with Tesseract OCR automatically — table extraction from scans is best-effort and accuracy depends on scan quality.',

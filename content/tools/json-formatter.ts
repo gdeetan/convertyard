@@ -13,6 +13,7 @@ export const config: TextToolConfig = {
   acceptsFile: ['application/json', 'text/plain'],
   acceptsFileExt: ['.json'],
   convertFn: formatJson,
+  enablePresets: true,
   options: [
     {
       type: 'radio',

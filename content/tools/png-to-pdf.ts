@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.heic', '.heif'],
   outputExt: '.pdf',
   convertFn: imagesToPdf,
+  enablePresets: true,
   options: [
     {
       type: 'radio',

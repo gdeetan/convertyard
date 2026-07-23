@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.heic', '.heif'],
   outputExt: '.pdf',
   convertFn: heicToPdf,
+  enablePresets: true,
   options: [
     {
       type: 'dropdown',

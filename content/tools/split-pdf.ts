@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.pdf'],
   outputExt: '.pdf',
   convertFn: splitPdf,
+  enablePresets: true,
 
   options: [
     {

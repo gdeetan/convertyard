@@ -12,6 +12,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.pdf'],
   outputExt: '.pdf',
   convertFn: watermarkPdf,
+  enablePresets: true,
   previewPanel: WatermarkPreview,
   options: [
     {

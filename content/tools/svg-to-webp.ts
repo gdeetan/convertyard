@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.svg'],
   outputExt: '.webp',
   convertFn: (files, opts, onProgress) => svgConvert(files, 'webp', opts, onProgress),
+  enablePresets: true,
   options: [
     {
       type: 'slider',

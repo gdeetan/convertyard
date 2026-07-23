@@ -21,6 +21,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.mp4', '.mov', '.webm', '.avi', '.mkv', '.wmv', '.ts'],
   outputExt: '',
   convertFn: extractAudio,
+  enablePresets: true,
   warningFn: (files) => {
     const hasLarge = files.some((f) => f.size > LARGE_FILE_BYTES)
     return hasLarge

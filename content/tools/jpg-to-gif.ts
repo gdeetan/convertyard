@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg'],
   outputExt: '.gif',
   convertFn: (files, opts, onProgress) => gifConvert(files, opts, onProgress),
+  enablePresets: true,
   limitationNote: {
     summary: 'GIF is limited to 256 colours per frame',
     body: 'Photos with many colours will show banding in GIF output. Use high-quality source JPGs for the best result.',

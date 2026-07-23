@@ -11,6 +11,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.pdf'],
   outputExt: '.png',
   convertFn: pdfToPng,
+  enablePresets: true,
 
   options: [
     {

@@ -13,6 +13,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.mp4', '.webm', '.mov'],
   outputExt: '.gif',
   convertFn: videoToGif,
+  enablePresets: true,
   limitationNote: {
     summary: 'Best for short clips',
     body: 'GIF is much less efficient than MP4 or WebP. Keep clips short and reduce frame rate or width if the output gets too large.',
