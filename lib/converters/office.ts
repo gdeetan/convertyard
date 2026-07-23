@@ -153,11 +153,43 @@ export async function wordToPdf(
         size: number,
         extraGapBefore = 0
       ) => {
+        const safe = sanitizeForPdf(text)
+        if (!safe) return
         const lineHeight = size * 1.4
         ensureSpace(extraGapBefore + lineHeight)
         y -= extraGapBefore
-        page.drawText(text, { x: margin, y, font, size, color: rgb(0, 0, 0) })
+        page.drawText(safe, { x: margin, y, font, size, color: rgb(0, 0, 0) })
         y -= lineHeight
+      }
+
+      /** Embed a data-URI image from mammoth onto the current page. */
+      const embedImage = async (img: Element) => {
+        const src = img.getAttribute('src') ?? ''
+        if (!src.startsWith('data:')) return
+        const commaIdx = src.indexOf(',')
+        if (commaIdx === -1) return
+        const mimeType = src.slice(5, commaIdx).replace(/;base64$/, '').toLowerCase()
+        const b64 = src.slice(commaIdx + 1)
+        try {
+          const bytes = Uint8Array.from(atob(b64), c => c.charCodeAt(0))
+          let embedded: Awaited<ReturnType<typeof pdfDoc.embedPng>> | undefined
+          if (mimeType === 'image/png') {
+            embedded = await pdfDoc.embedPng(bytes)
+          } else if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
+            embedded = await pdfDoc.embedJpg(bytes)
+          }
+          if (!embedded) return
+          const { width: imgW, height: imgH } = embedded.size()
+          const scale = Math.min(contentWidth / imgW, (pageH - margin * 3) / imgH, 1)
+          const drawW = imgW * scale
+          const drawH = imgH * scale
+          ensureSpace(drawH + 8)
+          y -= drawH
+          page.drawImage(embedded, { x: margin, y, width: drawW, height: drawH })
+          y -= 8
+        } catch {
+          // skip unembeddable images silently
+        }
       }
 
       const elements = Array.from(dom.body.children)
@@ -176,9 +208,19 @@ export async function wordToPdf(
           const lines = await wrapText(rawText, boldFont, 13, contentWidth)
           for (const line of lines) drawLine(line, boldFont, 13, 4)
         } else if (tag === 'p') {
+          // mammoth wraps inline images in <p> tags; embed them before text
+          for (const img of Array.from(el.querySelectorAll('img'))) {
+            await embedImage(img)
+          }
           const lines = await wrapText(rawText, regularFont, 11, contentWidth)
           for (const line of lines) drawLine(line, regularFont, 11, 0)
-          y -= 4 // gap after paragraph
+          y -= 4
+        } else if (tag === 'img') {
+          await embedImage(el)
+        } else if (tag === 'figure') {
+          for (const img of Array.from(el.querySelectorAll('img'))) {
+            await embedImage(img)
+          }
         } else if (tag === 'ul' || tag === 'ol') {
           const items = Array.from(el.querySelectorAll('li'))
           for (let idx = 0; idx < items.length; idx++) {
