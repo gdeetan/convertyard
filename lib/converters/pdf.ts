@@ -263,8 +263,81 @@ async function rasterizeGrayscaleForTarget(
   return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
 }
 
+// WinAnsi (Windows-1252) only covers specific Unicode code points. Any char
+// outside that set causes pdf-lib to throw. Map common symbols to ASCII
+// equivalents, then strip anything still outside the safe range.
+const WINI_UNICODE_MAP: Record<string, string> = {
+  // Whitespace / control
+  ' ': ' ', '​': '', '‌': '', '‍': '', '﻿': '',
+  ' ': ' ', ' ': ' ',
+  // Quotation marks
+  '‘': "'", '’': "'", '‚': "'", '‛': "'",
+  '“': '"', '”': '"', '„': '"', '‟': '"',
+  '‹': '<', '›': '>',
+  // Dashes / hyphens
+  '‐': '-', '‑': '-', '‒': '-', '–': '-', '—': '--',
+  '―': '--', '−': '-',
+  // Ellipsis
+  '…': '...',
+  // Arrows
+  '←': '<-', '↑': '^', '→': '->', '↓': 'v',
+  '⇐': '<=', '⇒': '=>', '⇔': '<=>',
+  '➔': '->', '➡': '->',
+  // Mathematical
+  '·': '.', '⋅': '.', '∙': '.',
+  '×': 'x', '⋆': '*', '∗': '*',
+  '÷': '/',
+  '≠': '!=', '≤': '<=', '≥': '>=',
+  '∞': 'inf', '≈': '~=', '≡': '===',
+  '±': '+/-', '′': "'", '″': '"',
+  '²': '2', '³': '3', '¹': '1',
+  '⁰': '0', '⁴': '4', '⁵': '5', '⁶': '6',
+  '⁷': '7', '⁸': '8', '⁹': '9',
+  // Greek (common in tech writing)
+  'α': 'alpha', 'β': 'beta', 'γ': 'gamma', 'δ': 'delta',
+  'ε': 'epsilon', 'η': 'eta', 'θ': 'theta', 'λ': 'lambda',
+  'μ': 'mu', 'ν': 'nu', 'π': 'pi', 'ρ': 'rho',
+  'σ': 'sigma', 'τ': 'tau', 'φ': 'phi', 'ψ': 'psi',
+  'ω': 'omega', 'Δ': 'Delta', 'Ω': 'Omega', 'Σ': 'Sigma',
+  'Π': 'Pi', 'Φ': 'Phi', 'Ψ': 'Psi',
+  // Misc symbols
+  '•': '*', '‣': '>', '●': '*', '▪': '*',
+  '✓': 'v', '✔': 'v', '✘': 'x', '✗': 'x',
+  '✅': 'v', '❌': 'x',
+  '©': '(c)', '®': '(R)', '™': '(TM)',
+  '°': 'deg',
+  '€': 'EUR', '£': 'GBP', '¥': 'JPY',
+  '№': 'No.',
+  '«': '<<', '»': '>>',
+  '†': '+', '‡': '++', '‰': '%',
+  // Box drawing / block elements (common in code blocks)
+  '─': '-', '━': '-', '│': '|', '┃': '|',
+  '┌': '+', '┐': '+', '└': '+', '┘': '+',
+  '├': '+', '┤': '+', '┬': '+', '┴': '+', '┼': '+',
+  '═': '=', '║': '|', '╔': '+', '╗': '+',
+  '╚': '+', '╝': '+',
+}
+
+// WinAnsi supports U+0020-U+007E, U+00A0-U+00FF, plus these specific codepoints
+const WINI_EXTENDED = new Set([
+  0x0152, 0x0153, 0x0160, 0x0161, 0x0178, 0x017D, 0x017E,
+  0x0192, 0x02C6, 0x02DC, 0x2013, 0x2014, 0x2018, 0x2019,
+  0x201A, 0x201C, 0x201D, 0x201E, 0x2020, 0x2021, 0x2022,
+  0x2026, 0x2030, 0x2039, 0x203A, 0x20AC, 0x2122,
+])
+
 function sanitizePdfText(s: string): string {
-  return s.replace(/[\r\n\t]/g, ' ').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
+  // Normalize line endings / tabs to space first
+  let result = s.replace(/[\r\n\t]/g, ' ').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
+  // Apply explicit Unicode → ASCII mappings
+  for (const [from, to] of Object.entries(WINI_UNICODE_MAP)) {
+    if (result.includes(from)) result = result.split(from).join(to)
+  }
+  // Strip any remaining chars outside WinAnsi
+  return Array.from(result).filter(ch => {
+    const cp = ch.codePointAt(0)!
+    return (cp >= 0x20 && cp <= 0x7E) || (cp >= 0xA0 && cp <= 0xFF) || WINI_EXTENDED.has(cp)
+  }).join('')
 }
 
 function isValidPdf(bytes: Uint8Array): boolean {
