@@ -41,6 +41,21 @@ export const config: ToolConfig = {
       default: 'bottom-center',
     },
     {
+      type: 'position-diagram',
+      name: 'positionDiagram',
+      label: '',
+    },
+    {
+      type: 'slider',
+      name: 'margin',
+      label: 'Margin from edge (pt)',
+      min: 10,
+      max: 100,
+      step: 5,
+      default: 30,
+      hint: '30 pt is the standard footer margin. Increase if your PDF has content near the edges.',
+    },
+    {
       type: 'slider',
       name: 'fontSize',
       label: 'Font size (pt)',
@@ -79,7 +94,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Will existing content be covered by the page number?',
-      a: 'The number is drawn in the margin area (30 pt from the edge). If your PDF has content that bleeds to the very edge, there is a small risk of overlap — use a different position in that case.',
+      a: 'The number is drawn at the margin distance you set (default 30 pt from the edge). If your PDF has content near the edge, increase the "Margin from edge" slider to push the number further in.',
     },
     {
       q: 'Can I customise the font or colour?',
