@@ -1782,7 +1782,7 @@ export async function addPageNumbers(
   const format = (options.format as string) ?? 'Page N of T'
   const fontSize = typeof options.fontSize === 'number' ? Math.max(6, Math.min(24, options.fontSize)) : 10
   const startNumber = typeof options.startNumber === 'number' ? Math.max(1, options.startNumber) : 1
-  const MARGIN = 30
+  const MARGIN = typeof options.margin === 'number' ? Math.max(10, Math.min(100, options.margin)) : 30
 
   for (let i = 0; i < files.length; i++) {
     try {
