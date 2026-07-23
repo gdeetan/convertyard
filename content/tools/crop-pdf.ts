@@ -1,4 +1,5 @@
 import { cropPdf } from '@/lib/converters/pdf'
+import { CropPdfPreview } from '@/components/tool-shell/crop-pdf-preview'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -12,6 +13,7 @@ export const config: ToolConfig = {
   outputExt: '.pdf',
   convertFn: cropPdf,
   enablePresets: true,
+  interactivePanel: CropPdfPreview,
 
   options: [
     {
