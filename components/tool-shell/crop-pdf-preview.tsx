@@ -18,6 +18,7 @@ interface PageData {
 interface Props {
   files: File[]
   options: ToolOptions
+  // required by interactivePanel slot in ToolConfig, not used by this component
   onChange: (name: string, value: unknown) => void
 }
 
@@ -34,37 +35,44 @@ export function CropPdfPreview({ files, options }: Props) {
     async function load() {
       setLoading(true)
       setPages([])
-      for (const u of urlsRef.current) URL.revokeObjectURL(u)
-      urlsRef.current = []
 
-      const buffer = await firstFile.arrayBuffer()
-      const sizes = await getPageSizes(buffer)
-      const count = Math.min(sizes.length, MAX_PREVIEW_PAGES)
+      try {
+        const buffer = await firstFile.arrayBuffer()
+        const sizes = await getPageSizes(buffer)
+        const count = Math.min(sizes.length, MAX_PREVIEW_PAGES)
 
-      const loaded: PageData[] = []
-      for (let i = 0; i < count; i++) {
-        if (cancelled) return
-        const png = await renderPagePng(buffer, i, PREVIEW_DPI, false)
-        const url = URL.createObjectURL(new Blob([png], { type: 'image/png' }))
-        urlsRef.current.push(url)
-        loaded.push({ url, widthPt: sizes[i].width, heightPt: sizes[i].height })
-      }
+        const loaded: PageData[] = []
+        for (let i = 0; i < count; i++) {
+          if (cancelled) return
+          const png = await renderPagePng(buffer, i, PREVIEW_DPI, false)
+          const url = URL.createObjectURL(new Blob([png], { type: 'image/png' }))
+          urlsRef.current.push(url)
+          loaded.push({ url, widthPt: sizes[i].width, heightPt: sizes[i].height })
+        }
 
-      if (!cancelled) {
-        setPages(loaded)
-        setLoading(false)
+        if (!cancelled) {
+          setPages(loaded)
+          setLoading(false)
+        }
+      } catch {
+        if (!cancelled) setLoading(false)
       }
     }
 
     load()
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      for (const u of urlsRef.current) URL.revokeObjectURL(u)
+      urlsRef.current = []
+    }
   }, [firstFile])
 
   useEffect(() => {
-    return () => {
-      for (const u of urlsRef.current) URL.revokeObjectURL(u)
+    if (!firstFile) {
+      setLoading(false)
+      setPages([])
     }
-  }, [])
+  }, [firstFile])
 
   const margins = resolveCropMargins(options)
 
@@ -95,7 +103,7 @@ export function CropPdfPreview({ files, options }: Props) {
               <img
                 src={page.url}
                 alt={`Page ${i + 1}`}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-contain"
                 draggable={false}
               />
               <div className="pointer-events-none absolute inset-0">
