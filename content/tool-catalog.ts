@@ -86,6 +86,11 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'crop-pdf',          title: 'Crop PDF',           description: 'Trim margins off every page with mm presets.',           category: 'pdf', status: 'live' },
   { slug: 'page-numbers',      title: 'Add Page Numbers',   description: 'Stamp page numbers in 6 positions with 4 formats.',     category: 'pdf', status: 'live' },
   { slug: 'extract-images',    title: 'Extract Images',     description: 'Pull embedded images or render pages as PNG.',           category: 'pdf', status: 'live' },
+  { slug: 'markdown-to-pdf',  title: 'Markdown to PDF',  description: 'Convert .md files to text-searchable PDFs — headings, lists, code blocks.',  category: 'pdf', status: 'live' },
+  { slug: 'csv-to-pdf',       title: 'CSV to PDF',        description: 'Turn CSV data into a formatted table PDF with grid lines.',                     category: 'pdf', status: 'live' },
+  { slug: 'heic-to-pdf',      title: 'HEIC to PDF',       description: 'Convert iPhone HEIC photos to PDF — one per image or all combined.',           category: 'pdf', status: 'live' },
+  { slug: 'extract-tables',   title: 'Extract Tables',    description: 'Pull tables out of PDFs as CSV files — one CSV per detected table.',           category: 'pdf', status: 'live' },
+  { slug: 'epub-to-pdf',      title: 'EPUB to PDF',       description: 'Convert ebooks to text-searchable PDFs — chapters in reading order.',         category: 'pdf', status: 'live' },
 
   // Video & Audio — all coming soon
   { slug: 'mp4-to-mp3',       title: 'MP4 to MP3',       description: 'Strip audio from video in seconds.', category: 'video-audio', status: 'live' },

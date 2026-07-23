@@ -35,6 +35,7 @@
     "imagetracerjs": "^1.2.6",
     "lucide-react": "^0.511.0",
     "mammoth": "^1.12.0",
+    "marked": "^15.0.12",
     "mupdf": "^1.27.0",
     "next": "^15.3.3",
     "pdf-lib": "^1.17.1",
