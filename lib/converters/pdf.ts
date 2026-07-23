@@ -1950,9 +1950,13 @@ export async function renderTokensToPdf(
     }
   }
 
+  function sanitizeText(s: string): string {
+    return s.replace(/[\r\n\t]/g, ' ').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
+  }
+
   function wrapText(text: string, font: EmbeddedFont, size: number, maxWidth: number): string[] {
     if (!text?.trim()) return []
-    const words = text.split(' ')
+    const words = sanitizeText(text).split(' ').filter(Boolean)
     const lines: string[] = []
     let current = ''
     for (const word of words) {
@@ -2034,7 +2038,7 @@ export async function renderTokensToPdf(
         for (const span of token.inline) {
           const f: EmbeddedFont = span.code ? fontCode : span.bold ? fontBold : span.italic ? fontItalic : fontBody
           const sz = span.code ? codeSize : bodySize
-          const words = span.text.split(' ')
+          const words = sanitizeText(span.text).split(' ').filter(Boolean)
           for (let wi = 0; wi < words.length; wi++) {
             const word = words[wi]
             const piece = wi < words.length - 1 ? word + ' ' : word
