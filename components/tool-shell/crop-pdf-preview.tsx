@@ -7,7 +7,6 @@ import type { ToolOptions } from '@/lib/types'
 
 const MAX_PREVIEW_PAGES = 4
 const PREVIEW_DPI = 72
-const THUMBNAIL_WIDTH = 96
 
 interface PageData {
   url: string
@@ -78,9 +77,9 @@ export function CropPdfPreview({ files, options }: Props) {
 
   if (loading) {
     return (
-      <div className="flex gap-3">
+      <div className="grid grid-cols-2 gap-3">
         {[...Array(2)].map((_, i) => (
-          <div key={i} className="h-32 w-24 animate-pulse rounded bg-bg-muted" />
+          <div key={i} className="aspect-[3/4] animate-pulse rounded bg-bg-muted" />
         ))}
       </div>
     )
@@ -90,15 +89,14 @@ export function CropPdfPreview({ files, options }: Props) {
 
   return (
     <div className="space-y-3">
-      <div className="flex gap-3 overflow-x-auto pb-1">
+      <div className="grid grid-cols-2 gap-3">
         {pages.map((page, i) => {
           const overlay = calcOverlayPct(margins, page.widthPt, page.heightPt)
-          const thumbHeight = Math.round(THUMBNAIL_WIDTH * page.heightPt / page.widthPt)
           return (
             <div
               key={i}
-              className="relative shrink-0 overflow-hidden rounded border border-border"
-              style={{ width: THUMBNAIL_WIDTH, height: thumbHeight }}
+              className="relative w-full overflow-hidden rounded border border-border"
+              style={{ aspectRatio: `${page.widthPt} / ${page.heightPt}` }}
             >
               <img
                 src={page.url}
