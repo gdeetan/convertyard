@@ -14,49 +14,41 @@ export const config: ToolConfig = {
   enablePresets: true,
   options: [
     {
-      type: 'dropdown' as const,
+      type: 'text' as const,
       name: 'title',
       label: 'Title',
-      choices: [
-        { value: '', label: '(clear)' },
-      ],
+      placeholder: 'e.g. Q2 Financial Report',
       default: '',
-      hint: 'Document title shown in PDF readers.',
+      hint: 'Document title shown in PDF readers. Leave blank to clear.',
     },
     {
-      type: 'dropdown' as const,
+      type: 'text' as const,
       name: 'author',
       label: 'Author',
-      choices: [
-        { value: '', label: '(clear)' },
-      ],
+      placeholder: 'e.g. Jane Smith',
       default: '',
     },
     {
-      type: 'dropdown' as const,
+      type: 'text' as const,
       name: 'subject',
       label: 'Subject',
-      choices: [
-        { value: '', label: '(clear)' },
-      ],
+      placeholder: 'e.g. Annual earnings summary',
       default: '',
     },
     {
-      type: 'dropdown' as const,
+      type: 'text' as const,
       name: 'keywords',
       label: 'Keywords',
-      choices: [
-        { value: '', label: '(clear)' },
-      ],
+      placeholder: 'e.g. report; finance; 2026',
       default: '',
-      hint: 'Semicolon-separated keywords, e.g. "report; finance; 2026".',
+      hint: 'Semicolon-separated keywords.',
     },
     {
       type: 'dropdown' as const,
       name: 'creator',
       label: 'Creator application',
       choices: [
-        { value: '',               label: '(clear)' },
+        { value: '',               label: '(keep existing)' },
         { value: 'ConvertYard',    label: 'ConvertYard' },
         { value: 'Microsoft Word', label: 'Microsoft Word' },
         { value: 'Adobe Acrobat', label: 'Adobe Acrobat' },

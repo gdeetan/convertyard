@@ -71,6 +71,12 @@ export interface NumberWithChipsOption extends BaseOption {
   defaultUnit?: string
 }
 
+export interface TextInputOption extends BaseOption {
+  type: 'text'
+  placeholder?: string
+  default: string
+}
+
 export interface SectionHeaderOption {
   type: 'section-header'
   label: string
@@ -85,6 +91,7 @@ export type ToolOption =
   | ColorPickerOption
   | ImageUploadOption
   | NumberWithChipsOption
+  | TextInputOption
   | SectionHeaderOption
 
 export type ToolOptions = Record<string, unknown>

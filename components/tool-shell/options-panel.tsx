@@ -259,6 +259,21 @@ function OptionRow({
           </div>
         )}
 
+        {opt.type === 'text' && (
+          <input
+            id={id}
+            type="text"
+            value={value as string}
+            placeholder={opt.placeholder ?? ''}
+            onChange={(e) => onChange(opt.name, e.target.value)}
+            className={cn(
+              'w-full max-w-sm rounded-md border border-border bg-bg-elevated px-3 py-1.5',
+              'text-sm text-fg placeholder:text-fg-subtle',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+            )}
+          />
+        )}
+
         {opt.type === 'number-with-chips' && (
           <NumberWithChipsControl
             opt={opt as NumberWithChipsOption}
