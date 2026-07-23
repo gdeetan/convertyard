@@ -82,6 +82,12 @@ export interface SectionHeaderOption {
   label: string
 }
 
+export interface PositionDiagramOption {
+  type: 'position-diagram'
+  name: string
+  label: string
+}
+
 export type ToolOption =
   | SliderOption
   | ToggleOption
@@ -93,6 +99,7 @@ export type ToolOption =
   | NumberWithChipsOption
   | TextInputOption
   | SectionHeaderOption
+  | PositionDiagramOption
 
 export type ToolOptions = Record<string, unknown>
 
