@@ -11,8 +11,8 @@ export const config: ToolConfig = {
   acceptsExt: ['.gif'],
   outputExt: '.mp4',
   convertFn: (files, opts, onProgress) =>
+      gifToMp4(files, opts, onProgress),
   enablePresets: true,
-    gifToMp4(files, opts, onProgress),
 
   options: [
     {

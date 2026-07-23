@@ -11,8 +11,8 @@ export const config: ToolConfig = {
   acceptsExt: ['.webp'],
   outputExt: '.png',
   convertFn: (files, opts, onProgress) =>
+      libvipsConvert(files, 'png', opts, onProgress),
   enablePresets: true,
-    libvipsConvert(files, 'png', opts, onProgress),
 
   options: [
     {

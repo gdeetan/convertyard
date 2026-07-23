@@ -12,7 +12,6 @@ export const config: ToolConfig = {
   outputExt: '.jpg',
 
   convertFn: async (files, options, onProgress): Promise<ConversionResult[]> => {
-  enablePresets: true,
     const scale = ((options.scale as string) ?? '4x') as UpscaleScale
     const outputFormat = ((options.outputFormat as string) ?? 'match') as UpscaleOutputFormat
     const imageMode = ((options.imageMode as string) ?? 'auto') as ImageMode
@@ -24,6 +23,7 @@ export const config: ToolConfig = {
     )
     return results
   },
+  enablePresets: true,
 
   options: [
     {

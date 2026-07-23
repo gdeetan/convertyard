@@ -183,7 +183,7 @@ export default function Page() {
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
-      <Breadcrumb category={{ label: 'PDF Tools', href: '/pdf' }} current={config.title} />
+      <Breadcrumb items={[{ label: 'PDF Tools', href: '/pdf' }, { label: config.title }]} />
 
       <h1 className="mt-4 text-3xl font-bold tracking-tight text-fg">{config.title}</h1>
       <p className="mt-2 text-fg-muted">{config.subtitle}</p>
