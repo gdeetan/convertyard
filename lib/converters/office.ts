@@ -11,6 +11,24 @@ const PAGE_SIZES: Record<string, readonly [number, number]> = {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
+/**
+ * Normalize a string so it only contains characters pdf-lib's WinAnsi fonts
+ * (Helvetica, HelveticaBold, etc.) can encode.  Word documents regularly
+ * contain curly quotes, em-dashes, and newlines — all of which throw
+ * "WinAnsi cannot encode" without this step.
+ */
+function sanitizeForPdf(text: string): string {
+  return text
+    .replace(/[\r\n\t\v\f]+/g, ' ')           // control whitespace → space
+    .replace(/[‘’ʼ]/g, "'")     // curly single quotes / apostrophe
+    .replace(/[“”„‟]/g, '"') // curly double quotes
+    .replace(/[–—―]/g, '-')     // en-dash / em-dash / horizontal bar
+    .replace(/…/g, '...')                 // ellipsis
+    .replace(/[^\x20-\x7E\xA0-\xFF]/g, '')    // drop anything else outside WinAnsi
+    .replace(/ {2,}/g, ' ')                    // collapse runs of spaces
+    .trim()
+}
+
 function getPageDimensions(options: ToolOptions, defaultSize = 'letter', defaultOrientation = 'portrait'): [number, number] {
   const sizeKey = (options.pageSize as string) ?? defaultSize
   const orientation = (options.orientation as string) ?? defaultOrientation
@@ -36,7 +54,8 @@ async function wrapText(
   size: number,
   maxWidth: number
 ): Promise<string[]> {
-  const words = text.split(' ')
+  const safe = sanitizeForPdf(text)
+  const words = safe.split(/\s+/).filter(w => w.length > 0)
   const lines: string[] = []
   let currentLine = ''
 
@@ -46,7 +65,7 @@ async function wrapText(
       currentLine = candidate
     } else {
       if (currentLine) lines.push(currentLine)
-      // If single word is too wide, push it as-is
+      // If single word is too wide, push it as-is (truncation happens at draw time)
       currentLine = word
     }
   }
@@ -54,19 +73,20 @@ async function wrapText(
   return lines
 }
 
-/** Truncate text to fit within maxWidth at the given font size, adding '…' if needed. */
+/** Truncate text to fit within maxWidth at the given font size, adding '...' if needed. */
 function truncateText(
   text: string,
   font: Awaited<ReturnType<PDFDocument['embedFont']>>,
   size: number,
   maxWidth: number
 ): string {
-  if (font.widthOfTextAtSize(text, size) <= maxWidth) return text
-  let truncated = text
-  while (truncated.length > 0 && font.widthOfTextAtSize(truncated + '…', size) > maxWidth) {
+  const safe = sanitizeForPdf(text)
+  if (font.widthOfTextAtSize(safe, size) <= maxWidth) return safe
+  let truncated = safe
+  while (truncated.length > 0 && font.widthOfTextAtSize(truncated + '...', size) > maxWidth) {
     truncated = truncated.slice(0, -1)
   }
-  return truncated + '…'
+  return truncated + '...'
 }
 
 // ── wordToPdf ─────────────────────────────────────────────────────────────────
@@ -144,7 +164,7 @@ export async function wordToPdf(
 
       for (const el of elements) {
         const tag = el.tagName.toLowerCase()
-        const rawText = el.textContent ?? ''
+        const rawText = sanitizeForPdf(el.textContent ?? '')
 
         if (tag === 'h1') {
           const lines = await wrapText(rawText, boldFont, 20, contentWidth)
@@ -162,8 +182,8 @@ export async function wordToPdf(
         } else if (tag === 'ul' || tag === 'ol') {
           const items = Array.from(el.querySelectorAll('li'))
           for (let idx = 0; idx < items.length; idx++) {
-            const bullet = tag === 'ul' ? '  • ' : `  ${idx + 1}. `
-            const itemText = items[idx].textContent ?? ''
+            const bullet = tag === 'ul' ? '  * ' : `  ${idx + 1}. `
+            const itemText = sanitizeForPdf(items[idx].textContent ?? '')
             const bulletWidth = regularFont.widthOfTextAtSize(bullet, 11)
             const lines = await wrapText(itemText, regularFont, 11, contentWidth - bulletWidth)
             for (let li = 0; li < lines.length; li++) {
