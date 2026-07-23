@@ -64,3 +64,44 @@ export async function headerFooterPdf(
 
   return results
 }
+
+export async function editPdfMetadata(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+  const title = (options.title as string) ?? ''
+  const author = (options.author as string) ?? ''
+  const subject = (options.subject as string) ?? ''
+  const keywordsRaw = (options.keywords as string) ?? ''
+  const creator = (options.creator as string) ?? ''
+
+  const keywords = keywordsRaw
+    .split(';')
+    .map((k) => k.trim())
+    .filter(Boolean)
+
+  for (let i = 0; i < files.length; i++) {
+    try {
+      onProgress?.(i, 10)
+      const buffer = await files[i].arrayBuffer()
+      const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+
+      doc.setTitle(title)
+      doc.setAuthor(author)
+      doc.setSubject(subject)
+      doc.setKeywords(keywords)
+      doc.setCreator(creator)
+
+      const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+      const baseName = files[i].name.replace(/\.pdf$/i, '')
+      results.push(new File([bytes as Uint8Array<ArrayBuffer>], `${baseName}-metadata.pdf`, { type: 'application/pdf' }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(err instanceof Error ? err : new Error(String(err)))
+    }
+  }
+
+  return results
+}
