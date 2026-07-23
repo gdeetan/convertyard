@@ -71,4 +71,9 @@ describe('calcOverlayPct', () => {
     const result = calcOverlayPct({ topMm: 0, rightMm: 0, bottomMm: 0, leftMm: 0 }, 595, 842)
     expect(result).toEqual({ topPct: 0, rightPct: 0, bottomPct: 0, leftPct: 0 })
   })
+
+  it('returns zeros for a zero-dimension page (guard against corrupt PDFs)', () => {
+    const result = calcOverlayPct({ topMm: 10, rightMm: 10, bottomMm: 10, leftMm: 10 }, 0, 0)
+    expect(result).toEqual({ topPct: 0, rightPct: 0, bottomPct: 0, leftPct: 0 })
+  })
 })

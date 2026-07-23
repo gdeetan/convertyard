@@ -1,6 +1,6 @@
 import type { ToolOptions } from '@/lib/types'
 
-export const MM_TO_PT = 2.8346
+export const MM_TO_PT = 72 / 25.4
 
 export interface CropMarginsMm {
   topMm: number
@@ -36,6 +36,9 @@ export function calcOverlayPct(
   pageWidthPt: number,
   pageHeightPt: number
 ): CropOverlayPct {
+  if (pageWidthPt === 0 || pageHeightPt === 0) {
+    return { topPct: 0, rightPct: 0, bottomPct: 0, leftPct: 0 }
+  }
   return {
     topPct:    (margins.topMm    * MM_TO_PT) / pageHeightPt * 100,
     rightPct:  (margins.rightMm  * MM_TO_PT) / pageWidthPt  * 100,
