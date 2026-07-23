@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
-import { headerFooterPdf, editPdfMetadata } from '../pdf-tier3'
+import { headerFooterPdf, editPdfMetadata, flattenPdf } from '../pdf-tier3'
 import { PDFDocument } from 'pdf-lib'
 
 function fixture(name: string): File {
@@ -119,5 +119,40 @@ describe('editPdfMetadata', () => {
     expect(results).toHaveLength(2)
     expect(results[0]).toBeInstanceOf(File)
     expect(results[1]).toBeInstanceOf(File)
+  })
+})
+
+describe('flattenPdf', () => {
+  it('returns a PDF file', async () => {
+    const results = await flattenPdf(
+      [fixture('single-page.pdf')],
+      {}
+    )
+    expect(results[0]).toBeInstanceOf(File)
+    expect((results[0] as File).type).toBe('application/pdf')
+  })
+
+  it('output filename has -flattened suffix', async () => {
+    const results = await flattenPdf([fixture('single-page.pdf')], {})
+    expect((results[0] as File).name).toBe('single-page-flattened.pdf')
+  })
+
+  it('works on PDF with no form fields', async () => {
+    const results = await flattenPdf([fixture('normal-10-page.pdf')], {})
+    expect(results[0]).toBeInstanceOf(File)
+  })
+
+  it('returns Error for corrupt input', async () => {
+    const results = await flattenPdf([fixture('zero-byte.pdf')], {})
+    expect(results[0]).toBeInstanceOf(Error)
+  })
+
+  it('handles batch', async () => {
+    const results = await flattenPdf(
+      [fixture('single-page.pdf'), fixture('normal-10-page.pdf')],
+      {}
+    )
+    expect(results).toHaveLength(2)
+    results.forEach(r => expect(r).toBeInstanceOf(File))
   })
 })

@@ -105,3 +105,29 @@ export async function editPdfMetadata(
 
   return results
 }
+
+export async function flattenPdf(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+
+  for (let i = 0; i < files.length; i++) {
+    try {
+      onProgress?.(i, 10)
+      const buffer = await files[i].arrayBuffer()
+      const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+      doc.getForm().flatten()
+      onProgress?.(i, 70)
+      const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+      const baseName = files[i].name.replace(/\.pdf$/i, '')
+      results.push(new File([bytes as Uint8Array<ArrayBuffer>], `${baseName}-flattened.pdf`, { type: 'application/pdf' }))
+      onProgress?.(i, 100)
+    } catch (err) {
+      results.push(err instanceof Error ? err : new Error(String(err)))
+    }
+  }
+
+  return results
+}
