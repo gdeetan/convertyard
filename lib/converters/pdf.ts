@@ -263,6 +263,10 @@ async function rasterizeGrayscaleForTarget(
   return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
 }
 
+function sanitizePdfText(s: string): string {
+  return s.replace(/[\r\n\t]/g, ' ').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
+}
+
 function isValidPdf(bytes: Uint8Array): boolean {
   const header = new TextDecoder().decode(bytes.slice(0, 8))
   return header.startsWith('%PDF-1.') || header.startsWith('%PDF-2.')
@@ -1950,13 +1954,9 @@ export async function renderTokensToPdf(
     }
   }
 
-  function sanitizeText(s: string): string {
-    return s.replace(/[\r\n\t]/g, ' ').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
-  }
-
   function wrapText(text: string, font: EmbeddedFont, size: number, maxWidth: number): string[] {
     if (!text?.trim()) return []
-    const words = sanitizeText(text).split(' ').filter(Boolean)
+    const words = sanitizePdfText(text).split(' ').filter(Boolean)
     const lines: string[] = []
     let current = ''
     for (const word of words) {
@@ -2038,7 +2038,7 @@ export async function renderTokensToPdf(
         for (const span of token.inline) {
           const f: EmbeddedFont = span.code ? fontCode : span.bold ? fontBold : span.italic ? fontItalic : fontBody
           const sz = span.code ? codeSize : bodySize
-          const words = sanitizeText(span.text).split(' ').filter(Boolean)
+          const words = sanitizePdfText(span.text).split(' ').filter(Boolean)
           for (let wi = 0; wi < words.length; wi++) {
             const word = words[wi]
             const piece = wi < words.length - 1 ? word + ' ' : word
@@ -2148,7 +2148,11 @@ export async function markdownToPdf(
     const result: Array<{ text: string; bold?: boolean; italic?: boolean; code?: boolean }> = []
     for (const tok of tokens) {
       if (tok.type === 'text') {
-        result.push({ text: tok.text ?? '' })
+        if (tok.tokens && tok.tokens.length > 0) {
+          result.push(...parseInline(tok.tokens))
+        } else {
+          result.push({ text: sanitizePdfText(tok.text ?? '') })
+        }
       } else if (tok.type === 'strong') {
         for (const inner of parseInline(tok.tokens ?? [])) {
           result.push({ ...inner, bold: true })
@@ -2158,13 +2162,15 @@ export async function markdownToPdf(
           result.push({ ...inner, italic: true })
         }
       } else if (tok.type === 'codespan') {
-        result.push({ text: tok.text ?? '', code: true })
+        result.push({ text: sanitizePdfText(tok.text ?? ''), code: true })
       } else if (tok.type === 'link') {
         for (const inner of parseInline(tok.tokens ?? [])) {
           result.push(inner)
         }
-      } else {
-        result.push({ text: tok.text ?? '' })
+      } else if (tok.type === 'softbreak' || tok.type === 'br') {
+        result.push({ text: ' ' })
+      } else if (tok.text) {
+        result.push({ text: sanitizePdfText(tok.text) })
       }
     }
     return result
@@ -2185,14 +2191,14 @@ export async function markdownToPdf(
       if (tok.type === 'heading') {
         out.push({
           type: 'heading',
-          text: tok.text ?? '',
+          text: sanitizePdfText(tok.text ?? ''),
           level: (tok.depth as 1 | 2 | 3) ?? 1,
           inline: parseInline(tok.tokens ?? []),
         })
       } else if (tok.type === 'paragraph') {
         out.push({
           type: 'paragraph',
-          text: tok.text ?? '',
+          text: sanitizePdfText(tok.text ?? ''),
           inline: parseInline(tok.tokens ?? []),
         })
       } else if (tok.type === 'code') {
@@ -2202,7 +2208,7 @@ export async function markdownToPdf(
         items.forEach((item, i) => {
           out.push({
             type: 'list-item',
-            text: item.text,
+            text: sanitizePdfText(item.text),
             ordered: tok.ordered ?? false,
             index: i + 1,
           })
@@ -2212,7 +2218,7 @@ export async function markdownToPdf(
       } else if (tok.type === 'blockquote') {
         const inner = tokensToRenderTokens(tok.tokens ?? [])
         const firstPara = inner.find(t => t.type === 'paragraph')
-        out.push({ type: 'blockquote', text: firstPara?.text ?? '' })
+        out.push({ type: 'blockquote', text: sanitizePdfText(firstPara?.text ?? '') })
       } else if (tok.type === 'space') {
         out.push({ type: 'space', text: '' })
       }
