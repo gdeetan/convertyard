@@ -1,5 +1,5 @@
-import { headerFooterPdf } from '@/lib/converters/pdf-tier3'
 import { HeaderFooterPreview } from '@/components/tool-shell/header-footer-preview'
+import { headerFooterPdf } from '@/lib/converters/pdf-tier3'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
