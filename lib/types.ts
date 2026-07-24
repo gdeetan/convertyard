@@ -71,6 +71,16 @@ export interface NumberWithChipsOption extends BaseOption {
   defaultUnit?: string
 }
 
+export interface NumberWithPresetsOption extends BaseOption {
+  type: 'number-with-presets'
+  presets: number[]
+  unit?: string
+  min?: number
+  max?: number
+  step?: number
+  default: number
+}
+
 export interface TextInputOption extends BaseOption {
   type: 'text'
   placeholder?: string
@@ -97,6 +107,7 @@ export type ToolOption =
   | ColorPickerOption
   | ImageUploadOption
   | NumberWithChipsOption
+  | NumberWithPresetsOption
   | TextInputOption
   | SectionHeaderOption
   | PositionDiagramOption

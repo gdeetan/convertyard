@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { HelpCircle } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
-import type { ToolOption, ToolOptions, NumberWithChipsOption, RadioOption, SectionHeaderOption, PositionDiagramOption } from '@/lib/types'
+import type { ToolOption, ToolOptions, NumberWithChipsOption, NumberWithPresetsOption, RadioOption, SectionHeaderOption, PositionDiagramOption } from '@/lib/types'
 import { PositionDiagram } from './position-diagram'
 
 type RenderableOption = Exclude<ToolOption, SectionHeaderOption | PositionDiagramOption>
@@ -294,6 +294,14 @@ function OptionRow({
           />
         )}
 
+        {opt.type === 'number-with-presets' && (
+          <NumberWithPresetsControl
+            opt={opt as NumberWithPresetsOption}
+            value={value}
+            onChange={onChange}
+          />
+        )}
+
         {opt.hint && (
           <p className="mt-1 text-xs text-fg-subtle">{opt.hint}</p>
         )}
@@ -383,6 +391,56 @@ function NumberWithChipsControl({
           ))}
         </div>
       )}
+    </div>
+  )
+}
+
+function NumberWithPresetsControl({
+  opt,
+  value,
+  onChange,
+}: {
+  opt: NumberWithPresetsOption
+  value: unknown
+  onChange: (name: string, value: unknown) => void
+}) {
+  const current = typeof value === 'number' ? value : opt.default
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          min={opt.min ?? 1}
+          max={opt.max}
+          step={opt.step ?? 1}
+          value={current}
+          onChange={(e) => onChange(opt.name, Number(e.target.value))}
+          className={cn(
+            'w-24 rounded-md border border-border bg-bg-elevated px-3 py-1.5',
+            'text-sm text-fg',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+          )}
+        />
+        {opt.unit && <span className="text-sm text-fg-muted">{opt.unit}</span>}
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        {opt.presets.map((preset) => (
+          <button
+            key={preset}
+            type="button"
+            onClick={() => onChange(opt.name, preset)}
+            className={cn(
+              'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
+              current === preset
+                ? 'border-primary bg-primary/10 text-primary font-medium'
+                : 'border-border bg-bg-elevated text-fg-muted hover:border-primary/50 hover:text-fg'
+            )}
+          >
+            {preset}{opt.unit ? ` ${opt.unit}` : ''}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
