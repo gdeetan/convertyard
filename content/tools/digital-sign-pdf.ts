@@ -22,7 +22,11 @@ export const config: ToolConfig = {
     },
     {
       q: 'Can I sign multiple pages?',
-      a: 'Yes. After placing your signature, choose "All pages" to stamp every page at the same position, or "Select pages" to pick specific pages by number. The default is "This page" which signs only the page you are previewing.',
+      a: 'Yes. After placing your signature, choose "All pages" or "Select pages" to sign more than one page. When you click "Position on each page →", a step-through wizard opens so you can drag the signature to a different spot on each page individually before the PDF is saved.',
+    },
+    {
+      q: 'Can I place the signature in a different position on each page?',
+      a: 'Yes. When signing multiple pages, the tool enters a positioning wizard that shows each page one at a time. Drag the signature where you want it on that page, then click "Next" to move to the next page. Each page remembers its own position independently.',
     },
     {
       q: 'What is the difference between draw and type?',
