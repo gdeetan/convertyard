@@ -73,10 +73,17 @@ export function HeaderFooterPreview({ files, options }: Props) {
     }
   }, [firstFile])
 
-  const headerTemplate = (options.headerText as string) ?? ''
-  const footerTemplate = (options.footerText as string) ?? ''
+  const rawHeaderText = (options.headerText as string) ?? ''
+  const rawFooterText = (options.footerText as string) ?? ''
+  const headerTemplate = rawHeaderText === 'custom'
+    ? (options.headerCustomText as string) ?? ''
+    : rawHeaderText
+  const footerTemplate = rawFooterText === 'custom'
+    ? (options.footerCustomText as string) ?? ''
+    : rawFooterText
   const headerMargin = typeof options.headerMargin === 'number' ? options.headerMargin : 30
   const footerMargin = typeof options.footerMargin === 'number' ? options.footerMargin : 30
+  const expandPage = options.expandPage === true
   const showHeader = headerTemplate.trim() !== ''
   const showFooter = footerTemplate.trim() !== ''
 
@@ -92,14 +99,78 @@ export function HeaderFooterPreview({ files, options }: Props) {
 
   if (pages.length === 0) return null
 
+  const BAND_STYLE = {
+    background: 'rgba(59,130,246,0.18)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  } as const
+
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
         {pages.map((page, i) => {
-          const headerPct = (headerMargin / page.heightPt) * 100
-          const footerPct = (footerMargin / page.heightPt) * 100
           const headerLabel = resolveText(headerTemplate, i + 1, pages.length)
           const footerLabel = resolveText(footerTemplate, i + 1, pages.length)
+
+          if (expandPage) {
+            const headerExpansion = showHeader ? headerMargin : 0
+            const footerExpansion = showFooter ? footerMargin : 0
+            const totalHeightPt = page.heightPt + headerExpansion + footerExpansion
+            const headerBandPct = (headerExpansion / totalHeightPt) * 100
+            const imgHeightPct = (page.heightPt / totalHeightPt) * 100
+            const footerBandPct = (footerExpansion / totalHeightPt) * 100
+
+            return (
+              <div
+                key={i}
+                className="relative w-full flex flex-col rounded border border-border overflow-hidden"
+                style={{ aspectRatio: `${page.widthPt} / ${totalHeightPt}` }}
+              >
+                {showHeader && (
+                  <div
+                    style={{
+                      ...BAND_STYLE,
+                      height: `${headerBandPct}%`,
+                      borderBottom: '1.5px dashed rgba(59,130,246,0.6)',
+                    }}
+                  >
+                    <span className="truncate px-1 text-[8px] leading-none text-blue-700 dark:text-blue-300">
+                      {headerLabel}
+                    </span>
+                  </div>
+                )}
+                <img
+                  src={page.url}
+                  alt={`Page ${i + 1}`}
+                  style={{ height: `${imgHeightPct}%`, objectFit: 'cover' }}
+                  className="w-full"
+                  draggable={false}
+                />
+                {showFooter && (
+                  <div
+                    style={{
+                      ...BAND_STYLE,
+                      height: `${footerBandPct}%`,
+                      borderTop: '1.5px dashed rgba(59,130,246,0.6)',
+                    }}
+                  >
+                    <span className="truncate px-1 text-[8px] leading-none text-blue-700 dark:text-blue-300">
+                      {footerLabel}
+                    </span>
+                  </div>
+                )}
+                <span className="absolute top-1 left-1/2 -translate-x-1/2 rounded bg-black/40 px-1.5 py-0.5 text-[9px] leading-none text-white">
+                  p.{i + 1}
+                </span>
+              </div>
+            )
+          }
+
+          // Non-expansion: overlay bands on the page thumbnail (existing behaviour)
+          const headerPct = (headerMargin / page.heightPt) * 100
+          const footerPct = (footerMargin / page.heightPt) * 100
 
           return (
             <div
@@ -165,7 +236,9 @@ export function HeaderFooterPreview({ files, options }: Props) {
         })}
       </div>
       <p className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
-        Blue bands show where header and footer text will be placed. Increase the margin if the band overlaps your content.
+        {expandPage
+          ? 'Blue bands show new whitespace being added to the page. Your existing content will not be touched.'
+          : 'Blue bands show where header and footer text will be placed. Increase the margin if the band overlaps your content.'}
       </p>
     </div>
   )
