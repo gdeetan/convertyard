@@ -21,6 +21,7 @@ interface Props {
 }
 
 export function HeaderFooterPreview({ files, options }: Props) {
+  // onChange required by interactivePanel slot in ToolConfig, not used by this component
   const [pages, setPages] = useState<PageData[]>([])
   const [loading, setLoading] = useState(false)
   const urlsRef = useRef<string[]>([])
