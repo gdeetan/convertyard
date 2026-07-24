@@ -63,6 +63,7 @@ describe('headerFooterPdf', () => {
     expect(resolveText('Page {page} of {total}', 3, 10)).toBe('Page 3 of 10')
     expect(resolveText('{page}', 1, 5)).toBe('1')
     expect(resolveText('CONFIDENTIAL', 1, 1)).toBe('CONFIDENTIAL')
+    expect(resolveText('{date}', 1, 1)).not.toContain('{date}')
   })
 
   it('uses custom headerMargin when provided', async () => {
