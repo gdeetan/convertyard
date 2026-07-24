@@ -1,4 +1,5 @@
 import { headerFooterPdf } from '@/lib/converters/pdf-tier3'
+import { HeaderFooterPreview } from '@/components/tool-shell/header-footer-preview'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -11,6 +12,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.pdf'],
   outputExt: '.pdf',
   convertFn: headerFooterPdf,
+  interactivePanel: HeaderFooterPreview,
   enablePresets: true,
   options: [
     {
@@ -27,6 +29,17 @@ export const config: ToolConfig = {
       default: '',
     },
     {
+      type: 'number-with-presets' as const,
+      name: 'headerMargin',
+      label: 'Header margin',
+      presets: [20, 30, 50, 72],
+      unit: 'pt',
+      min: 10,
+      max: 200,
+      step: 1,
+      default: 30,
+    },
+    {
       type: 'dropdown' as const,
       name: 'footerText',
       label: 'Footer text',
@@ -38,6 +51,17 @@ export const config: ToolConfig = {
         { value: 'CONFIDENTIAL',           label: 'CONFIDENTIAL' },
       ],
       default: 'Page {page} of {total}',
+    },
+    {
+      type: 'number-with-presets' as const,
+      name: 'footerMargin',
+      label: 'Footer margin',
+      presets: [20, 30, 50, 72],
+      unit: 'pt',
+      min: 10,
+      max: 200,
+      step: 1,
+      default: 30,
     },
     {
       type: 'radio' as const,
@@ -79,7 +103,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Will the header or footer overlap my content?',
-      a: 'The text is drawn 30 pt from the page edge. If your PDF has content that bleeds to the very edge, there is a small risk of overlap — try reducing the font size.',
+      a: 'The default margin is 30 pt from the page edge. If your PDF has content near the top or bottom, increase the Header margin or Footer margin — try 50 pt or 72 pt to push the text further in. The live preview shows exactly where the text will land.',
     },
   ],
   relatedTools: ['page-numbers', 'watermark-pdf', 'crop-pdf', 'compress-pdf'],
