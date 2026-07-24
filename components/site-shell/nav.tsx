@@ -24,6 +24,8 @@ const MEGAMENU_CATEGORIES = [
       { name: 'Background remover', href: '/background-remover' },
       { name: 'Image compressor',   href: '/compress-image' },
       { name: 'Image resizer',      href: '/image-resizer' },
+      { name: 'Image upscaler',     href: '/image-upscaler' },
+      { name: 'Image cropper',      href: '/image-cropper' },
     ],
   },
   {
@@ -33,14 +35,19 @@ const MEGAMENU_CATEGORIES = [
       { name: 'Merge PDF',    href: '/merge-pdf' },
       { name: 'Compress PDF', href: '/compress-pdf' },
       { name: 'PDF to JPG',   href: '/pdf-to-jpg' },
+      { name: 'PDF to Word',  href: '/pdf-to-word' },
+      { name: 'Split PDF',    href: '/split-pdf' },
     ],
   },
   {
     title: 'Video & Audio',
     href: '/tools#video-audio',
     tools: [
-      { name: 'MP4 to MP3', href: '/mp4-to-mp3' },
-      { name: 'MP3 to MP4', href: '/mp3-to-mp4' },
+      { name: 'MP4 to MP3',      href: '/mp4-to-mp3' },
+      { name: 'MP3 to MP4',      href: '/mp3-to-mp4' },
+      { name: 'Compress video',  href: '/compress-video' },
+      { name: 'Extract audio',   href: '/extract-audio' },
+      { name: 'Video trimmer',   href: '/video-trimmer' },
     ],
   },
   {
@@ -50,6 +57,8 @@ const MEGAMENU_CATEGORIES = [
       { name: 'JSON formatter', href: '/json-formatter' },
       { name: 'Base64',         href: '/base64' },
       { name: 'JSON to CSV',    href: '/json-to-csv' },
+      { name: 'JWT decoder',    href: '/jwt-decoder' },
+      { name: 'Regex tester',   href: '/regex-tester' },
     ],
   },
   {
@@ -58,6 +67,20 @@ const MEGAMENU_CATEGORIES = [
     tools: [
       { name: 'Alt text generator', href: '/alt-text-generator' },
       { name: 'Background remover', href: '/background-remover' },
+      { name: 'Image description',  href: '/image-description' },
+      { name: 'Image upscaler',     href: '/image-upscaler' },
+      { name: 'Transcription',      href: '/transcription' },
+    ],
+  },
+  {
+    title: 'Image to Text',
+    href: '/tools#image-to-text',
+    tools: [
+      { name: 'JPG to text',        href: '/jpg-to-text' },
+      { name: 'PNG to text',        href: '/png-to-text' },
+      { name: 'Screenshot to text', href: '/screenshot-to-text' },
+      { name: 'Scan to text',       href: '/scan-to-text' },
+      { name: 'PDF to text',        href: '/pdf-to-text' },
     ],
   },
 ]
@@ -230,7 +253,7 @@ export function Nav() {
                   )}
                   style={{ '--tw-shadow': 'var(--shadow-lg)' } as React.CSSProperties}
                 >
-                  <div className="grid grid-cols-6 gap-6">
+                  <div className="grid grid-cols-7 gap-6">
                     {MEGAMENU_CATEGORIES.map((cat) => (
                       <div key={cat.title}>
                         <Link
