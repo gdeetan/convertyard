@@ -22,7 +22,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Can I sign multiple pages?',
-      a: 'The current version places the signature on page 1 only. Multi-page signing is on the roadmap.',
+      a: 'Yes. After placing your signature, choose "All pages" to stamp every page at the same position, or "Select pages" to pick specific pages by number. The default is "This page" which signs only the page you are previewing.',
     },
     {
       q: 'What is the difference between draw and type?',

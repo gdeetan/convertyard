@@ -28,6 +28,8 @@ export default function Page() {
   const [selectedPage, setSelectedPage] = useState(0)
   const [sigPos, setSigPos] = useState<SignaturePos>({ x: 0.1, y: 0.7 })
   const [dragging, setDragging] = useState(false)
+  const [applyToPages, setApplyToPages] = useState<'current' | 'all' | 'custom'>('current')
+  const [customPages, setCustomPages] = useState<Set<number>>(new Set())
   const [resultUrl, setResultUrl] = useState<string | null>(null)
   const [resultName, setResultName] = useState('')
   const [error, setError] = useState('')
@@ -201,20 +203,27 @@ export default function Page() {
 
       const buffer = await file.arrayBuffer()
       const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
-      const page = doc.getPages()[selectedPage]
-      const { width: pageW, height: pageH } = page.getSize()
-
-      const pdfX = sigPos.x * pageW
-      const pdfY = pageH - sigPos.y * pageH
-
-      const sigPdfW = (sigDisplayW / previewW) * pageW
-      const sigPdfH = sigPdfW * (160 / 400)
 
       const sigBlob = await fetch(sigDataUrl).then(r => r.blob())
       const sigBytes = new Uint8Array(await sigBlob.arrayBuffer())
       const embedded = await doc.embedPng(sigBytes)
 
-      page.drawImage(embedded, { x: pdfX, y: pdfY - sigPdfH, width: sigPdfW, height: sigPdfH })
+      const pagesToSign =
+        applyToPages === 'all'
+          ? Array.from({ length: pageCount }, (_, i) => i)
+          : applyToPages === 'custom'
+          ? Array.from(customPages).sort((a, b) => a - b)
+          : [selectedPage]
+
+      for (const pageIndex of pagesToSign) {
+        const page = doc.getPages()[pageIndex]
+        const { width: pageW, height: pageH } = page.getSize()
+        const pdfX = sigPos.x * pageW
+        const pdfY = pageH - sigPos.y * pageH
+        const sigPdfW = (sigDisplayW / previewW) * pageW
+        const sigPdfH = sigPdfW * (160 / 400)
+        page.drawImage(embedded, { x: pdfX, y: pdfY - sigPdfH, width: sigPdfW, height: sigPdfH })
+      }
 
       const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
       const baseName = file.name.replace(/\.pdf$/i, '')
@@ -228,7 +237,21 @@ export default function Page() {
       setError(err instanceof Error ? err.message : 'Failed to apply signature')
       setPhase('error')
     }
-  }, [file, sigDataUrl, pagePreviewUrl, sigPos, selectedPage, resultUrl])
+  }, [file, sigDataUrl, pagePreviewUrl, sigPos, selectedPage, applyToPages, customPages, pageCount, resultUrl])
+
+  const handleApplyToPagesChange = (val: 'current' | 'all' | 'custom') => {
+    setApplyToPages(val)
+    if (val === 'custom') setCustomPages(new Set([selectedPage]))
+  }
+
+  const toggleCustomPage = (p: number) => {
+    setCustomPages(prev => {
+      const next = new Set(prev)
+      if (next.has(p)) next.delete(p)
+      else next.add(p)
+      return next
+    })
+  }
 
   const handleReset = () => {
     if (resultUrl) URL.revokeObjectURL(resultUrl)
@@ -243,6 +266,8 @@ export default function Page() {
     setResultName('')
     setError('')
     setTypedName('')
+    setApplyToPages('current')
+    setCustomPages(new Set())
   }
 
   return (
@@ -403,11 +428,53 @@ export default function Page() {
               )}
             </div>
 
+            {sigDataUrl && pageCount > 1 && (
+              <div className="mt-3">
+                <p className="mb-1.5 text-xs font-medium text-fg-muted">Apply signature to</p>
+                <div className="flex gap-2">
+                  {(['current', 'all', 'custom'] as const).map(opt => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => handleApplyToPagesChange(opt)}
+                      className={cn(
+                        'rounded-lg border px-3 py-1.5 text-sm capitalize',
+                        applyToPages === opt
+                          ? 'border-primary bg-primary/10 text-primary'
+                          : 'border-border text-fg-muted'
+                      )}
+                    >
+                      {opt === 'current' ? 'This page' : opt === 'all' ? 'All pages' : 'Select pages'}
+                    </button>
+                  ))}
+                </div>
+                {applyToPages === 'custom' && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {Array.from({ length: pageCount }, (_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => toggleCustomPage(i)}
+                        className={cn(
+                          'h-8 w-8 rounded-lg border text-xs font-medium',
+                          customPages.has(i)
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border text-fg-muted'
+                        )}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {sigDataUrl && (
               <button
                 type="button"
                 onClick={applySignature}
-                disabled={phase === 'applying'}
+                disabled={phase === 'applying' || (applyToPages === 'custom' && customPages.size === 0)}
                 className="mt-3 w-full rounded-xl bg-primary px-4 py-3 font-semibold text-primary-fg hover:bg-primary-hover disabled:opacity-60"
               >
                 {phase === 'applying' ? 'Applying…' : 'Apply Signature'}
