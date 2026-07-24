@@ -37,7 +37,7 @@ function clamp(v: number, min: number, max: number) {
   return Math.max(min, Math.min(max, v))
 }
 
-function applyDrag(drag: DragState, mouseX: number, mouseY: number, aspectRatio: number | null): Rect {
+function applyDrag(drag: DragState, mouseX: number, mouseY: number, aspectRatio: number | null, naturalW: number, naturalH: number): Rect {
   const dx = (mouseX - drag.startMouseX) / drag.containerW
   const dy = (mouseY - drag.startMouseY) / drag.containerH
   const s = drag.startRect
@@ -66,11 +66,13 @@ function applyDrag(drag: DragState, mouseX: number, mouseY: number, aspectRatio:
       x = s.x + dx; w = s.w - dx; break
   }
 
-  if (aspectRatio !== null) {
+  // aspectRatio is in pixel space; convert to normalized-coord space:
+  // pixelW/pixelH = ratio → (w*naturalW)/(h*naturalH) = ratio
+  if (aspectRatio !== null && naturalW > 0 && naturalH > 0) {
     if (drag.handle === 'n' || drag.handle === 's') {
-      w = h * aspectRatio
+      w = h * naturalH * aspectRatio / naturalW
     } else {
-      h = w / aspectRatio
+      h = w * naturalW / (naturalH * aspectRatio)
       if (drag.handle === 'nw' || drag.handle === 'ne') {
         y = (s.y + s.h) - h
       }
@@ -87,12 +89,13 @@ function applyDrag(drag: DragState, mouseX: number, mouseY: number, aspectRatio:
   return { x, y, w, h }
 }
 
-function enforceAspect(rect: Rect, ratio: number | null): Rect {
-  if (ratio === null) return rect
+function enforceAspect(rect: Rect, ratio: number | null, naturalW: number, naturalH: number): Rect {
+  if (ratio === null || naturalW === 0 || naturalH === 0) return rect
   const centerX = rect.x + rect.w / 2
   const centerY = rect.y + rect.h / 2
   const w = rect.w
-  const h = w / ratio
+  // pixelW/pixelH = ratio → h = w * naturalW / (naturalH * ratio)
+  const h = w * naturalW / (naturalH * ratio)
   return {
     x: clamp(centerX - w / 2, 0, 1 - w),
     y: clamp(centerY - h / 2, 0, 1 - h),
@@ -140,7 +143,7 @@ export function CropBox({ files, options, onChange }: Props) {
   useEffect(() => {
     if (prevAspect.current === currentAspect) return
     prevAspect.current = currentAspect
-    const enforced = enforceAspect(cropRectRef.current, aspectRatio)
+    const enforced = enforceAspect(cropRectRef.current, aspectRatio, naturalW, naturalH)
     setCropRect(enforced)
     onChange('cropX', enforced.x)
     onChange('cropY', enforced.y)
@@ -174,18 +177,18 @@ export function CropBox({ files, options, onChange }: Props) {
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     const drag = dragRef.current
     if (!drag) return
-    const newRect = applyDrag(drag, e.clientX, e.clientY, aspectRatio)
+    const newRect = applyDrag(drag, e.clientX, e.clientY, aspectRatio, naturalW, naturalH)
     setCropRect(newRect)
-  }, [aspectRatio])
+  }, [aspectRatio, naturalW, naturalH])
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
     const drag = dragRef.current
     if (!drag) return
     dragRef.current = null
-    const finalRect = applyDrag(drag, e.clientX, e.clientY, aspectRatio)
+    const finalRect = applyDrag(drag, e.clientX, e.clientY, aspectRatio, naturalW, naturalH)
     setCropRect(finalRect)
     commitRect(finalRect)
-  }, [aspectRatio, commitRect])
+  }, [aspectRatio, naturalW, naturalH, commitRect])
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
     const NUDGE = e.shiftKey ? 0 : 0.01
@@ -201,10 +204,10 @@ export function CropBox({ files, options, onChange }: Props) {
       default: return
     }
     e.preventDefault()
-    const newRect = enforceAspect({ x, y, w, h }, aspectRatio)
+    const newRect = enforceAspect({ x, y, w, h }, aspectRatio, naturalW, naturalH)
     setCropRect(newRect)
     commitRect(newRect)
-  }, [aspectRatio, commitRect])
+  }, [aspectRatio, naturalW, naturalH, commitRect])
 
   const pxW = naturalW > 0 ? Math.round(cropRect.w * naturalW) : 0
   const pxH = naturalH > 0 ? Math.round(cropRect.h * naturalH) : 0
