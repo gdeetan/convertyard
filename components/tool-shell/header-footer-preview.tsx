@@ -117,7 +117,7 @@ export function HeaderFooterPreview({ files, options }: Props) {
           if (expandPage) {
             const headerExpansion = showHeader ? headerMargin : 0
             const footerExpansion = showFooter ? footerMargin : 0
-            const totalHeightPt = page.heightPt + headerExpansion + footerExpansion
+            const totalHeightPt = (page.heightPt + headerExpansion + footerExpansion) || 1
             const headerBandPct = (headerExpansion / totalHeightPt) * 100
             const imgHeightPct = (page.heightPt / totalHeightPt) * 100
             const footerBandPct = (footerExpansion / totalHeightPt) * 100
