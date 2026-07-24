@@ -70,6 +70,13 @@ export default function Page() {
     return { x: e.clientX - rect.left, y: e.clientY - rect.top }
   }
 
+  const getTouchPos = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    const canvas = drawCanvas.current!
+    const rect = canvas.getBoundingClientRect()
+    const touch = e.touches[0]
+    return { x: touch.clientX - rect.left, y: touch.clientY - rect.top }
+  }
+
   const startDraw = (e: React.MouseEvent<HTMLCanvasElement>) => {
     isDrawing.current = true
     const ctx = drawCanvas.current!.getContext('2d')!
@@ -90,6 +97,27 @@ export default function Page() {
   }
 
   const endDraw = () => { isDrawing.current = false }
+
+  const startTouchDraw = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    isDrawing.current = true
+    const ctx = drawCanvas.current!.getContext('2d')!
+    const { x, y } = getTouchPos(e)
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+  }
+
+  const touchDraw = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    e.preventDefault()
+    if (!isDrawing.current) return
+    const ctx = drawCanvas.current!.getContext('2d')!
+    const { x, y } = getTouchPos(e)
+    ctx.lineWidth = 2
+    ctx.lineCap = 'round'
+    ctx.strokeStyle = '#1a1a1a'
+    ctx.lineTo(x, y)
+    ctx.stroke()
+  }
 
   const clearCanvas = () => {
     const canvas = drawCanvas.current!
@@ -145,6 +173,7 @@ export default function Page() {
 
     const onMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY)
     const onTouchMove = (e: TouchEvent) => {
+      if (!dragging) return
       onMove(e.touches[0].clientX, e.touches[0].clientY)
       e.preventDefault()
     }
@@ -274,11 +303,14 @@ export default function Page() {
                   ref={drawCanvas}
                   width={400}
                   height={220}
-                  className="w-full rounded-xl border border-border bg-white cursor-crosshair"
+                  className="w-full rounded-xl border border-border bg-white cursor-crosshair touch-none"
                   onMouseDown={startDraw}
                   onMouseMove={draw}
                   onMouseUp={endDraw}
                   onMouseLeave={endDraw}
+                  onTouchStart={startTouchDraw}
+                  onTouchMove={touchDraw}
+                  onTouchEnd={endDraw}
                 />
                 <button
                   type="button"
