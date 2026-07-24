@@ -63,6 +63,7 @@ export async function headerFooterPdf(
           let y: number
           if (expandPage) {
             const expansion = isHeader ? headerExpansion : footerExpansion
+            // expansion === 0 only when template is empty; drawLabel returns early above in that case
             y = isHeader
               ? originalHeight + (expansion - fontSize) / 2
               : -(expansion + fontSize) / 2

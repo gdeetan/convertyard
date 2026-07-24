@@ -98,7 +98,7 @@ describe('headerFooterPdf', () => {
     expect(results[0]).toBeInstanceOf(File)
   })
 
-  it('uses headerCustomText when headerText is "custom"', async () => {
+  it('does not throw when headerText is "custom" with headerCustomText set', async () => {
     const results = await headerFooterPdf(
       [fixture('single-page.pdf')],
       { headerText: 'custom', headerCustomText: 'My Company', footerText: '', fontSize: 10, alignment: 'center', headerMargin: 30, footerMargin: 30 }
@@ -106,7 +106,7 @@ describe('headerFooterPdf', () => {
     expect(results[0]).toBeInstanceOf(File)
   })
 
-  it('uses footerCustomText when footerText is "custom"', async () => {
+  it('does not throw when footerText is "custom" with footerCustomText set', async () => {
     const results = await headerFooterPdf(
       [fixture('single-page.pdf')],
       { headerText: '', footerText: 'custom', footerCustomText: 'Page {page}', fontSize: 10, alignment: 'center', headerMargin: 30, footerMargin: 30 }
@@ -114,7 +114,7 @@ describe('headerFooterPdf', () => {
     expect(results[0]).toBeInstanceOf(File)
   })
 
-  it('resolves {page} token in custom footer text', async () => {
+  it('does not throw when custom footer text contains {page} token', async () => {
     const results = await headerFooterPdf(
       [fixture('normal-10-page.pdf')],
       { headerText: '', footerText: 'custom', footerCustomText: '{page} of {total}', fontSize: 10, alignment: 'center', headerMargin: 30, footerMargin: 30 }
