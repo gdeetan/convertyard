@@ -25,8 +25,17 @@ export const config: ToolConfig = {
         { value: 'Page {page} of {total}', label: 'Page number (Page {page} of {total})' },
         { value: 'CONFIDENTIAL',           label: 'CONFIDENTIAL' },
         { value: 'DRAFT',                  label: 'DRAFT' },
+        { value: 'custom',                 label: 'Other…' },
       ],
       default: '',
+    },
+    {
+      type: 'text' as const,
+      name: 'headerCustomText',
+      label: 'Custom header text',
+      placeholder: 'e.g. Company Name',
+      default: '',
+      dependsOn: { name: 'headerText', value: 'custom' },
     },
     {
       type: 'number-with-presets' as const,
@@ -49,8 +58,17 @@ export const config: ToolConfig = {
         { value: '{page}',                 label: 'Page number only ({page})' },
         { value: '{date}',                 label: 'Date ({date})' },
         { value: 'CONFIDENTIAL',           label: 'CONFIDENTIAL' },
+        { value: 'custom',                 label: 'Other…' },
       ],
       default: 'Page {page} of {total}',
+    },
+    {
+      type: 'text' as const,
+      name: 'footerCustomText',
+      label: 'Custom footer text',
+      placeholder: 'e.g. Confidential — Do Not Distribute',
+      default: '',
+      dependsOn: { name: 'footerText', value: 'custom' },
     },
     {
       type: 'number-with-presets' as const,
@@ -83,6 +101,12 @@ export const config: ToolConfig = {
       step: 1,
       default: 10,
     },
+    {
+      type: 'toggle' as const,
+      name: 'expandPage',
+      label: 'Expand page to fit',
+      default: false,
+    },
   ],
   faq: [
     {
@@ -91,11 +115,15 @@ export const config: ToolConfig = {
     },
     {
       q: 'What variables can I use in the text?',
-      a: '{page} inserts the current page number, {total} inserts the total page count, and {date} inserts today\'s date (e.g. "Jul 23, 2026").',
+      a: '{page} inserts the current page number, {total} inserts the total page count, and {date} inserts today\'s date (e.g. "Jul 23, 2026"). These tokens work in custom text too.',
     },
     {
       q: 'Can I add a header but no footer, or vice versa?',
       a: 'Yes. Select "None" for either field and only the other will be stamped.',
+    },
+    {
+      q: 'Can I type my own header or footer text?',
+      a: 'Yes. Select "Other…" from the header or footer dropdown to reveal a text field. You can type any text, and tokens like {page} and {date} still work.',
     },
     {
       q: 'Can I apply different headers to different PDFs in the same batch?',
@@ -103,13 +131,17 @@ export const config: ToolConfig = {
     },
     {
       q: 'Will the header or footer overlap my content?',
-      a: 'The default margin is 30 pt from the page edge. If your PDF has content near the top or bottom, increase the Header margin or Footer margin — try 50 pt or 72 pt to push the text further in. The live preview shows exactly where the text will land.',
+      a: 'The default margin is 30 pt from the page edge. If your PDF has content near the top or bottom, increase the Header margin or Footer margin — try 50 pt or 72 pt. For guaranteed zero overlap, enable "Expand page to fit" — this physically grows the page and adds blank whitespace for the stamped text.',
+    },
+    {
+      q: 'What does "Expand page to fit" do?',
+      a: 'When enabled, the tool physically grows each page by the margin amount — adding blank whitespace above for the header and below for the footer. This guarantees the stamped text never overlaps existing content, even in PDFs that fill the page edge-to-edge. The page dimensions of the output will be slightly larger than the original.',
     },
   ],
   relatedTools: ['page-numbers', 'watermark-pdf', 'crop-pdf', 'compress-pdf'],
   relatedArticles: [],
   meta: {
     title: 'Add Header and Footer to PDF — ConvertYard',
-    description: 'Add custom headers and footers to PDF files in your browser. Supports page numbers and dates. Batch 1,000 files — no uploads, entirely local.',
+    description: 'Add custom headers and footers to PDF files in your browser. Supports page numbers, dates, and custom text. Batch 1,000 files — no uploads, entirely local.',
   },
 }
