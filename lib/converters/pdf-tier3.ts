@@ -1,6 +1,8 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import type { ConversionResult, ToolOptions } from '@/lib/types'
 
+const HORIZONTAL_INSET = 30
+
 export function resolveText(template: string, page: number, total: number): string {
   const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
   return template
@@ -41,8 +43,8 @@ export async function headerFooterPdf(
           const label = resolveText(template, pageNum, total)
           const textWidth = font.widthOfTextAtSize(label, fontSize)
           let x: number
-          if (alignment === 'left') x = 30
-          else if (alignment === 'right') x = width - textWidth - 30
+          if (alignment === 'left') x = HORIZONTAL_INSET
+          else if (alignment === 'right') x = width - textWidth - HORIZONTAL_INSET
           else x = (width - textWidth) / 2
           const margin = isHeader ? headerMargin : footerMargin
           const y = isHeader ? height - margin - fontSize : margin
