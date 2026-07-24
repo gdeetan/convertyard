@@ -17,12 +17,19 @@ export async function headerFooterPdf(
   onProgress?: (fileIndex: number, pct: number) => void
 ): Promise<ConversionResult[]> {
   const results: ConversionResult[] = []
-  const headerTemplate = (options.headerText as string) ?? ''
-  const footerTemplate = (options.footerText as string) ?? ''
+
+  const headerTemplate = options.headerText === 'custom'
+    ? (options.headerCustomText as string) ?? ''
+    : (options.headerText as string) ?? ''
+  const footerTemplate = options.footerText === 'custom'
+    ? (options.footerCustomText as string) ?? ''
+    : (options.footerText as string) ?? ''
+
   const fontSize = typeof options.fontSize === 'number' ? Math.max(6, Math.min(24, options.fontSize)) : 10
   const alignment = (options.alignment as string) ?? 'center'
   const headerMargin = typeof options.headerMargin === 'number' ? Math.max(10, Math.min(200, options.headerMargin)) : 30
   const footerMargin = typeof options.footerMargin === 'number' ? Math.max(10, Math.min(200, options.footerMargin)) : 30
+  const expandPage = options.expandPage === true
 
   for (let i = 0; i < files.length; i++) {
     try {
@@ -35,8 +42,15 @@ export async function headerFooterPdf(
 
       for (let p = 0; p < pages.length; p++) {
         const page = pages[p]
-        const { width, height } = page.getSize()
+        const { width, height: originalHeight } = page.getSize()
         const pageNum = p + 1
+
+        const headerExpansion = expandPage && headerTemplate.trim() ? headerMargin : 0
+        const footerExpansion = expandPage && footerTemplate.trim() ? footerMargin : 0
+
+        if (expandPage && (headerExpansion > 0 || footerExpansion > 0)) {
+          page.setMediaBox(0, -footerExpansion, width, originalHeight + headerExpansion + footerExpansion)
+        }
 
         const drawLabel = (template: string, isHeader: boolean) => {
           if (!template.trim()) return
@@ -46,8 +60,16 @@ export async function headerFooterPdf(
           if (alignment === 'left') x = HORIZONTAL_INSET
           else if (alignment === 'right') x = width - textWidth - HORIZONTAL_INSET
           else x = (width - textWidth) / 2
-          const margin = isHeader ? headerMargin : footerMargin
-          const y = isHeader ? height - margin - fontSize : margin
+          let y: number
+          if (expandPage) {
+            const expansion = isHeader ? headerExpansion : footerExpansion
+            y = isHeader
+              ? originalHeight + (expansion - fontSize) / 2
+              : -(expansion + fontSize) / 2
+          } else {
+            const margin = isHeader ? headerMargin : footerMargin
+            y = isHeader ? originalHeight - margin - fontSize : margin
+          }
           page.drawText(label, { x, y, size: fontSize, font, color: rgb(0, 0, 0), opacity: 1 })
         }
 

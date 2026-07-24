@@ -97,6 +97,98 @@ describe('headerFooterPdf', () => {
     )
     expect(results[0]).toBeInstanceOf(File)
   })
+
+  it('uses headerCustomText when headerText is "custom"', async () => {
+    const results = await headerFooterPdf(
+      [fixture('single-page.pdf')],
+      { headerText: 'custom', headerCustomText: 'My Company', footerText: '', fontSize: 10, alignment: 'center', headerMargin: 30, footerMargin: 30 }
+    )
+    expect(results[0]).toBeInstanceOf(File)
+  })
+
+  it('uses footerCustomText when footerText is "custom"', async () => {
+    const results = await headerFooterPdf(
+      [fixture('single-page.pdf')],
+      { headerText: '', footerText: 'custom', footerCustomText: 'Page {page}', fontSize: 10, alignment: 'center', headerMargin: 30, footerMargin: 30 }
+    )
+    expect(results[0]).toBeInstanceOf(File)
+  })
+
+  it('resolves {page} token in custom footer text', async () => {
+    const results = await headerFooterPdf(
+      [fixture('normal-10-page.pdf')],
+      { headerText: '', footerText: 'custom', footerCustomText: '{page} of {total}', fontSize: 10, alignment: 'center', headerMargin: 30, footerMargin: 30 }
+    )
+    expect(results[0]).toBeInstanceOf(File)
+  })
+
+  it('expandPage grows page height by headerMargin when only header is set', async () => {
+    const file = fixture('single-page.pdf')
+    const buf = await file.arrayBuffer()
+    const original = await PDFDocument.load(buf)
+    const originalHeight = original.getPages()[0].getSize().height
+
+    const results = await headerFooterPdf(
+      [file],
+      { headerText: 'TOP', footerText: '', fontSize: 10, alignment: 'center', headerMargin: 50, footerMargin: 30, expandPage: true }
+    )
+    const outFile = results[0] as File
+    const outBuf = await outFile.arrayBuffer()
+    const outDoc = await PDFDocument.load(outBuf)
+    const outHeight = outDoc.getPages()[0].getSize().height
+    expect(outHeight).toBeCloseTo(originalHeight + 50, 0)
+  })
+
+  it('expandPage grows page height by footerMargin when only footer is set', async () => {
+    const file = fixture('single-page.pdf')
+    const buf = await file.arrayBuffer()
+    const original = await PDFDocument.load(buf)
+    const originalHeight = original.getPages()[0].getSize().height
+
+    const results = await headerFooterPdf(
+      [file],
+      { headerText: '', footerText: 'BOTTOM', fontSize: 10, alignment: 'center', headerMargin: 30, footerMargin: 40, expandPage: true }
+    )
+    const outFile = results[0] as File
+    const outBuf = await outFile.arrayBuffer()
+    const outDoc = await PDFDocument.load(outBuf)
+    const outHeight = outDoc.getPages()[0].getSize().height
+    expect(outHeight).toBeCloseTo(originalHeight + 40, 0)
+  })
+
+  it('expandPage grows page height by both margins when header and footer both set', async () => {
+    const file = fixture('single-page.pdf')
+    const buf = await file.arrayBuffer()
+    const original = await PDFDocument.load(buf)
+    const originalHeight = original.getPages()[0].getSize().height
+
+    const results = await headerFooterPdf(
+      [file],
+      { headerText: 'TOP', footerText: 'BOT', fontSize: 10, alignment: 'center', headerMargin: 50, footerMargin: 40, expandPage: true }
+    )
+    const outFile = results[0] as File
+    const outBuf = await outFile.arrayBuffer()
+    const outDoc = await PDFDocument.load(outBuf)
+    const outHeight = outDoc.getPages()[0].getSize().height
+    expect(outHeight).toBeCloseTo(originalHeight + 50 + 40, 0)
+  })
+
+  it('expandPage=false leaves page size unchanged', async () => {
+    const file = fixture('single-page.pdf')
+    const buf = await file.arrayBuffer()
+    const original = await PDFDocument.load(buf)
+    const originalHeight = original.getPages()[0].getSize().height
+
+    const results = await headerFooterPdf(
+      [file],
+      { headerText: 'TOP', footerText: 'BOT', fontSize: 10, alignment: 'center', headerMargin: 50, footerMargin: 40, expandPage: false }
+    )
+    const outFile = results[0] as File
+    const outBuf = await outFile.arrayBuffer()
+    const outDoc = await PDFDocument.load(outBuf)
+    const outHeight = outDoc.getPages()[0].getSize().height
+    expect(outHeight).toBeCloseTo(originalHeight, 0)
+  })
 })
 
 describe('editPdfMetadata', () => {
