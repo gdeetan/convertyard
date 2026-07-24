@@ -351,10 +351,7 @@ export default function Page() {
             type="file"
             accept=".pdf,application/pdf"
             className="sr-only"
-            onChange={(e) => {
-              const f = e.target.files?.[0] ?? null
-              if (f) { setFile(f); setPhase('signing') }
-            }}
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           />
           <span className="text-lg font-semibold text-fg">Drop a PDF here</span>
           <span className="mt-1 text-sm text-fg-subtle">or click to select</span>
