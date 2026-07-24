@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'fs'
 import { resolve } from 'path'
-import { headerFooterPdf, editPdfMetadata, flattenPdf } from '../pdf-tier3'
+import { headerFooterPdf, editPdfMetadata, flattenPdf, resolveText } from '../pdf-tier3'
 import { PDFDocument } from 'pdf-lib'
 
 function fixture(name: string): File {
@@ -57,6 +57,44 @@ describe('headerFooterPdf', () => {
       { headerText: 'Test', footerText: '', fontSize: 10, alignment: 'left' }
     )
     expect(results).toHaveLength(2)
+  })
+
+  it('resolveText is exported and replaces tokens correctly', () => {
+    expect(resolveText('Page {page} of {total}', 3, 10)).toBe('Page 3 of 10')
+    expect(resolveText('{page}', 1, 5)).toBe('1')
+    expect(resolveText('CONFIDENTIAL', 1, 1)).toBe('CONFIDENTIAL')
+  })
+
+  it('uses custom headerMargin when provided', async () => {
+    const results = await headerFooterPdf(
+      [fixture('single-page.pdf')],
+      { headerText: 'TOP', footerText: '', fontSize: 10, alignment: 'center', headerMargin: 72 }
+    )
+    expect(results[0]).toBeInstanceOf(File)
+  })
+
+  it('uses custom footerMargin when provided', async () => {
+    const results = await headerFooterPdf(
+      [fixture('single-page.pdf')],
+      { headerText: '', footerText: 'BOTTOM', fontSize: 10, alignment: 'center', footerMargin: 50 }
+    )
+    expect(results[0]).toBeInstanceOf(File)
+  })
+
+  it('clamps headerMargin below 10 to 10', async () => {
+    const results = await headerFooterPdf(
+      [fixture('single-page.pdf')],
+      { headerText: 'H', footerText: '', fontSize: 10, alignment: 'center', headerMargin: 2 }
+    )
+    expect(results[0]).toBeInstanceOf(File)
+  })
+
+  it('clamps footerMargin above 200 to 200', async () => {
+    const results = await headerFooterPdf(
+      [fixture('single-page.pdf')],
+      { headerText: '', footerText: 'F', fontSize: 10, alignment: 'center', footerMargin: 999 }
+    )
+    expect(results[0]).toBeInstanceOf(File)
   })
 })
 

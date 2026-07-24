@@ -1,9 +1,7 @@
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib'
 import type { ConversionResult, ToolOptions } from '@/lib/types'
 
-const MARGIN = 30
-
-function resolveText(template: string, page: number, total: number): string {
+export function resolveText(template: string, page: number, total: number): string {
   const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
   return template
     .replace(/\{page\}/g, String(page))
@@ -21,6 +19,8 @@ export async function headerFooterPdf(
   const footerTemplate = (options.footerText as string) ?? ''
   const fontSize = typeof options.fontSize === 'number' ? Math.max(6, Math.min(24, options.fontSize)) : 10
   const alignment = (options.alignment as string) ?? 'center'
+  const headerMargin = typeof options.headerMargin === 'number' ? Math.max(10, Math.min(200, options.headerMargin)) : 30
+  const footerMargin = typeof options.footerMargin === 'number' ? Math.max(10, Math.min(200, options.footerMargin)) : 30
 
   for (let i = 0; i < files.length; i++) {
     try {
@@ -41,10 +41,11 @@ export async function headerFooterPdf(
           const label = resolveText(template, pageNum, total)
           const textWidth = font.widthOfTextAtSize(label, fontSize)
           let x: number
-          if (alignment === 'left') x = MARGIN
-          else if (alignment === 'right') x = width - textWidth - MARGIN
+          if (alignment === 'left') x = 30
+          else if (alignment === 'right') x = width - textWidth - 30
           else x = (width - textWidth) / 2
-          const y = isHeader ? height - MARGIN - fontSize : MARGIN
+          const margin = isHeader ? headerMargin : footerMargin
+          const y = isHeader ? height - margin - fontSize : margin
           page.drawText(label, { x, y, size: fontSize, font, color: rgb(0, 0, 0), opacity: 1 })
         }
 
