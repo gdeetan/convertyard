@@ -43,22 +43,29 @@ export default function Page() {
   const isDrawing = useRef(false)
   const dragStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null)
 
+  // Warm up mupdf worker + WASM before the user picks a file
+  useEffect(() => {
+    import('@/lib/converters/mupdf-client').then(({ getPageCount }) => {
+      getPageCount(new ArrayBuffer(0)).catch(() => {})
+    })
+  }, [])
+
   // Render preview when file or selected page changes
   useEffect(() => {
     if (!file) return
     let cancelled = false
     ;(async () => {
       const buf = await file.arrayBuffer()
+      const { renderPagePng, getPageCount } = await import('@/lib/converters/mupdf-client')
 
-      // Get page count on first load
-      if (selectedPage === 0) {
-        const doc = await PDFDocument.load(buf, { ignoreEncryption: true })
-        setPageCount(doc.getPageCount())
-      }
-
-      const { renderPagePng } = await import('@/lib/converters/mupdf-client')
-      const pngBuf = await renderPagePng(buf, selectedPage, 96)
+      // Run render + page count in parallel on first load (page count replaces pdf-lib parse)
+      const [pngBuf, count] = await Promise.all([
+        renderPagePng(buf, selectedPage, 96),
+        selectedPage === 0 ? getPageCount(buf) : Promise.resolve(0),
+      ])
       if (cancelled) return
+      if (selectedPage === 0) setPageCount(count)
+
       const url = URL.createObjectURL(new Blob([new Uint8Array(pngBuf)], { type: 'image/png' }))
       setPagePreviewUrl(prev => {
         if (prev) URL.revokeObjectURL(prev)
