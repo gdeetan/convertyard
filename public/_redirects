@@ -6,3 +6,28 @@
 /webp-vs-avif-vs-jpeg/ /avif-vs-webp-vs-jpeg-2026/ 301
 /table-image-to-text /image-to-excel 301
 /table-image-to-text/ /image-to-excel/ 301
+
+# Article slug → /blog/ fixes
+/lossless-vs-lossy /blog/lossless-vs-lossy 301
+/lossless-vs-lossy/ /blog/lossless-vs-lossy/ 301
+/best-webp-quality /blog/best-webp-quality 301
+/best-webp-quality/ /blog/best-webp-quality/ 301
+/avif-browser-support /blog/avif-browser-support 301
+/avif-browser-support/ /blog/avif-browser-support/ 301
+
+# Tool slug fixes
+/qr-code /qr-code-generator 301
+/qr-code/ /qr-code-generator/ 301
+
+# OG image extensionless → .png
+/compress-video/opengraph-image /compress-video/opengraph-image.png 301
+/pdf-to-jpg/opengraph-image /pdf-to-jpg/opengraph-image.png 301
+/avif-to-jpg/opengraph-image /avif-to-jpg/opengraph-image.png 301
+/webp-to-png/opengraph-image /webp-to-png/opengraph-image.png 301
+/heic-to-jpg/opengraph-image /heic-to-jpg/opengraph-image.png 301
+/png-to-webp/opengraph-image /png-to-webp/opengraph-image.png 301
+/compress-image/opengraph-image /compress-image/opengraph-image.png 301
+/compress-pdf/opengraph-image /compress-pdf/opengraph-image.png 301
+/heic-to-png/opengraph-image /heic-to-png/opengraph-image.png 301
+/alt-text-generator/opengraph-image /alt-text-generator/opengraph-image.png 301
+/jpg-to-webp/opengraph-image /jpg-to-webp/opengraph-image.png 301

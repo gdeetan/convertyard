@@ -174,4 +174,25 @@ export const articles: ArticleEntry[] = [
       'The five most common reasons exam portal photos get rejected — with exact fixes for each one so you can resubmit without retaking the photo.',
     lastUpdated: '2026-07-01',
   },
+  {
+    slug: 'audio-bitrate-explained',
+    title: 'Audio Bitrate Explained: What It Is and What Setting to Use',
+    description:
+      'Audio bitrate controls how much data is used to store each second of audio. Here is what the numbers mean, how they affect quality, and which setting to pick for every use case.',
+    lastUpdated: '2026-07-25',
+  },
+  {
+    slug: 'extract-audio-from-mp4',
+    title: 'How to Extract Audio from MP4 (Without Desktop Software)',
+    description:
+      'Three ways to pull audio out of an MP4 file: a browser tool (no uploads, no software), ffmpeg on the command line, and desktop apps. Includes format and quality guidance.',
+    lastUpdated: '2026-07-25',
+  },
+  {
+    slug: 'browser-video-editing-2026',
+    title: 'Browser-Based Video Editing in 2026: What You Can (and Cannot) Do',
+    description:
+      'Modern browsers can compress, convert, extract audio, trim, and package video entirely locally — no uploads. Here is what works, what the limits are, and when to use a desktop app instead.',
+    lastUpdated: '2026-07-25',
+  },
 ]

@@ -1,0 +1,153 @@
+export const meta = {
+  title: 'Browser-Based Video Editing in 2026: What You Can (and Cannot) Do',
+  description:
+    'Modern browsers can compress, convert, extract audio, trim, and package video entirely locally — no uploads. Here is what works, what the limits are, and when to use a desktop app instead.',
+  lastUpdated: '2026-07-25',
+  faq: [
+    {
+      q: 'Can you edit videos in a browser?',
+      a: 'For common tasks — compression, format conversion, audio extraction, trimming start and end points — yes, entirely in the browser with no uploads. For complex editing (multicamera, effects, color grading, timeline with multiple cuts) you still need a desktop app like DaVinci Resolve or Premiere.',
+    },
+    {
+      q: 'Are browser video tools as good as desktop software?',
+      a: 'For the tasks they support, they are equivalent or close. ffmpeg.wasm — the engine behind most browser video tools — is the same ffmpeg used in professional pipelines, compiled to WebAssembly. Compression quality and format support are the same as desktop ffmpeg. Speed is slower on large files because browsers run single-threaded WASM, but the output quality is identical.',
+    },
+    {
+      q: 'Do browser video tools upload my files?',
+      a: "Tools that use WebAssembly (WASM) run the processing engine entirely in your browser — your files never leave your device. Tools that show upload progress bars, process faster than a local tool could, or don't work offline are processing your files on a server. ConvertYard uses WASM; your files stay local.",
+    },
+    {
+      q: 'What is the file size limit for browser video processing?',
+      a: 'Browser video tools are limited by the RAM available to the browser tab, not by any upload limit. Most devices can handle files up to 2–4 GB. Very large files (10+ GB) may cause the tab to run out of memory. Desktop ffmpeg has no practical file size limit.',
+    },
+    {
+      q: 'How slow is browser video processing compared to desktop?',
+      a: 'Single-file processing is typically 2–5x slower in the browser than desktop ffmpeg, because browsers run WebAssembly single-threaded without hardware encoding access (no GPU, no H.264 hardware encoder). A 3-minute HD video that compresses in 30 seconds with desktop ffmpeg might take 2–3 minutes in the browser. For one-off tasks, this is acceptable. For batch processing large files, desktop ffmpeg or HandBrake is faster.',
+    },
+    {
+      q: 'Which browser video tasks still need desktop software?',
+      a: 'Multi-cut timeline editing, color grading, effects and transitions, chroma key (green screen), multi-camera sync, subtitle editing, and output to broadcast formats like MXF or ProRes all require a desktop NLE (DaVinci Resolve, Premiere, Final Cut). These tasks involve rendering decisions that need a proper project model — not something a stateless browser tool can provide.',
+    },
+  ],
+  relatedTools: ['compress-video', 'extract-audio', 'audio-trimmer', 'mp4-to-mp3'],
+}
+
+"Video editing" covers a wide range of tasks — from compressing a screen recording before emailing it to cutting a multicamera documentary. Browsers can handle more of that range than most people realize, but not all of it. Knowing where the line is saves you from downloading software you don't need, or frustrating yourself trying to do in a browser something that requires a proper editor.
+
+**[Compress video in your browser — no uploads →](/compress-video/)**
+
+## What WebAssembly makes possible
+
+The reason browser video tools got good is WebAssembly (WASM). WASM lets developers compile native code — C, C++, Rust — to a format that runs in any browser at near-native speed.
+
+ffmpeg, the open-source video processing toolkit used in professional pipelines, has been compiled to WebAssembly as `ffmpeg.wasm`. When a browser video tool uses ffmpeg.wasm, it's running the same processing logic as desktop ffmpeg — the same codecs, the same filters, the same quality. The difference is speed, which we'll cover below.
+
+The practical result: tasks that used to require installing software can now run in a browser tab, and your files never have to leave your device.
+
+## What you can do in a browser today
+
+### Compress video
+
+Reduce file size by re-encoding with a higher CRF (constant rate factor) or a lower bitrate. The browser tool sends the file through ffmpeg.wasm's H.264 or H.265 encoder.
+
+What works well: screen recordings, talking-head footage, vlogs, lecture recordings. These compress 40–70% with minimal visible quality loss.
+
+What compresses less efficiently: high-motion sports footage and gaming captures. The encoder has to preserve more detail per frame, so compression is less dramatic.
+
+**[Try it: Video Compressor →](/compress-video/)**
+
+### Extract audio from video
+
+Strip the audio track from any MP4, MOV, MKV, or WebM file and save it as MP3, AAC, WAV, or OGG. This can be done with or without re-encoding (extracting the original AAC stream is lossless).
+
+Works for: pulling a podcast episode from a video, grabbing music from a local video file, archiving audio from screen recordings.
+
+**[Try it: Extract Audio →](/extract-audio/)**
+
+### Trim audio (and video with audio-only output)
+
+Set a start time and end time, discard the rest. For audio, this works entirely in the browser. For video trimming with a visual preview, browser tools currently lag behind desktop — most browser trimmers operate on timestamps rather than a visual scrubber.
+
+**[Try it: Audio Trimmer →](/audio-trimmer/)**
+
+### Convert between video formats
+
+MP4, MOV, WebM, AVI, MKV — ffmpeg.wasm handles them all. Browser tools can convert any of these to any other.
+
+Practical use: converting MOV from an iPhone to MP4 for sharing on Android or Windows. Converting AVI from an old camcorder to MP4. Converting WebM (common in screen recorders) to MP4 for email.
+
+### Convert video to audio formats
+
+MP4 → MP3, MP4 → WAV, any video → any audio format. The video track is dropped and the audio is extracted (and optionally re-encoded).
+
+**[Try it: MP4 to MP3 →](/mp4-to-mp3/)**
+
+### Batch processing
+
+Browser video tools can process multiple files in a session — drop 20 screen recordings, compress them all, download as a ZIP. This doesn't require an upload limit negotiation or a cloud queue.
+
+## What still needs desktop software
+
+### Multi-cut timeline editing
+
+Cutting a video into multiple segments, rearranging clips, inserting cutaways — this requires a non-linear editor (NLE) with a timeline. No browser tool does this well. The right tool is DaVinci Resolve (free), iMovie (free on Mac), or CapCut (free, though it uploads files).
+
+### Color grading
+
+Adjusting exposure, color balance, and color science across a video is computationally intensive and requires GPU access. Browsers don't expose GPU video processing in a way that supports professional-grade grading. Use DaVinci Resolve.
+
+### Visual effects and transitions
+
+Fades, wipes, lower thirds, animated text, green screen compositing — these require a rendering engine that can work with layers and keyframes. Not available in any browser tool as of 2026.
+
+### Long-form re-encoding (speed issue, not a quality issue)
+
+For a 90-minute lecture or a 4K film, the speed difference between browser WASM and desktop ffmpeg becomes significant. Desktop ffmpeg with H.264 hardware encoding can compress a 2-hour 1080p video in under 10 minutes on most modern machines. Browser ffmpeg might take 45–90 minutes on the same file. The output quality would be identical — but the wait time is not.
+
+### Output to broadcast or professional formats
+
+ProRes, MXF, DNxHD — these are professional formats used in broadcast pipelines and NLE workflows. Desktop ffmpeg supports them. Browser ffmpeg.wasm builds often exclude them to keep the WASM bundle smaller.
+
+## How browser video tools handle privacy
+
+Most browser video tools fall into one of two categories:
+
+**Upload-based tools** (most online converters, most AI editing platforms): Your file travels to a server. The tool processes it there and returns a download link. You're trusting the service with your file content. File size limits apply.
+
+**WASM-based tools** (ConvertYard, ffmpeg.wasm implementations): The processing engine runs in your browser. Your file loads into browser memory. No network request is made with your video data. You can verify this by opening your browser's Network tab (DevTools) while processing — you'll see no large upload request.
+
+For personal footage, confidential recordings, business meetings, or sensitive content, the distinction matters.
+
+## Speed: what to expect
+
+A rough guide for a 10-minute 1080p MP4 compressed to medium quality (CRF 23):
+
+| Method | Processing time (approx.) |
+|---|---|
+| Browser WASM tool | 8–20 minutes depending on device |
+| Desktop ffmpeg (CPU) | 3–8 minutes |
+| Desktop ffmpeg (hardware encoder) | Under 2 minutes |
+
+Browser tools are CPU-only and single-threaded in WASM. They can't access the H.264/H.265 hardware encoder built into most modern CPUs and GPUs. The output is identical — the wait is longer.
+
+For files under 5 minutes, the difference is rarely annoying. For long files you need to process regularly, desktop ffmpeg is worth learning.
+
+## When the browser is the right tool
+
+- You have one or a few videos to compress or convert
+- The file contains personal or sensitive content you don't want uploaded
+- You're on a computer without video software installed
+- You need to strip audio from a video quickly
+- You want to batch process a folder of screen recordings before uploading them somewhere
+
+Browser video processing is particularly well-suited to **screen recordings**: they're usually short, compress dramatically (screencasts have low motion content), and are often created on machines that don't have video software installed.
+
+## When to use desktop software instead
+
+- The video is over 30 minutes and time matters
+- You need to make multiple cuts
+- The file is larger than 2–3 GB
+- You need color correction, effects, or multicamera editing
+- You're processing dozens of long files regularly
+
+For complex editing, DaVinci Resolve is free and handles everything a browser tool can't — and for simple compression and conversion, a browser tool handles everything without an installation.

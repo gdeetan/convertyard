@@ -1,0 +1,149 @@
+export const meta = {
+  title: 'How to Extract Audio from MP4 (Without Desktop Software)',
+  description:
+    'Three ways to pull audio out of an MP4 file: a browser tool (no uploads, no software), ffmpeg on the command line, and desktop apps. Includes format and quality guidance.',
+  lastUpdated: '2026-07-25',
+  faq: [
+    {
+      q: 'How do I extract audio from an MP4 file?',
+      a: 'The fastest method is to use a browser-based tool like ConvertYard — drop the MP4 file, choose an output format (MP3, AAC, WAV), and download the audio. Everything runs in your browser; the file is never uploaded. Alternatively, ffmpeg on the command line gives precise control: `ffmpeg -i input.mp4 -vn -acodec copy output.aac` extracts the audio stream without re-encoding.',
+    },
+    {
+      q: 'Does extracting audio from MP4 reduce quality?',
+      a: 'It depends on the method. If you extract the audio stream without re-encoding (ffmpeg -acodec copy, or "lossless extract" in browser tools), quality is bit-perfect — you get exactly what was in the original MP4. If you convert to a different format (e.g., AAC in the MP4 → MP3), there is a small quality loss from re-encoding. The original MP4 audio track is usually AAC, so extracting to AAC without re-encoding is the highest-fidelity option.',
+    },
+    {
+      q: 'What audio format is inside an MP4 file?',
+      a: 'Most MP4 files contain AAC audio. Some contain MP3 (older files), AC-3 or E-AC-3 (Dolby Audio), or Opus. You can check with a tool like MediaInfo or VLC (Media → Codec Information) to see the exact codec before deciding whether to re-encode or extract directly.',
+    },
+    {
+      q: 'Can I extract audio from multiple MP4 files at once?',
+      a: "Yes. ConvertYard's Extract Audio tool accepts multiple files at once — drop them all, choose the output format, and it processes them in your browser and packages the results in a ZIP. ffmpeg can handle batch extraction with a shell loop.",
+    },
+    {
+      q: 'Is it legal to extract audio from an MP4?',
+      a: 'Extracting audio from a file you own or have rights to is legal in virtually every jurisdiction. Extracting audio from a copyrighted recording you purchased (music, film, a course) depends on your local copyright law — in many countries, making personal copies for private use is permitted, but distributing those copies is not. Extracting audio from your own recordings, screen recordings, or files you produced is always fine.',
+    },
+    {
+      q: 'What is the difference between MP3, AAC, and WAV for extracted audio?',
+      a: 'MP3 is universally compatible — every device and app can play it. AAC is slightly smaller at the same quality and is the native format inside most MP4 files. WAV is uncompressed and lossless, producing large files but no quality loss — best for audio you intend to edit further. For general listening, MP3 or AAC at 192 kbps is the right choice. For editing, WAV.',
+    },
+  ],
+  relatedTools: ['extract-audio', 'mp4-to-mp3', 'audio-trimmer', 'compress-video'],
+}
+
+An MP4 is a container — it holds a video track, an audio track, and sometimes subtitles, all in one file. Extracting the audio means pulling that audio track out, either as-is or converted to a standalone audio format like MP3, WAV, or AAC.
+
+**[Extract audio from video in your browser — no uploads →](/extract-audio/)**
+
+## Method 1: Browser tool (no uploads, no software)
+
+The fastest approach for most people. Drop the file in a browser tool, choose a format, download the audio.
+
+**How to do it:**
+
+1. Go to [convertyard.com/extract-audio](/extract-audio/)
+2. Drop one or more MP4 files onto the tool
+3. Choose an output format — MP3 for universal compatibility, WAV if you plan to edit the audio further, AAC to match the original format inside the MP4
+4. Click Extract and download the result (or a ZIP if you submitted multiple files)
+
+Processing happens entirely in your browser using ffmpeg compiled to WebAssembly. The MP4 never leaves your device — there is no upload step.
+
+This method handles batch extraction: drop 50 MP4 files and it processes all of them, packaging the audio files into a ZIP.
+
+**When to use this:** You want audio from a video you recorded, a downloaded lecture, a screen recording, or any file you have on disk. You don't want to install software. The file contains personal or confidential content.
+
+## Method 2: ffmpeg command line
+
+ffmpeg is a free, open-source tool that handles almost every audio and video format. It gives precise control over extraction parameters.
+
+**Install ffmpeg:**
+- macOS: `brew install ffmpeg`
+- Windows: download from ffmpeg.org, add to PATH
+- Linux: `sudo apt install ffmpeg` or equivalent
+
+**Extract audio without re-encoding (highest quality):**
+
+```bash
+ffmpeg -i input.mp4 -vn -acodec copy output.aac
+```
+
+`-vn` drops the video stream. `-acodec copy` copies the audio stream as-is, with no re-encoding. The output format is determined by the extension — use `.aac` if the MP4 contains AAC (it usually does), `.mp3` if it contains MP3 audio.
+
+**Extract and convert to MP3:**
+
+```bash
+ffmpeg -i input.mp4 -vn -acodec libmp3lame -q:a 2 output.mp3
+```
+
+`-q:a 2` sets variable bitrate quality — 0 is highest, 9 is lowest. `-q:a 2` corresponds to roughly 190 kbps VBR, which is excellent quality.
+
+**Extract and convert to WAV (lossless):**
+
+```bash
+ffmpeg -i input.mp4 -vn -acodec pcm_s16le output.wav
+```
+
+This produces an uncompressed WAV at 16-bit depth, suitable for audio editing.
+
+**Batch extract from a folder:**
+
+```bash
+for f in *.mp4; do ffmpeg -i "$f" -vn -acodec copy "${f%.mp4}.aac"; done
+```
+
+This processes every MP4 in the current directory.
+
+**When to use ffmpeg:** You need exact control over codec, bitrate, or sample rate. You're batch processing dozens or hundreds of files. You're working in a script or automation pipeline.
+
+## Method 3: Desktop apps
+
+For occasional one-off extractions, several desktop apps include audio extraction as a feature:
+
+**VLC (free, all platforms):** Media → Convert/Save → select input file → choose Audio - MP3 (or any audio codec) → convert. VLC is reliable but slower than ffmpeg and less flexible.
+
+**HandBrake (free, all platforms):** Primarily a video transcoder, but can output audio-only by setting the video track to none. Slightly more setup than ffmpeg but has a GUI.
+
+**Audacity (free, all platforms):** Can open MP4 files (requires the ffmpeg library plugin) and export audio in various formats. Best if you want to edit the audio after extracting it — trim, normalize, add effects.
+
+**When to use a desktop app:** You want a GUI. You plan to edit the audio immediately after extracting it (Audacity). You already have one of these installed.
+
+## Choosing the right output format
+
+| Format | Best for | Notes |
+|---|---|---|
+| MP3 | Listening, sharing | Universal compatibility. Slight quality loss vs. original AAC. |
+| AAC | Listening, Apple devices | Matches the native format in most MP4s. Smaller than MP3 at same quality. |
+| WAV | Editing, archiving | Lossless, large files. Import into any DAW or editor. |
+| FLAC | Archiving | Lossless and compressed (~50% smaller than WAV). Not as universally supported as WAV. |
+| OGG | Web delivery | Open format, good quality. Less widely supported on mobile. |
+
+**The re-encoding question:** If the MP4 contains AAC audio and you extract to AAC without re-encoding, quality is bit-perfect. If you convert AAC → MP3, there is a small generation loss. For listening, this loss is inaudible at 192 kbps. For repeated editing and re-encoding, accumulating loss matters — in that case, extract to WAV or FLAC first.
+
+## Checking what audio format is inside your MP4
+
+Before extracting, it's worth knowing what you're working with:
+
+**With ffmpeg:**
+
+```bash
+ffmpeg -i input.mp4
+```
+
+Look for the line starting with `Audio:` — it will show the codec (aac, mp3, ac3, etc.), sample rate, and channel count.
+
+**With VLC:** Open the file → Tools → Codec Information → look at the Audio track entry.
+
+**With MediaInfo (free):** Shows complete technical details including codec, bitrate, sample rate, and channel layout.
+
+Most MP4 files from cameras, screen recorders, and social platforms contain AAC audio at 44.1 kHz or 48 kHz stereo. MP4 files from older tools occasionally contain MP3.
+
+## Common problems
+
+**"No audio stream found":** The MP4 has a video track but no audio track. This happens with screen recordings of silent content, some converted files, and certain camera modes. Check with `ffmpeg -i input.mp4` — if there's no `Audio:` line, there's nothing to extract.
+
+**Extracted audio is out of sync:** If you're extracting from a file that was previously edited or re-muxed, the audio stream may have a timing offset. Fix with: `ffmpeg -i input.mp4 -vn -acodec copy -avoid_negative_ts make_zero output.aac`.
+
+**File won't open after extraction:** The container extension and codec don't match. If you extracted a Dolby AC-3 stream but named it `.aac`, media players may reject it. Use `-acodec copy` and check the codec first, or convert explicitly to MP3/AAC/WAV.
+
+**Quality sounds worse than the original video:** You re-encoded from a lossy source. Minimize re-encoding steps: extract to AAC (matching the source) or WAV, then convert once to your final format.

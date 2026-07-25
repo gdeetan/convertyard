@@ -1,0 +1,143 @@
+export const meta = {
+  title: 'Audio Bitrate Explained: What It Is and What Setting to Use',
+  description:
+    'Audio bitrate controls how much data is used to store each second of audio. Here is what the numbers mean, how they affect quality, and which setting to pick for every use case.',
+  lastUpdated: '2026-07-25',
+  faq: [
+    {
+      q: 'What is audio bitrate?',
+      a: 'Audio bitrate is the amount of data used to represent one second of audio, measured in kilobits per second (kbps). A 128 kbps MP3 uses 128,000 bits for every second of audio. Higher bitrate means more data, which generally means higher quality — up to the point where increases become imperceptible.',
+    },
+    {
+      q: 'What is a good bitrate for MP3?',
+      a: '128 kbps is the minimum for acceptable quality in music. 192 kbps is a solid general-purpose choice. 320 kbps is the MP3 ceiling — beyond this, the format cannot store more quality regardless of bitrate. For speech and podcasts, 96 kbps is sufficient. For archiving, use a lossless format (FLAC or WAV) instead of relying on high MP3 bitrate.',
+    },
+    {
+      q: 'Does higher bitrate always mean better sound?',
+      a: 'Up to a point. Most people cannot distinguish 192 kbps from 320 kbps in a double-blind test. The audible ceiling depends on the format: 128 kbps AAC often sounds as good as 192 kbps MP3 because AAC uses a more efficient compression algorithm. Above the audible ceiling, increasing bitrate only increases file size.',
+    },
+    {
+      q: 'What bitrate should I use for streaming?',
+      a: 'Spotify streams at 96–320 kbps depending on the plan. YouTube Music and Apple Music stream AAC at 256 kbps. For uploads to streaming platforms, 320 kbps MP3 or 256 kbps AAC is the safe choice — the platform will transcode to its own target anyway, and starting from a higher-quality source preserves more detail through that transcode.',
+    },
+    {
+      q: 'What is the difference between CBR and VBR?',
+      a: 'CBR (constant bitrate) uses the same number of bits per second throughout the file, regardless of how complex or simple the audio is. VBR (variable bitrate) allocates more bits to complex passages and fewer to simple ones, typically producing better quality at the same average file size. VBR is the better choice for music; CBR is occasionally needed for specific devices or streaming protocols that require fixed bandwidth.',
+    },
+    {
+      q: 'How much does bitrate affect file size?',
+      a: 'File size is directly proportional to bitrate and duration. A one-hour audio file at 128 kbps is approximately 56 MB. At 320 kbps, the same hour is approximately 138 MB. The formula: (bitrate in kbps × duration in seconds) ÷ 8 = file size in kilobytes.',
+    },
+  ],
+  relatedTools: ['mp4-to-mp3', 'extract-audio', 'audio-trimmer', 'wav-to-mp3'],
+}
+
+Audio bitrate is the single number that determines the trade-off between file size and audio quality. Understanding it takes about five minutes and will inform every audio conversion decision you make.
+
+**[Extract audio from video in your browser — no uploads →](/extract-audio/)**
+
+## What bitrate actually measures
+
+Bitrate measures how many bits are used to represent one second of audio. The unit is kilobits per second, abbreviated kbps or kb/s.
+
+A 128 kbps file dedicates 128,000 bits to every second of audio. A 320 kbps file dedicates 320,000 bits to that same second. More bits means more information preserved from the original recording — which generally means better sound quality, up to the point where improvements become too small to hear.
+
+Bitrate applies specifically to **lossy** compressed audio: MP3, AAC, OGG Vorbis, Opus. These formats discard audio data to achieve smaller files. Bitrate controls how aggressively they discard it.
+
+Lossless formats (FLAC, WAV, AIFF) don't have a quality-controlling bitrate in the same sense — they preserve the original data exactly, so their "bitrate" is just a reflection of the sample rate and bit depth of the source.
+
+## The audible ceiling
+
+Not all bitrate increases produce audible improvements. Each format has a point past which the human ear cannot detect further quality gains — the audible ceiling.
+
+**MP3:**
+- Below 96 kbps: clearly degraded. Artifacts in high frequencies, "watery" sound.
+- 128 kbps: acceptable for casual listening. Some listeners can detect artifacts in complex passages.
+- 192 kbps: transparent to most listeners in most conditions.
+- 320 kbps: the MP3 maximum. Indistinguishable from 192 kbps for the vast majority of listeners.
+
+**AAC:**
+- 96 kbps: roughly equivalent to 128 kbps MP3. More efficient algorithm.
+- 128 kbps: transparent to most listeners.
+- 256 kbps: used by Apple Music and Amazon Music HD. Effectively lossless for practical purposes.
+
+**OGG Vorbis:**
+- Similar efficiency to AAC. Q5 (around 160 kbps variable) is the standard recommendation.
+
+**Opus:**
+- More efficient than MP3, AAC, or OGG at every bitrate. 96–128 kbps Opus matches 192–256 kbps MP3 in quality. Used for voice calls, podcast delivery, and game audio.
+
+## Common use cases and the right bitrate
+
+| Use case | Recommended bitrate |
+|---|---|
+| Podcasts / speech | 64–96 kbps MP3 or AAC mono |
+| Background music in videos | 128 kbps MP3 or 96 kbps AAC |
+| General music listening | 192 kbps MP3 or 128 kbps AAC |
+| Upload to streaming platforms | 320 kbps MP3 or 256 kbps AAC |
+| Archiving original recordings | FLAC or WAV (lossless) |
+| Voice messages / WhatsApp | 32–64 kbps Opus |
+| YouTube video audio track | 192 kbps AAC or 256 kbps |
+
+**For speech**, bitrate requirements are lower because the human voice occupies a narrower frequency range than music. A podcast at 96 kbps mono sounds fine; 64 kbps mono is passable. You don't need 192 kbps for a voice recording.
+
+**For music**, the floor is higher because music uses the full frequency spectrum — bass, mids, highs, and the complex overtones that give instruments their character. Below 128 kbps, MP3 compression artifacts become audible as a slight "swishing" or "pre-ringing" on transients (drum hits, piano notes).
+
+**For archiving**, bitrate is the wrong tool entirely. If you're storing original recordings for long-term preservation, use a lossless format. MP3 is a delivery format, not a storage format.
+
+## CBR vs VBR: which to choose
+
+**Constant bitrate (CBR)** allocates a fixed number of bits to every second of audio. Simple passages (a single sustained note, silence) get the same bitrate as complex passages (a full orchestra, a dense mix).
+
+**Variable bitrate (VBR)** allocates bits where they're needed. Silence and simple tones get fewer bits. Dense, complex passages get more. The result is better perceptual quality at the same average file size.
+
+For music, VBR is almost always the better choice. A VBR file with an average bitrate of 190 kbps will sound better than a CBR file at exactly 192 kbps, because the VBR encoder spent those bits where they mattered.
+
+CBR is occasionally required for:
+- Specific hardware (some older car stereos require CBR MP3)
+- Broadcast or streaming protocols that need predictable bandwidth
+- Editing in some DAWs that don't handle VBR well
+
+If you're converting for general listening, email, or upload, use VBR.
+
+## Bitrate and file size
+
+File size is directly proportional to bitrate:
+
+```
+file size (KB) = (bitrate in kbps × duration in seconds) ÷ 8
+```
+
+Examples for a 3-minute (180 second) song:
+
+| Bitrate | File size |
+|---|---|
+| 64 kbps | ~1.4 MB |
+| 128 kbps | ~2.8 MB |
+| 192 kbps | ~4.2 MB |
+| 320 kbps | ~6.9 MB |
+| FLAC (lossless) | ~20–35 MB depending on sample rate |
+
+The jump from 128 to 320 kbps more than doubles the file size. Whether that's worth it depends entirely on how you're using the file and whether you can actually hear the difference in your listening environment.
+
+## The re-encoding trap
+
+One mistake that removes any benefit from using a high bitrate: re-encoding from a lossy source.
+
+If you convert a 128 kbps MP3 to a 320 kbps MP3, you're not recovering quality. You're storing the same degraded audio in a larger file. The quality ceiling of the output is always the quality of the worst-quality source in the chain.
+
+The same applies to format conversions: converting MP3 to WAV doesn't give you lossless audio — it gives you lossless storage of lossy data.
+
+If you need high-quality output, start from the highest-quality source available: a lossless FLAC, a WAV from a recording session, or the original uncompressed export from a video editor.
+
+## Practical guide: what to set when
+
+**Converting a video's audio track to MP3 for listening:** 192 kbps VBR. This covers everything the original video track likely had.
+
+**Extracting audio for a podcast upload:** 128 kbps mono AAC or 96 kbps mono MP3. Mono halves the bitrate requirement for speech with no perceptible loss in voice quality.
+
+**Archiving a recording before it's converted:** Export as FLAC or WAV. Then convert to whatever format is needed for delivery.
+
+**Sending audio via email or messaging:** 128 kbps MP3. Smaller than 320 kbps with no noticeable difference on a phone speaker or earbuds.
+
+**Uploading to Spotify, Apple Music, or YouTube Music:** 320 kbps MP3 or 256 kbps AAC. These platforms accept both and transcode to their own delivery format — starting high gives the transcode more to work with.
