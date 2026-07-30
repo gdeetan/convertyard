@@ -190,7 +190,7 @@ export function ToolGrid() {
       aria-labelledby="tools-heading"
       className="py-16 sm:py-24"
     >
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
         <h2
           id="tools-heading"
           className="mb-8 text-2xl font-bold tracking-tight text-fg sm:text-3xl"
