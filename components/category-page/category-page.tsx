@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
 import { CategoryToolCard } from './category-tool-card'
+import { ToolSearchCombobox } from '@/components/ui/tool-search-combobox'
 import type { CategoryMeta } from '@/content/category-meta'
 import type { CatalogTool } from '@/content/tool-catalog'
 
@@ -46,6 +47,11 @@ export function CategoryPage({ meta, tools }: Props) {
           {totalCount > liveCount ? ` · ${totalCount - liveCount} coming soon` : ''}
         </p>
       </header>
+
+      {/* Search */}
+      <div className="mb-6">
+        <ToolSearchCombobox placeholder="Search all tools…" />
+      </div>
 
       {/* Tool grid */}
       <section aria-label="Tools in this category">
