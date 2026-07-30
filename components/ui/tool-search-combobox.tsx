@@ -36,10 +36,9 @@ export function ToolSearchCombobox({
   value: controlledValue,
   onChange: controlledOnChange,
 }: ToolSearchComboboxProps) {
-  const isControlled = controlledValue !== undefined
   const [internalQuery, setInternalQuery] = useState('')
-  const query = isControlled ? controlledValue : internalQuery
-  const setQuery = isControlled ? (controlledOnChange ?? (() => {})) : setInternalQuery
+  const query = controlledValue !== undefined ? controlledValue : internalQuery
+  const setQuery = controlledValue !== undefined ? (controlledOnChange ?? (() => {})) : setInternalQuery
 
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
@@ -57,6 +56,13 @@ export function ToolSearchCombobox({
   useEffect(() => {
     setActiveIndex(-1)
   }, [trimmed])
+
+  // Scroll active item into view during keyboard nav
+  useEffect(() => {
+    if (activeIndex < 0 || !listRef.current) return
+    const item = listRef.current.children[activeIndex] as HTMLElement | undefined
+    item?.scrollIntoView({ block: 'nearest' })
+  }, [activeIndex])
 
   // Close on outside click
   useEffect(() => {
