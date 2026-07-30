@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-import React from 'react'
 import { describe, it, expect } from 'vitest'
 import { highlight } from '../highlight'
 
