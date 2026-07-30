@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { Search, X, ArrowRight } from 'lucide-react'
+import { ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
-import { highlight } from '@/lib/utils/highlight'
 import { ALL_TOOLS } from '@/content/tool-catalog'
+import { highlight } from '@/lib/utils/highlight'
+import { ToolSearchCombobox } from '@/components/ui/tool-search-combobox'
 
 export function ToolsSearch() {
   const [query, setQuery] = useState('')
@@ -17,7 +18,6 @@ export function ToolsSearch() {
 
   const trimmed = query.trim().toLowerCase()
   const isSearching = trimmed.length > 0
-
   const results = isSearching
     ? ALL_TOOLS.filter(
         (t) =>
@@ -27,26 +27,14 @@ export function ToolsSearch() {
       )
     : []
 
-  const clearSearch = () => {
-    setQuery('')
-    const url = new URL(window.location.href)
-    url.searchParams.delete('q')
-    history.replaceState(null, '', url.toString())
-  }
-
   return (
     <div className="mb-10">
-      {/* Search input */}
+      {/* Combobox — instant jump to tool */}
       <div className="relative mb-6">
-        <Search
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle"
-          aria-hidden="true"
-        />
-        <input
-          type="search"
+        <ToolSearchCombobox
+          placeholder="Search all tools…"
           value={query}
-          onChange={(e) => {
-            const val = e.target.value
+          onChange={(val) => {
             setQuery(val)
             const url = new URL(window.location.href)
             if (val) {
@@ -56,36 +44,10 @@ export function ToolsSearch() {
             }
             history.replaceState(null, '', url.toString())
           }}
-          onKeyDown={(e) => {
-            if (e.key === 'Escape') {
-              clearSearch()
-              ;(e.target as HTMLInputElement).blur()
-            }
-          }}
-          placeholder="Search all tools…"
-          aria-label="Search tools"
-          className={cn(
-            'w-full rounded-xl border bg-bg-muted py-3 pl-10 pr-10',
-            'text-sm text-fg placeholder:text-fg-subtle',
-            'transition-colors focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-primary',
-            query
-              ? 'border-primary bg-bg'
-              : 'border-border focus-visible:border-primary'
-          )}
         />
-        {query && (
-          <button
-            type="button"
-            aria-label="Clear search"
-            onClick={clearSearch}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-sm text-fg-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-primary"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-        )}
       </div>
 
-      {/* Search results */}
+      {/* Card grid — browse filtered results */}
       {isSearching && (
         <>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -119,7 +81,9 @@ export function ToolsSearch() {
           <div className="mt-6 text-center text-sm">
             {results.length === 0 ? (
               <p className="text-fg-muted">
-                No tools match <strong className="text-fg">&ldquo;{query.trim()}&rdquo;</strong> — try a shorter search.
+                No tools match{' '}
+                <strong className="text-fg">&ldquo;{query.trim()}&rdquo;</strong>{' '}
+                — try a shorter search.
               </p>
             ) : (
               <p className="text-fg-subtle">
