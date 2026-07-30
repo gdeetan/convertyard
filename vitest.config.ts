@@ -11,6 +11,7 @@ export default defineConfig({
     environment: 'node',
     environmentMatchGlobs: [
       ['**/lib/hooks/**', 'happy-dom'],
+      ['**/lib/utils/**', 'happy-dom'],
     ],
     setupFiles: ['lib/hooks/__tests__/setup.ts'],
     include: ['lib/**/__tests__/**/*.test.ts'],
