@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { Menu, X, Lock, ChevronDown, Search } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
+import { ToolSearchCombobox } from '@/components/ui/tool-search-combobox'
 
 const MEGAMENU_CATEGORIES = [
   {
@@ -128,6 +129,8 @@ export function Nav() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [megaOpen, setMegaOpen] = useState(false)
   const [openAccordion, setOpenAccordion] = useState<string | null>(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchContainerRef = useRef<HTMLDivElement>(null)
 
   const hamburgerRef = useRef<HTMLButtonElement>(null)
   const mobileMenuRef = useRef<HTMLDivElement>(null)
@@ -147,11 +150,12 @@ export function Nav() {
       if (e.key === 'Escape') {
         if (mobileOpen) closeMobileMenu()
         if (megaOpen) setMegaOpen(false)
+        if (searchOpen) setSearchOpen(false)
       }
     }
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
-  }, [mobileOpen, megaOpen])
+  }, [mobileOpen, megaOpen, searchOpen, closeMobileMenu])
 
   // Lock body scroll when mobile menu open
   useEffect(() => {
@@ -168,6 +172,18 @@ export function Nav() {
       first?.focus()
     }
   }, [mobileOpen])
+
+  // Click-outside closes desktop search
+  useEffect(() => {
+    if (!searchOpen) return
+    function handleClick(e: MouseEvent) {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(e.target as Node)) {
+        setSearchOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [searchOpen])
 
   const closeMobileMenu = useCallback(() => {
     setMobileOpen(false)
@@ -332,6 +348,31 @@ export function Nav() {
               For exams &amp; forms
             </Link>
 
+            {/* Desktop search */}
+            <div ref={searchContainerRef} className="relative">
+              {searchOpen ? (
+                <ToolSearchCombobox
+                  placeholder="Search tools…"
+                  autoFocus
+                  className="w-72"
+                  onNavigate={() => setSearchOpen(false)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  aria-label="Search tools"
+                  onClick={() => setSearchOpen(true)}
+                  className={cn(
+                    'flex h-9 w-9 items-center justify-center rounded-md',
+                    'text-fg-muted transition-colors hover:bg-bg-muted hover:text-fg',
+                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+                  )}
+                >
+                  <Search className="h-4 w-4" aria-hidden="true" />
+                </button>
+              )}
+            </div>
+
             {/* Local-first badge */}
             <div
               className={cn(
@@ -410,29 +451,10 @@ export function Nav() {
         {/* Scrollable content */}
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {/* Search */}
-          <div className="relative mb-6">
-            <Search
-              className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle"
-              aria-hidden="true"
-            />
-            <input
-              type="search"
+          <div className="mb-6">
+            <ToolSearchCombobox
               placeholder="Search tools…"
-              aria-label="Search tools"
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  const val = (e.currentTarget as HTMLInputElement).value.trim()
-                  if (val) {
-                    closeMobileMenu()
-                    window.location.href = `/?q=${encodeURIComponent(val)}#tools`
-                  }
-                }
-              }}
-              className={cn(
-                'w-full rounded-lg border border-border bg-bg-muted py-3 pl-9 pr-4',
-                'text-sm text-fg placeholder:text-fg-subtle',
-                'focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-primary focus-visible:border-primary'
-              )}
+              onNavigate={closeMobileMenu}
             />
           </div>
 
