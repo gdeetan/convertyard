@@ -136,6 +136,13 @@ export function Nav() {
   const mobileMenuRef = useRef<HTMLDivElement>(null)
   const megaTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Define early so ESC handler useEffect can reference it
+  const closeMobileMenu = useCallback(() => {
+    setMobileOpen(false)
+    setOpenAccordion(null)
+    hamburgerRef.current?.focus()
+  }, [])
+
   // Scroll → border
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 2)
@@ -184,12 +191,6 @@ export function Nav() {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [searchOpen])
-
-  const closeMobileMenu = useCallback(() => {
-    setMobileOpen(false)
-    setOpenAccordion(null)
-    hamburgerRef.current?.focus()
-  }, [])
 
   const openMega = () => {
     if (megaTimeoutRef.current) clearTimeout(megaTimeoutRef.current)
@@ -361,6 +362,7 @@ export function Nav() {
                 <button
                   type="button"
                   aria-label="Search tools"
+                  aria-expanded={false}
                   onClick={() => setSearchOpen(true)}
                   className={cn(
                     'flex h-9 w-9 items-center justify-center rounded-md',
