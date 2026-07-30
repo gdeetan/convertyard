@@ -13,10 +13,10 @@ import {
   Wand2,
   ScanText,
   ArrowRight,
-  Search,
-  X,
 } from 'lucide-react'
+import { ToolSearchCombobox } from '@/components/ui/tool-search-combobox'
 import { cn } from '@/lib/utils/cn'
+import { highlight } from '@/lib/utils/highlight'
 import { ALL_TOOLS } from '@/content/tool-catalog'
 import type { CatalogTool } from '@/content/tool-catalog'
 
@@ -89,21 +89,6 @@ const CATALOG_TO_GRID: Record<string, Category> = {
   developer: 'dev',
   'web-tools': 'web-tools',
   'ai-tools': 'ai',
-}
-
-function highlight(text: string, query: string): React.ReactNode {
-  if (!query) return text
-  const idx = text.toLowerCase().indexOf(query.toLowerCase())
-  if (idx === -1) return text
-  return (
-    <>
-      {text.slice(0, idx)}
-      <mark className="rounded-sm bg-amber-100 px-px dark:bg-amber-900/40">
-        {text.slice(idx, idx + query.length)}
-      </mark>
-      {text.slice(idx + query.length)}
-    </>
-  )
 }
 
 interface Tool {
@@ -205,7 +190,7 @@ export function ToolGrid() {
       aria-labelledby="tools-heading"
       className="py-16 sm:py-24"
     >
-      <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2
           id="tools-heading"
           className="mb-8 text-2xl font-bold tracking-tight text-fg sm:text-3xl"
@@ -230,16 +215,11 @@ export function ToolGrid() {
         )}
 
         {/* Search */}
-        <div className="relative mb-6">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-subtle"
-            aria-hidden="true"
-          />
-          <input
-            type="search"
+        <div className="mb-6">
+          <ToolSearchCombobox
+            placeholder={`Search ${LIVE_TOOL_COUNT} tools…`}
             value={query}
-            onChange={(e) => {
-              const val = e.target.value
+            onChange={(val) => {
               setQuery(val)
               const url = new URL(window.location.href)
               if (val) {
@@ -249,41 +229,7 @@ export function ToolGrid() {
               }
               history.replaceState(null, '', url.toString())
             }}
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                setQuery('')
-                const url = new URL(window.location.href)
-                url.searchParams.delete('q')
-                history.replaceState(null, '', url.toString())
-                ;(e.target as HTMLInputElement).focus()
-              }
-            }}
-            placeholder={`Search ${LIVE_TOOL_COUNT} tools…`}
-            aria-label="Search tools"
-            className={cn(
-              'w-full rounded-xl border bg-bg-muted py-3 pl-10 pr-10',
-              'text-sm text-fg placeholder:text-fg-subtle',
-              'transition-colors focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-primary',
-              query
-                ? 'border-primary bg-bg'
-                : 'border-border focus-visible:border-primary'
-            )}
           />
-          {query && (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => {
-                setQuery('')
-                const url = new URL(window.location.href)
-                url.searchParams.delete('q')
-                history.replaceState(null, '', url.toString())
-              }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-sm text-fg-subtle hover:text-fg focus-visible:outline-2 focus-visible:outline-primary"
-            >
-              <X className="h-4 w-4" aria-hidden="true" />
-            </button>
-          )}
         </div>
 
         {/* Filter pills */}

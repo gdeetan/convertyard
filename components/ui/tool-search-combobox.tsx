@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useId } from 'react'
-import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { ALL_TOOLS } from '@/content/tool-catalog'
@@ -42,7 +42,6 @@ export function ToolSearchCombobox({
 
   const [open, setOpen] = useState(false)
   const [activeIndex, setActiveIndex] = useState(-1)
-  const router = useRouter()
   const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -76,8 +75,7 @@ export function ToolSearchCombobox({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [showDropdown])
 
-  function navigate(slug: string) {
-    router.push(`/${slug}`)
+  function closeAndClear() {
     setQuery('')
     setOpen(false)
     onNavigate?.()
@@ -101,7 +99,10 @@ export function ToolSearchCombobox({
     } else if (e.key === 'Enter') {
       e.preventDefault()
       const target = activeIndex >= 0 ? results[activeIndex] : results[0]
-      if (target) navigate(target.slug)
+      if (target) {
+        closeAndClear()
+        window.location.href = `/${target.slug}`
+      }
     } else if (e.key === 'Escape') {
       setOpen(false)
       setQuery('')
@@ -195,24 +196,25 @@ export function ToolSearchCombobox({
                 role="option"
                 aria-selected={i === activeIndex}
                 onMouseEnter={() => setActiveIndex(i)}
-                onMouseDown={(e) => {
-                  e.preventDefault() // prevent input blur
-                  navigate(tool.slug)
-                }}
-                className={cn(
-                  'flex cursor-pointer items-center justify-between px-4 py-2.5',
-                  'text-sm transition-colors',
-                  i === activeIndex
-                    ? 'bg-bg-muted text-fg'
-                    : 'text-fg-muted hover:bg-bg-muted hover:text-fg'
-                )}
               >
-                <span className="font-medium">
-                  {highlight(tool.title, trimmed)}
-                </span>
-                <span className="ml-4 shrink-0 text-xs text-fg-subtle">
-                  {CATEGORY_LABELS[tool.category] ?? tool.category}
-                </span>
+                <Link
+                  href={`/${tool.slug}`}
+                  onClick={closeAndClear}
+                  className={cn(
+                    'flex items-center justify-between px-4 py-2.5',
+                    'text-sm transition-colors',
+                    i === activeIndex
+                      ? 'bg-bg-muted text-fg'
+                      : 'text-fg-muted hover:bg-bg-muted hover:text-fg'
+                  )}
+                >
+                  <span className="font-medium">
+                    {highlight(tool.title, trimmed)}
+                  </span>
+                  <span className="ml-4 shrink-0 text-xs text-fg-subtle">
+                    {CATEGORY_LABELS[tool.category] ?? tool.category}
+                  </span>
+                </Link>
               </li>
             ))
           )}
