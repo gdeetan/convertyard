@@ -122,7 +122,7 @@ describe('mp4ToWebp', () => {
 
     expect(results).toHaveLength(1)
     expect(results[0]).toBeInstanceOf(Error)
-    expect((results[0] as Error).message).toContain('This MP4 has no video track')
+    expect((results[0] as Error).message).toContain('no video track')
   })
 
   it('rejects audio-only mp4 files before ffmpeg work starts when preflight detects no video track', async () => {
@@ -136,7 +136,7 @@ describe('mp4ToWebp', () => {
 
     expect(results).toHaveLength(1)
     expect(results[0]).toBeInstanceOf(Error)
-    expect((results[0] as Error).message).toContain('This MP4 has no video track')
+    expect((results[0] as Error).message).toContain('no video track')
     expect(writeFileCalls).toHaveLength(0)
     expect(execCalls).toHaveLength(0)
   })

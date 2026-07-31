@@ -20,7 +20,7 @@ function explainMp4ToWebpError(error: Error): Error {
     error.message.includes('Output file #0 does not contain any stream') ||
     error.message.includes('ErrnoError: FS error')
   ) {
-    return new Error('This MP4 has no video track. MP4 to WebP only works on video clips, not audio-only MP4/M4A files.')
+    return new Error('This file has no video track. Video to WebP only works on video clips, not audio-only files.')
   }
   return error
 }
@@ -740,7 +740,7 @@ export async function mp4ToWebp(
       const file = files[i]
       const hasVideoTrack = await probeVideoTrack(file)
       if (hasVideoTrack === false) {
-        results.push(new Error('This MP4 has no video track. MP4 to WebP only works on video clips, not audio-only MP4/M4A files.'))
+        results.push(new Error('This file has no video track. Video to WebP only works on video clips, not audio-only files.'))
         continue
       }
 

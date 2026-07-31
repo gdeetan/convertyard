@@ -143,6 +143,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'Video to WebP Converter — ConvertYard',
     description:
-      'Convert MP4, MOV, AVI, MKV, FLV, and WebM to animated WebP in your browser. Trim, crop, resize, and set loop count. No uploads.',
+      'Convert MP4, MOV, AVI, MKV, FLV, and WebM to animated WebP in your browser. Trim, crop, resize, and set loop count. Batch-ready, no uploads.',
   },
 }

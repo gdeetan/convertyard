@@ -98,6 +98,17 @@ describe('video-to-webp (mp4ToWebp with broader format support)', () => {
     expect(writeFileCalls).toEqual(['video_in_0.mov'])
   })
 
+  it('uses the correct extension for a WebM input file', async () => {
+    const { mp4ToWebp } = await import('@/lib/converters/ffmpeg')
+    const input = new File([new Uint8Array([0, 1, 2])], 'clip.webm', { type: 'video/webm' })
+
+    const results = await mp4ToWebp([input], {})
+
+    expect(results).toHaveLength(1)
+    expect((results[0] as File).name).toBe('clip.webp')
+    expect(writeFileCalls).toEqual(['video_in_0.webm'])
+  })
+
   it('rejects audio-only files before ffmpeg work starts', async () => {
     const probeModule = await import('@/lib/converters/media-probe')
     vi.mocked(probeModule.probeVideoTrack).mockResolvedValueOnce(false)
