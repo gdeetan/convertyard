@@ -55,6 +55,9 @@ import { config as movToMp4 } from './tools/mov-to-mp4'
 import { config as webmToMp4 } from './tools/webm-to-mp4'
 import { config as aviToMp4 } from './tools/avi-to-mp4'
 import { config as mkvToMp4 } from './tools/mkv-to-mp4'
+import { config as flvToMp4 } from './tools/flv-to-mp4'
+import { config as rawToPng } from './tools/raw-to-png'
+import { config as pngToBmp } from './tools/png-to-bmp'
 import { config as mp3ToWav } from './tools/mp3-to-wav'
 import { config as aacToMp3 } from './tools/aac-to-mp3'
 import { config as mp3ToOgg } from './tools/mp3-to-ogg'
@@ -122,6 +125,9 @@ export const tools: ToolConfig[] = [
   webmToMp4,
   aviToMp4,
   mkvToMp4,
+  flvToMp4,
+  rawToPng,
+  pngToBmp,
   mp3ToWav,
   aacToMp3,
   mp3ToOgg,

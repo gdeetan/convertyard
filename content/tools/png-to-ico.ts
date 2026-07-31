@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'png-to-ico',
   title: 'PNG to ICO Converter',
-  subtitle: 'Generate ICO favicons from PNG — packs 16, 32, 48, 64, and 128px layers into one file. No upload.',
+  subtitle: 'Generate ICO favicons from PNG — choose which sizes to pack (16, 32, 48, 64, 128 px). No upload.',
   bestFor: 'Best for developers creating a favicon.ico from a square logo PNG.',
   category: 'images',
   accepts: ['image/png'],
@@ -12,10 +12,26 @@ export const config: ToolConfig = {
   outputExt: '.ico',
   convertFn: (files, opts, onProgress) => pngToIco(files, opts, onProgress),
 
+  options: [
+    {
+      type: 'dropdown',
+      name: 'sizes',
+      label: 'ICO sizes',
+      choices: [
+        { value: '16,32,48,64,128', label: 'Full set (16–128 px)' },
+        { value: '16,32,48',        label: 'Web favicon (16–48 px)' },
+        { value: '32,64',           label: 'App shortcut (32, 64 px)' },
+        { value: '128',             label: 'Large only (128 px)' },
+      ],
+      default: '16,32,48,64,128',
+      hint: 'Choose which pixel sizes to pack into the ICO container.',
+    },
+  ],
+
   faq: [
     {
       q: 'What sizes does the ICO file include?',
-      a: 'The output ICO contains five sizes: 16×16, 32×32, 48×48, 64×64, and 128×128 pixels. These cover every common use case — browser favicons (16×16 and 32×32), Windows desktop shortcuts (48×48 and 64×64), and high-DPI displays (128×128). Modern browsers and operating systems automatically pick the most appropriate size.',
+      a: 'By default the output ICO contains five sizes: 16×16, 32×32, 48×48, 64×64, and 128×128 pixels. Use the "ICO sizes" dropdown to pack only the sizes you need. Browser favicons need 16–48 px; Windows shortcuts use 32–64 px; high-DPI displays benefit from 128 px.',
     },
     {
       q: 'My source PNG is not square — what happens?',

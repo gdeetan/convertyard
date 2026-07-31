@@ -66,9 +66,13 @@ function encodePngsAsIco(pngs: Uint8Array[]): ArrayBuffer {
 
 export async function pngToIco(
   files: File[],
-  _opts: ToolOptions,
+  opts: ToolOptions,
   onProgress?: (fileIndex: number, pct: number) => void,
 ): Promise<ConversionResult[]> {
+  const sizesParam = (opts.sizes as string | undefined) ?? '16,32,48,64,128'
+  const sizes = sizesParam.split(',').map(Number).filter(n => ICO_SIZES.includes(n as typeof ICO_SIZES[number]))
+  const activeSizes = sizes.length > 0 ? sizes : [...ICO_SIZES]
+
   return Promise.all(
     files.map(async (file, i) => {
       try {
@@ -76,10 +80,10 @@ export async function pngToIco(
         const bitmap = await createImageBitmap(file)
         onProgress?.(i, 20)
 
-        const step = 60 / ICO_SIZES.length
+        const step = 60 / activeSizes.length
         const pngs: Uint8Array[] = []
-        for (let s = 0; s < ICO_SIZES.length; s++) {
-          pngs.push(await resizeToCanvas(bitmap, ICO_SIZES[s]))
+        for (let s = 0; s < activeSizes.length; s++) {
+          pngs.push(await resizeToCanvas(bitmap, activeSizes[s]))
           onProgress?.(i, 20 + Math.round((s + 1) * step))
         }
 
