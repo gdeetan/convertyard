@@ -102,6 +102,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   // Video & Audio — all coming soon
   { slug: 'mp4-to-mp3',       title: 'MP4 to MP3',       description: 'Strip audio from video in seconds.', category: 'video-audio', status: 'live' },
   { slug: 'mp4-to-webp',      title: 'MP4 to WebP',      description: 'Turn short video clips into lightweight animated WebP for the web.', category: 'video-audio', status: 'live' },
+  { slug: 'video-to-webp',   title: 'Video to WebP',   description: 'Convert MP4, MOV, AVI, MKV, FLV, and WebM to animated WebP. Trim, crop, and resize.', category: 'video-audio', status: 'live' },
   { slug: 'mp3-to-mp4',       title: 'MP3 to MP4',       description: 'Turn audio into a shareable video file.', category: 'video-audio', status: 'live' },
   { slug: 'gif-to-mp4',       title: 'GIF to MP4',       description: 'Convert GIF animations to H.264 MP4 — up to 95% smaller, smoother playback.', category: 'video-audio', status: 'live' },
   { slug: 'compress-video', title: 'Video Compressor', description: 'Compress MP4, MOV, WebM, AVI — no uploads, no file size cap. Batch up to 1,000 files.', category: 'video-audio', status: 'live' },
