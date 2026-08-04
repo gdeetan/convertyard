@@ -6,8 +6,8 @@ const LARGE_FILE_BYTES = 300 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'compress-video',
   title: 'Video Compressor',
-  subtitle: 'Local-first video compression. No uploads, no file size cap. Built for batches.',
-  bestFor: 'Best for shrinking screen recordings or footage before uploading to Slack, email, or a web form.',
+  subtitle: 'Compress MP4, MOV, and MKV with CRF controls or hit an exact file size target. Runs in your browser.',
+  bestFor: 'Good for hitting a file attachment limit before sending or submitting a video.',
   category: 'video-audio',
   accepts: [
     'video/mp4',
@@ -29,8 +29,8 @@ export const config: ToolConfig = {
       : null
   },
   limitationNote: {
-    summary: 'What compresses well?',
-    body: 'Video compression is CPU-intensive and runs entirely in your browser. Large files (500 MB+) may take 5–15 minutes depending on your device. High-motion footage (sport, gaming) compresses less than talking-head or screen recordings. H.265 achieves 30–50% smaller files than H.264 at the same quality, but requires a modern device for playback.',
+    summary: 'Large files take time — keep the tab open',
+    body: 'Video compression runs entirely in your browser. A 500 MB file can take 5–15 minutes depending on your device. Keep the tab open and active while it runs — closing or backgrounding the tab will stop or slow processing. On iPhone and iPad, Safari suspends background tabs aggressively; stay on this tab until the download prompt appears. High-motion footage (sport, gaming) compresses less than screen recordings. H.265 produces 30–50% smaller files than H.264 but requires a modern device for playback.',
   },
 
   options: [
@@ -109,10 +109,6 @@ export const config: ToolConfig = {
   ],
 
   faq: [
-    {
-      q: 'Are my video files uploaded to a server?',
-      a: "Never. All compression runs in your browser using ffmpeg.wasm — a full video processing engine compiled to WebAssembly. Your files never leave your device. ConvertYard's servers only deliver the tool code — they never see your files.",
-    },
     {
       q: 'Can I compress multiple videos at once?',
       a: 'Yes. Drop as many files as you need. ConvertYard compresses them one at a time in your browser and packages the results in a single ZIP. There is no hard limit on file count.',

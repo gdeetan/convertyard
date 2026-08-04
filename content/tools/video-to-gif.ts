@@ -6,8 +6,8 @@ const LARGE_FILE_BYTES = 250 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'video-to-gif',
   title: 'Video to GIF Converter',
-  subtitle: 'Turn short video clips into shareable GIFs. Trim, resize, and lower frame rate to keep files manageable — no uploads.',
-  bestFor: 'Best for making reaction GIFs or short looping clips for chat apps and forums.',
+  subtitle: 'Make looping GIFs from any video clip. Set start/end, frame rate, and width before converting.',
+  bestFor: 'Good for turning a 3-second clip into a GIF to drop in Slack or a GitHub issue.',
   category: 'video-audio',
   accepts: ['video/mp4', 'video/webm', 'video/quicktime'],
   acceptsExt: ['.mp4', '.webm', '.mov'],
@@ -96,10 +96,6 @@ export const config: ToolConfig = {
     {
       q: 'What can go wrong when converting video to GIF?',
       a: 'GIF supports only 256 colors — footage with gradients, skin tones, or complex backgrounds will show visible banding or dithering. Long clips at high frame rates produce huge files that may crash the browser tab. Keep clips under 10 seconds and set width to 480 px or less for reliable results.',
-    },
-    {
-      q: 'Do my video files leave my device when I convert them to GIF?',
-      a: 'No. Conversion runs in your browser using ffmpeg.wasm. Your files stay on your device — nothing is uploaded.',
     },
   ],
   relatedTools: ['mp4-to-webp', 'gif-to-mp4', 'webp-to-gif', 'mp4-to-mp3'],

@@ -6,8 +6,8 @@ const LARGE_FILE_BYTES = 300 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'merge-video',
   title: 'Merge Video Files',
-  subtitle: 'Join multiple video clips into one MP4 file. Local-first, stays in your browser.',
-  bestFor: 'Best for stitching together screen recording segments, travel clips, or split-up video exports.',
+  subtitle: 'Stitch MP4, MOV, WebM, AVI, and MKV clips into one file. Mixed formats and resolutions work — the tool normalizes everything.',
+  bestFor: 'Good for reassembling screen recordings that got split mid-capture.',
   category: 'video-audio',
   accepts: [
     'video/mp4',
@@ -41,10 +41,6 @@ export const config: ToolConfig = {
     },
   ],
   faq: [
-    {
-      q: 'Do my video files leave my device when merging?',
-      a: 'No. All processing runs in your browser using ffmpeg.wasm — a full media engine compiled to WebAssembly. Your videos never touch a server.',
-    },
     {
       q: 'In what order are the videos joined?',
       a: 'Videos are joined in the order you drop them. If sequence matters, arrange the files before dropping — there is no reorder UI.',

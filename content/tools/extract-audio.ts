@@ -6,8 +6,8 @@ const LARGE_FILE_BYTES = 500 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'extract-audio',
   title: 'Extract Audio from Video',
-  subtitle: 'Pull audio tracks from MP4, MOV, MKV, and more. Local-first, built for batches.',
-  bestFor: 'Best for pulling the audio from a recorded interview, lecture, or YouTube video saved locally.',
+  subtitle: 'Rip audio from any video file. Choose MP3, AAC, WAV, OGG, or FLAC — and batch the whole folder at once.',
+  bestFor: 'Good for pulling the audio track out of a recorded call or lecture.',
   category: 'video-audio',
   accepts: [
     'video/mp4',
@@ -69,10 +69,6 @@ export const config: ToolConfig = {
     },
   ],
   faq: [
-    {
-      q: 'Are my video files uploaded to a server?',
-      a: "Never. All processing runs in your browser using ffmpeg.wasm — a full media processing engine compiled to WebAssembly. Your files never leave your device. ConvertYard's servers only deliver the tool code — they never see your files.",
-    },
     {
       q: 'Which video formats are supported?',
       a: 'MP4, MOV, WebM, AVI, MKV, WMV, and TS. These cover the vast majority of video files you will encounter. If your format is not listed, try renaming it to .mp4 — most common containers work.',

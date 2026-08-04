@@ -6,8 +6,8 @@ const LARGE_FILE_BYTES = 500 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'audio-trimmer',
   title: 'Audio Trimmer',
-  subtitle: 'Local-first audio trimming. No uploads, no re-encoding for lossless cuts.',
-  bestFor: 'Best for cutting down voice memos, interview clips, or podcast segments before sharing.',
+  subtitle: 'Trim MP3, WAV, M4A, and more with no re-encoding — cuts are instant and lossless for audio files.',
+  bestFor: 'Good for removing the rambling intro off a voice memo before sending it.',
   category: 'video-audio',
   accepts: [
     'audio/mpeg',
@@ -75,10 +75,6 @@ export const config: ToolConfig = {
     },
   ],
   faq: [
-    {
-      q: 'Are my files uploaded to a server?',
-      a: "Never. All trimming runs in your browser using ffmpeg.wasm — a full media processing engine compiled to WebAssembly. Your files never leave your device. ConvertYard's servers only deliver the tool code — they never see your files.",
-    },
     {
       q: 'Can I trim multiple files at once?',
       a: 'Yes. Drop as many files as you need — there is no hard file count limit, though very large batches will take proportionally longer. ConvertYard applies the same start and end times to every file and packages the results in a single ZIP.',
