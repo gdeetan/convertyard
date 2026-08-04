@@ -6,8 +6,8 @@ const LARGE_FILE_BYTES = 500 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'video-muter',
   title: 'Mute Video',
-  subtitle: 'Remove audio from any video. Stream-copied — instant, no quality loss.',
-  bestFor: 'Best for stripping sound before sharing a screen recording or repurposing footage.',
+  subtitle: 'Strip the audio track without re-encoding — a 2 GB video takes the same time as a 10 MB one.',
+  bestFor: 'Good for removing the background mic noise from a screen recording before sharing.',
   category: 'video-audio',
   accepts: [
     'video/mp4',
@@ -47,10 +47,6 @@ export const config: ToolConfig = {
     {
       q: 'What can go wrong when muting a video?',
       a: 'If the source video has no audio track (already silent), the output is identical to the input — no error, just the same file. Files with unusual or corrupt audio tracks may cause the remux to fail; if that happens, try the file individually. Very large files (over 500 MB) may take a moment to load into browser memory before processing starts.',
-    },
-    {
-      q: 'Do my video files leave my device when I mute them?',
-      a: 'No. Muting runs entirely in your browser using ffmpeg.wasm — the audio strip is a stream copy with no re-encoding. Your files never leave your device.',
     },
   ],
   relatedTools: ['extract-audio', 'video-trimmer', 'compress-video', 'video-speed'],

@@ -6,8 +6,8 @@ const LARGE_FILE_BYTES = 300 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'rotate-video',
   title: 'Rotate Video',
-  subtitle: 'Fix sideways or upside-down videos. No uploads, batch-ready.',
-  bestFor: 'Best for fixing phone recordings shot in the wrong orientation.',
+  subtitle: 'Bake in the correct rotation permanently — fixes the sideways phone recording that only some players handle.',
+  bestFor: 'Good for fixing a video that plays sideways everywhere except the phone it was shot on.',
   category: 'video-audio',
   accepts: [
     'video/mp4',
@@ -61,10 +61,6 @@ export const config: ToolConfig = {
     {
       q: 'What can go wrong when rotating a video?',
       a: 'If the source video has embedded rotation metadata (common with iPhone and Android clips), some players already show it correctly before rotation. Applying an additional 90° rotation in that case will double-rotate the video. Check how the file looks in your target editor before deciding which rotation to apply.',
-    },
-    {
-      q: 'Do my video files leave my device when I rotate them here?',
-      a: 'No. All rotation runs in your browser using ffmpeg.wasm. Your files never leave your device.',
     },
   ],
   relatedTools: ['video-trimmer', 'compress-video', 'video-muter', 'extract-audio'],

@@ -6,10 +6,8 @@ const LARGE_FILE_BYTES = 250 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'video-to-webp',
   title: 'Video to WebP Converter',
-  subtitle:
-    'Convert MP4, MOV, AVI, MKV, FLV, and WebM to animated WebP. Trim, crop, and resize — no uploads.',
-  bestFor:
-    'Best for product teams and developers embedding short looping animations on websites or in documentation.',
+  subtitle: 'Turn any video clip into an animated WebP — smaller than GIF, full color, designed for the web.',
+  bestFor: 'Good for embedding a looping UI demo in a product changelog or README.',
   category: 'video-audio',
   accepts: [
     'video/mp4',
@@ -128,10 +126,6 @@ export const config: ToolConfig = {
     {
       q: 'What can go wrong when converting video to animated WebP?',
       a: 'Audio-only files will fail immediately — this tool requires a video track. Long clips can exceed browser memory; keep clips under 10 seconds. If output looks washed out or blurry, lower the quality setting and check the max dimension.',
-    },
-    {
-      q: 'Do my video files leave my device?',
-      a: 'No. Conversion runs entirely in your browser using ffmpeg.wasm. Your files stay on your device the whole time — nothing is uploaded.',
     },
   ],
   relatedTools: ['mp4-to-webp', 'video-to-gif', 'gif-to-webp', 'compress-video'],

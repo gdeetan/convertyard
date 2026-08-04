@@ -4,8 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'audio-speed',
   title: 'Audio Speed Changer',
-  subtitle: 'Speed up or slow down audio without changing pitch. Batch-ready, stays in your browser.',
-  bestFor: 'Best for listening to lectures or podcasts at 1.5×–2×, or slowing down music to learn an instrument part.',
+  subtitle: 'Adjust playback speed from 0.25× to 4× — pitch stays constant. Drop a whole folder and process them all at once.',
+  bestFor: 'Good for burning through a lecture backlog at 1.5× or 2×.',
   category: 'video-audio',
   accepts: [
     'audio/mpeg',
@@ -50,10 +50,6 @@ export const config: ToolConfig = {
     },
   ],
   faq: [
-    {
-      q: 'Does my audio file leave my device to change its speed?',
-      a: 'No. Speed adjustment runs in your browser using ffmpeg.wasm — a full media engine compiled to WebAssembly. Your files never touch a server.',
-    },
     {
       q: 'Does changing speed affect pitch?',
       a: "No. The tool uses ffmpeg's atempo filter, which time-stretches the audio while keeping pitch constant. Speech stays at normal pitch at 2× speed; slowed-down music stays in the original key.",

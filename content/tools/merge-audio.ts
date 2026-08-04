@@ -4,8 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'merge-audio',
   title: 'Merge Audio Files',
-  subtitle: 'Join multiple audio files into one continuous track. Local-first, stays in your browser.',
-  bestFor: 'Best for combining separate podcast segments, interview parts, or music clips into a single file.',
+  subtitle: 'Combine MP3, WAV, M4A, OGG, and FLAC into one file. Drop them in order — they join with no gaps.',
+  bestFor: 'Good for stitching together an interview that was recorded in two halves.',
   category: 'video-audio',
   accepts: [
     'audio/mpeg',
@@ -36,10 +36,6 @@ export const config: ToolConfig = {
     },
   ],
   faq: [
-    {
-      q: 'Do my audio files leave my device when merging?',
-      a: 'No. All merging runs in your browser using ffmpeg.wasm — a full media engine compiled to WebAssembly. Your files never touch a server.',
-    },
     {
       q: 'In what order are the files joined?',
       a: 'Files are joined in the order you drop them. If the order matters, arrange them before dropping. There is no reorder UI — drop the files in the correct sequence.',

@@ -6,8 +6,8 @@ const LARGE_FILE_BYTES = 500 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'video-trimmer',
   title: 'Video Trimmer',
-  subtitle: 'Trim any video clip. Fast mode is instant — no re-encode, no upload.',
-  bestFor: 'Best for cutting intros and outros off recordings without installing software.',
+  subtitle: 'Cut any video clip. Fast mode is instant — no re-encode. Precise mode gives frame-accurate cuts when you need them.',
+  bestFor: "Good for trimming the 30-second \"can you hear me?\" start off a recorded meeting.",
   category: 'video-audio',
   accepts: [
     'video/mp4',
@@ -74,10 +74,6 @@ export const config: ToolConfig = {
     {
       q: 'What does leaving End time at 0 do?',
       a: 'A zero End time means "keep everything after the Start time" — it trims the beginning only. Set both Start and End to trim a middle section.',
-    },
-    {
-      q: 'Do my video files leave my device when I trim them?',
-      a: 'No. All trimming runs in your browser using ffmpeg.wasm. Your files never leave your device.',
     },
   ],
   relatedTools: ['audio-trimmer', 'compress-video', 'extract-audio', 'video-muter'],

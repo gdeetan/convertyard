@@ -6,8 +6,8 @@ const LARGE_FILE_BYTES = 300 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'video-speed',
   title: 'Video Speed Changer',
-  subtitle: 'Speed up or slow down any video. Pitch-corrected audio. No uploads.',
-  bestFor: 'Best for creating timelapse-style clips or slow-motion moments from any video.',
+  subtitle: 'Change video speed from 0.25× to 4×. Audio pitch is corrected automatically — no chipmunk effect.',
+  bestFor: 'Good for speeding up a long screen recording walkthrough to share as a quick demo.',
   category: 'video-audio',
   accepts: [
     'video/mp4',
@@ -62,10 +62,6 @@ export const config: ToolConfig = {
     {
       q: 'Can I change the speed of multiple videos at once?',
       a: 'Yes. All files get the same speed applied. Results are packaged in a single ZIP.',
-    },
-    {
-      q: 'Do my video files leave my device when I change their speed?',
-      a: 'No. Speed processing runs entirely in your browser using ffmpeg.wasm. Your files never leave your device.',
     },
   ],
   relatedTools: ['audio-speed', 'video-trimmer', 'compress-video', 'video-muter'],
