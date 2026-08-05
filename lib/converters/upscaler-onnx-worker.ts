@@ -153,6 +153,7 @@ async function loadModel(scale: UpscaleScale) {
 
   readyModels.add(scale)
   self.postMessage({ type: 'model-ready', scale })
+  self.postMessage({ type: 'log', message: `ONNX upscaler ready on ${activeDevice}` })
 }
 
 // ── RawImage → RGBA Uint8ClampedArray ─────────────────────────────────────────
@@ -455,7 +456,7 @@ function buildStarts(dim: number, tileSize: number): number[] {
   return starts
 }
 
-const TILE_PX = 256
+const TILE_PX = 128
 const OVERLAP = 8
 const SAFE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const SCALE_NUM: Record<UpscaleScale, number> = { '2x': 2, '3x': 3, '4x': 4, '8x': 8 }
