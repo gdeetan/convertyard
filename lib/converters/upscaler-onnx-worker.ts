@@ -48,15 +48,18 @@ async function ensureHfAuth() {
 type OnnxDevice = 'webgpu' | 'wasm' | 'cpu'
 let activeDevice: OnnxDevice = 'webgpu'
 
-// Cache: modelId → pipeline instance
+// Cache: modelId → pipeline Promise (Promise cached to prevent TOCTOU duplicate creation)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const pipelineCache = new Map<string, any>()
+const pipelineCache = new Map<string, Promise<any>>()
 
-function clearPipelineCache() {
-  for (const [, pipe] of pipelineCache) {
-    if (pipe && typeof pipe.dispose === 'function') {
-      try { pipe.dispose() } catch { /* ignore */ }
-    }
+async function clearPipelineCache() {
+  for (const [, pipePromise] of pipelineCache) {
+    try {
+      const pipe = await pipePromise
+      if (pipe && typeof pipe.dispose === 'function') {
+        try { pipe.dispose() } catch { /* ignore */ }
+      }
+    } catch { /* ignore rejected promises */ }
   }
   pipelineCache.clear()
 }
@@ -115,12 +118,13 @@ function modelRouting(scale: UpscaleScale, mode: PhotoMode): ModelRouting {
 
 async function getPipeline(modelId: string, scale: UpscaleScale, device: OnnxDevice) {
   const cacheKey = `${modelId}::${device}`
-  if (pipelineCache.has(cacheKey)) return pipelineCache.get(cacheKey)
+  if (pipelineCache.has(cacheKey)) return pipelineCache.get(cacheKey)!
 
   await ensureHfAuth()
   const { pipeline } = await import('@huggingface/transformers')
 
-  const pipe = await pipeline('image-to-image', modelId, {
+  // Cache the Promise immediately to prevent TOCTOU: concurrent callers get the same Promise
+  const p = pipeline('image-to-image', modelId, {
     device,
     dtype: 'q8',
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -130,8 +134,8 @@ async function getPipeline(modelId: string, scale: UpscaleScale, device: OnnxDev
     },
   })
 
-  pipelineCache.set(cacheKey, pipe)
-  return pipe
+  pipelineCache.set(cacheKey, p)
+  return p
 }
 
 // ── Model load (warm-up) ───────────────────────────────────────────────────────
@@ -155,6 +159,7 @@ async function loadModel(scale: UpscaleScale) {
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function rawImageToRgba(rawImg: any): { rgba: Uint8ClampedArray; width: number; height: number } {
+  if (rawImg.channels !== 3) throw new Error(`Expected 3-channel RGB output from model, got ${rawImg.channels} channels`)
   const { data, width, height } = rawImg
   const rgba = new Uint8ClampedArray(width * height * 4)
   for (let i = 0; i < width * height; i++) {
@@ -191,10 +196,7 @@ async function inferTile(
     const result: any = await pipe(rawImg)
     const { rgba, width, height } = rawImageToRgba(result)
 
-    // Validate tile shape
-    const expectedScale = deviceOrder.indexOf(device) >= 0 ? undefined : undefined
-    // We'll validate shape at caller level using chain.scale
-
+    // Shape validated at caller level using chain.scale
     if (!detectFlatOutputMismatch(tileRgba, rgba)) {
       // Good output — if we switched device, update activeDevice
       if (device !== activeDevice) {
@@ -218,14 +220,19 @@ async function inferTile(
 
     // Dispose cached pipeline for this model+device and switch
     const cacheKey = `${modelId}::${device}`
-    const oldPipe = pipelineCache.get(cacheKey)
-    if (oldPipe && typeof oldPipe.dispose === 'function') {
-      try { oldPipe.dispose() } catch { /* ignore */ }
+    const oldPipePromise = pipelineCache.get(cacheKey)
+    if (oldPipePromise) {
+      try {
+        const oldPipe = await oldPipePromise
+        if (oldPipe && typeof oldPipe.dispose === 'function') {
+          try { oldPipe.dispose() } catch { /* ignore */ }
+        }
+      } catch { /* ignore rejected promise */ }
     }
     pipelineCache.delete(cacheKey)
 
     // Switch active device and clear all pipelines (different device needs fresh init)
-    clearPipelineCache()
+    await clearPipelineCache()
     activeDevice = nextDevice
     deviceIdx++
   }
@@ -561,136 +568,140 @@ async function runInference(
   // Decode source image
   const blob   = new Blob([buffer], { type: mimeType })
   const bitmap = await createImageBitmap(blob)
-  const srcW = bitmap.width
-  const srcH = bitmap.height
-
-  // Canvas size guard (photo/ONNX path)
   let workBitmap: ImageBitmap = bitmap
-  let workW = srcW
-  let workH = srcH
-  if (srcW * scaleFactor > MAX_CANVAS_DIM || srcH * scaleFactor > MAX_CANVAS_DIM) {
-    const limitRatio = Math.min(
-      MAX_CANVAS_DIM / (srcW * scaleFactor),
-      MAX_CANVAS_DIM / (srcH * scaleFactor)
-    )
-    workW = Math.round(srcW * limitRatio)
-    workH = Math.round(srcH * limitRatio)
-    const scaleCanvas = new OffscreenCanvas(workW, workH)
-    scaleCanvas.getContext('2d')!.drawImage(bitmap, 0, 0, workW, workH)
-    workBitmap = await createImageBitmap(scaleCanvas)
-    self.postMessage({
-      type: 'log',
-      id,
-      message: `Source scaled ${srcW}×${srcH} → ${workW}×${workH} to fit GPU canvas limit`,
-    })
-  }
 
-  // Resolve image mode
-  const resolvedMode: 'photo' | 'photo-compressed' | 'graphic' =
-    imageMode === 'auto' ? detectImageMode(workBitmap) :
-    imageMode === 'photo-compressed' ? 'photo-compressed' :
-    imageMode === 'graphic' ? 'graphic' : 'photo'
+  try {
+    const srcW = bitmap.width
+    const srcH = bitmap.height
 
-  self.postMessage({ type: 'log', id, message: `Image mode: ${resolvedMode}${imageMode === 'auto' ? ' (auto-detected)' : ''}` })
-
-  // ── Graphic path ───────────────────────────────────────────────────────────
-  if (resolvedMode === 'graphic') {
-    const rawOutW = srcW * scaleFactor
-    const rawOutH = srcH * scaleFactor
-    const capRatio = Math.min(1, MAX_GRAPHIC_DIM / rawOutW, MAX_GRAPHIC_DIM / rawOutH)
-    const capW = Math.round(rawOutW * capRatio)
-    const capH = Math.round(rawOutH * capRatio)
-    if (capRatio < 1) {
-      self.postMessage({ type: 'log', id, message: `Graphic: capping output ${rawOutW}×${rawOutH} → ${capW}×${capH}` })
+    // Canvas size guard (photo/ONNX path)
+    let workW = srcW
+    let workH = srcH
+    if (srcW * scaleFactor > MAX_CANVAS_DIM || srcH * scaleFactor > MAX_CANVAS_DIM) {
+      const limitRatio = Math.min(
+        MAX_CANVAS_DIM / (srcW * scaleFactor),
+        MAX_CANVAS_DIM / (srcH * scaleFactor)
+      )
+      workW = Math.round(srcW * limitRatio)
+      workH = Math.round(srcH * limitRatio)
+      const scaleCanvas = new OffscreenCanvas(workW, workH)
+      scaleCanvas.getContext('2d')!.drawImage(bitmap, 0, 0, workW, workH)
+      workBitmap = await createImageBitmap(scaleCanvas)
+      self.postMessage({
+        type: 'log',
+        id,
+        message: `Source scaled ${srcW}×${srcH} → ${workW}×${workH} to fit GPU canvas limit`,
+      })
     }
-    const out = await graphicScale(
-      bitmap,
-      capW,
-      capH,
-      (pct) => self.postMessage({ type: 'infer-progress', id, progress: pct })
-    )
-    bitmap.close()
-    if (workBitmap !== bitmap) workBitmap.close()
-    self.postMessage({ type: 'infer-progress', id, progress: 95 })
-    const resultBlob   = await out.convertToBlob({ type: outMime, quality: 0.92 })
-    const resultBuffer = await resultBlob.arrayBuffer()
-    self.postMessage({ type: 'infer-progress', id, progress: 100 })
-    self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
-    return
-  }
 
-  // ── Photo path: Swin2SR tiling ─────────────────────────────────────────────
+    // Resolve image mode
+    const resolvedMode: 'photo' | 'photo-compressed' | 'graphic' =
+      imageMode === 'auto' ? detectImageMode(workBitmap) :
+      imageMode === 'photo-compressed' ? 'photo-compressed' :
+      imageMode === 'graphic' ? 'graphic' : 'photo'
 
-  self.postMessage({ type: 'infer-progress', id, progress: 10 })
+    self.postMessage({ type: 'log', id, message: `Image mode: ${resolvedMode}${imageMode === 'auto' ? ' (auto-detected)' : ''}` })
 
-  const photoMode: PhotoMode = resolvedMode === 'photo-compressed' ? 'photo-compressed' : 'photo'
-  const routing = modelRouting(scale, photoMode)
-
-  // Run chain (single model for most scales; two models for 8×)
-  let currentBitmap = workBitmap
-  let isFirst = true
-
-  for (const chain of routing.chains) {
-    const chainBitmap = currentBitmap
-    const tileCanvas = await runOnnxTiling(
-      id,
-      chainBitmap,
-      chain.modelId,
-      chain.scale,
-      (done, total) => {
-        // Progress range 10–85 for all chained tiles
-        const chainIdx = routing.chains.indexOf(chain)
-        const chainCount = routing.chains.length
-        const chainStart = 10 + chainIdx * (75 / chainCount)
-        const chainEnd   = 10 + (chainIdx + 1) * (75 / chainCount)
-        const pct = chainStart + (done / total) * (chainEnd - chainStart)
-        self.postMessage({ type: 'infer-progress', id, progress: Math.round(pct) })
+    // ── Graphic path ───────────────────────────────────────────────────────────
+    if (resolvedMode === 'graphic') {
+      const rawOutW = srcW * scaleFactor
+      const rawOutH = srcH * scaleFactor
+      const capRatio = Math.min(1, MAX_GRAPHIC_DIM / rawOutW, MAX_GRAPHIC_DIM / rawOutH)
+      const capW = Math.round(rawOutW * capRatio)
+      const capH = Math.round(rawOutH * capRatio)
+      if (capRatio < 1) {
+        self.postMessage({ type: 'log', id, message: `Graphic: capping output ${rawOutW}×${rawOutH} → ${capW}×${capH}` })
       }
-    )
-
-    // Close intermediate bitmaps (but not the original workBitmap if we're looping)
-    if (!isFirst && chainBitmap !== bitmap && chainBitmap !== workBitmap) {
-      chainBitmap.close()
-    }
-    isFirst = false
-
-    // Convert canvas to bitmap for the next chain step (or final output)
-    if (routing.chains.indexOf(chain) < routing.chains.length - 1) {
-      currentBitmap = await createImageBitmap(tileCanvas)
-    } else {
-      // Final step: handle 3× special case (run 4× model then bicubic 0.75× downsample)
-      if (scale === '3x') {
-        const finalW = Math.round(workW * 3)
-        const finalH = Math.round(workH * 3)
-        const downCanvas = new OffscreenCanvas(finalW, finalH)
-        downCanvas.getContext('2d')!.drawImage(
-          tileCanvas as unknown as CanvasImageSource,
-          0, 0, finalW, finalH
-        )
-        bitmap.close()
-        if (workBitmap !== bitmap) workBitmap.close()
-        self.postMessage({ type: 'infer-progress', id, progress: 95 })
-        const resultBlob   = await downCanvas.convertToBlob({ type: outMime, quality: 0.92 })
-        const resultBuffer = await resultBlob.arrayBuffer()
-        self.postMessage({ type: 'infer-progress', id, progress: 100 })
-        self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
-        return
-      }
-
-      // Normal output
-      bitmap.close()
-      if (workBitmap !== bitmap) workBitmap.close()
+      const out = await graphicScale(
+        bitmap,
+        capW,
+        capH,
+        (pct) => self.postMessage({ type: 'infer-progress', id, progress: pct })
+      )
       self.postMessage({ type: 'infer-progress', id, progress: 95 })
-      const resultBlob   = await tileCanvas.convertToBlob({ type: outMime, quality: 0.92 })
+      const resultBlob   = await out.convertToBlob({ type: outMime, quality: 0.92 })
       const resultBuffer = await resultBlob.arrayBuffer()
       self.postMessage({ type: 'infer-progress', id, progress: 100 })
       self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
       return
     }
+
+    // ── Photo path: Swin2SR tiling ─────────────────────────────────────────────
+
+    self.postMessage({ type: 'infer-progress', id, progress: 10 })
+
+    const photoMode: PhotoMode = resolvedMode === 'photo-compressed' ? 'photo-compressed' : 'photo'
+    const routing = modelRouting(scale, photoMode)
+
+    // Run chain (single model for most scales; two models for 8×)
+    let currentBitmap = workBitmap
+    let isFirst = true
+
+    for (const chain of routing.chains) {
+      const chainBitmap = currentBitmap
+      const tileCanvas = await runOnnxTiling(
+        id,
+        chainBitmap,
+        chain.modelId,
+        chain.scale,
+        (done, total) => {
+          // Progress range 10–85 for all chained tiles
+          const chainIdx = routing.chains.indexOf(chain)
+          const chainCount = routing.chains.length
+          const chainStart = 10 + chainIdx * (75 / chainCount)
+          const chainEnd   = 10 + (chainIdx + 1) * (75 / chainCount)
+          const pct = chainStart + (done / total) * (chainEnd - chainStart)
+          self.postMessage({ type: 'infer-progress', id, progress: Math.round(pct) })
+        }
+      )
+
+      // Close intermediate bitmaps (but not the original workBitmap if we're looping)
+      if (!isFirst && chainBitmap !== bitmap && chainBitmap !== workBitmap) {
+        chainBitmap.close()
+      }
+      isFirst = false
+
+      // Convert canvas to bitmap for the next chain step (or final output)
+      if (routing.chains.indexOf(chain) < routing.chains.length - 1) {
+        currentBitmap = await createImageBitmap(tileCanvas)
+      } else {
+        // Final step: handle 3× special case (run 4× model then bicubic 0.75× downsample)
+        if (scale === '3x') {
+          const finalW = Math.round(workW * 3)
+          const finalH = Math.round(workH * 3)
+          const downCanvas = new OffscreenCanvas(finalW, finalH)
+          downCanvas.getContext('2d')!.drawImage(
+            tileCanvas as unknown as CanvasImageSource,
+            0, 0, finalW, finalH
+          )
+          self.postMessage({ type: 'infer-progress', id, progress: 95 })
+          const resultBlob   = await downCanvas.convertToBlob({ type: outMime, quality: 0.92 })
+          const resultBuffer = await resultBlob.arrayBuffer()
+          self.postMessage({ type: 'infer-progress', id, progress: 100 })
+          self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
+          return
+        }
+
+        // Normal output
+        self.postMessage({ type: 'infer-progress', id, progress: 95 })
+        const resultBlob   = await tileCanvas.convertToBlob({ type: outMime, quality: 0.92 })
+        const resultBuffer = await resultBlob.arrayBuffer()
+        self.postMessage({ type: 'infer-progress', id, progress: 100 })
+        self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
+        return
+      }
+    }
+  } finally {
+    bitmap.close()
+    if (workBitmap !== bitmap) workBitmap.close()
   }
 }
 
 // ── Message router ─────────────────────────────────────────────────────────────
+
+// Serial queue for infer messages: prevents concurrent inference from corrupting
+// shared state (activeDevice) and from creating duplicate pipeline instances.
+let _inferQueue = Promise.resolve()
 
 self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
   const msg = e.data
@@ -705,10 +716,11 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
   }
 
   if (msg.type === 'infer') {
-    try {
-      await runInference(msg.id, msg.scale, msg.buffer, msg.mimeType, msg.outputFormat, msg.imageMode)
-    } catch (err) {
-      self.postMessage({ type: 'error', id: msg.id, message: (err as Error).message })
-    }
+    const { id, scale, buffer, mimeType, outputFormat, imageMode } = msg
+    _inferQueue = _inferQueue.then(() =>
+      runInference(id, scale, buffer, mimeType, outputFormat, imageMode).catch(err =>
+        self.postMessage({ type: 'error', id, message: (err as Error).message })
+      )
+    )
   }
 })
