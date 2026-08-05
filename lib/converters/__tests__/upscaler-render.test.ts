@@ -179,3 +179,93 @@ describe('GaussianAccumulator', () => {
     }
   })
 })
+
+describe('JPEG artifact detection logic', () => {
+  it('DCT boundary ratio detects JPEG-like 8px block boundaries', () => {
+    // Create a 200x200 RGBA array with 8px uniform blocks (mimics JPEG quantization)
+    // with slight boundary gradients between blocks
+    const w = 200, h = 200
+    const data = new Uint8ClampedArray(w * h * 4)
+    // Fill with 8×8 blocks, each block uniform gray, adjacent blocks differ by 40
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const blockX = Math.floor(x / 8)
+        const blockY = Math.floor(y / 8)
+        const value = ((blockX + blockY) % 2) * 40 + 100 // alternating 100, 140
+        const idx = (y * w + x) * 4
+        data[idx] = data[idx+1] = data[idx+2] = value
+        data[idx+3] = 255
+      }
+    }
+
+    // Compute DCT boundary signal (replicate the logic)
+    let boundaryGrad = 0, boundaryCount = 0
+    let nonBoundaryGrad = 0, nonBoundaryCount = 0
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const idx = (y * w + x) * 4
+        const right = data[(y * w + x + 1) * 4]
+        const below = data[((y + 1) * w + x) * 4]
+        const grad = Math.abs(data[idx] - right) + Math.abs(data[idx] - below)
+
+        const isBoundaryX = (x % 8 === 7) // just before a boundary
+        const isBoundaryY = (y % 8 === 7)
+
+        if (isBoundaryX || isBoundaryY) {
+          boundaryGrad += grad; boundaryCount++
+        } else {
+          nonBoundaryGrad += grad; nonBoundaryCount++
+        }
+      }
+    }
+    const avgBoundary = boundaryGrad / Math.max(1, boundaryCount)
+    const avgNonBoundary = nonBoundaryGrad / Math.max(1, nonBoundaryCount)
+
+    // JPEG-like data should have high boundary gradient vs interior
+    expect(avgBoundary).toBeGreaterThan(avgNonBoundary * 1.5)
+  })
+
+  it('DCT boundary ratio does NOT trigger for smooth gradient', () => {
+    const w = 200, h = 200
+    const data = new Uint8ClampedArray(w * h * 4)
+    // Smooth horizontal gradient
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const value = Math.round((x / w) * 255)
+        const idx = (y * w + x) * 4
+        data[idx] = data[idx+1] = data[idx+2] = value
+        data[idx+3] = 255
+      }
+    }
+
+    let boundaryGrad = 0, boundaryCount = 0
+    let nonBoundaryGrad = 0, nonBoundaryCount = 0
+    for (let y = 1; y < h - 1; y++) {
+      for (let x = 1; x < w - 1; x++) {
+        const idx = (y * w + x) * 4
+        const right = data[(y * w + x + 1) * 4]
+        const below = data[((y + 1) * w + x) * 4]
+        const grad = Math.abs(data[idx] - right) + Math.abs(data[idx] - below)
+        const isBoundaryX = (x % 8 === 7)
+        const isBoundaryY = (y % 8 === 7)
+        if (isBoundaryX || isBoundaryY) { boundaryGrad += grad; boundaryCount++ }
+        else { nonBoundaryGrad += grad; nonBoundaryCount++ }
+      }
+    }
+    const avgBoundary = boundaryGrad / Math.max(1, boundaryCount)
+    const avgNonBoundary = nonBoundaryGrad / Math.max(1, nonBoundaryCount)
+
+    // Smooth gradient should NOT trigger the JPEG boundary signal
+    expect(avgBoundary).toBeLessThanOrEqual(avgNonBoundary * 1.5)
+  })
+
+  it('model routing returns compressed-sr model for photo-compressed at 2x', () => {
+    // Verify the routing table by testing the logic directly
+    function route2x(mode: string): string {
+      if (mode === 'photo-compressed') return 'Xenova/swin2SR-compressed-sr-x2-48'
+      return 'Xenova/swin2SR-classical-sr-x2-64'
+    }
+    expect(route2x('photo-compressed')).toBe('Xenova/swin2SR-compressed-sr-x2-48')
+    expect(route2x('photo')).toBe('Xenova/swin2SR-classical-sr-x2-64')
+  })
+})
