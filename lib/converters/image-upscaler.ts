@@ -15,7 +15,14 @@ export async function upscaleBatch(
   onModelProgress: (pct: number) => void,
   onFileProgress: (fileIndex: number, pct: number) => void
 ): Promise<(File | Error)[]> {
-  await loadUpscalerModel(options.scale, onModelProgress)
+  // Map model loading (0–100%) to per-file bars at 0–15% so users see feedback
+  // during the potentially long model download phase.
+  await loadUpscalerModel(options.scale, (pct) => {
+    onModelProgress(pct)
+    for (let i = 0; i < files.length; i++) {
+      onFileProgress(i, Math.round(pct * 0.15))
+    }
+  })
 
   const results: (File | Error)[] = []
   for (let i = 0; i < files.length; i++) {
@@ -25,7 +32,7 @@ export async function upscaleBatch(
         files[i],
         options.scale,
         outputFormat,
-        (pct) => onFileProgress(i, pct),
+        (pct) => onFileProgress(i, 15 + Math.round(pct * 0.85)),
         options.imageMode
       )
       results.push(result)

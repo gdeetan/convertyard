@@ -17,6 +17,9 @@ function getWorker(): Worker {
       ? new URL('./upscaler-onnx-worker.ts', import.meta.url)
       : new URL('./upscaler-worker.ts', import.meta.url)
     workerInstance = new Worker(workerUrl, { type: 'module' })
+    workerInstance.addEventListener('message', (e: MessageEvent) => {
+      if (e.data?.type === 'log') console.log('[upscaler-worker]', e.data.message)
+    })
   }
   return workerInstance
 }
@@ -36,24 +39,36 @@ export function loadUpscalerModel(
   const p = new Promise<void>((resolve, reject) => {
     const worker = getWorker()
 
+    const cleanup = () => {
+      worker.removeEventListener('message', handler)
+      worker.removeEventListener('error', crashHandler)
+    }
+
     const handler = (e: MessageEvent) => {
       const d = e.data
       if (d.type === 'model-progress' && d.scale === scale) {
         onProgress?.(d.progress as number)
       } else if (d.type === 'model-ready' && d.scale === scale) {
-        worker.removeEventListener('message', handler)
+        cleanup()
         readyMap[scale] = true
         delete loadingMap[scale]
         onProgress?.(100)
         resolve()
       } else if (d.type === 'error' && !d.id) {
-        worker.removeEventListener('message', handler)
+        cleanup()
         delete loadingMap[scale]
         reject(new Error(d.message as string))
       }
     }
 
+    const crashHandler = (e: ErrorEvent) => {
+      cleanup()
+      delete loadingMap[scale]
+      reject(new Error(`Upscaler worker crashed: ${e.message}`))
+    }
+
     worker.addEventListener('message', handler)
+    worker.addEventListener('error', crashHandler, { once: true })
     worker.postMessage({ type: 'load', scale })
   })
 

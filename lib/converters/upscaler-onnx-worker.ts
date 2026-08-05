@@ -166,7 +166,20 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 async function loadModel(scale: UpscaleScale) {
   if (readyModels.has(scale)) return
 
-  const routing = modelRouting(scale, 'photo')
+  // For 2x we need BOTH classical and compressed variants because the correct one is
+  // chosen at inference time based on detected image content. Loading both here prevents
+  // a silent mid-inference download that stalls the progress bar at 10%.
+  const routings =
+    scale === '2x'
+      ? [modelRouting('2x', 'photo'), modelRouting('2x', 'photo-compressed')]
+      : [modelRouting(scale, 'photo')]
+
+  // Deduplicate model IDs (e.g. 4x and 3x both use REALWORLD_X4)
+  const allChains = routings.flatMap((r) => r.chains)
+  const uniqueChains = allChains.filter(
+    (c, i) => allChains.findIndex((x) => x.modelId === c.modelId) === i
+  )
+
   const deviceOrder: OnnxDevice[] = ['webgpu', 'wasm', 'cpu']
   // WebGPU negotiation can hang indefinitely on unsupported browsers — cap it at 15s
   const DEVICE_TIMEOUT_MS: Record<OnnxDevice, number> = { webgpu: 15_000, wasm: 60_000, cpu: 120_000 }
@@ -175,7 +188,7 @@ async function loadModel(scale: UpscaleScale) {
   // browsers — fall through to WASM silently.
   for (const device of deviceOrder) {
     try {
-      for (const chain of routing.chains) {
+      for (const chain of uniqueChains) {
         const cacheKey = `${chain.modelId}::${device}`
         if (!pipelineCache.has(cacheKey)) {
           await withTimeout(
@@ -189,7 +202,7 @@ async function loadModel(scale: UpscaleScale) {
       break
     } catch {
       // Remove the stalled/rejected promise so the next device can cache its own
-      for (const chain of routing.chains) {
+      for (const chain of uniqueChains) {
         pipelineCache.delete(`${chain.modelId}::${device}`)
       }
       if (device === 'cpu') throw new Error('Failed to initialize upscaler on any ONNX device')
@@ -756,6 +769,8 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
   const msg = e.data
 
   if (msg.type === 'load') {
+    // Reset the inference queue — clears any stuck inference from a prior attempt in the same tab
+    _inferQueue = Promise.resolve()
     try {
       await ensureModel(msg.scale)
     } catch (err) {

@@ -78,23 +78,29 @@ function PreviewPanelInner({
 
 // ── Page ────────────────────────────────────────────────────────────────────
 
+type ModelState = 'loading' | 'slow' | 'ready'
+
 function ImageUpscalerPage() {
-  const [modelReady, setModelReady] = useState(false)
+  const [modelState, setModelState] = useState<ModelState>('loading')
   const loaded = useRef(false)
 
   useEffect(() => {
     if (loaded.current) return
     loaded.current = true
 
-    // Safety net: hide the banner after 30s regardless of model state
-    const timeout = setTimeout(() => setModelReady(true), 30_000)
+    // After 30s without model-ready, tell user it's a large download — don't hide banner.
+    // Hard cutoff at 210s (max device negotiation time + buffer) in case something hangs.
+    const slowTimeout = setTimeout(() => setModelState('slow'), 30_000)
+    const hardCutoff  = setTimeout(() => setModelState('ready'), 210_000)
 
     import('@/lib/converters/upscaler-engine')
-      .then(({ loadUpscalerModel }) =>
-        loadUpscalerModel('4x').finally(() => setModelReady(true))
-      )
-      .catch(() => setModelReady(true))
-      .finally(() => clearTimeout(timeout))
+      .then(({ loadUpscalerModel }) => loadUpscalerModel('4x'))
+      .catch(() => {/* error surfaces in progress bar when user converts */})
+      .finally(() => {
+        clearTimeout(slowTimeout)
+        clearTimeout(hardCutoff)
+        setModelState('ready')
+      })
   }, [])
 
   const configWithPreview = {
@@ -104,14 +110,18 @@ function ImageUpscalerPage() {
 
   return (
     <>
-      {!modelReady && (
+      {modelState !== 'ready' && (
         <div className="mx-auto max-w-3xl px-4 pt-6 sm:px-6">
           <div className="flex items-center gap-3 rounded-xl border border-border bg-bg-elevated px-4 py-3 text-sm text-fg-muted">
             <div
               className="h-2 w-2 animate-pulse rounded-full bg-primary shrink-0"
               aria-hidden="true"
             />
-            <span>Loading AI model…</span>
+            <span>
+              {modelState === 'slow'
+                ? 'Loading AI model… (large file, may take a minute)'
+                : 'Loading AI model…'}
+            </span>
           </div>
         </div>
       )}
