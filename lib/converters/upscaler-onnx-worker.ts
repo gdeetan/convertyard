@@ -544,8 +544,7 @@ async function runOnnxTiling(
   const normalizedRGBA = acc.normalize()
   const out    = new OffscreenCanvas(outW, outH)
   const outCtx = out.getContext('2d')!
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  outCtx.putImageData(new ImageData(normalizedRGBA as any, outW, outH), 0, 0)
+  outCtx.putImageData(new ImageData(normalizedRGBA, outW, outH), 0, 0)
 
   return out
 }
