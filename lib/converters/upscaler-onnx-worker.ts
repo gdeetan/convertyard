@@ -141,6 +141,18 @@ async function getPipeline(modelId: string, scale: UpscaleScale, device: OnnxDev
 // ── Model load (warm-up) ───────────────────────────────────────────────────────
 
 const readyModels = new Set<string>()
+// Shared promise per scale — prevents concurrent loadModel calls and lets
+// runInference await the same in-flight load rather than re-entering loadModel.
+const modelLoadingMap = new Map<UpscaleScale, Promise<void>>()
+
+function ensureModel(scale: UpscaleScale): Promise<void> {
+  if (readyModels.has(scale)) return Promise.resolve()
+  if (modelLoadingMap.has(scale)) return modelLoadingMap.get(scale)!
+  const p = loadModel(scale)
+  modelLoadingMap.set(scale, p)
+  p.finally(() => modelLoadingMap.delete(scale))
+  return p
+}
 
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
@@ -593,6 +605,11 @@ async function runInference(
   outputFormat?: string,
   imageMode: ImageMode = 'auto'
 ) {
+  // Wait for model device negotiation to complete (webgpu timeout → wasm fallback).
+  // Without this, inferTile picks up activeDevice='webgpu' before loadModel finishes,
+  // then hangs awaiting the stalled WebGPU pipeline promise.
+  await ensureModel(scale)
+
   const rawMime = outputFormat ?? mimeType
   const outMime = SAFE_MIMES.has(rawMime) ? rawMime : 'image/png'
   const scaleFactor = SCALE_NUM[scale]
@@ -740,7 +757,7 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
 
   if (msg.type === 'load') {
     try {
-      await loadModel(msg.scale)
+      await ensureModel(msg.scale)
     } catch (err) {
       self.postMessage({ type: 'error', message: (err as Error).message })
     }
