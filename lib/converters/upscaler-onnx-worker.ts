@@ -211,6 +211,7 @@ async function loadModel(scale: UpscaleScale) {
 
   readyModels.add(scale)
   self.postMessage({ type: 'model-ready', scale })
+  self.postMessage({ type: 'device-ready', device: activeDevice })
   self.postMessage({ type: 'log', message: `ONNX upscaler ready on ${activeDevice}` })
 }
 

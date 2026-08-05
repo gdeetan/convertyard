@@ -6,6 +6,13 @@ const USE_ONNX_BACKEND = true
 
 export type UpscaleScale = '2x' | '3x' | '4x' | '8x'
 export type ImageMode = 'auto' | 'photo' | 'photo-compressed' | 'graphic'
+type OnnxDevice = 'webgpu' | 'wasm' | 'cpu'
+
+const deviceReadyCallbacks: Array<(device: OnnxDevice) => void> = []
+
+export function onDeviceReady(cb: (device: OnnxDevice) => void) {
+  deviceReadyCallbacks.push(cb)
+}
 
 // ── Singleton worker ───────────────────────────────────────────────────────────
 
@@ -22,6 +29,10 @@ function getWorker(): Worker {
     )
     workerInstance.addEventListener('message', (e: MessageEvent) => {
       if (e.data?.type === 'log') console.log('[upscaler-worker]', e.data.message)
+      if (e.data?.type === 'device-ready') {
+        deviceReadyCallbacks.forEach(cb => cb(e.data.device as OnnxDevice))
+        deviceReadyCallbacks.length = 0
+      }
     })
   }
   return workerInstance

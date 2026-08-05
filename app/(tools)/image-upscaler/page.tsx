@@ -79,9 +79,11 @@ function PreviewPanelInner({
 // ── Page ────────────────────────────────────────────────────────────────────
 
 type ModelState = 'loading' | 'slow' | 'ready'
+type OnnxDevice = 'webgpu' | 'wasm' | 'cpu'
 
 function ImageUpscalerPage() {
   const [modelState, setModelState] = useState<ModelState>('loading')
+  const [activeDevice, setActiveDevice] = useState<OnnxDevice | null>(null)
   const loaded = useRef(false)
 
   useEffect(() => {
@@ -94,7 +96,10 @@ function ImageUpscalerPage() {
     const hardCutoff  = setTimeout(() => setModelState('ready'), 210_000)
 
     import('@/lib/converters/upscaler-engine')
-      .then(({ loadUpscalerModel }) => loadUpscalerModel('4x'))
+      .then(({ loadUpscalerModel, onDeviceReady }) => {
+        onDeviceReady(setActiveDevice)
+        return loadUpscalerModel('4x')
+      })
       .catch(() => {/* error surfaces in progress bar when user converts */})
       .finally(() => {
         clearTimeout(slowTimeout)
@@ -110,18 +115,34 @@ function ImageUpscalerPage() {
 
   return (
     <>
-      {modelState !== 'ready' && (
+      {(modelState !== 'ready' || activeDevice) && (
         <div className="mx-auto max-w-3xl px-4 pt-6 sm:px-6">
           <div className="flex items-center gap-3 rounded-xl border border-border bg-bg-elevated px-4 py-3 text-sm text-fg-muted">
-            <div
-              className="h-2 w-2 animate-pulse rounded-full bg-primary shrink-0"
-              aria-hidden="true"
-            />
-            <span>
-              {modelState === 'slow'
-                ? 'Loading AI model… (large file, may take a minute)'
-                : 'Loading AI model…'}
-            </span>
+            {modelState !== 'ready' && (
+              <>
+                <div
+                  className="h-2 w-2 animate-pulse rounded-full bg-primary shrink-0"
+                  aria-hidden="true"
+                />
+                <span>
+                  {modelState === 'slow'
+                    ? 'Loading AI model… (large file, may take a minute)'
+                    : 'Loading AI model…'}
+                </span>
+              </>
+            )}
+            {modelState === 'ready' && activeDevice && (
+              <>
+                <div className="h-2 w-2 rounded-full bg-success shrink-0" aria-hidden="true" />
+                <span>
+                  {activeDevice === 'webgpu'
+                    ? 'Running on GPU (WebGPU)'
+                    : activeDevice === 'wasm'
+                    ? 'Running on CPU (no WebGPU — slower)'
+                    : 'Running on CPU (fallback)'}
+                </span>
+              </>
+            )}
           </div>
         </div>
       )}
