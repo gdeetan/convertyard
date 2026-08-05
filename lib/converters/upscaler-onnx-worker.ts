@@ -4,7 +4,7 @@
 // Backend priority: WebGPU → WebGL → WASM.
 // Blank-image detection triggers automatic backend downgrade per tile.
 
-import { detectFlatOutputMismatch } from './upscaler-render'
+import { GaussianAccumulator, detectFlatOutputMismatch } from './upscaler-render'
 
 declare const __HF_TOKEN__: string
 
@@ -473,14 +473,15 @@ async function runOnnxTiling(
 ): Promise<OffscreenCanvas> {
   const srcW = bitmap.width
   const srcH = bitmap.height
-
-  const out    = new OffscreenCanvas(srcW * chainScale, srcH * chainScale)
-  const outCtx = out.getContext('2d')!
+  const outW = srcW * chainScale
+  const outH = srcH * chainScale
 
   const xStarts = buildStarts(srcW, TILE_PX)
   const yStarts = buildStarts(srcH, TILE_PX)
   const total   = xStarts.length * yStarts.length
   let done = 0
+
+  const acc = new GaussianAccumulator(outW, outH)
 
   for (const sy of yStarts) {
     for (const sx of xStarts) {
@@ -528,25 +529,23 @@ async function runOnnxTiling(
         )
       }
 
-      // Write result RGBA to a temp canvas
-      const tileOut = new OffscreenCanvas(result.width, result.height)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const tileImgData = new ImageData(result.rgba as any, result.width, result.height)
-      tileOut.getContext('2d')!.putImageData(tileImgData, 0, 0)
-
-      // Blit inner (non-overlap) region to output
-      outCtx.drawImage(
-        tileOut as unknown as CanvasImageSource,
-        padL * chainScale, padT * chainScale,
-        tw * chainScale, th * chainScale,
-        sx * chainScale, sy * chainScale,
-        tw * chainScale, th * chainScale
-      )
+      // Accumulate tile with Gaussian weights (covers full tile including overlap)
+      const sigma = extW * chainScale * 0.35
+      const destX = (sx - padL) * chainScale
+      const destY = (sy - padT) * chainScale
+      acc.accumulate(result.rgba, result.width, result.height, destX, destY, sigma)
 
       done++
       onProgress(done, total)
     }
   }
+
+  // Normalize all accumulated tile contributions and write to output canvas
+  const normalizedRGBA = acc.normalize()
+  const out    = new OffscreenCanvas(outW, outH)
+  const outCtx = out.getContext('2d')!
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  outCtx.putImageData(new ImageData(normalizedRGBA as any, outW, outH), 0, 0)
 
   return out
 }

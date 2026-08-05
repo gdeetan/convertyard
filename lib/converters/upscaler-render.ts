@@ -94,3 +94,75 @@ export function detectFlatOutputMismatch(
   const outputVariance = sampleChannelVariance(outputPixels, 4)
   return sourceVariance > FLAT_VARIANCE_EPSILON && outputVariance <= FLAT_VARIANCE_EPSILON
 }
+
+export class GaussianAccumulator {
+  private readonly accumRGBA: Float32Array
+  private readonly accumW: Float32Array
+  readonly outW: number
+  readonly outH: number
+
+  constructor(outW: number, outH: number) {
+    this.outW = outW
+    this.outH = outH
+    this.accumRGBA = new Float32Array(outW * outH * 4)
+    this.accumW = new Float32Array(outW * outH)
+  }
+
+  // Accumulate a tile's pixel contribution with Gaussian weights.
+  // tilePixels: RGBA Uint8ClampedArray from the upscaled tile (full tile including overlap)
+  // tileW, tileH: dimensions of the upscaled tile
+  // destX, destY: top-left corner of this tile in output space (including overlap offset)
+  // sigma: standard deviation of Gaussian (suggested: tileW * 0.35)
+  accumulate(
+    tilePixels: Uint8ClampedArray,
+    tileW: number,
+    tileH: number,
+    destX: number,
+    destY: number,
+    sigma: number
+  ): void {
+    const cx = tileW / 2
+    const cy = tileH / 2
+    const inv2SigSq = 1 / (2 * sigma * sigma)
+
+    for (let ty = 0; ty < tileH; ty++) {
+      const oy = destY + ty
+      if (oy < 0 || oy >= this.outH) continue
+      const dy = ty - cy
+
+      for (let tx = 0; tx < tileW; tx++) {
+        const ox = destX + tx
+        if (ox < 0 || ox >= this.outW) continue
+        const dx = tx - cx
+
+        const w = Math.exp(-(dx * dx + dy * dy) * inv2SigSq)
+        const tileIdx = (ty * tileW + tx) * 4
+        const outIdx = (oy * this.outW + ox)
+
+        this.accumRGBA[outIdx * 4]     += tilePixels[tileIdx]     * w
+        this.accumRGBA[outIdx * 4 + 1] += tilePixels[tileIdx + 1] * w
+        this.accumRGBA[outIdx * 4 + 2] += tilePixels[tileIdx + 2] * w
+        this.accumRGBA[outIdx * 4 + 3] += tilePixels[tileIdx + 3] * w
+        this.accumW[outIdx] += w
+      }
+    }
+  }
+
+  // Normalize accumulated values and return the final RGBA image.
+  normalize(): Uint8ClampedArray {
+    const n = this.outW * this.outH
+    const out = new Uint8ClampedArray(n * 4)
+    for (let i = 0; i < n; i++) {
+      const w = this.accumW[i]
+      if (w === 0) {
+        // Leave as 0 (transparent black) — no tiles covered this pixel
+        continue
+      }
+      out[i * 4]     = Math.min(255, Math.round(this.accumRGBA[i * 4]     / w))
+      out[i * 4 + 1] = Math.min(255, Math.round(this.accumRGBA[i * 4 + 1] / w))
+      out[i * 4 + 2] = Math.min(255, Math.round(this.accumRGBA[i * 4 + 2] / w))
+      out[i * 4 + 3] = Math.min(255, Math.round(this.accumRGBA[i * 4 + 3] / w))
+    }
+    return out
+  }
+}
