@@ -2,8 +2,10 @@
 // Delegates all TF.js/UpscalerJS work to upscaler-worker.ts so the main
 // thread stays responsive during inference on large images.
 
+const USE_ONNX_BACKEND = true
+
 export type UpscaleScale = '2x' | '3x' | '4x' | '8x'
-export type ImageMode = 'auto' | 'photo' | 'graphic'
+export type ImageMode = 'auto' | 'photo' | 'photo-compressed' | 'graphic'
 
 // ── Singleton worker ───────────────────────────────────────────────────────────
 
@@ -11,10 +13,10 @@ let workerInstance: Worker | null = null
 
 function getWorker(): Worker {
   if (!workerInstance) {
-    workerInstance = new Worker(
-      new URL('./upscaler-worker.ts', import.meta.url),
-      { type: 'module' }
-    )
+    const workerUrl = USE_ONNX_BACKEND
+      ? new URL('./upscaler-onnx-worker.ts', import.meta.url)
+      : new URL('./upscaler-worker.ts', import.meta.url)
+    workerInstance = new Worker(workerUrl, { type: 'module' })
   }
   return workerInstance
 }
