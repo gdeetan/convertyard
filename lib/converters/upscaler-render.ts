@@ -149,7 +149,7 @@ export class GaussianAccumulator {
   }
 
   // Normalize accumulated values and return the final RGBA image.
-  normalize(): Uint8ClampedArray {
+  normalize(): Uint8ClampedArray<ArrayBuffer> {
     const n = this.outW * this.outH
     const out = new Uint8ClampedArray(n * 4)
     for (let i = 0; i < n; i++) {
