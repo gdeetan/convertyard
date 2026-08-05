@@ -13,10 +13,13 @@ let workerInstance: Worker | null = null
 
 function getWorker(): Worker {
   if (!workerInstance) {
-    const workerUrl = USE_ONNX_BACKEND
-      ? new URL('./upscaler-onnx-worker.ts', import.meta.url)
-      : new URL('./upscaler-worker.ts', import.meta.url)
-    workerInstance = new Worker(workerUrl, { type: 'module' })
+    // new URL(...) must be inline — webpack requires it directly inside new Worker()
+    // to detect the pattern and bundle the file; an intermediate variable causes
+    // webpack to copy the raw .ts source as a static asset instead (browser can't execute it).
+    workerInstance = new Worker(
+      new URL('./upscaler-onnx-worker.ts', import.meta.url),
+      { type: 'module' }
+    )
     workerInstance.addEventListener('message', (e: MessageEvent) => {
       if (e.data?.type === 'log') console.log('[upscaler-worker]', e.data.message)
     })
