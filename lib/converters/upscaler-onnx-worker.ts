@@ -145,10 +145,26 @@ const readyModels = new Set<string>()
 async function loadModel(scale: UpscaleScale) {
   if (readyModels.has(scale)) return
 
-  // Determine which models we need for this scale (use photo mode for preload)
   const routing = modelRouting(scale, 'photo')
-  for (const chain of routing.chains) {
-    await getPipeline(chain.modelId, scale, activeDevice)
+  const deviceOrder: OnnxDevice[] = ['webgpu', 'wasm', 'cpu']
+
+  // Try each device in order until one succeeds. GPU may fail on unsupported
+  // browsers or during WebGPU negotiation stalls — fall through to WASM silently.
+  for (const device of deviceOrder) {
+    try {
+      for (const chain of routing.chains) {
+        // Clear any cached rejected promise before retrying with a new device
+        const cacheKey = `${chain.modelId}::${device}`
+        if (!pipelineCache.has(cacheKey)) {
+          await getPipeline(chain.modelId, scale, device)
+        }
+      }
+      activeDevice = device
+      break
+    } catch {
+      pipelineCache.delete(`${routing.chains[0].modelId}::${device}`)
+      if (device === 'cpu') throw new Error('Failed to initialize upscaler on any ONNX device')
+    }
   }
 
   readyModels.add(scale)

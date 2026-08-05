@@ -86,11 +86,15 @@ function ImageUpscalerPage() {
     if (loaded.current) return
     loaded.current = true
 
-    import('@/lib/converters/upscaler-engine').then(({ loadUpscalerModel }) => {
-      loadUpscalerModel('4x')
-        .then(() => setModelReady(true))
-        .catch(() => setModelReady(true)) // Surface error on first conversion attempt
-    })
+    // Safety net: hide the banner after 90s regardless of model state
+    const timeout = setTimeout(() => setModelReady(true), 90_000)
+
+    import('@/lib/converters/upscaler-engine')
+      .then(({ loadUpscalerModel }) =>
+        loadUpscalerModel('4x').finally(() => setModelReady(true))
+      )
+      .catch(() => setModelReady(true))
+      .finally(() => clearTimeout(timeout))
   }, [])
 
   const configWithPreview = {
