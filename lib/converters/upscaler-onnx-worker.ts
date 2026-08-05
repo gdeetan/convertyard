@@ -142,27 +142,44 @@ async function getPipeline(modelId: string, scale: UpscaleScale, device: OnnxDev
 
 const readyModels = new Set<string>()
 
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    p,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`Timeout after ${ms}ms on ${label}`)), ms)
+    ),
+  ])
+}
+
 async function loadModel(scale: UpscaleScale) {
   if (readyModels.has(scale)) return
 
   const routing = modelRouting(scale, 'photo')
   const deviceOrder: OnnxDevice[] = ['webgpu', 'wasm', 'cpu']
+  // WebGPU negotiation can hang indefinitely on unsupported browsers — cap it at 15s
+  const DEVICE_TIMEOUT_MS: Record<OnnxDevice, number> = { webgpu: 15_000, wasm: 60_000, cpu: 120_000 }
 
-  // Try each device in order until one succeeds. GPU may fail on unsupported
-  // browsers or during WebGPU negotiation stalls — fall through to WASM silently.
+  // Try each device in order until one succeeds. GPU may fail or stall on unsupported
+  // browsers — fall through to WASM silently.
   for (const device of deviceOrder) {
     try {
       for (const chain of routing.chains) {
-        // Clear any cached rejected promise before retrying with a new device
         const cacheKey = `${chain.modelId}::${device}`
         if (!pipelineCache.has(cacheKey)) {
-          await getPipeline(chain.modelId, scale, device)
+          await withTimeout(
+            getPipeline(chain.modelId, scale, device),
+            DEVICE_TIMEOUT_MS[device],
+            device
+          )
         }
       }
       activeDevice = device
       break
     } catch {
-      pipelineCache.delete(`${routing.chains[0].modelId}::${device}`)
+      // Remove the stalled/rejected promise so the next device can cache its own
+      for (const chain of routing.chains) {
+        pipelineCache.delete(`${chain.modelId}::${device}`)
+      }
       if (device === 'cpu') throw new Error('Failed to initialize upscaler on any ONNX device')
     }
   }

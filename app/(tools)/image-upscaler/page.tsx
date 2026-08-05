@@ -86,8 +86,8 @@ function ImageUpscalerPage() {
     if (loaded.current) return
     loaded.current = true
 
-    // Safety net: hide the banner after 90s regardless of model state
-    const timeout = setTimeout(() => setModelReady(true), 90_000)
+    // Safety net: hide the banner after 30s regardless of model state
+    const timeout = setTimeout(() => setModelReady(true), 30_000)
 
     import('@/lib/converters/upscaler-engine')
       .then(({ loadUpscalerModel }) =>
