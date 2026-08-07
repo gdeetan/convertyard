@@ -1,16 +1,19 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { Download, RefreshCcw, UploadCloud, AlertCircle } from 'lucide-react'
-import { cn } from '@/lib/utils/cn'
+import { useState, useCallback, useMemo, useEffect } from 'react'
+import { Download, RefreshCcw } from 'lucide-react'
 import type { WordChunk, CaptionOptions } from '@/lib/converters/caption-types'
 import { DEFAULT_CAPTION_OPTIONS } from '@/lib/converters/caption-types'
+import { Dropzone } from '@/components/tool-shell/dropzone'
 import { CaptionStylePicker } from './CaptionStylePicker'
 import { CaptionFontPanel } from './CaptionFontPanel'
 import { CaptionEditor } from './CaptionEditor'
 import { CaptionPreview } from './CaptionPreview'
 
 type Phase = 'idle' | 'transcribing' | 'edit' | 'burning' | 'done'
+
+const VIDEO_ACCEPTS = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/x-matroska']
+const VIDEO_EXTS = ['.mp4', '.mov', '.webm', '.avi', '.mkv']
 
 function DonePanel({ resultFile, onReset }: { resultFile: File; onReset: () => void }) {
   const downloadUrl = useMemo(() => URL.createObjectURL(resultFile), [resultFile])
@@ -35,8 +38,6 @@ function DonePanel({ resultFile, onReset }: { resultFile: File; onReset: () => v
   )
 }
 
-const VIDEO_ACCEPTS = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/x-matroska']
-
 export function CaptionTool() {
   const [phase, setPhase] = useState<Phase>('idle')
   const [videoFile, setVideoFile] = useState<File | null>(null)
@@ -47,16 +48,10 @@ export function CaptionTool() {
   const [statusText, setStatusText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [activeWordIdx, setActiveWordIdx] = useState(0)
-  const [drag, setDrag] = useState<'idle' | 'over' | 'error'>('idle')
-  const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const handleDrop = useCallback(async (files: FileList | null) => {
-    if (!files?.length) return
+  const handleDrop = useCallback(async (files: File[]) => {
+    if (!files.length) return
     const file = files[0]
-    if (!file.type.startsWith('video/')) {
-      setError('Please drop a video file.')
-      return
-    }
     setVideoFile(file)
     setPhase('transcribing')
     setProgress(0)
@@ -139,75 +134,18 @@ export function CaptionTool() {
   }
 
   if (phase === 'idle') {
-    const isOver = drag === 'over'
-    const isError = drag === 'error'
     return (
       <>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={VIDEO_ACCEPTS.join(',')}
-          className="sr-only"
-          tabIndex={-1}
-          aria-hidden="true"
-          onChange={(e) => { if (e.target.files) { handleDrop(e.target.files); e.target.value = '' } }}
+        <Dropzone
+          accepts={VIDEO_ACCEPTS}
+          acceptsExt={VIDEO_EXTS}
+          onAdd={handleDrop}
         />
-        <div
-          role="button"
-          tabIndex={0}
-          aria-label="Drop zone. Accepts MP4, MOV, WebM, AVI, MKV. Press Enter or Space to open file picker, or drag and drop files here."
-          onClick={() => fileInputRef.current?.click()}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click() } }}
-          onDragOver={(e) => { e.preventDefault(); setDrag('over') }}
-          onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDrag('idle') }}
-          onDrop={(e) => {
-            e.preventDefault()
-            setDrag('idle')
-            const files = Array.from(e.dataTransfer.files)
-            const valid = files.filter(f => f.type.startsWith('video/'))
-            if (valid.length === 0 && files.length > 0) {
-              setDrag('error')
-              setTimeout(() => setDrag('idle'), 2000)
-              return
-            }
-            handleDrop(e.dataTransfer.files)
-          }}
-          className={cn(
-            'flex min-h-[200px] cursor-pointer flex-col items-center justify-center gap-4',
-            'rounded-xl border-2 border-dashed p-8 text-center transition-all duration-150',
-            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-            !isOver && !isError && 'border-border bg-bg-muted hover:border-primary hover:bg-bg-elevated',
-            isOver && 'border-primary bg-bg-elevated scale-[1.01]',
-            isError && 'border-error bg-bg-elevated',
-          )}
-        >
-          {isError ? (
-            <>
-              <AlertCircle className="h-10 w-10 text-error" aria-hidden="true" />
-              <p className="text-sm font-medium text-error">Wrong file type. Accepts: MP4, MOV, WebM, AVI, MKV</p>
-            </>
-          ) : (
-            <>
-              <div className={cn(
-                'flex h-14 w-14 items-center justify-center rounded-xl',
-                'bg-bg-elevated border border-border transition-colors',
-                isOver && 'border-primary bg-bg-muted',
-              )}>
-                <UploadCloud className={cn('h-7 w-7', isOver ? 'text-primary' : 'text-fg-muted')} aria-hidden="true" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-medium text-fg">
-                  {isOver ? 'Release to add' : 'Drop files here'}
-                </p>
-                <p className="text-xs text-fg-muted">
-                  or <span className="font-medium text-primary underline underline-offset-2">click to browse</span>
-                </p>
-              </div>
-              <p className="text-xs text-fg-subtle">Accepts MP4, MOV, WebM, AVI, MKV · Files never leave your browser</p>
-              {error && <p className="rounded bg-red-50 px-3 py-1.5 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
-            </>
-          )}
-        </div>
+        {error && (
+          <p className="mt-3 rounded bg-red-50 px-3 py-1.5 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
+            {error}
+          </p>
+        )}
       </>
     )
   }

@@ -1,5 +1,15 @@
 import { getFFmpeg } from './ffmpeg-client'
 
+let defaultFontCache: Uint8Array | null = null
+
+async function getDefaultFont(): Promise<Uint8Array> {
+  if (defaultFontCache) return defaultFontCache
+  const res = await fetch('https://cdn.jsdelivr.net/npm/roboto-fontface@0.10.0/fonts/roboto/Roboto-Regular.ttf')
+  if (!res.ok) throw new Error(`Failed to fetch caption font: ${res.status}`)
+  defaultFontCache = new Uint8Array(await res.arrayBuffer())
+  return defaultFontCache
+}
+
 export async function burnCaptions(
   videoFile: File,
   assContent: string,
@@ -17,16 +27,21 @@ export async function burnCaptions(
   onProgress(5)
   await ffmpeg.writeFile(inputName, await fetchFile(videoFile))
   await ffmpeg.writeFile(assName, new TextEncoder().encode(assContent))
-  onProgress(15)
 
-  let assFilter = `ass=${assName}`
+  // libass requires at least one font in fontsdir or captions are invisible.
+  // We always ship a default TTF so the fallback path always renders.
+  try { await ffmpeg.createDir('/capfonts') } catch { /* already exists */ }
+  const defaultFont = await getDefaultFont()
+  await ffmpeg.writeFile('/capfonts/default.ttf', defaultFont)
 
   if (fontBlob) {
     const fontBytes = new Uint8Array(await fontBlob.arrayBuffer())
-    try { await ffmpeg.createDir('/capfonts') } catch { /* already exists */ }
     await ffmpeg.writeFile('/capfonts/userfont.ttf', fontBytes)
-    assFilter = `ass=${assName}:fontsdir=/capfonts`
   }
+
+  onProgress(15)
+
+  const assFilter = `ass=${assName}:fontsdir=/capfonts`
 
   const progressHandler = ({ progress }: { progress: number }) => {
     onProgress(15 + Math.round(progress * 80))
@@ -50,6 +65,7 @@ export async function burnCaptions(
       ffmpeg.deleteFile(inputName).catch(() => {}),
       ffmpeg.deleteFile(assName).catch(() => {}),
       ffmpeg.deleteFile(outputName).catch(() => {}),
+      ffmpeg.deleteFile('/capfonts/default.ttf').catch(() => {}),
       fontBlob ? ffmpeg.deleteFile('/capfonts/userfont.ttf').catch(() => {}) : Promise.resolve(),
     ])
   }
