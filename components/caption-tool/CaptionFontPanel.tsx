@@ -123,11 +123,26 @@ export function CaptionFontPanel({ options, onChange }: Props) {
           <span className="text-sm text-fg-muted">{options.fontSize}px</span>
         </div>
         <input
-          type="range" min={40} max={160} step={4}
+          type="range" min={20} max={160} step={2}
           value={options.fontSize}
           onChange={(e) => onChange({ fontSize: Number(e.target.value) })}
           className="mt-1 w-full accent-primary"
         />
+      </div>
+
+      {/* Max chars per line */}
+      <div>
+        <div className="flex items-center justify-between">
+          <label className="text-sm font-medium text-fg">Max characters per line</label>
+          <span className="text-sm text-fg-muted">{options.maxCharsPerLine}</span>
+        </div>
+        <input
+          type="range" min={15} max={80} step={1}
+          value={options.maxCharsPerLine}
+          onChange={(e) => onChange({ maxCharsPerLine: Number(e.target.value) })}
+          className="mt-1 w-full accent-primary"
+        />
+        <p className="mt-0.5 text-xs text-fg-subtle">Text wraps at this width — applies to grouped styles</p>
       </div>
 
       {/* Colors */}

@@ -33,28 +33,52 @@ function groupIntoLines(words: WordChunk[], maxWords = 8, maxDuration = 3): Word
   return groups
 }
 
+// Wrap text at word boundaries, returns ffmpeg-escaped string with \n line breaks
+function wrapAndEscape(raw: string, maxChars: number, uppercase: boolean): string | null {
+  const text = (uppercase ? raw.toUpperCase() : raw).trim()
+  if (!text) return null
+  const words = text.split(/\s+/)
+  const lines: string[] = []
+  let current = ''
+  for (const word of words) {
+    if (!current) {
+      current = word
+    } else if (current.length + 1 + word.length <= maxChars) {
+      current += ' ' + word
+    } else {
+      lines.push(current)
+      current = word
+    }
+  }
+  if (current) lines.push(current)
+  // Each line is escaped individually; lines joined with ffmpeg newline sequence
+  return lines.map(escapeDrawtext).join('\\n')
+}
+
 function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath: string): string {
-  const { fontSize, primaryColor, outlineColor, outlineWidth, position, uppercase, styleId } = opts
+  const { fontSize, primaryColor, outlineColor, outlineWidth, position, uppercase, styleId, maxCharsPerLine } = opts
 
   const fc = toDrawColor(primaryColor)
   const oc = toDrawColor(outlineColor)
-  // Escape only the path chars that break drawtext option parsing
   const escapedFont = fontPath.replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, "\\'")
 
-  // Fixed pixel offsets — avoids text_h/text_w variables that some builds don't expose pre-render
   const pad = Math.round(fontSize * 1.2)
   const yExpr =
     position === 'top'    ? String(pad) :
     position === 'center' ? `(h-${fontSize})/2` :
     /* bottom */            `h-${pad}-${fontSize}`
 
-  const base = `fontfile='${escapedFont}':fontsize=${fontSize}:fontcolor=${fc}:x=(w-text_w)/2:y=${yExpr}`
+  // fix_bounds clips text to frame edges so nothing overflows
+  const base = `fontfile='${escapedFont}':fontsize=${fontSize}:fontcolor=${fc}:x=(w-text_w)/2:y=${yExpr}:fix_bounds=1`
   const withOutline = `:borderw=${outlineWidth}:bordercolor=${oc}`
   const withBox     = `:box=1:boxcolor=black@0.5:boxborderw=8`
   const withShadow  = `:shadowx=2:shadowy=2:shadowcolor=black@0.7`
 
-  const makeEntry = (text: string, start: number, end: number, extra: string): string | null => {
-    const t = escapeDrawtext((uppercase ? text.toUpperCase() : text).trim())
+  const makeEntry = (rawText: string, start: number, end: number, extra: string): string | null => {
+    // Word-by-word styles show individual tokens — skip wrapping, just escape
+    const t = (styleId === 'mrbeast' || styleId === 'tiktok')
+      ? escapeDrawtext((uppercase ? rawText.toUpperCase() : rawText).trim())
+      : wrapAndEscape(rawText, maxCharsPerLine, uppercase)
     if (!t) return null
     return `drawtext=${base}${extra}:text='${t}':enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'`
   }

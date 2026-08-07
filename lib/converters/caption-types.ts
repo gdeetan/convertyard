@@ -37,6 +37,7 @@ export interface CaptionOptions {
   outlineWidth: number
   position: 'top' | 'center' | 'bottom'
   uppercase: boolean
+  maxCharsPerLine: number
 }
 
 export const DEFAULT_CAPTION_OPTIONS: CaptionOptions = {
@@ -53,4 +54,5 @@ export const DEFAULT_CAPTION_OPTIONS: CaptionOptions = {
   outlineWidth: 4,
   position: 'bottom',
   uppercase: false,
+  maxCharsPerLine: 42,
 }
