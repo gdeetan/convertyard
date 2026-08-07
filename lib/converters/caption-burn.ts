@@ -5,11 +5,16 @@ import { loadBuiltinFont } from './caption-fonts'
 function escapeDrawtext(text: string): string {
   return text
     .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
     .replace(/:/g, '\\:')
     .replace(/,/g, '\\,')
-    .replace(/'/g, "\\'")
     .replace(/\[/g, '\\[')
     .replace(/\]/g, '\\]')
+}
+
+// '#RRGGBB' → '0xRRGGBB' (6-digit hex, always valid in drawtext)
+function toDrawColor(hex: string): string {
+  return '0x' + hex.replace('#', '').padStart(6, '0').slice(0, 6).toUpperCase()
 }
 
 function groupIntoLines(words: WordChunk[], maxWords = 8, maxDuration = 3): WordChunk[][] {
@@ -31,22 +36,24 @@ function groupIntoLines(words: WordChunk[], maxWords = 8, maxDuration = 3): Word
 function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath: string): string {
   const { fontSize, primaryColor, outlineColor, outlineWidth, position, uppercase, styleId } = opts
 
-  const fc = primaryColor.replace('#', '0x') + 'FF'
-  const oc = outlineColor.replace('#', '0x') + 'FF'
-  const escapedFont = fontPath.replace(/:/g, '\\:').replace(/,/g, '\\,')
+  const fc = toDrawColor(primaryColor)
+  const oc = toDrawColor(outlineColor)
+  // Escape only the path chars that break drawtext option parsing
+  const escapedFont = fontPath.replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, "\\'")
 
+  // Fixed pixel offsets — avoids text_h/text_w variables that some builds don't expose pre-render
+  const pad = Math.round(fontSize * 1.2)
   const yExpr =
-    position === 'top'    ? `${Math.round(fontSize * 1.5)}` :
-    position === 'center' ? `(h-text_h)/2` :
-    /* bottom */            `h-text_h-${Math.round(fontSize * 1.5)}`
+    position === 'top'    ? String(pad) :
+    position === 'center' ? `(h-${fontSize})/2` :
+    /* bottom */            `h-${pad}-${fontSize}`
 
-  const base = `fontfile=${escapedFont}:fontsize=${fontSize}:fontcolor=${fc}:x=(w-text_w)/2:y=${yExpr}`
-
+  const base = `fontfile='${escapedFont}':fontsize=${fontSize}:fontcolor=${fc}:x=(w-text_w)/2:y=${yExpr}`
   const withOutline = `:borderw=${outlineWidth}:bordercolor=${oc}`
-  const withBox     = `:box=1:boxcolor=0x00000080:boxborderw=10`
-  const withShadow  = `:shadowx=2:shadowy=2:shadowcolor=0x00000080`
+  const withBox     = `:box=1:boxcolor=black@0.5:boxborderw=8`
+  const withShadow  = `:shadowx=2:shadowy=2:shadowcolor=black@0.7`
 
-  const entry = (text: string, start: number, end: number, extra: string) => {
+  const makeEntry = (text: string, start: number, end: number, extra: string): string | null => {
     const t = escapeDrawtext((uppercase ? text.toUpperCase() : text).trim())
     if (!t) return null
     return `drawtext=${base}${extra}:text='${t}':enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'`
@@ -56,19 +63,23 @@ function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath:
 
   if (styleId === 'mrbeast' || styleId === 'tiktok') {
     for (const w of words) {
-      const e = entry(w.text, w.start, w.end, withOutline)
+      const e = makeEntry(w.text, w.start, w.end, withOutline)
       if (e) entries.push(e)
     }
   } else {
     const groups = groupIntoLines(words)
-    const extra = styleId === 'netflix' ? withBox : styleId === 'classic' ? withOutline + withShadow : withOutline
+    const extra =
+      styleId === 'netflix' ? withBox :
+      styleId === 'classic' ? withOutline + withShadow :
+      withOutline
     for (const group of groups) {
       const text = group.map(w => w.text).join(' ')
-      const e = entry(text, group[0].start, group[group.length - 1].end, extra)
+      const e = makeEntry(text, group[0].start, group[group.length - 1].end, extra)
       if (e) entries.push(e)
     }
   }
 
+  if (entries.length === 0) throw new Error('No caption entries to burn — transcript may be empty')
   return entries.join(',')
 }
 
@@ -93,12 +104,10 @@ export async function burnCaptions(
 
   let activeFontPath: string
   if (fontBlob) {
-    const fontBytes = new Uint8Array(await fontBlob.arrayBuffer())
-    await ffmpeg.writeFile('/capfonts/userfont.ttf', fontBytes)
+    await ffmpeg.writeFile('/capfonts/userfont.ttf', new Uint8Array(await fontBlob.arrayBuffer()))
     activeFontPath = '/capfonts/userfont.ttf'
   } else {
-    const builtinBytes = await loadBuiltinFont(opts.builtinFont)
-    await ffmpeg.writeFile('/capfonts/builtin.ttf', builtinBytes)
+    await ffmpeg.writeFile('/capfonts/builtin.ttf', await loadBuiltinFont(opts.builtinFont))
     activeFontPath = '/capfonts/builtin.ttf'
   }
 
@@ -106,23 +115,35 @@ export async function burnCaptions(
 
   const drawFilter = buildDrawtextFilter(words, opts, activeFontPath)
 
+  // Capture ffmpeg logs so we can include them in error messages
+  const logs: string[] = []
+  const logHandler = ({ message }: { message: string }) => logs.push(message)
   const progressHandler = ({ progress }: { progress: number }) => {
     onProgress(15 + Math.round(progress * 80))
   }
+  ffmpeg.on('log', logHandler)
   ffmpeg.on('progress', progressHandler)
 
   let data: Uint8Array<ArrayBuffer> | null = null
   try {
-    await ffmpeg.exec([
+    // exec() in @ffmpeg/ffmpeg 0.12.x resolves with exit code, does NOT throw on failure
+    const exitCode: number = await ffmpeg.exec([
       '-i', inputName,
       '-vf', drawFilter,
       '-c:a', 'copy',
       '-movflags', '+faststart',
       outputName,
     ])
+    if (exitCode !== 0) {
+      throw new Error(`ffmpeg exited with code ${exitCode}. ${logs.slice(-5).join(' | ')}`)
+    }
     onProgress(98)
     data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+    if (!data || data.length === 0) {
+      throw new Error('ffmpeg produced an empty output file')
+    }
   } finally {
+    ffmpeg.off('log', logHandler)
     ffmpeg.off('progress', progressHandler)
     await Promise.all([
       ffmpeg.deleteFile(inputName).catch(() => {}),
@@ -133,13 +154,12 @@ export async function burnCaptions(
     ])
   }
 
-  const outFile = new File(
+  onProgress(100)
+  return new File(
     [data!],
     `captioned-${videoFile.name.replace(/\.[^.]+$/, '')}.mp4`,
     { type: 'video/mp4' },
   )
-  onProgress(100)
-  return outFile
 }
 
 function getExt(name: string): string {
