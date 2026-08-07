@@ -2,9 +2,8 @@
 
 import { useRef, useState } from 'react'
 import type { CaptionOptions, FontSource, CaptionStyleId } from '@/lib/converters/caption-types'
+import { BUILTIN_FONTS } from '@/lib/converters/caption-fonts'
 import { cn } from '@/lib/utils/cn'
-
-const BUILTIN_FONTS = ['Arial', 'Impact', 'Georgia', 'Courier New', 'Trebuchet MS']
 const HIGHLIGHT_STYLES: CaptionStyleId[] = ['mrbeast', 'karaoke']
 
 interface Props {
@@ -81,7 +80,7 @@ export function CaptionFontPanel({ options, onChange }: Props) {
             value={options.builtinFont}
             onChange={(e) => onChange({ builtinFont: e.target.value })}
           >
-            {BUILTIN_FONTS.map((f) => <option key={f} value={f}>{f}</option>)}
+            {BUILTIN_FONTS.map((f) => <option key={f.name} value={f.name}>{f.label}</option>)}
           </select>
         )}
 

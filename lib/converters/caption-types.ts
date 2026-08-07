@@ -42,7 +42,7 @@ export interface CaptionOptions {
 export const DEFAULT_CAPTION_OPTIONS: CaptionOptions = {
   styleId: 'mrbeast',
   fontSource: 'builtin',
-  builtinFont: 'Arial',
+  builtinFont: 'Komika Axis',
   uploadedFont: null,
   systemFontFamily: '',
   systemFontBlob: null,

@@ -1,15 +1,6 @@
 import { getFFmpeg } from './ffmpeg-client'
 import type { WordChunk, CaptionOptions } from './caption-types'
-
-let defaultFontCache: Uint8Array | null = null
-
-async function getDefaultFont(): Promise<Uint8Array> {
-  if (defaultFontCache) return defaultFontCache
-  const res = await fetch('/fonts/caption-font.ttf')
-  if (!res.ok) throw new Error(`Failed to load caption font: ${res.status}`)
-  defaultFontCache = new Uint8Array(await res.arrayBuffer())
-  return defaultFontCache
-}
+import { loadBuiltinFont } from './caption-fonts'
 
 function escapeDrawtext(text: string): string {
   return text
@@ -99,14 +90,16 @@ export async function burnCaptions(
   await ffmpeg.writeFile(inputName, await fetchFile(videoFile))
 
   try { await ffmpeg.createDir('/capfonts') } catch { /* already exists */ }
-  const defaultFont = await getDefaultFont()
-  await ffmpeg.writeFile('/capfonts/default.ttf', defaultFont)
 
-  let activeFontPath = '/capfonts/default.ttf'
+  let activeFontPath: string
   if (fontBlob) {
     const fontBytes = new Uint8Array(await fontBlob.arrayBuffer())
     await ffmpeg.writeFile('/capfonts/userfont.ttf', fontBytes)
     activeFontPath = '/capfonts/userfont.ttf'
+  } else {
+    const builtinBytes = await loadBuiltinFont(opts.builtinFont)
+    await ffmpeg.writeFile('/capfonts/builtin.ttf', builtinBytes)
+    activeFontPath = '/capfonts/builtin.ttf'
   }
 
   onProgress(15)
@@ -134,8 +127,9 @@ export async function burnCaptions(
     await Promise.all([
       ffmpeg.deleteFile(inputName).catch(() => {}),
       ffmpeg.deleteFile(outputName).catch(() => {}),
-      ffmpeg.deleteFile('/capfonts/default.ttf').catch(() => {}),
-      fontBlob ? ffmpeg.deleteFile('/capfonts/userfont.ttf').catch(() => {}) : Promise.resolve(),
+      fontBlob
+        ? ffmpeg.deleteFile('/capfonts/userfont.ttf').catch(() => {})
+        : ffmpeg.deleteFile('/capfonts/builtin.ttf').catch(() => {}),
     ])
   }
 
