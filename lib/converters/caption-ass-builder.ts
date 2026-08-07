@@ -1,5 +1,10 @@
 import type { WordChunk, CaptionOptions, CaptionStyleId } from './caption-types'
 
+/** Maximum words per subtitle line before wrapping */
+const LINE_MAX_WORDS = 8
+/** Maximum duration (seconds) per subtitle line before wrapping */
+const LINE_MAX_DURATION_S = 3
+
 /** Convert CSS hex color '#RRGGBB' → ASS color '&H00BBGGRR' */
 export function hexToASS(hex: string): string {
   const r = hex.slice(1, 3)
@@ -97,7 +102,7 @@ function wordByWordEvents(words: WordChunk[], opts: CaptionOptions): string[] {
 }
 
 function groupedLineEvents(words: WordChunk[], opts: CaptionOptions): string[] {
-  const groups = groupWordsIntoLines(words, 8, 3)
+  const groups = groupWordsIntoLines(words, LINE_MAX_WORDS, LINE_MAX_DURATION_S)
   return groups.map((group) => {
     const start = group[0].start
     const end   = group[group.length - 1].end
@@ -107,7 +112,7 @@ function groupedLineEvents(words: WordChunk[], opts: CaptionOptions): string[] {
 }
 
 function karaokeEvents(words: WordChunk[], opts: CaptionOptions): string[] {
-  const groups = groupWordsIntoLines(words, 8, 3)
+  const groups = groupWordsIntoLines(words, LINE_MAX_WORDS, LINE_MAX_DURATION_S)
   return groups.map((group) => {
     const start = group[0].start
     const end   = group[group.length - 1].end
