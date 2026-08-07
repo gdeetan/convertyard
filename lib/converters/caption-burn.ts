@@ -60,7 +60,8 @@ function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath:
 
   const fc = toDrawColor(primaryColor)
   const oc = toDrawColor(outlineColor)
-  const escapedFont = fontPath.replace(/\\/g, '\\\\').replace(/:/g, '\\:').replace(/'/g, "\\'")
+  // Colons must be escaped in option values; path has no other specials
+  const escapedFont = fontPath.replace(/:/g, '\\:')
 
   const pad = Math.round(fontSize * 1.2)
   const yExpr =
@@ -68,11 +69,10 @@ function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath:
     position === 'center' ? `(h-${fontSize})/2` :
     /* bottom */            `h-${pad}-${fontSize}`
 
-  // fix_bounds clips text to frame edges so nothing overflows
-  const base = `fontfile='${escapedFont}':fontsize=${fontSize}:fontcolor=${fc}:x=(w-text_w)/2:y=${yExpr}:fix_bounds=1`
+  const base = `fontfile=${escapedFont}:fontsize=${fontSize}:fontcolor=${fc}:x=(w-text_w)/2:y=${yExpr}`
   const withOutline = `:borderw=${outlineWidth}:bordercolor=${oc}`
-  const withBox     = `:box=1:boxcolor=black@0.5:boxborderw=8`
-  const withShadow  = `:shadowx=2:shadowy=2:shadowcolor=black@0.7`
+  const withBox     = `:box=1:boxcolor=0x000000:boxborderw=8`
+  const withShadow  = `:shadowx=2:shadowy=2:shadowcolor=0x000000`
 
   const makeEntry = (rawText: string, start: number, end: number, extra: string): string | null => {
     // Word-by-word styles show individual tokens — skip wrapping, just escape
