@@ -87,7 +87,6 @@ export function CaptionTool() {
     setError(null)
 
     try {
-      const { buildASS } = await import('@/lib/converters/caption-ass-builder')
       const { burnCaptions } = await import('@/lib/converters/caption-burn')
 
       const fontBlob: Blob | null =
@@ -95,14 +94,8 @@ export function CaptionTool() {
         options.fontSource === 'system' && options.systemFontBlob ? options.systemFontBlob :
         null
 
-      const fontName =
-        options.fontSource === 'builtin' ? options.builtinFont :
-        options.fontSource === 'system' ? options.systemFontFamily : 'Arial'
-
-      const assContent = buildASS(words, options, fontName)
-
       setStatusText('Burning captions into video…')
-      const output = await burnCaptions(videoFile, assContent, fontBlob, (pct) => {
+      const output = await burnCaptions(videoFile, words, options, fontBlob, (pct) => {
         setProgress(pct)
         setStatusText(`Burning captions… ${pct}%`)
       })
