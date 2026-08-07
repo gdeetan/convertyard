@@ -55,7 +55,22 @@ export async function transcribeToWords(
   )
 
   if (!result.chunks || result.chunks.length === 0) {
-    return [{ text: result.text.trim(), start: 0, end: 9999 }]
+    // No word timestamps from model — split text into approximate 3-word groups with estimated timing
+    const allWords = result.text.trim().split(/\s+/).filter(Boolean)
+    if (allWords.length === 0) return []
+    const wordsPerGroup = 3
+    const secsPerGroup = 2
+    const chunks: WordChunk[] = []
+    for (let i = 0; i < allWords.length; i += wordsPerGroup) {
+      const groupWords = allWords.slice(i, i + wordsPerGroup)
+      const groupIndex = Math.floor(i / wordsPerGroup)
+      chunks.push({
+        text: groupWords.join(' '),
+        start: groupIndex * secsPerGroup,
+        end: (groupIndex + 1) * secsPerGroup,
+      })
+    }
+    return chunks
   }
 
   return result.chunks

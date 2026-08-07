@@ -86,6 +86,7 @@ export function CaptionPreview({ videoFile, words, options, onTimeUpdate }: Prop
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const urlRef = useRef<string | null>(null)
   const rafRef = useRef<number>(0)
+  const loadedFaceRef = useRef<FontFace | null>(null)
 
   const fontName =
     options.fontSource === 'builtin' ? options.builtinFont :
@@ -99,8 +100,17 @@ export function CaptionPreview({ videoFile, words, options, onTimeUpdate }: Prop
     if (!blob || !fontName) return
     const url = URL.createObjectURL(blob)
     const face = new FontFace(fontName, `url(${url})`)
-    face.load().then((loaded) => { document.fonts.add(loaded) }).catch(() => {})
-    return () => URL.revokeObjectURL(url)
+    face.load().then((loaded) => {
+      document.fonts.add(loaded)
+      loadedFaceRef.current = loaded
+    }).catch(() => {})
+    return () => {
+      if (loadedFaceRef.current) {
+        document.fonts.delete(loadedFaceRef.current)
+        loadedFaceRef.current = null
+      }
+      URL.revokeObjectURL(url)
+    }
   }, [options.fontSource, options.uploadedFont, options.systemFontBlob, fontName])
 
   useEffect(() => {
@@ -126,8 +136,28 @@ export function CaptionPreview({ videoFile, words, options, onTimeUpdate }: Prop
   }, [words, options, fontName, onTimeUpdate])
 
   useEffect(() => {
-    rafRef.current = requestAnimationFrame(draw)
-    return () => cancelAnimationFrame(rafRef.current)
+    const vid = videoRef.current
+    if (!vid) return
+
+    const startRAF = () => { rafRef.current = requestAnimationFrame(draw) }
+    const stopRAF = () => cancelAnimationFrame(rafRef.current)
+
+    vid.addEventListener('play', startRAF)
+    vid.addEventListener('pause', stopRAF)
+    vid.addEventListener('ended', stopRAF)
+
+    // Draw once immediately (handles seeked/paused state)
+    draw()
+
+    // Start if already playing
+    if (!vid.paused) startRAF()
+
+    return () => {
+      stopRAF()
+      vid.removeEventListener('play', startRAF)
+      vid.removeEventListener('pause', stopRAF)
+      vid.removeEventListener('ended', stopRAF)
+    }
   }, [draw])
 
   return (

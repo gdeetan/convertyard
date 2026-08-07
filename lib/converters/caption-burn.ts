@@ -33,6 +33,7 @@ export async function burnCaptions(
   }
   ffmpeg.on('progress', progressHandler)
 
+  let data: Uint8Array<ArrayBuffer> | null = null
   try {
     await ffmpeg.exec([
       '-i', inputName,
@@ -41,25 +42,23 @@ export async function burnCaptions(
       '-movflags', '+faststart',
       outputName,
     ])
+    onProgress(98)
+    data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
   } finally {
     ffmpeg.off('progress', progressHandler)
+    await Promise.all([
+      ffmpeg.deleteFile(inputName).catch(() => {}),
+      ffmpeg.deleteFile(assName).catch(() => {}),
+      ffmpeg.deleteFile(outputName).catch(() => {}),
+      fontBlob ? ffmpeg.deleteFile('/capfonts/userfont.ttf').catch(() => {}) : Promise.resolve(),
+    ])
   }
 
-  onProgress(98)
-  const data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
   const outFile = new File(
-    [data],
+    [data!],
     `captioned-${videoFile.name.replace(/\.[^.]+$/, '')}.mp4`,
     { type: 'video/mp4' },
   )
-
-  await Promise.all([
-    ffmpeg.deleteFile(inputName).catch(() => {}),
-    ffmpeg.deleteFile(assName).catch(() => {}),
-    ffmpeg.deleteFile(outputName).catch(() => {}),
-    fontBlob ? ffmpeg.deleteFile('/capfonts/userfont.ttf').catch(() => {}) : Promise.resolve(),
-  ])
-
   onProgress(100)
   return outFile
 }

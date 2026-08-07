@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo, useEffect } from 'react'
 import { Download, RefreshCcw } from 'lucide-react'
 import type { WordChunk, CaptionOptions } from '@/lib/converters/caption-types'
 import { DEFAULT_CAPTION_OPTIONS } from '@/lib/converters/caption-types'
@@ -10,6 +10,29 @@ import { CaptionEditor } from './CaptionEditor'
 import { CaptionPreview } from './CaptionPreview'
 
 type Phase = 'idle' | 'transcribing' | 'edit' | 'burning' | 'done'
+
+function DonePanel({ resultFile, onReset }: { resultFile: File; onReset: () => void }) {
+  const downloadUrl = useMemo(() => URL.createObjectURL(resultFile), [resultFile])
+  useEffect(() => () => URL.revokeObjectURL(downloadUrl), [downloadUrl])
+
+  return (
+    <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-bg-elevated p-8">
+      <p className="text-lg font-semibold text-fg">Captions burned in</p>
+      <a
+        href={downloadUrl}
+        download={resultFile.name}
+        className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary/90"
+      >
+        <Download className="h-4 w-4" />
+        Download {resultFile.name}
+      </a>
+      <button type="button" onClick={onReset} className="flex items-center gap-2 text-sm text-fg-muted hover:text-fg">
+        <RefreshCcw className="h-3.5 w-3.5" />
+        Caption another video
+      </button>
+    </div>
+  )
+}
 
 const VIDEO_ACCEPTS = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/x-matroska']
 
@@ -151,23 +174,7 @@ export function CaptionTool() {
   }
 
   if (phase === 'done' && resultFile) {
-    return (
-      <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-bg-elevated p-8">
-        <p className="text-lg font-semibold text-fg">Captions burned in</p>
-        <a
-          href={URL.createObjectURL(resultFile)}
-          download={resultFile.name}
-          className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary/90"
-        >
-          <Download className="h-4 w-4" />
-          Download {resultFile.name}
-        </a>
-        <button type="button" onClick={handleReset} className="flex items-center gap-2 text-sm text-fg-muted hover:text-fg">
-          <RefreshCcw className="h-3.5 w-3.5" />
-          Caption another video
-        </button>
-      </div>
-    )
+    return <DonePanel resultFile={resultFile} onReset={handleReset} />
   }
 
   return (
