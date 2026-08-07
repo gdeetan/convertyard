@@ -25,7 +25,7 @@ export default function Page() {
           Add Captions to Video
         </h1>
         <p className="mt-2 text-base text-fg-muted">
-          Local-first caption tool. Built for creators.
+          Drop a video, Whisper transcribes it in your browser, you fix any mistakes, pick a style, and download with captions burned permanently into the file.
         </p>
       </div>
 
