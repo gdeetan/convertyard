@@ -33,6 +33,47 @@ export default function Page() {
         <CaptionTool />
       </div>
 
+      <section className="mt-12" aria-labelledby="how-it-works-heading">
+        <h2 id="how-it-works-heading" className="mb-6 text-xl font-semibold text-fg">How it works</h2>
+        <ol className="grid grid-cols-1 gap-4 sm:grid-cols-2" role="list">
+          {[
+            {
+              n: '1',
+              label: 'Drop your video',
+              desc: 'MP4, MOV, WebM, AVI, or MKV. The file stays on your device — nothing is uploaded.',
+            },
+            {
+              n: '2',
+              label: 'Whisper transcribes it',
+              desc: "OpenAI's Whisper model runs locally in your browser and generates word-level timestamps. First run downloads ~74 MB, cached after that.",
+            },
+            {
+              n: '3',
+              label: 'Edit, style, and preview',
+              desc: 'Fix any transcript mistakes, pick a caption style (Mr. Beast, TikTok, Netflix, Classic, Karaoke), choose a font, set colors and position. The video previews your changes live.',
+            },
+            {
+              n: '4',
+              label: 'Burn and download',
+              desc: 'ffmpeg encodes the captions permanently into the video in your browser. Download the finished MP4 — captions are baked in, no subtitle file needed.',
+            },
+          ].map((step) => (
+            <li key={step.n} className="flex gap-4">
+              <span
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bg-muted text-sm font-bold text-primary"
+                aria-hidden="true"
+              >
+                {step.n}
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-fg">{step.label}</p>
+                <p className="mt-0.5 text-sm text-fg-muted">{step.desc}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
       {faq.length > 0 && (
         <section className="mt-12">
           <FAQAccordion items={faq} />
