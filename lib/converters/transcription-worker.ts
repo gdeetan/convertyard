@@ -30,7 +30,7 @@ interface TranscribeMsg {
   audioData: Float32Array
   sampleRate: number
   language: string | null
-  timestamps: boolean
+  timestamps: boolean | 'word'
 }
 
 type IncomingMsg = LoadMsg | TranscribeMsg

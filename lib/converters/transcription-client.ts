@@ -96,7 +96,7 @@ export function transcribeAudio(
   audioData: Float32Array,
   sampleRate: number,
   language: string | null,
-  timestamps: boolean,
+  timestamps: boolean | 'word',
   onProgress?: (pct: number) => void
 ): Promise<TranscriptionResult> {
   return new Promise((resolve, reject) => {
