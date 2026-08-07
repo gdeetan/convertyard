@@ -21,10 +21,12 @@ const fontCache = new Map<string, Uint8Array>()
 export async function loadBuiltinFont(name: string): Promise<Uint8Array> {
   const entry = BUILTIN_FONTS.find(f => f.name === name)
   const filePath = entry?.file ?? '/fonts/caption-font.ttf'
-  if (fontCache.has(filePath)) return fontCache.get(filePath)!
-  const res = await fetch(filePath)
-  if (!res.ok) throw new Error(`Failed to load font "${name}": ${res.status}`)
-  const bytes = new Uint8Array(await res.arrayBuffer())
-  fontCache.set(filePath, bytes)
-  return bytes
+  if (!fontCache.has(filePath)) {
+    const res = await fetch(filePath)
+    if (!res.ok) throw new Error(`Failed to load font "${name}": ${res.status}`)
+    fontCache.set(filePath, new Uint8Array(await res.arrayBuffer()))
+  }
+  // ffmpeg.writeFile() transfers (detaches) the ArrayBuffer when posting to the worker.
+  // Always return a copy so the cached master stays intact for subsequent burns.
+  return fontCache.get(filePath)!.slice()
 }
