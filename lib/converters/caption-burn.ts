@@ -4,8 +4,8 @@ let defaultFontCache: Uint8Array | null = null
 
 async function getDefaultFont(): Promise<Uint8Array> {
   if (defaultFontCache) return defaultFontCache
-  const res = await fetch('https://cdn.jsdelivr.net/npm/roboto-fontface@0.10.0/fonts/roboto/Roboto-Regular.ttf')
-  if (!res.ok) throw new Error(`Failed to fetch caption font: ${res.status}`)
+  const res = await fetch('/fonts/caption-font.ttf')
+  if (!res.ok) throw new Error(`Failed to load caption font: ${res.status}`)
   defaultFontCache = new Uint8Array(await res.arrayBuffer())
   return defaultFontCache
 }
