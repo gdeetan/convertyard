@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect } from 'react'
-import { Download, RefreshCcw } from 'lucide-react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { Download, RefreshCcw, UploadCloud, AlertCircle } from 'lucide-react'
+import { cn } from '@/lib/utils/cn'
 import type { WordChunk, CaptionOptions } from '@/lib/converters/caption-types'
 import { DEFAULT_CAPTION_OPTIONS } from '@/lib/converters/caption-types'
 import { CaptionStylePicker } from './CaptionStylePicker'
@@ -46,6 +47,8 @@ export function CaptionTool() {
   const [statusText, setStatusText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [activeWordIdx, setActiveWordIdx] = useState(0)
+  const [drag, setDrag] = useState<'idle' | 'over' | 'error'>('idle')
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleDrop = useCallback(async (files: FileList | null) => {
     if (!files?.length) return
@@ -136,24 +139,76 @@ export function CaptionTool() {
   }
 
   if (phase === 'idle') {
+    const isOver = drag === 'over'
+    const isError = drag === 'error'
     return (
-      <div
-        className="flex min-h-48 cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-border bg-bg-elevated p-8 text-center transition-colors hover:border-primary"
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => { e.preventDefault(); handleDrop(e.dataTransfer.files) }}
-        onClick={() => {
-          const input = document.createElement('input')
-          input.type = 'file'
-          input.accept = VIDEO_ACCEPTS.join(',')
-          input.onchange = (e) => handleDrop((e.target as HTMLInputElement).files)
-          input.click()
-        }}
-      >
-        <div className="text-4xl">🎬</div>
-        <p className="text-lg font-semibold text-fg">Drop a video to add captions</p>
-        <p className="text-sm text-fg-muted">MP4, MOV, WebM, AVI, MKV · Files never leave your browser</p>
-        {error && <p className="mt-2 rounded bg-red-50 px-3 py-1.5 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
-      </div>
+      <>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={VIDEO_ACCEPTS.join(',')}
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
+          onChange={(e) => { if (e.target.files) { handleDrop(e.target.files); e.target.value = '' } }}
+        />
+        <div
+          role="button"
+          tabIndex={0}
+          aria-label="Drop zone. Accepts MP4, MOV, WebM, AVI, MKV. Press Enter or Space to open file picker, or drag and drop files here."
+          onClick={() => fileInputRef.current?.click()}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click() } }}
+          onDragOver={(e) => { e.preventDefault(); setDrag('over') }}
+          onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDrag('idle') }}
+          onDrop={(e) => {
+            e.preventDefault()
+            setDrag('idle')
+            const files = Array.from(e.dataTransfer.files)
+            const valid = files.filter(f => f.type.startsWith('video/'))
+            if (valid.length === 0 && files.length > 0) {
+              setDrag('error')
+              setTimeout(() => setDrag('idle'), 2000)
+              return
+            }
+            handleDrop(e.dataTransfer.files)
+          }}
+          className={cn(
+            'flex min-h-[200px] cursor-pointer flex-col items-center justify-center gap-4',
+            'rounded-xl border-2 border-dashed p-8 text-center transition-all duration-150',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+            !isOver && !isError && 'border-border bg-bg-muted hover:border-primary hover:bg-bg-elevated',
+            isOver && 'border-primary bg-bg-elevated scale-[1.01]',
+            isError && 'border-error bg-bg-elevated',
+          )}
+        >
+          {isError ? (
+            <>
+              <AlertCircle className="h-10 w-10 text-error" aria-hidden="true" />
+              <p className="text-sm font-medium text-error">Wrong file type. Accepts: MP4, MOV, WebM, AVI, MKV</p>
+            </>
+          ) : (
+            <>
+              <div className={cn(
+                'flex h-14 w-14 items-center justify-center rounded-xl',
+                'bg-bg-elevated border border-border transition-colors',
+                isOver && 'border-primary bg-bg-muted',
+              )}>
+                <UploadCloud className={cn('h-7 w-7', isOver ? 'text-primary' : 'text-fg-muted')} aria-hidden="true" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-fg">
+                  {isOver ? 'Release to add' : 'Drop files here'}
+                </p>
+                <p className="text-xs text-fg-muted">
+                  or <span className="font-medium text-primary underline underline-offset-2">click to browse</span>
+                </p>
+              </div>
+              <p className="text-xs text-fg-subtle">Accepts MP4, MOV, WebM, AVI, MKV · Files never leave your browser</p>
+              {error && <p className="rounded bg-red-50 px-3 py-1.5 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>}
+            </>
+          )}
+        </div>
+      </>
     )
   }
 
