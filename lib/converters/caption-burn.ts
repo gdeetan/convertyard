@@ -134,6 +134,10 @@ export async function burnCaptions(
   const midName    = `cap_mid_${ts}.mkv`
   const outputName = `cap_out_${ts}.mp4`
 
+  // Pre-read duration so progress handlers can use time/duration instead of the
+  // unreliable `progress` ratio (which breaks for MJPEG intermediates).
+  const videoDurationS = await getVideoDuration(videoFile)
+
   onProgress(5)
   await ffmpeg.writeFile(inputName, await fetchFile(videoFile))
 
@@ -156,13 +160,14 @@ export async function burnCaptions(
   const logHandler = ({ message }: { message: string }) => logs.push(message)
   ffmpeg.on('log', logHandler)
 
-  // progressHandler is reassigned between passes; declare here so finally can always unregister it
-  // Clamp progress to [0,1]: when the ffmpeg progress event can't determine total
-  // duration (e.g. MJPEG intermediate) it emits raw microsecond timestamps instead
-  // of a proper 0–1 ratio, producing values like 7140675177967.
-  const clamp01 = (v: number) => (isFinite(v) ? Math.max(0, Math.min(1, v)) : 0)
-  let progressHandler = ({ progress }: { progress: number }) => {
-    onProgress(10 + Math.round(clamp01(progress) * 35))
+  // Use `time` (µs position in current pass) + known video duration for progress.
+  // The `progress` ratio from @ffmpeg/ffmpeg is unreliable when total duration
+  // can't be determined (MJPEG intermediate), emitting raw µs timestamps instead.
+  const timeRatio = (timeUs: number) =>
+    videoDurationS > 0 ? Math.min(1, Math.max(0, timeUs / 1_000_000 / videoDurationS)) : 0
+
+  let progressHandler = ({ time }: { progress: number; time: number }) => {
+    onProgress(10 + Math.round(timeRatio(time) * 35))
   }
   ffmpeg.on('progress', progressHandler)
 
@@ -183,7 +188,7 @@ export async function burnCaptions(
       '-i', inputName,
       '-vf', 'fps=30,scale=iw:ih,format=yuvj420p',
       '-c:v', 'mjpeg',
-      '-qscale:v', '3',
+      '-qscale:v', '10',
       '-c:a', 'aac',
       '-b:a', '128k',
       midName,
@@ -202,8 +207,8 @@ export async function burnCaptions(
 
     // Pass 2 — burn captions onto the clean intermediate.
     // No fps/format prefix needed: intermediate is already 30fps yuv420p.
-    progressHandler = ({ progress }: { progress: number }) => {
-      onProgress(45 + Math.round(clamp01(progress) * 50))
+    progressHandler = ({ time }: { progress: number; time: number }) => {
+      onProgress(45 + Math.round(timeRatio(time) * 50))
     }
     ffmpeg.on('progress', progressHandler)
 
@@ -258,4 +263,14 @@ export async function burnCaptions(
 function getExt(name: string): string {
   const m = name.match(/\.[^.]+$/)
   return m ? m[0] : '.mp4'
+}
+
+function getVideoDuration(file: File): Promise<number> {
+  return new Promise((resolve) => {
+    const v = document.createElement('video')
+    v.preload = 'metadata'
+    v.onloadedmetadata = () => { URL.revokeObjectURL(v.src); resolve(isFinite(v.duration) && v.duration > 0 ? v.duration : 0) }
+    v.onerror = () => resolve(0)
+    v.src = URL.createObjectURL(file)
+  })
 }
