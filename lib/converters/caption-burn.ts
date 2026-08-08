@@ -171,13 +171,23 @@ export async function burnCaptions(
     // directly on such input causes ffmpeg to attempt filter-graph reinitialization
     // mid-stream, which fails with "Error reinitializing filters / Invalid argument".
     // Normalising first gives drawtext a perfectly consistent, predictable input.
+    //
+    // Extra hardening against AVERROR_INPUT_CHANGED in Pass 2's H.264 decoder:
+    //   -vf scale=iw:ih,format=yuv420p — normalise pixel format through filter chain
+    //     (more reliable than -pix_fmt alone which acts post-encode)
+    //   -g 30 -sc_threshold 0 — fixed keyframe every 30 frames, no scene-change
+    //     extra I-frames (which can carry differing SPS colorspace metadata)
+    //   -bf 0 — disable B-frames; B-frame reference changes can trigger SPS updates
     let exitCode = await ffmpeg.exec([
       '-i', inputName,
+      '-vf', 'scale=iw:ih,format=yuv420p',
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
       '-crf', '28',
-      '-pix_fmt', 'yuv420p',
       '-r', '30',
+      '-g', '30',
+      '-sc_threshold', '0',
+      '-bf', '0',
       '-c:a', 'aac',
       '-b:a', '128k',
       midName,
@@ -207,7 +217,9 @@ export async function burnCaptions(
       // absorbs AVERROR_INPUT_CHANGED from the decoder (colour-range metadata,
       // SPS/SEI changes between I-frames) and presents a consistent output to
       // the drawtext chain, preventing "Error reinitializing filters".
-      '-vf', `scale=iw:ih,${drawFilter}`,
+      // format=yuv420p after scale makes the pixel format contract explicit
+      // before the drawtext chain, even if the decoder emits AVERROR_INPUT_CHANGED.
+      '-vf', `scale=iw:ih,format=yuv420p,${drawFilter}`,
       '-pix_fmt', 'yuv420p',
       '-c:a', 'copy',
       '-movflags', '+faststart',
