@@ -96,8 +96,9 @@ export function CaptionTool() {
 
       setStatusText('Burning captions into video…')
       const output = await burnCaptions(videoFile, words, options, fontBlob, (pct) => {
-        setProgress(pct)
-        setStatusText(`Burning captions… ${pct}%`)
+        const safePct = Math.max(0, Math.min(100, Math.round(pct)))
+        setProgress(safePct)
+        setStatusText(`Burning captions… ${safePct}%`)
       })
 
       setResultFile(output)

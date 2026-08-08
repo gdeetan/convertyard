@@ -157,8 +157,12 @@ export async function burnCaptions(
   ffmpeg.on('log', logHandler)
 
   // progressHandler is reassigned between passes; declare here so finally can always unregister it
+  // Clamp progress to [0,1]: when the ffmpeg progress event can't determine total
+  // duration (e.g. MJPEG intermediate) it emits raw microsecond timestamps instead
+  // of a proper 0–1 ratio, producing values like 7140675177967.
+  const clamp01 = (v: number) => (isFinite(v) ? Math.max(0, Math.min(1, v)) : 0)
   let progressHandler = ({ progress }: { progress: number }) => {
-    onProgress(10 + Math.round(progress * 35))
+    onProgress(10 + Math.round(clamp01(progress) * 35))
   }
   ffmpeg.on('progress', progressHandler)
 
@@ -199,7 +203,7 @@ export async function burnCaptions(
     // Pass 2 — burn captions onto the clean intermediate.
     // No fps/format prefix needed: intermediate is already 30fps yuv420p.
     progressHandler = ({ progress }: { progress: number }) => {
-      onProgress(45 + Math.round(progress * 50))
+      onProgress(45 + Math.round(clamp01(progress) * 50))
     }
     ffmpeg.on('progress', progressHandler)
 
