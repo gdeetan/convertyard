@@ -8,6 +8,10 @@ const CDN_ST = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let loadPromise: Promise<any> | null = null
+// Separate ST-only instance for filter-heavy operations (drawtext etc.).
+// @ffmpeg/core-mt deadlocks Chrome/Safari on any -vf filter graph (issue #772).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let stLoadPromise: Promise<any> | null = null
 
 export function preloadFFmpeg(): void {
   getFFmpeg().catch(() => {})
@@ -47,4 +51,26 @@ export function getFFmpeg(): Promise<any> {
     })
   }
   return loadPromise
+}
+
+// Always single-threaded — use for any command that runs a -vf filter graph.
+// The MT build deadlocks Chrome/Safari on filter ops (ffmpegwasm/ffmpeg.wasm#772).
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getSingleThreadFFmpeg(): Promise<any> {
+  if (!stLoadPromise) {
+    stLoadPromise = (async () => {
+      const { FFmpeg } = await import('@ffmpeg/ffmpeg')
+      const { toBlobURL } = await import('@ffmpeg/util')
+      const ffmpeg = new FFmpeg()
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${CDN_ST}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${CDN_ST}/ffmpeg-core.wasm`, 'application/wasm'),
+      })
+      return ffmpeg
+    })().catch((err) => {
+      stLoadPromise = null
+      throw err
+    })
+  }
+  return stLoadPromise
 }

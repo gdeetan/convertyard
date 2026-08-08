@@ -1,4 +1,4 @@
-import { getFFmpeg } from './ffmpeg-client'
+import { getSingleThreadFFmpeg } from './ffmpeg-client'
 import type { WordChunk, CaptionOptions } from './caption-types'
 import { loadBuiltinFont } from './caption-fonts'
 
@@ -140,7 +140,7 @@ export async function burnCaptions(
   onProgress: (pct: number) => void,
 ): Promise<File> {
   const { fetchFile } = await import('@ffmpeg/util')
-  const ffmpeg = await getFFmpeg()
+  const ffmpeg = await getSingleThreadFFmpeg()
 
   const ts = Date.now()
   const inputName  = `cap_in_${ts}${getExt(videoFile.name)}`
