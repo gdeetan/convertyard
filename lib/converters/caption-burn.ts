@@ -169,12 +169,16 @@ export async function burnCaptions(
   const logHandler = ({ message }: { message: string }) => logs.push(message)
   ffmpeg.on('log', logHandler)
 
-  // Pass 1 progress: use the `progress` ratio from @ffmpeg/ffmpeg (0–1).
-  // The input here is the original video which always has reliable duration metadata.
-  const clamp01 = (v: number) => isFinite(v) && v >= 0 && v <= 1 ? v : 0
-  let progressHandler = ({ progress }: { progress: number; time: number }) => {
-    onProgress(10 + Math.round(clamp01(progress) * 35))
-  }
+  // Timer drives Pass 1 progress (11 → 44%) at 1%/2 s. ffmpeg's 'progress' events are
+  // unreliable for many input formats (e.g. WebM, VFR MOV) that lack header duration
+  // metadata, leaving the bar frozen at 10% for the entire normalisation step.
+  let pass1Pct = 11
+  let pass1Timer: ReturnType<typeof setInterval> | null = setInterval(() => {
+    pass1Pct = Math.min(44, pass1Pct + 1)
+    onProgress(pass1Pct)
+  }, 2000)
+  // No-op — timer owns the bar for Pass 1.
+  let progressHandler = () => {}
   ffmpeg.on('progress', progressHandler)
 
   let data: Uint8Array<ArrayBuffer> | null = null
@@ -189,9 +193,11 @@ export async function burnCaptions(
     // MJPEG is all-intra: every frame is an independent JPEG. Its decoder has no
     // sequence state, so it structurally cannot emit AVERROR_INPUT_CHANGED during
     // Pass 2, eliminating the "Error reinitializing filters" crash.
+    // scale=trunc(iw/2)*2:trunc(ih/2)*2 enforces even dimensions required by yuvj420p;
+    // scale=iw:ih was a no-op that didn't guarantee this.
     let exitCode = await ffmpeg.exec([
       '-i', inputName,
-      '-vf', 'fps=30,scale=iw:ih,format=yuvj420p',
+      '-vf', 'fps=30,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuvj420p',
       '-c:v', 'mjpeg',
       '-qscale:v', '10',
       '-c:a', 'aac',
@@ -199,6 +205,8 @@ export async function burnCaptions(
       midName,
     ])
 
+    clearInterval(pass1Timer)
+    pass1Timer = null
     ffmpeg.off('progress', progressHandler)
 
     if (exitCode !== 0) {
@@ -247,6 +255,7 @@ export async function burnCaptions(
       throw new Error('ffmpeg produced an empty output file')
     }
   } finally {
+    if (pass1Timer) clearInterval(pass1Timer)
     if (pass2Timer) clearInterval(pass2Timer)
     ffmpeg.off('log', logHandler)
     ffmpeg.off('progress', progressHandler)
