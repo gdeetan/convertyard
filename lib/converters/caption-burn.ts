@@ -131,7 +131,7 @@ export async function burnCaptions(
 
   const ts = Date.now()
   const inputName  = `cap_in_${ts}${getExt(videoFile.name)}`
-  const midName    = `cap_mid_${ts}.mp4`
+  const midName    = `cap_mid_${ts}.mkv`
   const outputName = `cap_out_${ts}.mp4`
 
   onProgress(5)
@@ -164,30 +164,22 @@ export async function burnCaptions(
 
   let data: Uint8Array<ArrayBuffer> | null = null
   try {
-    // Pass 1 — transcode to clean CFR 30fps yuv420p H.264 + AAC.
+    // Pass 1 — transcode to MJPEG + AAC in Matroska (.mkv).
     //
-    // Phone videos (iOS MOV, Android MP4) are almost always VFR and may carry
-    // non-standard pixel formats (yuvj420p, yuv420p10, HDR, etc.). Running drawtext
-    // directly on such input causes ffmpeg to attempt filter-graph reinitialization
-    // mid-stream, which fails with "Error reinitializing filters / Invalid argument".
-    // Normalising first gives drawtext a perfectly consistent, predictable input.
+    // Root cause of all "Error reinitializing filters" crashes: every H.264 decoder —
+    // even for a carefully normalised intermediate — can return AVERROR_INPUT_CHANGED
+    // when the decoder encounters a new I-frame whose SPS/SEI colorspace metadata
+    // differs from the previous one. ffmpeg.wasm then tries to reconfigure the filter
+    // graph, which fails with "Invalid argument".
     //
-    // Extra hardening against AVERROR_INPUT_CHANGED in Pass 2's H.264 decoder:
-    //   -vf scale=iw:ih,format=yuv420p — normalise pixel format through filter chain
-    //     (more reliable than -pix_fmt alone which acts post-encode)
-    //   -g 30 -sc_threshold 0 — fixed keyframe every 30 frames, no scene-change
-    //     extra I-frames (which can carry differing SPS colorspace metadata)
-    //   -bf 0 — disable B-frames; B-frame reference changes can trigger SPS updates
+    // MJPEG is all-intra: every frame is an independent JPEG. Its decoder keeps no
+    // state between frames, so it structurally cannot emit AVERROR_INPUT_CHANGED.
+    // This eliminates the root cause rather than trying to mask it.
     let exitCode = await ffmpeg.exec([
       '-i', inputName,
-      '-vf', 'scale=iw:ih,format=yuv420p',
-      '-c:v', 'libx264',
-      '-preset', 'ultrafast',
-      '-crf', '28',
-      '-r', '30',
-      '-g', '30',
-      '-sc_threshold', '0',
-      '-bf', '0',
+      '-vf', 'fps=30,scale=iw:ih,format=yuvj420p',
+      '-c:v', 'mjpeg',
+      '-qscale:v', '3',
       '-c:a', 'aac',
       '-b:a', '128k',
       midName,
@@ -211,15 +203,16 @@ export async function burnCaptions(
     }
     ffmpeg.on('progress', progressHandler)
 
+    // Pass 2 — burn captions onto the MJPEG intermediate.
+    // format=yuv420p converts MJPEG's full-range yuvj420p to limited-range yuv420p
+    // as a one-time initialisation step — not a mid-stream format change — so
+    // AVERROR_INPUT_CHANGED is impossible here too.
     exitCode = await ffmpeg.exec([
       '-i', midName,
-      // scale=iw:ih is NOT a no-op: unlike format= or fps=, the scale filter
-      // absorbs AVERROR_INPUT_CHANGED from the decoder (colour-range metadata,
-      // SPS/SEI changes between I-frames) and presents a consistent output to
-      // the drawtext chain, preventing "Error reinitializing filters".
-      // format=yuv420p after scale makes the pixel format contract explicit
-      // before the drawtext chain, even if the decoder emits AVERROR_INPUT_CHANGED.
-      '-vf', `scale=iw:ih,format=yuv420p,${drawFilter}`,
+      '-vf', `format=yuv420p,${drawFilter}`,
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-crf', '23',
       '-pix_fmt', 'yuv420p',
       '-c:a', 'copy',
       '-movflags', '+faststart',
