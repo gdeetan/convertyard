@@ -85,8 +85,13 @@ function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath:
       ? escapeDrawtext((uppercase ? rawText.toUpperCase() : rawText).trim())
       : wrapAndEscape(rawText, maxCharsPerLine, uppercase)
     if (!t) return null
-    const yExpr = `if(between(t,${start.toFixed(3)},${end.toFixed(3)}),${yVisible},${yHidden})`
-    return `drawtext=${baseXFont}:y='${yExpr}'${extra}:text='${t}'`
+    // ffmpeg.wasm's filter-chain parser splits on ALL commas — it does not honour
+    // single-quote protection at the chain level. Escape every comma in the y
+    // expression with \, (level-1 escape) so the parser never sees them as
+    // filter separators. The expression evaluator then receives real commas after
+    // stripping the backslashes.
+    const yExpr = `if(between(t\\,${start.toFixed(3)}\\,${end.toFixed(3)})\\,${yVisible}\\,${yHidden})`
+    return `drawtext=${baseXFont}:y=${yExpr}${extra}:text='${t}'`
   }
 
   // Each drawtext filter allocates its own FreeType library + face in WASM linear
