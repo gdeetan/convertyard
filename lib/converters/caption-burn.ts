@@ -139,10 +139,12 @@ export async function burnCaptions(
   onProgress(15)
 
   const drawFilter = buildDrawtextFilter(words, opts, activeFontPath)
-  // Prepend fps=30 to convert any VFR input to 30fps CFR before drawtext runs.
-  // VFR videos (most phone recordings) cause "Error reinitializing filters" when
-  // the filter graph tries to reinitialize mid-stream as the frame rate varies.
-  const vfFilter = `fps=30,${drawFilter}`
+  // fps=30   → normalize VFR to 30fps CFR (phone recordings are almost always VFR;
+  //             without this, "Error reinitializing filters" kills the run).
+  // format=yuv420p → force 8-bit planar YUV before drawtext and libx264.
+  //             Phones/iOS can produce yuvj420p, yuv420p10, or other variants that
+  //             cause "Error while processing the decoded data for stream #0:0".
+  const vfFilter = `fps=30,format=yuv420p,${drawFilter}`
 
   // Capture ffmpeg logs so we can include them in error messages
   const logs: string[] = []
@@ -159,18 +161,21 @@ export async function burnCaptions(
     let exitCode: number = await ffmpeg.exec([
       '-i', inputName,
       '-vf', vfFilter,
+      '-pix_fmt', 'yuv420p',
       '-c:a', 'copy',
       '-movflags', '+faststart',
       outputName,
     ])
 
-    // If audio copy failed (incompatible codec: PCM, FLAC, Vorbis from MKV/WebM),
-    // retry with AAC re-encode. Output file will be absent so we don't need to clean it first.
-    if (exitCode !== 0 && logs.some(l => /audio|codec|aac|pcm|flac|vorbis/i.test(l))) {
+    // Retry with AAC re-encode ONLY when the specific container-incompatibility error
+    // appears ("Could not find tag for codec vorbis in stream…" etc.).
+    // Do NOT match generic "[aac @ 0x…]" context prefixes — those appear in every run.
+    if (exitCode !== 0 && logs.some(l => /not currently supported in container|could not find tag for codec/i.test(l))) {
       logs.length = 0
       exitCode = await ffmpeg.exec([
         '-i', inputName,
         '-vf', vfFilter,
+        '-pix_fmt', 'yuv420p',
         '-c:a', 'aac',
         '-b:a', '128k',
         '-movflags', '+faststart',
