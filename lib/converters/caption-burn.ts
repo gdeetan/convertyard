@@ -193,11 +193,9 @@ export async function burnCaptions(
     // MJPEG is all-intra: every frame is an independent JPEG. Its decoder has no
     // sequence state, so it structurally cannot emit AVERROR_INPUT_CHANGED during
     // Pass 2, eliminating the "Error reinitializing filters" crash.
-    // scale=trunc(iw/2)*2:trunc(ih/2)*2 enforces even dimensions required by yuvj420p;
-    // scale=iw:ih was a no-op that didn't guarantee this.
     let exitCode = await ffmpeg.exec([
       '-i', inputName,
-      '-vf', 'fps=30,scale=trunc(iw/2)*2:trunc(ih/2)*2,format=yuvj420p',
+      '-vf', 'fps=30,scale=iw:ih,format=yuvj420p',
       '-c:v', 'mjpeg',
       '-qscale:v', '10',
       '-c:a', 'aac',
