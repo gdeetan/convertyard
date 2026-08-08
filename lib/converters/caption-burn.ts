@@ -93,8 +93,9 @@ function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath:
   } else {
     const groups = groupIntoLines(words)
     const extra =
-      styleId === 'netflix' ? withBox :
-      styleId === 'classic' ? withOutline + withShadow :
+      styleId === 'netflix'  ? withBox :
+      styleId === 'classic'  ? withOutline + withShadow :
+      styleId === 'karaoke'  ? withOutline + withShadow :
       withOutline
     for (const group of groups) {
       const text = group.map(w => w.text).join(' ')
@@ -138,6 +139,10 @@ export async function burnCaptions(
   onProgress(15)
 
   const drawFilter = buildDrawtextFilter(words, opts, activeFontPath)
+  // Prepend fps=30 to convert any VFR input to 30fps CFR before drawtext runs.
+  // VFR videos (most phone recordings) cause "Error reinitializing filters" when
+  // the filter graph tries to reinitialize mid-stream as the frame rate varies.
+  const vfFilter = `fps=30,${drawFilter}`
 
   // Capture ffmpeg logs so we can include them in error messages
   const logs: string[] = []
@@ -151,13 +156,28 @@ export async function burnCaptions(
   let data: Uint8Array<ArrayBuffer> | null = null
   try {
     // exec() in @ffmpeg/ffmpeg 0.12.x resolves with exit code, does NOT throw on failure
-    const exitCode: number = await ffmpeg.exec([
+    let exitCode: number = await ffmpeg.exec([
       '-i', inputName,
-      '-vf', drawFilter,
+      '-vf', vfFilter,
       '-c:a', 'copy',
       '-movflags', '+faststart',
       outputName,
     ])
+
+    // If audio copy failed (incompatible codec: PCM, FLAC, Vorbis from MKV/WebM),
+    // retry with AAC re-encode. Output file will be absent so we don't need to clean it first.
+    if (exitCode !== 0 && logs.some(l => /audio|codec|aac|pcm|flac|vorbis/i.test(l))) {
+      logs.length = 0
+      exitCode = await ffmpeg.exec([
+        '-i', inputName,
+        '-vf', vfFilter,
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        '-movflags', '+faststart',
+        outputName,
+      ])
+    }
+
     if (exitCode !== 0) {
       throw new Error(`ffmpeg exited with code ${exitCode}. ${logs.slice(-5).join(' | ')}`)
     }
