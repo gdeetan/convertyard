@@ -51,7 +51,6 @@ function wrapAndEscape(raw: string, maxChars: number, uppercase: boolean): strin
     }
   }
   if (current) lines.push(current)
-  // Each line is escaped individually; lines joined with ffmpeg newline sequence
   return lines.map(escapeDrawtext).join('\\n')
 }
 
@@ -60,26 +59,23 @@ function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath:
 
   const fc = toDrawColor(primaryColor)
   const oc = toDrawColor(outlineColor)
-  // Colons must be escaped in option values; path has no other specials
   const escapedFont = fontPath.replace(/:/g, '\\:')
 
   const pad = Math.round(fontSize * 1.2)
-  const yExpr =
+  const yVisible =
     position === 'top'    ? String(pad) :
     position === 'center' ? `(h-${fontSize})/2` :
     /* bottom */            `h-${pad}-${fontSize}`
 
-  // enable='between(t,...)' is used intentionally: disabled filters skip FreeType
-  // rendering entirely, so only the ~1 visible caption is rendered each frame
-  // instead of all N. The y-expression workaround rendered ALL filters every frame
-  // (300 × 3600 = 1 080 000 FreeType calls for a 2-min video) causing the hang.
-  //
-  // enable= previously caused "Error reinitializing filters" because the H.264
-  // decoder emitted AVERROR_INPUT_CHANGED (per-GOP SPS metadata changes). The MJPEG
-  // intermediate fixes this: every MJPEG frame is independent, so the decoder
-  // never signals a format change → filter-graph reconfiguration on enable=
-  // transitions always succeeds.
-  const base = `fontfile=${escapedFont}:fontsize=${fontSize}:fontcolor=${fc}:x=(w-text_w)/2:y=${yExpr}`
+  // Off-screen y position used to hide text outside its time window.
+  // enable='between(t,...)' was tested but causes ffmpeg.wasm to deadlock in the
+  // wasm worker thread during filter-graph reconfiguration (no progress events,
+  // no error, just a permanent hang). The y-expression keeps every filter always
+  // active (no reconfiguration) — off-screen text is clipped by the compositing
+  // step so the per-frame cost for hidden captions is negligible.
+  const yHidden = `(h+${fontSize})`
+
+  const baseXFont = `fontfile=${escapedFont}:fontsize=${fontSize}:fontcolor=${fc}:x=(w-text_w)/2`
   const withOutline = `:borderw=${outlineWidth}:bordercolor=${oc}`
   const withBox     = `:box=1:boxcolor=0x000000:boxborderw=8`
   const withShadow  = `:shadowx=2:shadowy=2:shadowcolor=0x000000`
@@ -89,7 +85,8 @@ function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath:
       ? escapeDrawtext((uppercase ? rawText.toUpperCase() : rawText).trim())
       : wrapAndEscape(rawText, maxCharsPerLine, uppercase)
     if (!t) return null
-    return `drawtext=${base}${extra}:text='${t}':enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'`
+    const yExpr = `if(between(t,${start.toFixed(3)},${end.toFixed(3)}),${yVisible},${yHidden})`
+    return `drawtext=${baseXFont}:y='${yExpr}'${extra}:text='${t}'`
   }
 
   const entries: string[] = []
@@ -132,10 +129,6 @@ export async function burnCaptions(
   const midName    = `cap_mid_${ts}.mkv`
   const outputName = `cap_out_${ts}.mp4`
 
-  // Pre-read duration so progress handlers can use time/duration instead of the
-  // unreliable `progress` ratio (which breaks for MJPEG intermediates).
-  const videoDurationS = await getVideoDuration(videoFile)
-
   onProgress(5)
   await ffmpeg.writeFile(inputName, await fetchFile(videoFile))
 
@@ -158,30 +151,26 @@ export async function burnCaptions(
   const logHandler = ({ message }: { message: string }) => logs.push(message)
   ffmpeg.on('log', logHandler)
 
-  // Use `time` (µs position in current pass) + known video duration for progress.
-  // The `progress` ratio from @ffmpeg/ffmpeg is unreliable when total duration
-  // can't be determined (MJPEG intermediate), emitting raw µs timestamps instead.
-  const timeRatio = (timeUs: number) =>
-    videoDurationS > 0 ? Math.min(1, Math.max(0, timeUs / 1_000_000 / videoDurationS)) : 0
-
-  let progressHandler = ({ time }: { progress: number; time: number }) => {
-    onProgress(10 + Math.round(timeRatio(time) * 35))
+  // Pass 1 progress: use the `progress` ratio from @ffmpeg/ffmpeg (0–1).
+  // The input here is the original video which always has reliable duration metadata.
+  const clamp01 = (v: number) => isFinite(v) && v >= 0 && v <= 1 ? v : 0
+  let progressHandler = ({ progress }: { progress: number; time: number }) => {
+    onProgress(10 + Math.round(clamp01(progress) * 35))
   }
   ffmpeg.on('progress', progressHandler)
 
   let data: Uint8Array<ArrayBuffer> | null = null
+  // pass2Timer advances the bar from 46% → 93% at ~1%/3 s so the UI never appears
+  // frozen. We can't rely on ffmpeg's progress events for Pass 2 because the MJPEG
+  // intermediate doesn't always have the duration metadata that @ffmpeg/ffmpeg needs
+  // to compute a valid 0–1 ratio.
+  let pass2Timer: ReturnType<typeof setInterval> | null = null
+
   try {
     // Pass 1 — transcode to MJPEG + AAC in Matroska (.mkv).
-    //
-    // Root cause of all "Error reinitializing filters" crashes: every H.264 decoder —
-    // even for a carefully normalised intermediate — can return AVERROR_INPUT_CHANGED
-    // when the decoder encounters a new I-frame whose SPS/SEI colorspace metadata
-    // differs from the previous one. ffmpeg.wasm then tries to reconfigure the filter
-    // graph, which fails with "Invalid argument".
-    //
-    // MJPEG is all-intra: every frame is an independent JPEG. Its decoder keeps no
-    // state between frames, so it structurally cannot emit AVERROR_INPUT_CHANGED.
-    // This eliminates the root cause rather than trying to mask it.
+    // MJPEG is all-intra: every frame is an independent JPEG. Its decoder has no
+    // sequence state, so it structurally cannot emit AVERROR_INPUT_CHANGED during
+    // Pass 2, eliminating the "Error reinitializing filters" crash.
     let exitCode = await ffmpeg.exec([
       '-i', inputName,
       '-vf', 'fps=30,scale=iw:ih,format=yuvj420p',
@@ -198,22 +187,22 @@ export async function burnCaptions(
       throw new Error(`Failed to normalise video (pass 1): ${logs.slice(-5).join(' | ')}`)
     }
 
-    // Delete input now — frees memory before pass 2 allocates the output
     await ffmpeg.deleteFile(inputName).catch(() => {})
     logs.length = 0
     onProgress(45)
 
-    // Pass 2 — burn captions onto the clean intermediate.
-    // No fps/format prefix needed: intermediate is already 30fps yuv420p.
-    progressHandler = ({ time }: { progress: number; time: number }) => {
-      onProgress(45 + Math.round(timeRatio(time) * 50))
-    }
+    // Pass 2 — burn captions onto the MJPEG intermediate.
+    // Timer drives the progress bar so the user can see work is happening.
+    let pass2Pct = 46
+    pass2Timer = setInterval(() => {
+      pass2Pct = Math.min(93, pass2Pct + 1)
+      onProgress(pass2Pct)
+    }, 3000)
+
+    // no-op handler; timer owns progress for Pass 2
+    progressHandler = () => {}
     ffmpeg.on('progress', progressHandler)
 
-    // Pass 2 — burn captions onto the MJPEG intermediate.
-    // format=yuv420p converts MJPEG's full-range yuvj420p to limited-range yuv420p
-    // as a one-time initialisation step — not a mid-stream format change — so
-    // AVERROR_INPUT_CHANGED is impossible here too.
     exitCode = await ffmpeg.exec([
       '-i', midName,
       '-vf', `format=yuv420p,${drawFilter}`,
@@ -226,6 +215,8 @@ export async function burnCaptions(
       outputName,
     ])
 
+    clearInterval(pass2Timer)
+    pass2Timer = null
     ffmpeg.off('progress', progressHandler)
 
     if (exitCode !== 0) {
@@ -238,6 +229,7 @@ export async function burnCaptions(
       throw new Error('ffmpeg produced an empty output file')
     }
   } finally {
+    if (pass2Timer) clearInterval(pass2Timer)
     ffmpeg.off('log', logHandler)
     ffmpeg.off('progress', progressHandler)
     await Promise.all([
@@ -261,14 +253,4 @@ export async function burnCaptions(
 function getExt(name: string): string {
   const m = name.match(/\.[^.]+$/)
   return m ? m[0] : '.mp4'
-}
-
-function getVideoDuration(file: File): Promise<number> {
-  return new Promise((resolve) => {
-    const v = document.createElement('video')
-    v.preload = 'metadata'
-    v.onloadedmetadata = () => { URL.revokeObjectURL(v.src); resolve(isFinite(v.duration) && v.duration > 0 ? v.duration : 0) }
-    v.onerror = () => resolve(0)
-    v.src = URL.createObjectURL(file)
-  })
 }
