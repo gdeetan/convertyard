@@ -89,12 +89,29 @@ function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath:
     return `drawtext=${baseXFont}:y='${yExpr}'${extra}:text='${t}'`
   }
 
+  // Each drawtext filter allocates its own FreeType library + face in WASM linear
+  // memory (~2-5 MB each). Exceeding ~20 filters on a 4 GB WASM heap is fine;
+  // exceeding ~100+ causes OOM and freezes the tab. Cap hard at 20.
+  const MAX_FILTERS = 20
+
   const entries: string[] = []
 
   if (styleId === 'mrbeast' || styleId === 'tiktok') {
-    for (const w of words) {
-      const e = makeEntry(w.text, w.start, w.end, withOutline)
-      if (e) entries.push(e)
+    if (words.length <= MAX_FILTERS) {
+      for (const w of words) {
+        const e = makeEntry(w.text, w.start, w.end, withOutline)
+        if (e) entries.push(e)
+      }
+    } else {
+      // Too many words for word-by-word — group into MAX_FILTERS chunks so WASM
+      // memory stays bounded. Visual effect: 2-3 words highlighted at a time.
+      const chunkSize = Math.ceil(words.length / MAX_FILTERS)
+      const groups = groupIntoLines(words, chunkSize, Infinity)
+      for (const group of groups) {
+        const text = group.map(w => w.text).join(' ')
+        const e = makeEntry(text, group[0].start, group[group.length - 1].end, withOutline)
+        if (e) entries.push(e)
+      }
     }
   } else {
     const groups = groupIntoLines(words)
@@ -103,7 +120,8 @@ function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath:
       styleId === 'classic'  ? withOutline + withShadow :
       styleId === 'karaoke'  ? withOutline + withShadow :
       withOutline
-    for (const group of groups) {
+    const capped = groups.length <= MAX_FILTERS ? groups : groups.slice(0, MAX_FILTERS)
+    for (const group of capped) {
       const text = group.map(w => w.text).join(' ')
       const e = makeEntry(text, group[0].start, group[group.length - 1].end, extra)
       if (e) entries.push(e)
