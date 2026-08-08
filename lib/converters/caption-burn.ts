@@ -64,12 +64,20 @@ function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath:
   const escapedFont = fontPath.replace(/:/g, '\\:')
 
   const pad = Math.round(fontSize * 1.2)
-  const yExpr =
+  const yVisible =
     position === 'top'    ? String(pad) :
     position === 'center' ? `(h-${fontSize})/2` :
     /* bottom */            `h-${pad}-${fontSize}`
 
-  const base = `fontfile=${escapedFont}:fontsize=${fontSize}:fontcolor=${fc}:x=(w-text_w)/2:y=${yExpr}`
+  // Place text one font-height below the frame when outside its time window.
+  // We avoid enable='between(t,...)' because toggling a filter's enabled state
+  // triggers AVERROR_INPUT_CHANGED propagation in ffmpeg.wasm, which causes
+  // "Error reinitializing filters" on every real-world video. Using a y
+  // expression instead keeps the filter always-on — no state change, no reinit.
+  const yHidden = `(h+${fontSize})`
+
+  // x is always centred; y switches between visible and off-screen per frame
+  const baseXFont = `fontfile=${escapedFont}:fontsize=${fontSize}:fontcolor=${fc}:x=(w-text_w)/2`
   const withOutline = `:borderw=${outlineWidth}:bordercolor=${oc}`
   const withBox     = `:box=1:boxcolor=0x000000:boxborderw=8`
   const withShadow  = `:shadowx=2:shadowy=2:shadowcolor=0x000000`
@@ -80,7 +88,10 @@ function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath:
       ? escapeDrawtext((uppercase ? rawText.toUpperCase() : rawText).trim())
       : wrapAndEscape(rawText, maxCharsPerLine, uppercase)
     if (!t) return null
-    return `drawtext=${base}${extra}:text='${t}':enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'`
+    // Single-quote the y value so commas inside if()/between() are not
+    // tokenised as filter-option separators by ffmpeg's option parser.
+    const yExpr = `if(between(t,${start.toFixed(3)},${end.toFixed(3)}),${yVisible},${yHidden})`
+    return `drawtext=${baseXFont}:y='${yExpr}'${extra}:text='${t}'`
   }
 
   const entries: string[] = []
