@@ -195,7 +195,7 @@ export async function burnCaptions(
     // Pass 2, eliminating the "Error reinitializing filters" crash.
     let exitCode = await ffmpeg.exec([
       '-i', inputName,
-      '-vf', 'fps=30,scale=iw:ih,format=yuvj420p',
+      '-vf', 'fps=30,format=yuvj420p',
       '-c:v', 'mjpeg',
       '-qscale:v', '10',
       '-c:a', 'aac',

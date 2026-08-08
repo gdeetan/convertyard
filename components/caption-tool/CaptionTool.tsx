@@ -74,7 +74,7 @@ export function CaptionTool() {
       setWords(result)
       setPhase('edit')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Transcription failed')
+      setError(err instanceof Error ? err.message : (err != null ? String(err) : 'Transcription failed'))
       setPhase('idle')
     }
   }, [])
@@ -104,7 +104,7 @@ export function CaptionTool() {
       setResultFile(output)
       setPhase('done')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Burn failed')
+      setError(err instanceof Error ? err.message : (err != null ? String(err) : 'Burn failed'))
       setPhase('edit')
     }
   }, [videoFile, words, options])
