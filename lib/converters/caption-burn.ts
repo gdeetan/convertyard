@@ -190,17 +190,20 @@ export async function burnCaptions(
 
   try {
     // Pass 1 — transcode to MJPEG + AAC in Matroska (.mkv).
-    // MJPEG is all-intra: every frame is an independent JPEG. Its decoder has no
-    // sequence state, so it structurally cannot emit AVERROR_INPUT_CHANGED during
-    // Pass 2, eliminating the "Error reinitialising filters" crash.
+    // MJPEG is all-intra (every frame is an independent JPEG) so its decoder
+    // carries no sequence state and structurally cannot emit AVERROR_INPUT_CHANGED
+    // during Pass 2 — that's the "Error reinitialising filters" crash.
     //
-    // scale caps width at 1920 px (no upscale), -2 keeps height even for MJPEG.
-    // qscale:v=18 (vs old 10) shrinks each JPEG ~3–5×; during Pass 2 the MJPEG
-    // file and the H.264 output coexist in WASM MEMFS (2 GB heap), so keeping
-    // the intermediate small prevents RuntimeError: memory access out of bounds.
+    // qscale:v=18 (was 10) keeps each JPEG ~3–5× smaller so the MJPEG file and
+    // the H.264 output can coexist in WASM's 2 GB MEMFS heap without hitting
+    // "RuntimeError: memory access out of bounds".
+    //
+    // NO scale filter here: any scale expression that alters frame geometry can
+    // produce subtly inconsistent MJPEG headers across frames, which reintroduces
+    // AVERROR_INPUT_CHANGED in Pass 2 — the exact bug MJPEG is meant to prevent.
     let exitCode = await ffmpeg.exec([
       '-i', inputName,
-      '-vf', `fps=30,scale='if(gt(iw,1920),1920,iw)':-2,format=yuvj420p`,
+      '-vf', 'fps=30,format=yuvj420p',
       '-c:v', 'mjpeg',
       '-qscale:v', '18',
       '-c:a', 'aac',
@@ -213,7 +216,7 @@ export async function burnCaptions(
     ffmpeg.off('progress', progressHandler)
 
     if (exitCode !== 0) {
-      throw new Error(`Failed to normalise video (pass 1): ${logs.slice(-5).join(' | ')}`)
+      throw new Error(`Failed to normalise video (pass 1): ${logs.slice(-10).join(' | ')}`)
     }
 
     await ffmpeg.deleteFile(inputName).catch(() => {})
@@ -249,7 +252,7 @@ export async function burnCaptions(
     ffmpeg.off('progress', progressHandler)
 
     if (exitCode !== 0) {
-      throw new Error(`ffmpeg exited with code ${exitCode}. ${logs.slice(-5).join(' | ')}`)
+      throw new Error(`ffmpeg exited with code ${exitCode}. ${logs.slice(-10).join(' | ')}`)
     }
 
     onProgress(98)
