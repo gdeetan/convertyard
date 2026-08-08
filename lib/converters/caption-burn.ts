@@ -120,6 +120,7 @@ export async function burnCaptions(
 
   const ts = Date.now()
   const inputName  = `cap_in_${ts}${getExt(videoFile.name)}`
+  const midName    = `cap_mid_${ts}.mp4`
   const outputName = `cap_out_${ts}.mp4`
 
   onProgress(5)
@@ -136,56 +137,74 @@ export async function burnCaptions(
     activeFontPath = '/capfonts/builtin.ttf'
   }
 
-  onProgress(15)
+  onProgress(10)
 
   const drawFilter = buildDrawtextFilter(words, opts, activeFontPath)
-  // fps=30   → normalize VFR to 30fps CFR (phone recordings are almost always VFR;
-  //             without this, "Error reinitializing filters" kills the run).
-  // format=yuv420p → force 8-bit planar YUV before drawtext and libx264.
-  //             Phones/iOS can produce yuvj420p, yuv420p10, or other variants that
-  //             cause "Error while processing the decoded data for stream #0:0".
-  const vfFilter = `fps=30,format=yuv420p,${drawFilter}`
 
-  // Capture ffmpeg logs so we can include them in error messages
   const logs: string[] = []
   const logHandler = ({ message }: { message: string }) => logs.push(message)
-  const progressHandler = ({ progress }: { progress: number }) => {
-    onProgress(15 + Math.round(progress * 80))
-  }
   ffmpeg.on('log', logHandler)
+
+  // progressHandler is reassigned between passes; declare here so finally can always unregister it
+  let progressHandler = ({ progress }: { progress: number }) => {
+    onProgress(10 + Math.round(progress * 35))
+  }
   ffmpeg.on('progress', progressHandler)
 
   let data: Uint8Array<ArrayBuffer> | null = null
   try {
-    // exec() in @ffmpeg/ffmpeg 0.12.x resolves with exit code, does NOT throw on failure
-    let exitCode: number = await ffmpeg.exec([
+    // Pass 1 — transcode to clean CFR 30fps yuv420p H.264 + AAC.
+    //
+    // Phone videos (iOS MOV, Android MP4) are almost always VFR and may carry
+    // non-standard pixel formats (yuvj420p, yuv420p10, HDR, etc.). Running drawtext
+    // directly on such input causes ffmpeg to attempt filter-graph reinitialization
+    // mid-stream, which fails with "Error reinitializing filters / Invalid argument".
+    // Normalising first gives drawtext a perfectly consistent, predictable input.
+    let exitCode = await ffmpeg.exec([
       '-i', inputName,
-      '-vf', vfFilter,
+      '-c:v', 'libx264',
+      '-preset', 'ultrafast',
+      '-crf', '28',
+      '-pix_fmt', 'yuv420p',
+      '-r', '30',
+      '-c:a', 'aac',
+      '-b:a', '128k',
+      midName,
+    ])
+
+    ffmpeg.off('progress', progressHandler)
+
+    if (exitCode !== 0) {
+      throw new Error(`Failed to normalise video (pass 1): ${logs.slice(-5).join(' | ')}`)
+    }
+
+    // Delete input now — frees memory before pass 2 allocates the output
+    await ffmpeg.deleteFile(inputName).catch(() => {})
+    logs.length = 0
+    onProgress(45)
+
+    // Pass 2 — burn captions onto the clean intermediate.
+    // No fps/format prefix needed: intermediate is already 30fps yuv420p.
+    progressHandler = ({ progress }: { progress: number }) => {
+      onProgress(45 + Math.round(progress * 50))
+    }
+    ffmpeg.on('progress', progressHandler)
+
+    exitCode = await ffmpeg.exec([
+      '-i', midName,
+      '-vf', drawFilter,
       '-pix_fmt', 'yuv420p',
       '-c:a', 'copy',
       '-movflags', '+faststart',
       outputName,
     ])
 
-    // Retry with AAC re-encode ONLY when the specific container-incompatibility error
-    // appears ("Could not find tag for codec vorbis in stream…" etc.).
-    // Do NOT match generic "[aac @ 0x…]" context prefixes — those appear in every run.
-    if (exitCode !== 0 && logs.some(l => /not currently supported in container|could not find tag for codec/i.test(l))) {
-      logs.length = 0
-      exitCode = await ffmpeg.exec([
-        '-i', inputName,
-        '-vf', vfFilter,
-        '-pix_fmt', 'yuv420p',
-        '-c:a', 'aac',
-        '-b:a', '128k',
-        '-movflags', '+faststart',
-        outputName,
-      ])
-    }
+    ffmpeg.off('progress', progressHandler)
 
     if (exitCode !== 0) {
       throw new Error(`ffmpeg exited with code ${exitCode}. ${logs.slice(-5).join(' | ')}`)
     }
+
     onProgress(98)
     data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
     if (!data || data.length === 0) {
@@ -196,6 +215,7 @@ export async function burnCaptions(
     ffmpeg.off('progress', progressHandler)
     await Promise.all([
       ffmpeg.deleteFile(inputName).catch(() => {}),
+      ffmpeg.deleteFile(midName).catch(() => {}),
       ffmpeg.deleteFile(outputName).catch(() => {}),
       fontBlob
         ? ffmpeg.deleteFile('/capfonts/userfont.ttf').catch(() => {})
