@@ -192,12 +192,17 @@ export async function burnCaptions(
     // Pass 1 — transcode to MJPEG + AAC in Matroska (.mkv).
     // MJPEG is all-intra: every frame is an independent JPEG. Its decoder has no
     // sequence state, so it structurally cannot emit AVERROR_INPUT_CHANGED during
-    // Pass 2, eliminating the "Error reinitializing filters" crash.
+    // Pass 2, eliminating the "Error reinitialising filters" crash.
+    //
+    // scale caps width at 1920 px (no upscale), -2 keeps height even for MJPEG.
+    // qscale:v=18 (vs old 10) shrinks each JPEG ~3–5×; during Pass 2 the MJPEG
+    // file and the H.264 output coexist in WASM MEMFS (2 GB heap), so keeping
+    // the intermediate small prevents RuntimeError: memory access out of bounds.
     let exitCode = await ffmpeg.exec([
       '-i', inputName,
-      '-vf', 'fps=30,format=yuvj420p',
+      '-vf', `fps=30,scale='if(gt(iw,1920),1920,iw)':-2,format=yuvj420p`,
       '-c:v', 'mjpeg',
-      '-qscale:v', '10',
+      '-qscale:v', '18',
       '-c:a', 'aac',
       '-b:a', '128k',
       midName,
