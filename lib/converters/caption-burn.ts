@@ -1,140 +1,17 @@
 import { getSingleThreadFFmpeg } from './ffmpeg-client'
 import type { WordChunk, CaptionOptions } from './caption-types'
 import { loadBuiltinFont } from './caption-fonts'
+import { buildASS } from './caption-ass-builder'
 
-function escapeDrawtext(text: string): string {
-  return text
-    .replace(/\\/g, '\\\\')
-    .replace(/'/g, "\\'")
-    .replace(/:/g, '\\:')
-    .replace(/,/g, '\\,')
-    .replace(/\[/g, '\\[')
-    .replace(/\]/g, '\\]')
-}
-
-// '#RRGGBB' → '0xRRGGBB' (6-digit hex, always valid in drawtext)
-function toDrawColor(hex: string): string {
-  return '0x' + hex.replace('#', '').padStart(6, '0').slice(0, 6).toUpperCase()
-}
-
-function groupIntoLines(words: WordChunk[], maxWords = 8, maxDuration = 3): WordChunk[][] {
-  const groups: WordChunk[][] = []
-  let current: WordChunk[] = []
-  let groupStart = words[0]?.start ?? 0
-  for (const word of words) {
-    if (current.length >= maxWords || (current.length > 0 && word.end - groupStart >= maxDuration)) {
-      groups.push(current)
-      current = []
-      groupStart = word.start
-    }
-    current.push(word)
-  }
-  if (current.length > 0) groups.push(current)
-  return groups
-}
-
-// Wrap text at word boundaries, returns ffmpeg-escaped string with \n line breaks
-function wrapAndEscape(raw: string, maxChars: number, uppercase: boolean): string | null {
-  const text = (uppercase ? raw.toUpperCase() : raw).trim()
-  if (!text) return null
-  const words = text.split(/\s+/)
-  const lines: string[] = []
-  let current = ''
-  for (const word of words) {
-    if (!current) {
-      current = word
-    } else if (current.length + 1 + word.length <= maxChars) {
-      current += ' ' + word
-    } else {
-      lines.push(current)
-      current = word
-    }
-  }
-  if (current) lines.push(current)
-  return lines.map(escapeDrawtext).join('\\n')
-}
-
-function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath: string): string {
-  const { fontSize, primaryColor, outlineColor, outlineWidth, position, uppercase, styleId, maxCharsPerLine } = opts
-
-  const fc = toDrawColor(primaryColor)
-  const oc = toDrawColor(outlineColor)
-  const escapedFont = fontPath.replace(/:/g, '\\:')
-
-  const pad = Math.round(fontSize * 1.2)
-  const yVisible =
-    position === 'top'    ? String(pad) :
-    position === 'center' ? `(h-${fontSize})/2` :
-    /* bottom */            `h-${pad}-${fontSize}`
-
-  // Off-screen y position used to hide text outside its time window.
-  // enable='between(t,...)' was tested but causes ffmpeg.wasm to deadlock in the
-  // wasm worker thread during filter-graph reconfiguration (no progress events,
-  // no error, just a permanent hang). The y-expression keeps every filter always
-  // active (no reconfiguration) — off-screen text is clipped by the compositing
-  // step so the per-frame cost for hidden captions is negligible.
-  const yHidden = `(h+${fontSize})`
-
-  const baseXFont = `fontfile=${escapedFont}:fontsize=${fontSize}:fontcolor=${fc}:x=(w-text_w)/2`
-  const withOutline = `:borderw=${outlineWidth}:bordercolor=${oc}`
-  const withBox     = `:box=1:boxcolor=0x000000:boxborderw=8`
-  const withShadow  = `:shadowx=2:shadowy=2:shadowcolor=0x000000`
-
-  const makeEntry = (rawText: string, start: number, end: number, extra: string): string | null => {
-    const t = (styleId === 'mrbeast' || styleId === 'tiktok')
-      ? escapeDrawtext((uppercase ? rawText.toUpperCase() : rawText).trim())
-      : wrapAndEscape(rawText, maxCharsPerLine, uppercase)
-    if (!t) return null
-    // ffmpeg.wasm's filter-chain parser splits on ALL commas — it does not honour
-    // single-quote protection at the chain level. Escape every comma in the y
-    // expression with \, (level-1 escape) so the parser never sees them as
-    // filter separators. The expression evaluator then receives real commas after
-    // stripping the backslashes.
-    const yExpr = `if(between(t\\,${start.toFixed(3)}\\,${end.toFixed(3)})\\,${yVisible}\\,${yHidden})`
-    return `drawtext=${baseXFont}:y=${yExpr}${extra}:text='${t}'`
-  }
-
-  // Each drawtext filter allocates its own FreeType library + face in WASM linear
-  // memory (~2-5 MB each). Exceeding ~20 filters on a 4 GB WASM heap is fine;
-  // exceeding ~100+ causes OOM and freezes the tab. Cap hard at 20.
-  const MAX_FILTERS = 20
-
-  const entries: string[] = []
-
-  if (styleId === 'mrbeast' || styleId === 'tiktok') {
-    if (words.length <= MAX_FILTERS) {
-      for (const w of words) {
-        const e = makeEntry(w.text, w.start, w.end, withOutline)
-        if (e) entries.push(e)
-      }
-    } else {
-      // Too many words for word-by-word — group into MAX_FILTERS chunks so WASM
-      // memory stays bounded. Visual effect: 2-3 words highlighted at a time.
-      const chunkSize = Math.ceil(words.length / MAX_FILTERS)
-      const groups = groupIntoLines(words, chunkSize, Infinity)
-      for (const group of groups) {
-        const text = group.map(w => w.text).join(' ')
-        const e = makeEntry(text, group[0].start, group[group.length - 1].end, withOutline)
-        if (e) entries.push(e)
-      }
-    }
-  } else {
-    const groups = groupIntoLines(words)
-    const extra =
-      styleId === 'netflix'  ? withBox :
-      styleId === 'classic'  ? withOutline + withShadow :
-      styleId === 'karaoke'  ? withOutline + withShadow :
-      withOutline
-    const capped = groups.length <= MAX_FILTERS ? groups : groups.slice(0, MAX_FILTERS)
-    for (const group of capped) {
-      const text = group.map(w => w.text).join(' ')
-      const e = makeEntry(text, group[0].start, group[group.length - 1].end, extra)
-      if (e) entries.push(e)
-    }
-  }
-
-  if (entries.length === 0) throw new Error('No caption entries to burn — transcript may be empty')
-  return entries.join(',')
+// Derive the font family name to embed in the ASS [V4+ Styles] header.
+// libass scans fontsdir and matches by the TTF's internal name; for builtin
+// and system fonts that name is well-known. Uploaded fonts fall back to the
+// filename stem which is usually close enough; libass falls back to Arial if
+// it can't find an exact match.
+function assFontName(opts: CaptionOptions): string {
+  if (opts.fontSource === 'builtin') return opts.builtinFont
+  if (opts.fontSource === 'system')  return opts.systemFontFamily || 'Arial'
+  return opts.uploadedFont?.name.replace(/\.[^.]+$/, '') ?? 'Arial'
 }
 
 export async function burnCaptions(
@@ -150,6 +27,7 @@ export async function burnCaptions(
   const ts = Date.now()
   const inputName  = `cap_in_${ts}${getExt(videoFile.name)}`
   const midName    = `cap_mid_${ts}.mkv`
+  const assName    = `cap_ass_${ts}.ass`
   const outputName = `cap_out_${ts}.mp4`
 
   onProgress(5)
@@ -157,18 +35,19 @@ export async function burnCaptions(
 
   try { await ffmpeg.createDir('/capfonts') } catch { /* already exists */ }
 
-  let activeFontPath: string
   if (fontBlob) {
     await ffmpeg.writeFile('/capfonts/userfont.ttf', new Uint8Array(await fontBlob.arrayBuffer()))
-    activeFontPath = '/capfonts/userfont.ttf'
   } else {
     await ffmpeg.writeFile('/capfonts/builtin.ttf', await loadBuiltinFont(opts.builtinFont))
-    activeFontPath = '/capfonts/builtin.ttf'
   }
 
-  onProgress(10)
+  // Build the subtitle file. Each style maps to the correct event format
+  // (word-by-word for mrbeast/tiktok, grouped lines for others) via buildASS —
+  // no filter count limit, exact match to the preview.
+  const assContent = buildASS(words, opts, assFontName(opts))
+  await ffmpeg.writeFile(assName, new TextEncoder().encode(assContent))
 
-  const drawFilter = buildDrawtextFilter(words, opts, activeFontPath)
+  onProgress(10)
 
   const logs: string[] = []
   const logHandler = ({ message }: { message: string }) => logs.push(message)
@@ -182,15 +61,10 @@ export async function burnCaptions(
     pass1Pct = Math.min(44, pass1Pct + 1)
     onProgress(pass1Pct)
   }, 2000)
-  // No-op — timer owns the bar for Pass 1.
   let progressHandler = () => {}
   ffmpeg.on('progress', progressHandler)
 
   let data: Uint8Array<ArrayBuffer> | null = null
-  // pass2Timer advances the bar from 46% → 93% at ~1%/3 s so the UI never appears
-  // frozen. We can't rely on ffmpeg's progress events for Pass 2 because the MJPEG
-  // intermediate doesn't always have the duration metadata that @ffmpeg/ffmpeg needs
-  // to compute a valid 0–1 ratio.
   let pass2Timer: ReturnType<typeof setInterval> | null = null
 
   try {
@@ -199,13 +73,11 @@ export async function burnCaptions(
     // carries no sequence state and structurally cannot emit AVERROR_INPUT_CHANGED
     // during Pass 2 — that's the "Error reinitialising filters" crash.
     //
-    // qscale:v=18 (was 10) keeps each JPEG ~3–5× smaller so the MJPEG file and
-    // the H.264 output can coexist in WASM's 2 GB MEMFS heap without hitting
-    // "RuntimeError: memory access out of bounds".
+    // qscale:v=18 keeps each JPEG ~3–5× smaller so the MJPEG file and the H.264
+    // output can coexist in WASM's 2 GB MEMFS heap (prevents OOM crash).
     //
-    // NO scale filter here: any scale expression that alters frame geometry can
-    // produce subtly inconsistent MJPEG headers across frames, which reintroduces
-    // AVERROR_INPUT_CHANGED in Pass 2 — the exact bug MJPEG is meant to prevent.
+    // NO scale filter: any scale expression that alters frame geometry can produce
+    // subtly inconsistent MJPEG headers, reintroducing AVERROR_INPUT_CHANGED.
     let exitCode = await ffmpeg.exec([
       '-i', inputName,
       '-vf', 'fps=30,format=yuvj420p',
@@ -228,21 +100,22 @@ export async function burnCaptions(
     logs.length = 0
     onProgress(45)
 
-    // Pass 2 — burn captions onto the MJPEG intermediate.
-    // Timer drives the progress bar so the user can see work is happening.
+    // Pass 2 — burn captions via ASS subtitles filter.
+    // The subtitles filter uses libass which reads the .ass file directly —
+    // no per-word drawtext filter needed, so word count is unlimited and
+    // word-by-word styles render exactly as the preview shows.
     let pass2Pct = 46
     pass2Timer = setInterval(() => {
       pass2Pct = Math.min(93, pass2Pct + 1)
       onProgress(pass2Pct)
     }, 3000)
 
-    // no-op handler; timer owns progress for Pass 2
     progressHandler = () => {}
     ffmpeg.on('progress', progressHandler)
 
     exitCode = await ffmpeg.exec([
       '-i', midName,
-      '-vf', `format=yuv420p,${drawFilter}`,
+      '-vf', `format=yuv420p,subtitles=${assName}:fontsdir=/capfonts`,
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
       '-crf', '23',
@@ -273,6 +146,7 @@ export async function burnCaptions(
     await Promise.all([
       ffmpeg.deleteFile(inputName).catch(() => {}),
       ffmpeg.deleteFile(midName).catch(() => {}),
+      ffmpeg.deleteFile(assName).catch(() => {}),
       ffmpeg.deleteFile(outputName).catch(() => {}),
       fontBlob
         ? ffmpeg.deleteFile('/capfonts/userfont.ttf').catch(() => {})
