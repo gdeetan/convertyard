@@ -192,7 +192,11 @@ export async function burnCaptions(
 
     exitCode = await ffmpeg.exec([
       '-i', midName,
-      '-vf', drawFilter,
+      // scale=iw:ih is NOT a no-op: unlike format= or fps=, the scale filter
+      // absorbs AVERROR_INPUT_CHANGED from the decoder (colour-range metadata,
+      // SPS/SEI changes between I-frames) and presents a consistent output to
+      // the drawtext chain, preventing "Error reinitializing filters".
+      '-vf', `scale=iw:ih,${drawFilter}`,
       '-pix_fmt', 'yuv420p',
       '-c:a', 'copy',
       '-movflags', '+faststart',
