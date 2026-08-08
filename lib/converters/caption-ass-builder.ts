@@ -46,6 +46,25 @@ export function groupWordsIntoLines(
   return groups
 }
 
+// Wrap word list into lines at maxChars, joined with ASS hard line-break \N.
+function wrapToLines(wordTexts: string[], maxChars: number): string {
+  if (maxChars <= 0) return wordTexts.join(' ')
+  const lines: string[] = []
+  let current = ''
+  for (const word of wordTexts) {
+    if (!current) {
+      current = word
+    } else if (current.length + 1 + word.length <= maxChars) {
+      current += ' ' + word
+    } else {
+      lines.push(current)
+      current = word
+    }
+  }
+  if (current) lines.push(current)
+  return lines.join('\\N')
+}
+
 interface ASSStyleConfig {
   bold: boolean
   alignment: number
@@ -67,7 +86,13 @@ function styleConfig(id: CaptionStyleId, position: 'top' | 'center' | 'bottom'):
   }
 }
 
-function buildHeader(opts: CaptionOptions, cfg: ASSStyleConfig, fontName: string): string {
+function buildHeader(
+  opts: CaptionOptions,
+  cfg: ASSStyleConfig,
+  fontName: string,
+  videoWidth: number,
+  videoHeight: number,
+): string {
   const primary   = hexToASS(opts.primaryColor)
   const highlight = hexToASS(opts.highlightColor)
   const outline   = hexToASS(opts.outlineColor)
@@ -77,8 +102,12 @@ function buildHeader(opts: CaptionOptions, cfg: ASSStyleConfig, fontName: string
   return [
     '[Script Info]',
     'ScriptType: v4.00+',
-    'PlayResX: 1920',
-    'PlayResY: 1080',
+    // Use actual video dimensions so libass never applies asymmetric scaling.
+    // With mismatched PlayRes (e.g. 1920×1080 on a portrait 1080×1920 video)
+    // the outline, font size, and margins all scale differently on each axis,
+    // making text look distorted and Netflix pills span the full screen width.
+    `PlayResX: ${videoWidth}`,
+    `PlayResY: ${videoHeight}`,
     'WrapStyle: 1',
     '',
     '[V4+ Styles]',
@@ -106,13 +135,18 @@ function groupedLineEvents(words: WordChunk[], opts: CaptionOptions): string[] {
   return groups.map((group) => {
     const start = group[0].start
     const end   = group[group.length - 1].end
-    const text  = group.map((w) => opts.uppercase ? w.text.toUpperCase() : w.text).join(' ')
+    const wordTexts = group.map(w => opts.uppercase ? w.text.toUpperCase() : w.text)
+    // Respect the user's maxCharsPerLine setting by wrapping with \N.
+    const text = wrapToLines(wordTexts, opts.maxCharsPerLine)
     return dialogue(start, end, text)
   })
 }
 
 function karaokeEvents(words: WordChunk[], opts: CaptionOptions): string[] {
-  const groups = groupWordsIntoLines(words, LINE_MAX_WORDS, LINE_MAX_DURATION_S)
+  // Limit group size to roughly maxCharsPerLine ÷ 7 chars/word so karaoke
+  // lines don't overflow narrow screens.
+  const maxWords = opts.maxCharsPerLine > 0 ? Math.max(2, Math.floor(opts.maxCharsPerLine / 7)) : LINE_MAX_WORDS
+  const groups = groupWordsIntoLines(words, maxWords, LINE_MAX_DURATION_S)
   return groups.map((group) => {
     const start = group[0].start
     const end   = group[group.length - 1].end
@@ -125,9 +159,15 @@ function karaokeEvents(words: WordChunk[], opts: CaptionOptions): string[] {
   })
 }
 
-export function buildASS(words: WordChunk[], opts: CaptionOptions, fontName = 'Arial'): string {
+export function buildASS(
+  words: WordChunk[],
+  opts: CaptionOptions,
+  fontName = 'Arial',
+  videoWidth = 1920,
+  videoHeight = 1080,
+): string {
   const cfg = styleConfig(opts.styleId, opts.position)
-  const header = buildHeader(opts, cfg, fontName)
+  const header = buildHeader(opts, cfg, fontName, videoWidth, videoHeight)
 
   let events: string[]
   if (opts.styleId === 'mrbeast' || opts.styleId === 'tiktok') {

@@ -12,6 +12,26 @@ import { CaptionPreview } from './CaptionPreview'
 
 type Phase = 'idle' | 'transcribing' | 'edit' | 'burning' | 'done'
 
+function getVideoDimensions(file: File): Promise<{ width: number; height: number }> {
+  return new Promise((resolve) => {
+    const video = document.createElement('video')
+    const url = URL.createObjectURL(file)
+    video.onloadedmetadata = () => {
+      const dims = { width: video.videoWidth || 1920, height: video.videoHeight || 1080 }
+      URL.revokeObjectURL(url)
+      resolve(dims)
+    }
+    video.onerror = () => { URL.revokeObjectURL(url); resolve({ width: 1920, height: 1080 }) }
+    video.src = url
+  })
+}
+
+// Estimate sensible initial maxCharsPerLine: how many average chars fit across
+// the video width at the given font size (0.55 em per char is a rough average).
+function smartMaxChars(videoWidth: number, fontSize: number): number {
+  return Math.max(10, Math.min(80, Math.floor(videoWidth / (fontSize * 0.55))))
+}
+
 const VIDEO_ACCEPTS = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/x-matroska']
 const VIDEO_EXTS = ['.mp4', '.mov', '.webm', '.avi', '.mkv']
 
@@ -48,12 +68,20 @@ export function CaptionTool() {
   const [statusText, setStatusText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [activeWordIdx, setActiveWordIdx] = useState(0)
+  const [videoDims, setVideoDims] = useState<{ width: number; height: number } | null>(null)
 
   const handleDrop = useCallback(async (files: File[]) => {
     if (!files.length) return
     const file = files[0]
     setVideoFile(file)
     setPhase('transcribing')
+
+    // Detect dimensions so the ASS subtitle file uses the correct PlayRes and
+    // the initial maxCharsPerLine fits the actual screen width.
+    getVideoDimensions(file).then((dims) => {
+      setVideoDims(dims)
+      setOptions((prev) => ({ ...prev, maxCharsPerLine: smartMaxChars(dims.width, prev.fontSize) }))
+    })
     setProgress(0)
     setError(null)
     setStatusText('Downloading Whisper model (one-time, ~40 MB)…')
@@ -95,11 +123,15 @@ export function CaptionTool() {
         null
 
       setStatusText('Burning captions into video…')
-      const output = await burnCaptions(videoFile, words, options, fontBlob, (pct) => {
-        const safePct = Math.max(0, Math.min(100, Math.round(pct)))
-        setProgress(safePct)
-        setStatusText(safePct < 45 ? `Normalising video… ${safePct}%` : `Burning captions… ${safePct}% (may take 1–3 min)`)
-      })
+      const output = await burnCaptions(
+        videoFile, words, options, fontBlob,
+        (pct) => {
+          const safePct = Math.max(0, Math.min(100, Math.round(pct)))
+          setProgress(safePct)
+          setStatusText(safePct < 45 ? `Normalising video… ${safePct}%` : `Burning captions… ${safePct}% (may take 1–3 min)`)
+        },
+        videoDims ?? undefined,
+      )
 
       setResultFile(output)
       setPhase('done')

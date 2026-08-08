@@ -20,6 +20,7 @@ export async function burnCaptions(
   opts: CaptionOptions,
   fontBlob: Blob | null,
   onProgress: (pct: number) => void,
+  videoDims?: { width: number; height: number },
 ): Promise<File> {
   const { fetchFile } = await import('@ffmpeg/util')
   const ffmpeg = await getSingleThreadFFmpeg()
@@ -44,7 +45,7 @@ export async function burnCaptions(
   // Build the subtitle file. Each style maps to the correct event format
   // (word-by-word for mrbeast/tiktok, grouped lines for others) via buildASS —
   // no filter count limit, exact match to the preview.
-  const assContent = buildASS(words, opts, assFontName(opts))
+  const assContent = buildASS(words, opts, assFontName(opts), videoDims?.width, videoDims?.height)
   await ffmpeg.writeFile(assName, new TextEncoder().encode(assContent))
 
   onProgress(10)
