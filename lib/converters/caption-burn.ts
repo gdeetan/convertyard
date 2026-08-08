@@ -64,34 +64,32 @@ function buildDrawtextFilter(words: WordChunk[], opts: CaptionOptions, fontPath:
   const escapedFont = fontPath.replace(/:/g, '\\:')
 
   const pad = Math.round(fontSize * 1.2)
-  const yVisible =
+  const yExpr =
     position === 'top'    ? String(pad) :
     position === 'center' ? `(h-${fontSize})/2` :
     /* bottom */            `h-${pad}-${fontSize}`
 
-  // Place text one font-height below the frame when outside its time window.
-  // We avoid enable='between(t,...)' because toggling a filter's enabled state
-  // triggers AVERROR_INPUT_CHANGED propagation in ffmpeg.wasm, which causes
-  // "Error reinitializing filters" on every real-world video. Using a y
-  // expression instead keeps the filter always-on — no state change, no reinit.
-  const yHidden = `(h+${fontSize})`
-
-  // x is always centred; y switches between visible and off-screen per frame
-  const baseXFont = `fontfile=${escapedFont}:fontsize=${fontSize}:fontcolor=${fc}:x=(w-text_w)/2`
+  // enable='between(t,...)' is used intentionally: disabled filters skip FreeType
+  // rendering entirely, so only the ~1 visible caption is rendered each frame
+  // instead of all N. The y-expression workaround rendered ALL filters every frame
+  // (300 × 3600 = 1 080 000 FreeType calls for a 2-min video) causing the hang.
+  //
+  // enable= previously caused "Error reinitializing filters" because the H.264
+  // decoder emitted AVERROR_INPUT_CHANGED (per-GOP SPS metadata changes). The MJPEG
+  // intermediate fixes this: every MJPEG frame is independent, so the decoder
+  // never signals a format change → filter-graph reconfiguration on enable=
+  // transitions always succeeds.
+  const base = `fontfile=${escapedFont}:fontsize=${fontSize}:fontcolor=${fc}:x=(w-text_w)/2:y=${yExpr}`
   const withOutline = `:borderw=${outlineWidth}:bordercolor=${oc}`
   const withBox     = `:box=1:boxcolor=0x000000:boxborderw=8`
   const withShadow  = `:shadowx=2:shadowy=2:shadowcolor=0x000000`
 
   const makeEntry = (rawText: string, start: number, end: number, extra: string): string | null => {
-    // Word-by-word styles show individual tokens — skip wrapping, just escape
     const t = (styleId === 'mrbeast' || styleId === 'tiktok')
       ? escapeDrawtext((uppercase ? rawText.toUpperCase() : rawText).trim())
       : wrapAndEscape(rawText, maxCharsPerLine, uppercase)
     if (!t) return null
-    // Single-quote the y value so commas inside if()/between() are not
-    // tokenised as filter-option separators by ffmpeg's option parser.
-    const yExpr = `if(between(t,${start.toFixed(3)},${end.toFixed(3)}),${yVisible},${yHidden})`
-    return `drawtext=${baseXFont}:y='${yExpr}'${extra}:text='${t}'`
+    return `drawtext=${base}${extra}:text='${t}':enable='between(t,${start.toFixed(3)},${end.toFixed(3)})'`
   }
 
   const entries: string[] = []
