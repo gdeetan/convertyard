@@ -15,6 +15,11 @@ function toError(err: unknown): Error {
   return new Error('Conversion failed')
 }
 
+function isMobileBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent)
+}
+
 function explainMp4ToWebpError(error: Error): Error {
   if (
     error.message.includes('Output file #0 does not contain any stream') ||
@@ -938,6 +943,14 @@ export async function compressVideo(
 
       if (!targetSizeMode) {
         const crf = crfMap[level] ?? 23
+        // Mobile: cap at 720p for large files when user didn't set a resolution — prevents OOM tab kill on iOS/Android
+        let effectiveCrfVfArgs = vfArgs
+        if (resolution === 'original' && isMobileBrowser() && file.size > 50 * 1024 * 1024) {
+          const dims = await probeVideoDimensions(file)
+          if (dims && dims.height > 720) {
+            effectiveCrfVfArgs = ['-vf', 'scale=-2:720']
+          }
+        }
         const progressHandler = ({ progress }: { progress: number }) => {
           onProgress?.(i, Math.round(10 + progress * 85))
         }
@@ -945,7 +958,7 @@ export async function compressVideo(
         try {
           await ffmpeg.exec([
             '-i', inputName,
-            ...vfArgs,
+            ...effectiveCrfVfArgs,
             '-c:v', codec,
             '-crf', String(crf),
             '-preset', 'ultrafast',
@@ -981,7 +994,9 @@ export async function compressVideo(
           if (resolution === 'original') {
             const dims = await probeVideoDimensions(file)
             if (dims) {
-              const autoHeight = targetKB <= 10 * 1024 ? 720 : targetKB <= 50 * 1024 ? 1080 : null
+              const autoHeight = isMobileBrowser()
+                ? (targetKB <= 50 * 1024 ? 720 : 1080)
+                : (targetKB <= 10 * 1024 ? 720 : targetKB <= 50 * 1024 ? 1080 : null)
               if (autoHeight !== null && dims.height > autoHeight) {
                 effectiveVfArgs = ['-vf', `scale=-2:${autoHeight}`]
               }
@@ -1024,6 +1039,7 @@ export async function compressVideo(
                 '-b:v', String(videoBitsPerSec),
                 '-maxrate', String(Math.floor(videoBitsPerSec * 1.5)),
                 '-bufsize', String(videoBitsPerSec * 2),
+                '-preset', 'ultrafast',
                 ...targetAudioArgs,
                 outputName,
               ])

@@ -23,6 +23,20 @@ export const config: ToolConfig = {
   convertFn: compressVideo,
   enablePresets: true,
   warningFn: (files) => {
+    const isMobile = typeof navigator !== 'undefined' &&
+      (navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent))
+
+    if (isMobile) {
+      const hasVeryLarge = files.some((f) => f.size > 100 * 1024 * 1024)
+      const hasLarge = files.some((f) => f.size > 50 * 1024 * 1024)
+      if (hasVeryLarge) {
+        return 'Videos over 100 MB are high-risk on mobile — iOS may restart the page due to memory limits. Compress one file at a time and stay on this tab. A desktop browser is recommended for large files.'
+      }
+      if (hasLarge) {
+        return 'Large files can be slow or fail on mobile due to browser memory limits. For files over 50 MB, a desktop browser is recommended.'
+      }
+    }
+
     const hasLarge = files.some((f) => f.size > LARGE_FILE_BYTES)
     return hasLarge
       ? 'Large files take longer in-browser — a 500 MB video may take 5–15 minutes depending on your device. The tab must stay open while compressing.'
@@ -30,7 +44,7 @@ export const config: ToolConfig = {
   },
   limitationNote: {
     summary: 'Large files take time — keep the tab open',
-    body: 'Video compression runs entirely in your browser. A 500 MB file can take 5–15 minutes depending on your device. Keep the tab open and active while it runs — closing or backgrounding the tab will stop or slow processing. On iPhone and iPad, Safari suspends background tabs aggressively; stay on this tab until the download prompt appears. High-motion footage (sport, gaming) compresses less than screen recordings. H.265 produces 30–50% smaller files than H.264 but requires a modern device for playback.',
+    body: 'Video compression runs entirely in your browser. Keep the tab open and active while it runs — closing or switching tabs will stall or stop processing. On iPhone and iPad, iOS limits memory per browser tab: videos over 100 MB may cause the page to restart. The tool automatically reduces resolution to 720p for large files on mobile to lower crash risk, but for batches of 100 MB+ videos a desktop browser is strongly recommended. On Android, Chrome throttles background tabs which can stall long encodes — stay on this tab. On desktop, a 500 MB file can take 5–15 minutes depending on your CPU. High-motion footage (sport, gaming) compresses less than screen recordings. H.265 produces 30–50% smaller files than H.264 but requires a modern device for playback.',
   },
 
   options: [
@@ -145,6 +159,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'Video Compressor — ConvertYard',
     description:
-      'Compress MP4, MOV, WebM, and more in your browser. No uploads, no file size cap. Batch compress up to 1,000 videos — preset levels or exact size targets.',
+      'Compress MP4, MOV, WebM, and more in your browser. No uploads. Drop multiple videos at once — preset compression levels or hit an exact file size target.',
   },
 }
