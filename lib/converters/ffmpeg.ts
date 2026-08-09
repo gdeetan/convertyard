@@ -913,6 +913,13 @@ export async function compressVideo(
   const codec  = h265 ? 'libx265' : 'libx264'
   const crfMap = h265 ? H265_CRF  : H264_CRF
 
+  // Tell x264/x265 to use all available CPU cores. Meaningful gain with the MT build;
+  // ignored by the ST build which is inherently single-threaded.
+  const cpuThreads = typeof navigator !== 'undefined' && navigator.hardwareConcurrency > 0
+    ? Math.min(navigator.hardwareConcurrency, 16)
+    : 0
+  const threadArgs = cpuThreads > 0 ? ['-threads', String(cpuThreads)] : []
+
   const resHeight = RESOLUTION_HEIGHT[resolution]
   const vfArgs: string[] = resHeight
     ? ['-vf', `scale=-2:${resHeight}`]
@@ -957,6 +964,7 @@ export async function compressVideo(
         ffmpeg.on('progress', progressHandler)
         try {
           await ffmpeg.exec([
+            ...threadArgs,
             '-i', inputName,
             ...effectiveCrfVfArgs,
             '-c:v', codec,
@@ -1033,6 +1041,7 @@ export async function compressVideo(
             ffmpeg.on('progress', progressHandler)
             try {
               await ffmpeg.exec([
+                ...threadArgs,
                 '-i', inputName,
                 ...effectiveVfArgs,
                 '-c:v', codec,
@@ -1062,6 +1071,7 @@ export async function compressVideo(
                 ffmpeg.on('progress', progressHandler)
                 try {
                   await ffmpeg.exec([
+                    ...threadArgs,
                     '-i', inputName,
                     ...effectiveVfArgs,
                     '-c:v', codec,
