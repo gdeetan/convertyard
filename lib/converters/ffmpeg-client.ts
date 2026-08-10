@@ -74,3 +74,28 @@ export function getSingleThreadFFmpeg(): Promise<any> {
   }
   return stLoadPromise
 }
+
+// Mobile always gets ST: the MT build deadlocks on Android Chrome on certain
+// encode paths, and ST is safer at no meaningful speed cost for mobile workloads.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let mobileLoadPromise: Promise<any> | null = null
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getMobileFFmpeg(): Promise<any> {
+  if (!mobileLoadPromise) {
+    mobileLoadPromise = (async () => {
+      const { FFmpeg } = await import('@ffmpeg/ffmpeg')
+      const { toBlobURL } = await import('@ffmpeg/util')
+      const ffmpeg = new FFmpeg()
+      await ffmpeg.load({
+        coreURL: await toBlobURL(`${CDN_ST}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await toBlobURL(`${CDN_ST}/ffmpeg-core.wasm`, 'application/wasm'),
+      })
+      return ffmpeg
+    })().catch((err) => {
+      mobileLoadPromise = null
+      throw err
+    })
+  }
+  return mobileLoadPromise
+}
