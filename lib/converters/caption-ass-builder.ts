@@ -138,7 +138,10 @@ function wordByWordEvents(words: WordChunk[], opts: CaptionOptions): string[] {
 }
 
 function groupedLineEvents(words: WordChunk[], opts: CaptionOptions): string[] {
-  const groups = groupWordsIntoLines(words, LINE_MAX_WORDS, LINE_MAX_DURATION_S)
+  const maxWords = opts.maxCharsPerLine > 0
+    ? Math.max(2, Math.floor(opts.maxCharsPerLine * 2 / 5))
+    : LINE_MAX_WORDS
+  const groups = groupWordsIntoLines(words, maxWords, LINE_MAX_DURATION_S)
   return groups.map((group) => {
     const start = group[0].start
     const end   = group[group.length - 1].end

@@ -30,11 +30,15 @@ function getActiveWords(words: WordChunk[], time: number, options: CaptionOption
     return group ?? []
   }
 
-  // classic / netflix: sliding 3-second window
-  const active = words.filter((w) => time >= w.start && time < w.end + 0.05)
-  if (active.length === 0) return []
-  const groupStart = active[0].start
-  return words.filter((w) => w.start >= groupStart && w.start < groupStart + 3)
+  // classic / netflix: group size scales with maxCharsPerLine so rows stay ~constant when slider changes
+  const maxWords = options.maxCharsPerLine > 0
+    ? Math.max(2, Math.floor(options.maxCharsPerLine * 2 / 5))
+    : 8
+  const groups = groupWordsIntoLines(words, maxWords, 3)
+  const group = groups.find(
+    (g) => time >= g[0].start && time <= g[g.length - 1].end + 0.05,
+  )
+  return group ?? []
 }
 
 function wrapWordTexts(wordTexts: string[], maxChars: number): string[] {
