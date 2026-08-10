@@ -157,10 +157,19 @@ function karaokeEvents(words: WordChunk[], opts: CaptionOptions): string[] {
   // lines don't overflow narrow screens.
   const maxWords = opts.maxCharsPerLine > 0 ? Math.max(2, Math.floor(opts.maxCharsPerLine / 7)) : LINE_MAX_WORDS
   const groups = groupWordsIntoLines(words, maxWords, LINE_MAX_DURATION_S)
+
+  // ASS \kf semantics: SecondaryColour = "before sung" state, PrimaryColour = "after sung" state.
+  // The style header maps primaryColor → Primary and highlightColor → Secondary, which makes all
+  // upcoming words render in highlightColor and the active word wipe to primaryColor — the exact
+  // opposite of what users expect. Override with \1c/\2c to correct it:
+  //   \1c (Primary/sung)   = highlightColor so already-active words stay highlighted
+  //   \2c (Secondary/pre)  = primaryColor   so upcoming words are in the normal text color
+  const colorOverride = `{\\1c${hexToASS(opts.highlightColor)}\\2c${hexToASS(opts.primaryColor)}}`
+
   return groups.map((group) => {
     const start = group[0].start
     const end   = group[group.length - 1].end
-    const text  = group.map((w) => {
+    const text  = colorOverride + group.map((w) => {
       const cs = Math.round((w.end - w.start) * 100)
       const t  = opts.uppercase ? w.text.toUpperCase() : w.text
       return `{\\kf${cs}}${t} `

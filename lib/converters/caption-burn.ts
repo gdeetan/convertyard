@@ -54,84 +54,100 @@ export async function burnCaptions(
   const logHandler = ({ message }: { message: string }) => logs.push(message)
   ffmpeg.on('log', logHandler)
 
-  // Timer drives Pass 1 progress (11 → 44%) at 1%/2 s. ffmpeg's 'progress' events are
-  // unreliable for many input formats (e.g. WebM, VFR MOV) that lack header duration
-  // metadata, leaving the bar frozen at 10% for the entire normalisation step.
-  let pass1Pct = 11
-  let pass1Timer: ReturnType<typeof setInterval> | null = setInterval(() => {
-    pass1Pct = Math.min(44, pass1Pct + 1)
-    onProgress(pass1Pct)
-  }, 2000)
-  let progressHandler = () => {}
-  ffmpeg.on('progress', progressHandler)
-
   let data: Uint8Array<ArrayBuffer> | null = null
-  let pass2Timer: ReturnType<typeof setInterval> | null = null
+  let timer: ReturnType<typeof setInterval> | null = null
 
   try {
-    // Pass 1 — transcode to MJPEG + AAC in Matroska (.mkv).
-    // MJPEG is all-intra (every frame is an independent JPEG) so its decoder
-    // carries no sequence state and structurally cannot emit AVERROR_INPUT_CHANGED
-    // during Pass 2 — that's the "Error reinitialising filters" crash.
-    //
-    // qscale:v=18 keeps each JPEG ~3–5× smaller so the MJPEG file and the H.264
-    // output can coexist in WASM's 2 GB MEMFS heap (prevents OOM crash).
-    //
-    // NO scale filter: any scale expression that alters frame geometry can produce
-    // subtly inconsistent MJPEG headers, reintroducing AVERROR_INPUT_CHANGED.
+    // Fast path: single-pass encode. Works for most well-formed inputs (H.264 MP4,
+    // constant-framerate MOV, etc.) and is ~2× faster than the 2-pass approach.
+    // Falls back to 2-pass if the subtitle filter emits AVERROR_INPUT_CHANGED,
+    // which happens with VFR or variable-parameter streams where the MJPEG
+    // intermediate is required as a stable, all-intra normalisation step.
+    let pct = 11
+    timer = setInterval(() => {
+      pct = Math.min(92, pct + 1)
+      onProgress(pct)
+    }, 2500)
+
     let exitCode = await ffmpeg.exec([
       '-i', inputName,
-      '-vf', 'fps=30,format=yuvj420p',
-      '-c:v', 'mjpeg',
-      '-qscale:v', '18',
-      '-c:a', 'aac',
-      '-b:a', '128k',
-      midName,
-    ])
-
-    clearInterval(pass1Timer)
-    pass1Timer = null
-    ffmpeg.off('progress', progressHandler)
-
-    if (exitCode !== 0) {
-      throw new Error(`Failed to normalise video (pass 1): ${logs.slice(-10).join(' | ')}`)
-    }
-
-    await ffmpeg.deleteFile(inputName).catch(() => {})
-    logs.length = 0
-    onProgress(45)
-
-    // Pass 2 — burn captions via ASS subtitles filter.
-    // The subtitles filter uses libass which reads the .ass file directly —
-    // no per-word drawtext filter needed, so word count is unlimited and
-    // word-by-word styles render exactly as the preview shows.
-    let pass2Pct = 46
-    pass2Timer = setInterval(() => {
-      pass2Pct = Math.min(93, pass2Pct + 1)
-      onProgress(pass2Pct)
-    }, 3000)
-
-    progressHandler = () => {}
-    ffmpeg.on('progress', progressHandler)
-
-    exitCode = await ffmpeg.exec([
-      '-i', midName,
-      '-vf', `format=yuv420p,subtitles=${assName}:fontsdir=/capfonts`,
+      '-vf', `fps=30,format=yuv420p,subtitles=${assName}:fontsdir=/capfonts`,
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
       '-crf', '23',
       '-pix_fmt', 'yuv420p',
-      '-c:a', 'copy',
+      '-c:a', 'aac',
+      '-b:a', '128k',
       '-movflags', '+faststart',
       outputName,
     ])
 
-    clearInterval(pass2Timer)
-    pass2Timer = null
-    ffmpeg.off('progress', progressHandler)
+    clearInterval(timer)
+    timer = null
 
     if (exitCode !== 0) {
-      throw new Error(`ffmpeg exited with code ${exitCode}. ${logs.slice(-10).join(' | ')}`)
+      // Single-pass failed; wipe partial output and fall back to 2-pass.
+      await ffmpeg.deleteFile(outputName).catch(() => {})
+      logs.length = 0
+      onProgress(10)
+
+      // Pass 1 — transcode to MJPEG + AAC in Matroska (.mkv).
+      // MJPEG is all-intra so its decoder carries no sequence state and
+      // cannot emit AVERROR_INPUT_CHANGED during Pass 2.
+      // qscale:v=18 keeps each JPEG ~3–5× smaller so both MJPEG and the
+      // H.264 output can coexist within WASM's 2 GB MEMFS heap.
+      pct = 11
+      timer = setInterval(() => {
+        pct = Math.min(44, pct + 1)
+        onProgress(pct)
+      }, 2000)
+
+      exitCode = await ffmpeg.exec([
+        '-i', inputName,
+        '-vf', 'fps=30,format=yuvj420p',
+        '-c:v', 'mjpeg',
+        '-qscale:v', '18',
+        '-c:a', 'aac',
+        '-b:a', '128k',
+        midName,
+      ])
+
+      clearInterval(timer)
+      timer = null
+
+      if (exitCode !== 0) {
+        throw new Error(`Failed to normalise video (pass 1): ${logs.slice(-10).join(' | ')}`)
+      }
+
+      await ffmpeg.deleteFile(inputName).catch(() => {})
+      logs.length = 0
+      onProgress(45)
+
+      // Pass 2 — burn captions via ASS subtitles filter.
+      pct = 46
+      timer = setInterval(() => {
+        pct = Math.min(93, pct + 1)
+        onProgress(pct)
+      }, 3000)
+
+      exitCode = await ffmpeg.exec([
+        '-i', midName,
+        '-vf', `format=yuv420p,subtitles=${assName}:fontsdir=/capfonts`,
+        '-c:v', 'libx264',
+        '-preset', 'ultrafast',
+        '-crf', '23',
+        '-pix_fmt', 'yuv420p',
+        '-c:a', 'copy',
+        '-movflags', '+faststart',
+        outputName,
+      ])
+
+      clearInterval(timer)
+      timer = null
+
+      if (exitCode !== 0) {
+        throw new Error(`ffmpeg exited with code ${exitCode}. ${logs.slice(-10).join(' | ')}`)
+      }
     }
 
     onProgress(98)
@@ -140,10 +156,8 @@ export async function burnCaptions(
       throw new Error('ffmpeg produced an empty output file')
     }
   } finally {
-    if (pass1Timer) clearInterval(pass1Timer)
-    if (pass2Timer) clearInterval(pass2Timer)
+    if (timer) clearInterval(timer)
     ffmpeg.off('log', logHandler)
-    ffmpeg.off('progress', progressHandler)
     await Promise.all([
       ffmpeg.deleteFile(inputName).catch(() => {}),
       ffmpeg.deleteFile(midName).catch(() => {}),

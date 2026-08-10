@@ -37,7 +37,7 @@ type IncomingMsg = LoadMsg | TranscribeMsg
 
 interface ModelVariant {
   modelId: string
-  dtype: 'fp32'
+  dtype: 'fp32' | 'fp16' | 'int8' | 'q4' | 'q8'
 }
 
 interface ModelErrorMsg {
@@ -79,6 +79,7 @@ function modelVariantsForQuality(quality: WhisperQuality): ModelVariant[] {
       ]
     case 'accurate':
       return [
+        { modelId: 'onnx-community/whisper-large-v3-turbo', dtype: 'int8' },
         { modelId: 'Xenova/whisper-small', dtype: 'fp32' },
         { modelId: 'Xenova/whisper-base', dtype: 'fp32' },
         { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
@@ -170,8 +171,11 @@ async function runTranscribe(
     task: 'transcribe',
     return_timestamps: timestamps,
     chunk_length_s: 30,
-    stride_length_s: 5,
+    stride_length_s: 3,
     sampling_rate: sampleRate,
+    num_beams: 5,
+    no_repeat_ngram_size: 3,
+    condition_on_previous_text: false,
   })
 
   self.postMessage({ type: 'transcribe-progress', id, progress: 95 })

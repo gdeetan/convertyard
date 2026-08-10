@@ -139,7 +139,7 @@ export function CaptionTool() {
       setError(err instanceof Error ? err.message : (err != null ? String(err) : 'Burn failed'))
       setPhase('edit')
     }
-  }, [videoFile, words, options])
+  }, [videoFile, words, options, videoDims])
 
   function handleReset() {
     setPhase('idle')
@@ -156,7 +156,16 @@ export function CaptionTool() {
   }
 
   function patchOptions(patch: Partial<CaptionOptions>) {
-    setOptions((prev) => ({ ...prev, ...patch }))
+    setOptions((prev) => {
+      const next = { ...prev, ...patch }
+      // When fontSize changes, recalculate maxCharsPerLine so the visual line
+      // width stays constant. Without this, reducing font size just shrinks
+      // text without reflowing to fewer rows or filling the available width.
+      if (patch.fontSize !== undefined && videoDims) {
+        next.maxCharsPerLine = smartMaxChars(videoDims.width, next.fontSize)
+      }
+      return next
+    })
   }
 
   if (phase === 'idle') {
