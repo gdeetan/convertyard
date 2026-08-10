@@ -18,6 +18,7 @@ import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { sizeTargets } from '@/content/size-target-registry'
 import { useRecentTools } from '@/lib/hooks/use-recent-tools'
 import { diagLog, diagError } from '@/lib/debug/mobile-diagnostics'
+import { acquireWakeLock } from '@/lib/utils/wake-lock'
 
 const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
   images:           { label: 'Image Converters',     href: '/images' },
@@ -223,26 +224,39 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions,
       pendingProgress.current.push([fileIndex, pct])
     }
 
+    const dispatchResult = (fileIndex: number, r: ConversionResult) => {
+      if (r instanceof Error) {
+        dispatch({ type: 'SET_ERROR', fileIndex, error: r.message })
+      } else if (r instanceof File) {
+        dispatch({ type: 'SET_RESULT', fileIndex, result: r })
+      } else if ('ocrMeta' in r) {
+        dispatch({ type: 'SET_RESULT', fileIndex, result: r.file, ocrMeta: r.ocrMeta })
+      } else {
+        dispatch({ type: 'SET_RESULT', fileIndex, result: r.file, resultMeta: r.meta })
+      }
+    }
+
+    const onResult = config.resultMode !== 'combined-output'
+      ? (fileIndex: number, r: ConversionResult) => dispatchResult(fileIndex, r)
+      : undefined
+
+    const wakeLock = await acquireWakeLock()
     let results: ConversionResult[]
     try {
-      results = await config.convertFn(files, options, onProgress)
+      results = await config.convertFn(files, options, onProgress, onResult)
     } catch (err) {
       diagError('tool-shell-convert-fail', err)
       results = files.map(() => new Error(err instanceof Error ? err.message : 'Conversion failed'))
+    } finally {
+      wakeLock.release()
     }
 
-    for (let i = 0; i < results.length; i++) {
-      const r = results[i]
-      if (r instanceof Error) {
-        dispatch({ type: 'SET_ERROR', fileIndex: i, error: r.message })
-      } else if (r instanceof File) {
-        dispatch({ type: 'SET_RESULT', fileIndex: i, result: r })
-      } else if ('ocrMeta' in r) {
-        dispatch({ type: 'SET_RESULT', fileIndex: i, result: r.file, ocrMeta: r.ocrMeta })
-      } else {
-        dispatch({ type: 'SET_RESULT', fileIndex: i, result: r.file, resultMeta: r.meta })
+    if (!onResult) {
+      for (let i = 0; i < results.length; i++) {
+        dispatchResult(i, results[i])
       }
     }
+
     dispatch({ type: 'FINISH', resultMode: config.resultMode })
     const anySucceeded = results.some((r) => !(r instanceof Error))
     if (anySucceeded) record(config.slug, config.title)
@@ -429,7 +443,7 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions,
         )}
 
         {/* Done */}
-        {phase === 'done' && (
+        {(phase === 'done' || (phase === 'converting' && entries.some((e) => e.status === 'done' || e.status === 'error'))) && (
           <div className="space-y-6">
             {config.previewPanel && (
               <config.previewPanel
