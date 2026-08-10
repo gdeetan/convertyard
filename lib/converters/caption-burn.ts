@@ -76,8 +76,7 @@ export async function burnCaptions(
       '-preset', 'ultrafast',
       '-crf', '23',
       '-pix_fmt', 'yuv420p',
-      '-c:a', 'aac',
-      '-b:a', '128k',
+      '-c:a', 'copy',
       '-movflags', '+faststart',
       outputName,
     ])

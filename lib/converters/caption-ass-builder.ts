@@ -80,7 +80,7 @@ function styleConfig(id: CaptionStyleId, position: 'top' | 'center' | 'bottom'):
   switch (id) {
     case 'mrbeast': return { bold: true,  alignment, borderStyle: 1, outline: 4, shadow: 0, marginV }
     case 'tiktok':  return { bold: true,  alignment, borderStyle: 1, outline: 6, shadow: 0, marginV }
-    case 'netflix': return { bold: false, alignment, borderStyle: 3, outline: 0, shadow: 0, marginV }
+    case 'netflix': return { bold: false, alignment, borderStyle: 3, outline: 10, shadow: 0, marginV }
     case 'classic': return { bold: false, alignment, borderStyle: 1, outline: 2, shadow: 1, marginV }
     case 'karaoke': return { bold: false, alignment, borderStyle: 1, outline: 2, shadow: 0, marginV }
   }
@@ -96,7 +96,7 @@ function buildHeader(
   const primary   = hexToASS(opts.primaryColor)
   const highlight = hexToASS(opts.highlightColor)
   const outline   = hexToASS(opts.outlineColor)
-  const backColor = opts.styleId === 'netflix' ? '&H80000000' : '&H00000000'
+  const backColor = '&H00000000'
   const bold = cfg.bold ? '-1' : '0'
 
   // The preview draws text scaled by canvas.height/1080, treating fontSize as
