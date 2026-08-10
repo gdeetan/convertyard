@@ -941,7 +941,7 @@ export async function compressVideo(
         continue
       }
 
-      const ffmpeg = isMobileBrowser() ? await getMobileFFmpeg() : await getFFmpeg()
+      const ffmpeg = isMobileBrowser() ? await getMobileFFmpeg() : await getSingleThreadFFmpeg()
       const ext    = file.name.split('.').pop() ?? 'mp4'
       const inputName  = `cv_in_${i}.${ext}`
       const outputName = `cv_out_${i}.mp4`
