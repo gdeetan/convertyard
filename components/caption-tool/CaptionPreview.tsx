@@ -3,6 +3,7 @@
 import { useRef, useEffect, useCallback } from 'react'
 import type { WordChunk, CaptionOptions } from '@/lib/converters/caption-types'
 import { groupWordsIntoLines } from '@/lib/converters/caption-ass-builder'
+import { BUILTIN_FONTS } from '@/lib/converters/caption-fonts'
 
 interface Props {
   videoFile: File
@@ -172,6 +173,9 @@ export function CaptionPreview({ videoFile, words, options, onTimeUpdate }: Prop
   const urlRef = useRef<string | null>(null)
   const rafRef = useRef<number>(0)
   const loadedFaceRef = useRef<FontFace | null>(null)
+  // Always points to the latest draw fn so font-load can trigger one redraw without
+  // adding draw to the font-load effect's dependency array (which would cause loops).
+  const drawRef = useRef<() => void>(() => {})
 
   const fontName =
     options.fontSource === 'builtin' ? options.builtinFont :
@@ -179,24 +183,67 @@ export function CaptionPreview({ videoFile, words, options, onTimeUpdate }: Prop
     options.uploadedFont?.name.replace(/\.[^.]+$/, '') ?? 'Arial'
 
   useEffect(() => {
-    let blob: Blob | null = null
-    if (options.fontSource === 'upload' && options.uploadedFont) blob = options.uploadedFont
-    if (options.fontSource === 'system' && options.systemFontBlob) blob = options.systemFontBlob
-    if (!blob || !fontName) return
-    const url = URL.createObjectURL(blob)
-    const face = new FontFace(fontName, `url(${url})`)
-    face.load().then((loaded) => {
-      document.fonts.add(loaded)
-      loadedFaceRef.current = loaded
-    }).catch(() => {})
-    return () => {
+    let cancelled = false
+    let blobUrl: string | null = null
+
+    async function loadFont() {
+      // Remove the previous custom face before loading the new one.
       if (loadedFaceRef.current) {
         document.fonts.delete(loadedFaceRef.current)
         loadedFaceRef.current = null
       }
-      URL.revokeObjectURL(url)
+
+      let fontUrl: string | null = null
+      let isObjectUrl = false
+
+      if (options.fontSource === 'builtin') {
+        // Safari won't use fonts for canvas unless they're explicitly registered in
+        // document.fonts via FontFace — CSS @font-face alone is not sufficient.
+        // Fetch the static file and register it the same way upload/system fonts are.
+        const entry = BUILTIN_FONTS.find(f => f.name === options.builtinFont)
+        fontUrl = entry?.file ?? null
+      } else if (options.fontSource === 'upload' && options.uploadedFont) {
+        fontUrl = URL.createObjectURL(options.uploadedFont)
+        isObjectUrl = true
+        blobUrl = fontUrl
+      } else if (options.fontSource === 'system' && options.systemFontBlob) {
+        fontUrl = URL.createObjectURL(options.systemFontBlob)
+        isObjectUrl = true
+        blobUrl = fontUrl
+      }
+
+      if (!fontUrl || !fontName) return
+
+      try {
+        const face = new FontFace(fontName, `url(${fontUrl})`)
+        const loaded = await face.load()
+        if (cancelled) {
+          if (isObjectUrl) URL.revokeObjectURL(fontUrl)
+          return
+        }
+        document.fonts.add(loaded)
+        loadedFaceRef.current = loaded
+        // Redraw once so the font change is visible immediately on a paused video.
+        drawRef.current()
+      } catch {
+        if (isObjectUrl) URL.revokeObjectURL(fontUrl)
+      }
     }
-  }, [options.fontSource, options.uploadedFont, options.systemFontBlob, fontName])
+
+    loadFont()
+
+    return () => {
+      cancelled = true
+      if (loadedFaceRef.current) {
+        document.fonts.delete(loadedFaceRef.current)
+        loadedFaceRef.current = null
+      }
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl)
+        blobUrl = null
+      }
+    }
+  }, [options.fontSource, options.builtinFont, options.uploadedFont, options.systemFontBlob, fontName])
 
   useEffect(() => {
     const vid = videoRef.current
@@ -219,6 +266,10 @@ export function CaptionPreview({ videoFile, words, options, onTimeUpdate }: Prop
     onTimeUpdate?.(vid.currentTime)
     rafRef.current = requestAnimationFrame(draw)
   }, [words, options, fontName, onTimeUpdate])
+
+  // Keep drawRef pointing at the latest draw so the font-load effect can
+  // call it without being listed as a dependency (which would cause loops).
+  useEffect(() => { drawRef.current = draw }, [draw])
 
   useEffect(() => {
     const vid = videoRef.current
