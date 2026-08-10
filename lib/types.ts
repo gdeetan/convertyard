@@ -169,7 +169,8 @@ export interface ToolConfig {
   convertFn: (
     files: File[],
     options: ToolOptions,
-    onProgress?: (fileIndex: number, pct: number) => void
+    onProgress?: (fileIndex: number, pct: number) => void,
+    onResult?: (fileIndex: number, result: ConversionResult) => void
   ) => Promise<ConversionResult[]>
   options?: ToolOption[]
   limitationNote?: {

@@ -1,5 +1,5 @@
 import { fetchFile } from '@ffmpeg/util'
-import { getFFmpeg } from './ffmpeg-client'
+import { getFFmpeg, getMobileFFmpeg, getSingleThreadFFmpeg } from './ffmpeg-client'
 import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo } from './media-probe'
 import type { ToolOptions, ConversionResult } from '@/lib/types'
 
@@ -899,7 +899,8 @@ const RESOLUTION_HEIGHT: Record<string, number> = { '1080p': 1080, '720p': 720, 
 export async function compressVideo(
   files: File[],
   options: ToolOptions,
-  onProgress?: (fileIndex: number, pct: number) => void
+  onProgress?: (fileIndex: number, pct: number) => void,
+  onResult?: (fileIndex: number, result: ConversionResult) => void
 ): Promise<ConversionResult[]> {
   const results: ConversionResult[] = []
 
@@ -934,11 +935,13 @@ export async function compressVideo(
       const file   = files[i]
       const hasVideoTrack = await probeVideoTrack(file)
       if (hasVideoTrack === false) {
-        results.push(new Error('This file has no video track. Video Compressor only works on video files, not audio-only files.'))
+        const noTrackErr = new Error('This file has no video track. Video Compressor only works on video files, not audio-only files.')
+        results.push(noTrackErr)
+        onResult?.(i, noTrackErr)
         continue
       }
 
-      const ffmpeg = await getFFmpeg()
+      const ffmpeg = isMobileBrowser() ? await getMobileFFmpeg() : await getFFmpeg()
       const ext    = file.name.split('.').pop() ?? 'mp4'
       const inputName  = `cv_in_${i}.${ext}`
       const outputName = `cv_out_${i}.mp4`
@@ -953,9 +956,10 @@ export async function compressVideo(
         // Mobile: cap at 720p for large files when user didn't set a resolution — prevents OOM tab kill on iOS/Android
         let effectiveCrfVfArgs = vfArgs
         if (resolution === 'original' && isMobileBrowser() && file.size > 50 * 1024 * 1024) {
+          const mobileCapHeight = file.size > 100 * 1024 * 1024 ? 480 : 720
           const dims = await probeVideoDimensions(file)
-          if (dims && dims.height > 720) {
-            effectiveCrfVfArgs = ['-vf', 'scale=-2:720']
+          if (dims && dims.height > mobileCapHeight) {
+            effectiveCrfVfArgs = ['-vf', `scale=-2:${mobileCapHeight}`]
           }
         }
         const progressHandler = ({ progress }: { progress: number }) => {
@@ -1102,10 +1106,14 @@ export async function compressVideo(
 
       if (!data || data.byteLength === 0) throw new Error('Compression produced no output')
       const baseName = file.name.replace(/\.[^.]+$/, '')
-      results.push(new File([data], `${baseName}.mp4`, { type: 'video/mp4' }))
+      const outFile = new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
+      results.push(outFile)
+      onResult?.(i, outFile)
       onProgress?.(i, 100)
     } catch (err) {
-      results.push(toError(err))
+      const errResult = toError(err)
+      results.push(errResult)
+      onResult?.(i, errResult)
     }
   }
   return results
