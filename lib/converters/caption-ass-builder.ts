@@ -99,6 +99,13 @@ function buildHeader(
   const backColor = opts.styleId === 'netflix' ? '&H80000000' : '&H00000000'
   const bold = cfg.bold ? '-1' : '0'
 
+  // The preview draws text scaled by canvas.height/1080, treating fontSize as
+  // "points in a 1080p frame". The ASS font size is in PlayRes units, so with
+  // PlayResY = videoHeight the raw fontSize value renders as-is in pixels —
+  // correct only at 1080p. Scale by videoHeight/1080 so the proportion matches
+  // the preview at every resolution (e.g. portrait 1080×1920 or 4K).
+  const assFS = Math.round(opts.fontSize * videoHeight / 1080)
+
   return [
     '[Script Info]',
     'ScriptType: v4.00+',
@@ -112,7 +119,7 @@ function buildHeader(
     '',
     '[V4+ Styles]',
     'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
-    `Style: Default,${fontName},${opts.fontSize},${primary},${highlight},${outline},${backColor},${bold},0,0,0,100,100,0,0,${cfg.borderStyle},${cfg.outline},${cfg.shadow},${cfg.alignment},0,0,${cfg.marginV},1`,
+    `Style: Default,${fontName},${assFS},${primary},${highlight},${outline},${backColor},${bold},0,0,0,100,100,0,0,${cfg.borderStyle},${cfg.outline},${cfg.shadow},${cfg.alignment},0,0,${cfg.marginV},1`,
     '',
     '[Events]',
     'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text',
