@@ -10,8 +10,8 @@ export const config: ToolConfig = {
   accepts: ['image/tiff', 'image/x-tiff'],
   acceptsExt: ['.tif', '.tiff'],
   outputExt: '.png',
-  convertFn: (files, opts, onProgress) =>
-      libvipsConvert(files, 'png', opts, onProgress),
+  convertFn: (files, opts, onProgress, onResult) =>
+      libvipsConvert(files, 'png', opts, onProgress, onResult),
   enablePresets: true,
 
   options: [

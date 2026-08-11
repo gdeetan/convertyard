@@ -10,7 +10,7 @@ export const config: ToolConfig = {
   accepts: ['image/png'],
   acceptsExt: ['.png'],
   outputExt: '.svg',
-  convertFn: (files, opts, onProgress) => pngToSvgConvert(files, opts, onProgress),
+  convertFn: (files, opts, onProgress, onResult) => pngToSvgConvert(files, opts, onProgress, onResult),
   enablePresets: true,
 
   limitationNote: {

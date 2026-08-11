@@ -69,7 +69,8 @@ export async function libvipsConvert(
   files: File[],
   outputFormat: string,
   opts: ToolOptions,
-  onProgress?: (fileIndex: number, pct: number) => void
+  onProgress?: (fileIndex: number, pct: number) => void,
+  onResult?: (fileIndex: number, result: ConversionResult) => void
 ): Promise<ConversionResult[]> {
   const results: ConversionResult[] = []
 
@@ -80,8 +81,10 @@ export async function libvipsConvert(
       !file.type.startsWith('image/') &&
       !file.name.match(/\.(jpe?g|png|webp|avif|heic|heif|gif|tiff?|bmp)$/i)
     ) {
-      results.push(new Error(`Unsupported file type: ${file.type || 'unknown'}`))
+      const err = new Error(`Unsupported file type: ${file.type || 'unknown'}`)
+      results.push(err)
       onProgress?.(i, 100)
+      onResult?.(i, err)
       continue
     }
 
@@ -110,9 +113,12 @@ export async function libvipsConvert(
       )
       onProgress?.(i, 100)
       results.push(result)
+      onResult?.(i, result)
     } catch (err) {
       onProgress?.(i, 100)
-      results.push(new Error(`${files[i].name}: ${err instanceof Error ? err.message : 'conversion failed'}`))
+      const error = new Error(`${files[i].name}: ${err instanceof Error ? err.message : 'conversion failed'}`)
+      results.push(error)
+      onResult?.(i, error)
     }
   }
 

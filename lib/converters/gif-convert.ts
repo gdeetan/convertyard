@@ -108,6 +108,7 @@ export async function gifConvert(
   files: File[],
   opts: ToolOptions,
   onProgress?: (fileIndex: number, pct: number) => void,
+  onResult?: (fileIndex: number, result: ConversionResult) => void,
 ): Promise<ConversionResult[]> {
   if (files.length === 0) return []
 
@@ -116,10 +117,13 @@ export async function gifConvert(
     try {
       const out = await sequenceToGif(files, opts)
       for (let i = 0; i < files.length; i++) onProgress?.(i, 100)
+      onResult?.(0, out)
       return [out]
     } catch (err) {
       for (let i = 0; i < files.length; i++) onProgress?.(i, 100)
-      return [err instanceof Error ? err : new Error(String(err))]
+      const error = err instanceof Error ? err : new Error(String(err))
+      onResult?.(0, error)
+      return [error]
     }
   }
 
@@ -127,9 +131,12 @@ export async function gifConvert(
   try {
     const out = await singleToGif(files[0], opts)
     onProgress?.(0, 100)
+    onResult?.(0, out)
     return [out]
   } catch (err) {
     onProgress?.(0, 100)
-    return [err instanceof Error ? err : new Error(String(err))]
+    const error = err instanceof Error ? err : new Error(String(err))
+    onResult?.(0, error)
+    return [error]
   }
 }

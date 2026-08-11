@@ -68,6 +68,7 @@ export async function pngToIco(
   files: File[],
   opts: ToolOptions,
   onProgress?: (fileIndex: number, pct: number) => void,
+  onResult?: (fileIndex: number, result: ConversionResult) => void,
 ): Promise<ConversionResult[]> {
   const sizesParam = (opts.sizes as string | undefined) ?? '16,32,48,64,128'
   const sizes = sizesParam.split(',').map(Number).filter(n => ICO_SIZES.includes(n as typeof ICO_SIZES[number]))
@@ -94,9 +95,13 @@ export async function pngToIco(
         const icoBlob = new Blob([icoBuffer], { type: 'image/x-icon' })
         const outName = file.name.replace(/\.[^.]+$/, '.ico')
         onProgress?.(i, 100)
-        return new File([icoBlob], outName, { type: 'image/x-icon' })
+        const result = new File([icoBlob], outName, { type: 'image/x-icon' })
+        onResult?.(i, result)
+        return result
       } catch (err) {
-        return err instanceof Error ? err : new Error(String(err))
+        const error = err instanceof Error ? err : new Error(String(err))
+        onResult?.(i, error)
+        return error
       }
     }),
   )
@@ -160,6 +165,7 @@ export async function icoToPng(
   files: File[],
   _opts: ToolOptions,
   onProgress?: (fileIndex: number, pct: number) => void,
+  onResult?: (fileIndex: number, result: ConversionResult) => void,
 ): Promise<ConversionResult[]> {
   return Promise.all(
     files.map(async (file, i) => {
@@ -187,9 +193,13 @@ export async function icoToPng(
         onProgress?.(i, 90)
         const outName = file.name.replace(/\.[^.]+$/, '.png')
         onProgress?.(i, 100)
-        return new File([pngBytes.buffer as ArrayBuffer], outName, { type: 'image/png' })
+        const result = new File([pngBytes.buffer as ArrayBuffer], outName, { type: 'image/png' })
+        onResult?.(i, result)
+        return result
       } catch (err) {
-        return err instanceof Error ? err : new Error(String(err))
+        const error = err instanceof Error ? err : new Error(String(err))
+        onResult?.(i, error)
+        return error
       }
     }),
   )

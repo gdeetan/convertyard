@@ -10,8 +10,8 @@ export const config: ToolConfig = {
   accepts: ['image/gif'],
   acceptsExt: ['.gif'],
   outputExt: '.webp',
-  convertFn: (files, opts, onProgress) =>
-      libvipsConvert(files, 'webp', { ...opts, animated: true }, onProgress),
+  convertFn: (files, opts, onProgress, onResult) =>
+      libvipsConvert(files, 'webp', { ...opts, animated: true }, onProgress, onResult),
   enablePresets: true,
 
   options: [

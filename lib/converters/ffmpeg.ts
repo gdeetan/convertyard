@@ -1809,7 +1809,8 @@ export async function flvToMp4(
 export async function dngToPng(
   files: File[],
   options: ToolOptions,
-  onProgress?: (fileIndex: number, pct: number) => void
+  onProgress?: (fileIndex: number, pct: number) => void,
+  onResult?: (fileIndex: number, result: ConversionResult) => void
 ): Promise<ConversionResult[]> {
   const results: ConversionResult[] = []
   for (let i = 0; i < files.length; i++) {
@@ -1835,9 +1836,15 @@ export async function dngToPng(
         await ffmpeg.deleteFile(outputName).catch(() => {})
       }
       if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
-      results.push(new File([data], `${file.name.replace(/\.[^.]+$/, '')}.png`, { type: 'image/png' }))
+      const result = new File([data], `${file.name.replace(/\.[^.]+$/, '')}.png`, { type: 'image/png' })
+      results.push(result)
       onProgress?.(i, 100)
-    } catch (err) { results.push(toError(err)) }
+      onResult?.(i, result)
+    } catch (err) {
+      const error = toError(err)
+      results.push(error)
+      onResult?.(i, error)
+    }
   }
   return results
 }

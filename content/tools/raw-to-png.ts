@@ -10,7 +10,7 @@ export const config: ToolConfig = {
   accepts: ['image/x-adobe-dng', 'image/x-dcraw', 'image/x-raw'],
   acceptsExt: ['.dng'],
   outputExt: '.png',
-  convertFn: (files, opts, onProgress) => dngToPng(files, opts, onProgress),
+  convertFn: (files, opts, onProgress, onResult) => dngToPng(files, opts, onProgress, onResult),
 
   limitationNote: {
     summary: 'DNG files only',

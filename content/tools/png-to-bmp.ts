@@ -10,7 +10,7 @@ export const config: ToolConfig = {
   accepts: ['image/png'],
   acceptsExt: ['.png'],
   outputExt: '.bmp',
-  convertFn: (files, opts, onProgress) => libvipsConvert(files, 'bmp', opts, onProgress),
+  convertFn: (files, opts, onProgress, onResult) => libvipsConvert(files, 'bmp', opts, onProgress, onResult),
 
   options: [
     {

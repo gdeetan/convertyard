@@ -10,7 +10,7 @@ export const config: ToolConfig = {
   accepts: ['image/jpeg'],
   acceptsExt: ['.jpg', '.jpeg'],
   outputExt: '.tiff',
-  convertFn: (files, opts, onProgress) => libvipsConvert(files, 'tiff', opts, onProgress),
+  convertFn: (files, opts, onProgress, onResult) => libvipsConvert(files, 'tiff', opts, onProgress, onResult),
   enablePresets: true,
   options: [
     {

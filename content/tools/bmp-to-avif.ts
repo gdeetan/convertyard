@@ -10,7 +10,7 @@ export const config: ToolConfig = {
   accepts: ['image/bmp', 'image/x-bmp', 'image/x-ms-bmp'],
   acceptsExt: ['.bmp'],
   outputExt: '.avif',
-  convertFn: (files, opts, onProgress) => libvipsConvert(files, 'avif', opts, onProgress),
+  convertFn: (files, opts, onProgress, onResult) => libvipsConvert(files, 'avif', opts, onProgress, onResult),
   enablePresets: true,
   options: [
     {

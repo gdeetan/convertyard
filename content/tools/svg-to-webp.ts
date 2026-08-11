@@ -10,7 +10,7 @@ export const config: ToolConfig = {
   accepts: ['image/svg+xml'],
   acceptsExt: ['.svg'],
   outputExt: '.webp',
-  convertFn: (files, opts, onProgress) => svgConvert(files, 'webp', opts, onProgress),
+  convertFn: (files, opts, onProgress, onResult) => svgConvert(files, 'webp', opts, onProgress, onResult),
   enablePresets: true,
   options: [
     {

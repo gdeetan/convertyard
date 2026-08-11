@@ -10,8 +10,8 @@ export const config: ToolConfig = {
   accepts: ['image/heic', 'image/heif'],
   acceptsExt: ['.heic', '.heif'],
   outputExt: '.avif',
-  convertFn: (files, opts, onProgress) =>
-      libvipsConvert(files, 'avif', opts, onProgress),
+  convertFn: (files, opts, onProgress, onResult) =>
+      libvipsConvert(files, 'avif', opts, onProgress, onResult),
   enablePresets: true,
 
   options: [

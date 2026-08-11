@@ -38,6 +38,7 @@ export async function pngToSvgConvert(
   files: File[],
   opts: ToolOptions,
   onProgress?: (fileIndex: number, pct: number) => void,
+  onResult?: (fileIndex: number, result: ConversionResult) => void,
 ): Promise<ConversionResult[]> {
   const results: ConversionResult[] = []
   for (let i = 0; i < files.length; i++) {
@@ -46,9 +47,12 @@ export async function pngToSvgConvert(
       const out = await traceImage(files[i], opts)
       onProgress?.(i, 100)
       results.push(out)
+      onResult?.(i, out)
     } catch (err) {
       onProgress?.(i, 100)
-      results.push(err instanceof Error ? err : new Error(String(err)))
+      const error = err instanceof Error ? err : new Error(String(err))
+      results.push(error)
+      onResult?.(i, error)
     }
   }
   return results

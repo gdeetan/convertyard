@@ -10,7 +10,7 @@ export const config: ToolConfig = {
   accepts: ['image/x-icon', 'image/vnd.microsoft.icon'],
   acceptsExt: ['.ico'],
   outputExt: '.png',
-  convertFn: (files, opts, onProgress) => icoToPng(files, opts, onProgress),
+  convertFn: (files, opts, onProgress, onResult) => icoToPng(files, opts, onProgress, onResult),
 
   faq: [
     {

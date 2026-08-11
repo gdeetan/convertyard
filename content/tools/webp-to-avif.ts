@@ -10,8 +10,8 @@ export const config: ToolConfig = {
   accepts: ['image/webp'],
   acceptsExt: ['.webp'],
   outputExt: '.avif',
-  convertFn: (files, opts, onProgress) =>
-      libvipsConvert(files, 'avif', opts, onProgress),
+  convertFn: (files, opts, onProgress, onResult) =>
+      libvipsConvert(files, 'avif', opts, onProgress, onResult),
   enablePresets: true,
 
   options: [

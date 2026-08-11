@@ -10,7 +10,7 @@ export const config: ToolConfig = {
   accepts: ['image/png'],
   acceptsExt: ['.png'],
   outputExt: '.ico',
-  convertFn: (files, opts, onProgress) => pngToIco(files, opts, onProgress),
+  convertFn: (files, opts, onProgress, onResult) => pngToIco(files, opts, onProgress, onResult),
 
   options: [
     {
