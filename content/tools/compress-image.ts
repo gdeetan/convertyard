@@ -13,7 +13,7 @@ export const config: ToolConfig = {
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
   outputExt: '',
-  convertFn: (files, opts, onProgress) => imageCompress(files, opts, onProgress),
+  convertFn: (files, opts, onProgress, onResult) => imageCompress(files, opts, onProgress, onResult),
   enablePresets: true,
 
   interactivePanel: ImageAnalyzerPanel,

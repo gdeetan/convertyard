@@ -5,7 +5,8 @@ import { detectSameFormat } from './format-utils'
 export async function imageCompress(
   files: File[],
   opts: ToolOptions,
-  onProgress?: (fileIndex: number, pct: number) => void
+  onProgress?: (fileIndex: number, pct: number) => void,
+  onResult?: (fileIndex: number, result: ConversionResult) => void
 ): Promise<ConversionResult[]> {
   const results: ConversionResult[] = []
   for (let i = 0; i < files.length; i++) {
@@ -15,7 +16,9 @@ export async function imageCompress(
       !file.name.match(/\.(jpe?g|png|webp)$/i)
     ) {
       onProgress?.(i, 100)
-      results.push(new Error(`${file.name}: unsupported file type`))
+      const err = new Error(`${file.name}: unsupported file type`)
+      results.push(err)
+      onResult?.(i, err)
       continue
     }
     const fmt = detectSameFormat(file)
@@ -23,9 +26,12 @@ export async function imageCompress(
       const result = await convertViaWorker(file, fmt, opts, (pct) => onProgress?.(i, pct))
       onProgress?.(i, 100)
       results.push(result)
+      onResult?.(i, result)
     } catch (err) {
       onProgress?.(i, 100)
-      results.push(new Error(`${file.name}: ${err instanceof Error ? err.message : 'compression failed'}`))
+      const error = new Error(`${file.name}: ${err instanceof Error ? err.message : 'compression failed'}`)
+      results.push(error)
+      onResult?.(i, error)
     }
   }
   return results
