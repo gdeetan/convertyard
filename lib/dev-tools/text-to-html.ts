@@ -22,7 +22,7 @@ export function extractTitle(text: string, format: TextFormat): string {
 }
 
 export function convertMarkdown(text: string): string {
-  return marked.parse(stripFrontmatter(text)) as string
+  return marked.parse(stripFrontmatter(text), { async: false })
 }
 
 export function convertPlainText(text: string): string {
