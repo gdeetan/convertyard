@@ -60,12 +60,16 @@ export const GITHUB_CSS = `
 `
 
 export function buildDocument(body: string, title: string): string {
+  const safeTitle = title
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${title}</title>
+<title>${safeTitle}</title>
 <style>${GITHUB_CSS}</style>
 </head>
 <body class="markdown-body">
@@ -79,10 +83,11 @@ export function convertTextToHtml(
   format?: TextFormat,
 ): { html: string; format: TextFormat } {
   const resolvedFormat = format ?? detectFormat(text)
+  const strippedText = resolvedFormat === 'markdown' ? stripFrontmatter(text) : text
   const body =
     resolvedFormat === 'markdown'
       ? convertMarkdown(text)
       : convertPlainText(text)
-  const title = extractTitle(text, resolvedFormat)
+  const title = extractTitle(strippedText, resolvedFormat)
   return { html: buildDocument(body, title), format: resolvedFormat }
 }
