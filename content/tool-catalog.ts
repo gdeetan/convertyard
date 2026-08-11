@@ -143,6 +143,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'diff-checker',    title: 'Diff Checker',    description: 'Visual diff for text and code.', category: 'developer', status: 'live' },
   { slug: 'jwt-decoder',     title: 'JWT Decoder',     description: 'Decode and inspect JWT tokens.', category: 'developer', status: 'live' },
   { slug: 'regex-tester',    title: 'Regex Tester',    description: 'Test regex patterns with live matches.', category: 'developer', status: 'live' },
+  { slug: 'text-to-html',    title: 'Text to HTML',    description: 'Convert Markdown or plain text to a full HTML document.', category: 'developer', status: 'live' },
 
   // Web Tools
   { slug: 'favicon-generator',    title: 'Favicon Generator',    description: 'Generate all favicon sizes from one image.', category: 'web-tools', status: 'live' },
