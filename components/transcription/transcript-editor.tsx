@@ -38,6 +38,34 @@ function extractCues(srt: string): Cue[] {
   return cues
 }
 
+function storageKey(file: File, outputFormat: OutputFormat): string {
+  return `convertyard:transcript:${file.name}:${file.size}:${file.lastModified}:${outputFormat}`
+}
+
+function safeGetItem(key: string): string | null {
+  try {
+    return typeof window === 'undefined' ? null : window.localStorage.getItem(key)
+  } catch {
+    return null
+  }
+}
+
+function safeSetItem(key: string, value: string): void {
+  try {
+    if (typeof window !== 'undefined') window.localStorage.setItem(key, value)
+  } catch {
+    // quota / privacy mode — silently ignore
+  }
+}
+
+function safeRemoveItem(key: string): void {
+  try {
+    if (typeof window !== 'undefined') window.localStorage.removeItem(key)
+  } catch {
+    // ignore
+  }
+}
+
 export function TranscriptEditor({
   file,
   output,
@@ -52,14 +80,56 @@ export function TranscriptEditor({
   const [findText, setFindText] = useState('')
   const [replaceText, setReplaceText] = useState('')
   const [nextSpeaker, setNextSpeaker] = useState(1)
+  const [pendingRestore, setPendingRestore] = useState<string | null>(null)
+  const saveTimerRef = useRef<number | null>(null)
 
   const isVideo = file.type.startsWith('video/')
+  const persistKey = useMemo(() => storageKey(file, outputFormat), [file, outputFormat])
 
   useEffect(() => {
     const url = URL.createObjectURL(file)
     setMediaUrl(url)
     return () => URL.revokeObjectURL(url)
   }, [file])
+
+  // On mount / key change: if a saved edit exists and differs from current output, offer restore
+  useEffect(() => {
+    const saved = safeGetItem(persistKey)
+    if (saved !== null && saved !== output) {
+      setPendingRestore(saved)
+    } else {
+      setPendingRestore(null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [persistKey])
+
+  // Debounced auto-save when the transcript is edited (not while showing restore prompt)
+  useEffect(() => {
+    if (pendingRestore !== null) return
+    if (originalOutput === undefined) return
+    if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current)
+    saveTimerRef.current = window.setTimeout(() => {
+      if (output === originalOutput) {
+        safeRemoveItem(persistKey)
+      } else {
+        safeSetItem(persistKey, output)
+      }
+    }, 400)
+    return () => {
+      if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current)
+    }
+  }, [output, originalOutput, persistKey, pendingRestore])
+
+  const handleRestore = useCallback(() => {
+    if (pendingRestore === null) return
+    onChange(pendingRestore)
+    setPendingRestore(null)
+  }, [pendingRestore, onChange])
+
+  const handleDismissRestore = useCallback(() => {
+    safeRemoveItem(persistKey)
+    setPendingRestore(null)
+  }, [persistKey])
 
   const cues = useMemo(
     () => (outputFormat === 'srt' ? extractCues(output) : []),
@@ -149,6 +219,29 @@ export function TranscriptEditor({
         )
       )}
 
+      {/* Restore-previous-edit banner */}
+      {pendingRestore !== null && (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-primary/40 bg-primary/5 px-3 py-2 text-xs text-fg">
+          <span className="flex-1">
+            Previous edit found for this file ({(pendingRestore.trim().match(/\S+/g) ?? []).length} words). Restore it?
+          </span>
+          <button
+            type="button"
+            onClick={handleRestore}
+            className="rounded border border-primary bg-primary px-2 py-1 text-xs font-medium text-white hover:bg-primary/90"
+          >
+            Restore
+          </button>
+          <button
+            type="button"
+            onClick={handleDismissRestore}
+            className="rounded border border-border bg-bg px-2 py-1 text-xs text-fg-muted hover:border-primary hover:text-primary"
+          >
+            Discard
+          </button>
+        </div>
+      )}
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-1.5">
         <button
@@ -182,7 +275,10 @@ export function TranscriptEditor({
         {isEdited && originalOutput !== undefined && (
           <button
             type="button"
-            onClick={() => onChange(originalOutput)}
+            onClick={() => {
+              onChange(originalOutput)
+              safeRemoveItem(persistKey)
+            }}
             className="ml-auto flex items-center gap-1 rounded-md border border-border bg-bg px-2 py-1 text-xs text-fg-muted transition-colors hover:border-primary hover:text-primary"
           >
             <RotateCcw className="h-3 w-3" /> Reset
@@ -266,7 +362,7 @@ export function TranscriptEditor({
       <div className="flex items-center justify-between text-[11px] text-fg-subtle">
         <span>
           {words} words · {output.length} chars
-          {isEdited && <span className="ml-2 text-primary">· edited</span>}
+          {isEdited && <span className="ml-2 text-primary">· edited (auto-saved locally)</span>}
         </span>
       </div>
     </div>
