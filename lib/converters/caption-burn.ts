@@ -2,6 +2,15 @@ import { getSingleThreadFFmpeg } from './ffmpeg-client'
 import type { WordChunk, CaptionOptions } from './caption-types'
 import { loadBuiltinFont } from './caption-fonts'
 import { buildASS } from './caption-ass-builder'
+import { probeVideoDuration } from './media-probe'
+
+// ffmpeg emits stats lines like "frame= 123 fps=45 ... time=00:01:23.45 bitrate=..."
+// Parse the time= field into seconds so real encode progress can drive the UI.
+function parseFFmpegTimeSeconds(line: string): number | null {
+  const m = line.match(/time=(\d+):(\d{2}):(\d{2}(?:\.\d+)?)/)
+  if (!m) return null
+  return Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3])
+}
 
 // Derive the font family name to embed in the ASS [V4+ Styles] header.
 // libass scans fontsdir and matches by the TTF's internal name; for builtin
@@ -31,6 +40,10 @@ export async function burnCaptions(
   const assName    = `cap_ass_${ts}.ass`
   const outputName = `cap_out_${ts}.mp4`
 
+  onProgress(2)
+  // Duration drives real progress. If probe fails (0), fall back to a slow
+  // timer so the bar still moves — better than freezing at a fake number.
+  const duration = await probeVideoDuration(videoFile)
   onProgress(5)
   await ffmpeg.writeFile(inputName, await fetchFile(videoFile))
 
@@ -51,11 +64,49 @@ export async function burnCaptions(
   onProgress(10)
 
   const logs: string[] = []
-  const logHandler = ({ message }: { message: string }) => logs.push(message)
+  // Progress state: a phase maps the encode's time= (in seconds) into a UI
+  // percentage window. Two-pass mode swaps phases between passes.
+  let phaseStart = 10
+  let phaseEnd = 95
+  let lastPct = 10
+  const logHandler = ({ message }: { message: string }) => {
+    logs.push(message)
+    if (duration > 0) {
+      const t = parseFFmpegTimeSeconds(message)
+      if (t !== null) {
+        const frac = Math.max(0, Math.min(1, t / duration))
+        const pct = Math.round(phaseStart + (phaseEnd - phaseStart) * frac)
+        if (pct > lastPct) {
+          lastPct = pct
+          onProgress(pct)
+        }
+      }
+    }
+  }
   ffmpeg.on('log', logHandler)
 
+  const setPhase = (start: number, end: number) => {
+    phaseStart = start
+    phaseEnd = end
+    lastPct = start
+    onProgress(start)
+  }
+
   let data: Uint8Array<ArrayBuffer> | null = null
+  // Fallback ticker for when duration probe failed — slow drip so the bar
+  // still moves, capped just below the phase end.
   let timer: ReturnType<typeof setInterval> | null = null
+  const startFallbackTimer = () => {
+    if (duration > 0 || timer) return
+    let pct = lastPct
+    timer = setInterval(() => {
+      pct = Math.min(phaseEnd - 3, pct + 1)
+      if (pct > lastPct) { lastPct = pct; onProgress(pct) }
+    }, 2500)
+  }
+  const stopFallbackTimer = () => {
+    if (timer) { clearInterval(timer); timer = null }
+  }
 
   try {
     // Fast path: single-pass encode. Works for most well-formed inputs (H.264 MP4,
@@ -63,15 +114,16 @@ export async function burnCaptions(
     // Falls back to 2-pass if the subtitle filter emits AVERROR_INPUT_CHANGED,
     // which happens with VFR or variable-parameter streams where the MJPEG
     // intermediate is required as a stable, all-intra normalisation step.
-    let pct = 11
-    timer = setInterval(() => {
-      pct = Math.min(92, pct + 1)
-      onProgress(pct)
-    }, 2500)
+    // No fps= filter here: the subtitles filter is timestamp-driven, so forcing
+    // 30fps only costs a frame-conversion pass and silently drops frames for
+    // 60fps sources (quality loss). The 2-pass fallback still needs fps= because
+    // MJPEG is CFR-only.
+    setPhase(10, 95)
+    startFallbackTimer()
 
     let exitCode = await ffmpeg.exec([
       '-i', inputName,
-      '-vf', `fps=30,format=yuv420p,subtitles=${assName}:fontsdir=/capfonts`,
+      '-vf', `format=yuv420p,subtitles=${assName}:fontsdir=/capfonts`,
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
       '-crf', '23',
@@ -81,25 +133,20 @@ export async function burnCaptions(
       outputName,
     ])
 
-    clearInterval(timer)
-    timer = null
+    stopFallbackTimer()
 
     if (exitCode !== 0) {
       // Single-pass failed; wipe partial output and fall back to 2-pass.
       await ffmpeg.deleteFile(outputName).catch(() => {})
       logs.length = 0
-      onProgress(10)
 
       // Pass 1 — transcode to MJPEG + AAC in Matroska (.mkv).
       // MJPEG is all-intra so its decoder carries no sequence state and
       // cannot emit AVERROR_INPUT_CHANGED during Pass 2.
       // qscale:v=18 keeps each JPEG ~3–5× smaller so both MJPEG and the
       // H.264 output can coexist within WASM's 2 GB MEMFS heap.
-      pct = 11
-      timer = setInterval(() => {
-        pct = Math.min(44, pct + 1)
-        onProgress(pct)
-      }, 2000)
+      setPhase(10, 45)
+      startFallbackTimer()
 
       exitCode = await ffmpeg.exec([
         '-i', inputName,
@@ -111,8 +158,7 @@ export async function burnCaptions(
         midName,
       ])
 
-      clearInterval(timer)
-      timer = null
+      stopFallbackTimer()
 
       if (exitCode !== 0) {
         throw new Error(`Failed to normalise video (pass 1): ${logs.slice(-10).join(' | ')}`)
@@ -120,14 +166,10 @@ export async function burnCaptions(
 
       await ffmpeg.deleteFile(inputName).catch(() => {})
       logs.length = 0
-      onProgress(45)
 
       // Pass 2 — burn captions via ASS subtitles filter.
-      pct = 46
-      timer = setInterval(() => {
-        pct = Math.min(93, pct + 1)
-        onProgress(pct)
-      }, 3000)
+      setPhase(45, 95)
+      startFallbackTimer()
 
       exitCode = await ffmpeg.exec([
         '-i', midName,
@@ -141,8 +183,7 @@ export async function burnCaptions(
         outputName,
       ])
 
-      clearInterval(timer)
-      timer = null
+      stopFallbackTimer()
 
       if (exitCode !== 0) {
         throw new Error(`ffmpeg exited with code ${exitCode}. ${logs.slice(-10).join(' | ')}`)
@@ -155,7 +196,7 @@ export async function burnCaptions(
       throw new Error('ffmpeg produced an empty output file')
     }
   } finally {
-    if (timer) clearInterval(timer)
+    stopFallbackTimer()
     ffmpeg.off('log', logHandler)
     await Promise.all([
       ffmpeg.deleteFile(inputName).catch(() => {}),

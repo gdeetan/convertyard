@@ -128,7 +128,7 @@ export function CaptionTool() {
         (pct) => {
           const safePct = Math.max(0, Math.min(100, Math.round(pct)))
           setProgress(safePct)
-          setStatusText(safePct < 45 ? `Normalising video… ${safePct}%` : `Burning captions… ${safePct}% (may take 1–3 min)`)
+          setStatusText(`Burning captions… ${safePct}% (may take 1–3 min)`)
         },
         videoDims ?? undefined,
       )
