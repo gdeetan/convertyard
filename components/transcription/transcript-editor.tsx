@@ -1,9 +1,10 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Download, Search, User, RotateCcw, X } from 'lucide-react'
+import { Download, Search, User, RotateCcw, X, Sparkles } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import type { OutputFormat } from '@/lib/converters/transcription'
+import { buildDocx } from '@/lib/converters/docx-export'
 
 interface TranscriptEditorProps {
   file: File
@@ -11,6 +12,42 @@ interface TranscriptEditorProps {
   originalOutput?: string
   outputFormat: OutputFormat
   onChange: (next: string) => void
+  initialRows?: number
+}
+
+// ── Clean-up pass ──
+const FILLERS = /\b(?:um+|uh+|er+|ah+|hmm+|mm+|mmhm+|uhm+|uhh+)\b[,.]?/gi
+
+function cleanupText(input: string): string {
+  let s = input
+  s = s.replace(FILLERS, '')
+  s = s.replace(/[ \t]+/g, ' ')
+  // Collapse consecutive duplicate words (case-insensitive)
+  s = s.replace(/\b(\w+)(\s+\1\b)+/gi, '$1')
+  // Standalone 'i' -> 'I'
+  s = s.replace(/\bi\b/g, 'I')
+  // Capitalize sentence starts
+  s = s.replace(/(^|[.!?]\s+)([a-z])/g, (_m, p, c) => p + c.toUpperCase())
+  // Trim whitespace per line and collapse blank runs
+  s = s.split(/\r?\n/).map((ln) => ln.replace(/^ +| +$/g, '')).join('\n')
+  s = s.replace(/\n{3,}/g, '\n\n')
+  return s.trim()
+}
+
+function cleanupSrt(srt: string): string {
+  return srt
+    .split(/\r?\n\r?\n/)
+    .map((block) => {
+      const lines = block.split(/\r?\n/)
+      return lines
+        .map((line) => {
+          if (/^\d+$/.test(line.trim())) return line
+          if (line.includes('-->')) return line
+          return cleanupText(line)
+        })
+        .join('\n')
+    })
+    .join('\n\n')
 }
 
 // Parse "HH:MM:SS,mmm" (SRT) or "HH:MM:SS.mmm" to seconds
@@ -72,6 +109,7 @@ export function TranscriptEditor({
   originalOutput,
   outputFormat,
   onChange,
+  initialRows = 12,
 }: TranscriptEditorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const audioRef = useRef<HTMLAudioElement | HTMLVideoElement | null>(null)
@@ -183,18 +221,48 @@ export function TranscriptEditor({
     onChange(output.split(findText).join(replaceText))
   }, [findText, replaceText, output, onChange])
 
-  const downloadSingle = useCallback(() => {
-    const baseName = file.name.replace(/\.[^.]+$/, '')
-    const ext = outputFormat === 'srt' ? '.srt' : '.txt'
-    const mime = outputFormat === 'srt' ? 'application/x-subrip' : 'text/plain'
-    const blob = new Blob([output], { type: `${mime};charset=utf-8` })
+  const baseName = useMemo(() => file.name.replace(/\.[^.]+$/, ''), [file])
+
+  const triggerDownload = useCallback((data: string | Uint8Array, mime: string, ext: string) => {
+    const blob = new Blob([data as BlobPart], { type: mime })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `${baseName}${ext}`
+    a.download = `${baseName}.${ext}`
     a.click()
     setTimeout(() => URL.revokeObjectURL(url), 1000)
-  }, [file, output, outputFormat])
+  }, [baseName])
+
+  const downloadNative = useCallback(() => {
+    if (outputFormat === 'srt') {
+      triggerDownload(output, 'application/x-subrip;charset=utf-8', 'srt')
+    } else {
+      triggerDownload(output, 'text/plain;charset=utf-8', 'txt')
+    }
+  }, [output, outputFormat, triggerDownload])
+
+  const downloadMarkdown = useCallback(() => {
+    const body =
+      outputFormat === 'srt'
+        ? '```srt\n' + output + '\n```'
+        : output
+    const md = `# ${baseName}\n\n${body}\n`
+    triggerDownload(md, 'text/markdown;charset=utf-8', 'md')
+  }, [output, outputFormat, baseName, triggerDownload])
+
+  const downloadDocx = useCallback(() => {
+    const bytes = buildDocx(output)
+    triggerDownload(
+      bytes,
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'docx'
+    )
+  }, [output, triggerDownload])
+
+  const handleCleanup = useCallback(() => {
+    const next = outputFormat === 'srt' ? cleanupSrt(output) : cleanupText(output)
+    if (next !== output) onChange(next)
+  }, [output, outputFormat, onChange])
 
   const words = (output.trim().match(/\S+/g) ?? []).length
 
@@ -267,11 +335,38 @@ export function TranscriptEditor({
         </button>
         <button
           type="button"
-          onClick={downloadSingle}
+          onClick={handleCleanup}
           className="flex items-center gap-1 rounded-md border border-border bg-bg px-2 py-1 text-xs text-fg-muted transition-colors hover:border-primary hover:text-primary"
+          title="Remove filler words (um, uh…), collapse repeats, fix capitalization"
         >
-          <Download className="h-3 w-3" /> .{outputFormat}
+          <Sparkles className="h-3 w-3" /> Clean up
         </button>
+        <div className="flex items-center gap-1 rounded-md border border-border bg-bg px-1 py-0.5 text-xs text-fg-muted">
+          <Download className="h-3 w-3" />
+          <button
+            type="button"
+            onClick={downloadNative}
+            className="rounded px-1.5 py-0.5 hover:bg-primary/10 hover:text-primary"
+          >
+            .{outputFormat}
+          </button>
+          <span className="text-fg-subtle">·</span>
+          <button
+            type="button"
+            onClick={downloadMarkdown}
+            className="rounded px-1.5 py-0.5 hover:bg-primary/10 hover:text-primary"
+          >
+            .md
+          </button>
+          <span className="text-fg-subtle">·</span>
+          <button
+            type="button"
+            onClick={downloadDocx}
+            className="rounded px-1.5 py-0.5 hover:bg-primary/10 hover:text-primary"
+          >
+            .docx
+          </button>
+        </div>
         {isEdited && originalOutput !== undefined && (
           <button
             type="button"
@@ -353,7 +448,7 @@ export function TranscriptEditor({
         value={output}
         onChange={(e) => onChange(e.target.value)}
         spellCheck
-        rows={12}
+        rows={initialRows}
         aria-label={`Transcript for ${file.name} — editable`}
         className="w-full resize-y rounded-lg border border-border bg-bg px-3 py-2 font-mono text-xs leading-relaxed text-fg focus:outline-none focus:ring-2 focus:ring-primary/50"
       />

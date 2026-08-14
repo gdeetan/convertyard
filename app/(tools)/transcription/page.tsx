@@ -497,6 +497,7 @@ export default function TranscriptionPage() {
                     originalOutput={entry.originalOutput}
                     outputFormat={outputFormat}
                     onChange={(next) => updateEntry(i, { output: next })}
+                    initialRows={entries.length === 1 ? 24 : 12}
                   />
                 )}
 
