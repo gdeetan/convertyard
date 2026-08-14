@@ -5,6 +5,7 @@ import { Copy, Check, Download, Loader2, Mic } from 'lucide-react'
 import { zipSync, strToU8 } from 'fflate'
 import { cn } from '@/lib/utils/cn'
 import { Dropzone } from '@/components/tool-shell/dropzone'
+import { TranscriptEditor } from '@/components/transcription/transcript-editor'
 import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
 import { RelatedToolsStrip } from '@/components/tool-shell/related-tools-strip'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
@@ -31,6 +32,7 @@ interface FileEntry {
   text?: string
   srt?: string
   output?: string
+  originalOutput?: string
   error?: string
   errorDetails?: string
   errorCode?: string
@@ -132,6 +134,7 @@ export default function TranscriptionPage() {
       text: result.text,
       srt: result.srt,
       output: result.output,
+      originalOutput: result.output,
       status: 'done',
       progress: 100,
       error: undefined,
@@ -486,13 +489,15 @@ export default function TranscriptionPage() {
                   </div>
                 )}
 
-                {/* Transcript preview when done */}
-                {entry.status === 'done' && entry.output && (
-                  <div className="px-4 pb-3">
-                    <p className="font-mono text-xs text-fg-muted line-clamp-3 whitespace-pre-wrap">
-                      {entry.output}
-                    </p>
-                  </div>
+                {/* Editable transcript when done */}
+                {entry.status === 'done' && entry.output !== undefined && (
+                  <TranscriptEditor
+                    file={entry.file}
+                    output={entry.output}
+                    originalOutput={entry.originalOutput}
+                    outputFormat={outputFormat}
+                    onChange={(next) => updateEntry(i, { output: next })}
+                  />
                 )}
 
                 {/* Error message */}
