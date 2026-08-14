@@ -86,6 +86,13 @@ export function CaptionTool() {
     setError(null)
     setStatusText('Downloading Whisper model (one-time, ~40 MB)…')
 
+    // Warm the burn-time ffmpeg core in the background while transcription
+    // runs. Transcription takes 30s+; without this preload the user waits
+    // another ~5-10s after clicking Burn just for the ffmpeg core to load.
+    import('@/lib/converters/ffmpeg-client').then(({ getSingleThreadFFmpeg }) => {
+      getSingleThreadFFmpeg().catch(() => { /* burn click will surface errors */ })
+    })
+
     try {
       const { transcribeToWords } = await import('@/lib/converters/caption-transcribe')
       const result = await transcribeToWords(
