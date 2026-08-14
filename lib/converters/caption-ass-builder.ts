@@ -95,7 +95,10 @@ function buildHeader(
 ): string {
   const primary   = hexToASS(opts.primaryColor)
   const highlight = hexToASS(opts.highlightColor)
-  const outline   = hexToASS(opts.outlineColor)
+  // libass BorderStyle=3 fills the box with OutlineColour. Hardcode opaque
+  // black for Netflix so the pill stays visible regardless of the shared
+  // outline-color picker (which other styles use for their text outline).
+  const outline   = opts.styleId === 'netflix' ? '&H00000000' : hexToASS(opts.outlineColor)
   const backColor = '&H00000000'
   const bold = cfg.bold ? '-1' : '0'
 

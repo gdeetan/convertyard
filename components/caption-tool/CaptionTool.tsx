@@ -156,16 +156,7 @@ export function CaptionTool() {
   }
 
   function patchOptions(patch: Partial<CaptionOptions>) {
-    setOptions((prev) => {
-      const next = { ...prev, ...patch }
-      // When fontSize changes, recalculate maxCharsPerLine so the visual line
-      // width stays constant. Without this, reducing font size just shrinks
-      // text without reflowing to fewer rows or filling the available width.
-      if (patch.fontSize !== undefined && videoDims) {
-        next.maxCharsPerLine = smartMaxChars(videoDims.width, next.fontSize)
-      }
-      return next
-    })
+    setOptions((prev) => ({ ...prev, ...patch }))
   }
 
   if (phase === 'idle') {
