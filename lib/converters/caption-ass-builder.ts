@@ -130,8 +130,8 @@ function buildHeader(
   ].join('\n')
 }
 
-function dialogue(start: number, end: number, text: string): string {
-  return `Dialogue: 0,${toASSTime(start)},${toASSTime(end)},Default,,0,0,0,,${text}`
+function dialogue(start: number, end: number, text: string, layer = 0): string {
+  return `Dialogue: ${layer},${toASSTime(start)},${toASSTime(end)},Default,,0,0,0,,${text}`
 }
 
 function wordByWordEvents(words: WordChunk[], opts: CaptionOptions): string[] {
@@ -161,25 +161,31 @@ function karaokeEvents(words: WordChunk[], opts: CaptionOptions): string[] {
   // lines don't overflow narrow screens.
   const maxWords = opts.maxCharsPerLine > 0 ? Math.max(2, Math.floor(opts.maxCharsPerLine / 7)) : LINE_MAX_WORDS
   const groups = groupWordsIntoLines(words, maxWords, LINE_MAX_DURATION_S)
+  const primary   = hexToASS(opts.primaryColor)
+  const highlight = hexToASS(opts.highlightColor)
+  const getText = (w: WordChunk) => opts.uppercase ? w.text.toUpperCase() : w.text
 
-  // ASS \kf semantics: SecondaryColour = "before sung" state, PrimaryColour = "after sung" state.
-  // The style header maps primaryColor → Primary and highlightColor → Secondary, which makes all
-  // upcoming words render in highlightColor and the active word wipe to primaryColor — the exact
-  // opposite of what users expect. Override with \1c/\2c to correct it:
-  //   \1c (Primary/sung)   = highlightColor so already-active words stay highlighted
-  //   \2c (Secondary/pre)  = primaryColor   so upcoming words are in the normal text color
-  const colorOverride = `{\\1c${hexToASS(opts.highlightColor)}\\2c${hexToASS(opts.primaryColor)}}`
-
-  return groups.map((group) => {
-    const start = group[0].start
-    const end   = group[group.length - 1].end
-    const text  = colorOverride + group.map((w) => {
-      const cs = Math.round((w.end - w.start) * 100)
-      const t  = opts.uppercase ? w.text.toUpperCase() : w.text
-      return `{\\kf${cs}}${t} `
-    }).join('')
-    return dialogue(start, end, text.trimEnd())
-  })
+  // Preview highlights only the currently-spoken word (discrete per-word flip),
+  // not the ASS \kf left-to-right wipe. Match it with layered events:
+  //   layer 0 = full line in primary for the whole group duration
+  //   layer 1 = per-word overlay with just that word wrapped in highlight color
+  // libass renders higher layers on top, so the overlay swaps one word's color
+  // at exactly its start/end without touching the rest of the line.
+  const events: string[] = []
+  for (const group of groups) {
+    const groupStart = group[0].start
+    const groupEnd   = group[group.length - 1].end
+    const baseText   = group.map(getText).join(' ')
+    events.push(dialogue(groupStart, groupEnd, baseText, 0))
+    group.forEach((w, i) => {
+      const overlay = group.map((word, j) => {
+        const t = getText(word)
+        return j === i ? `{\\c${highlight}}${t}{\\c${primary}}` : t
+      }).join(' ')
+      events.push(dialogue(w.start, w.end, overlay, 1))
+    })
+  }
+  return events
 }
 
 export function buildASS(
