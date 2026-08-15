@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
-import { Download, RefreshCcw, FileDown, FileUp } from 'lucide-react'
+import { Download, RefreshCcw, FileDown, FileUp, Play, Pause, Maximize2 } from 'lucide-react'
 import type { WordChunk, CaptionOptions, CaptionStyleId } from '@/lib/converters/caption-types'
 import { DEFAULT_CAPTION_OPTIONS, STYLE_PRESETS } from '@/lib/converters/caption-types'
 import type { CaptionQuality } from '@/lib/converters/caption-transcribe'
@@ -72,6 +72,13 @@ function baseName(name: string): string {
   return name.replace(/\.[^.]+$/, '')
 }
 
+function formatClock(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) seconds = 0
+  const m = Math.floor(seconds / 60)
+  const s = Math.floor(seconds % 60)
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
 function DonePanel({
   resultFile,
   onReset,
@@ -83,10 +90,98 @@ function DonePanel({
 }) {
   const downloadUrl = useMemo(() => URL.createObjectURL(resultFile), [resultFile])
   useEffect(() => () => URL.revokeObjectURL(downloadUrl), [downloadUrl])
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const [aspectRatio, setAspectRatio] = useState<string | undefined>(undefined)
+  const [playing, setPlaying] = useState(false)
+  const [time, setTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+
+  function togglePlay() {
+    const video = videoRef.current
+    if (!video) return
+    if (video.paused) void video.play()
+    else video.pause()
+  }
+
+  function seekTo(next: number) {
+    const video = videoRef.current
+    if (!video) return
+    video.currentTime = next
+    setTime(next)
+  }
+
+  function enterFullscreen() {
+    const video = videoRef.current
+    if (!video) return
+    const safariVideo = video as HTMLVideoElement & { webkitEnterFullscreen?: () => void }
+    if (safariVideo.webkitEnterFullscreen) {
+      safariVideo.webkitEnterFullscreen()
+      return
+    }
+    void video.requestFullscreen()
+  }
 
   return (
     <div className="space-y-4">
-      <video src={downloadUrl} controls playsInline className="w-full rounded-xl bg-black" />
+      {/*
+        Same frame as the live preview (aspect-ratio box + object-contain).
+        Native controls stay off the picture so burned-in captions are not covered.
+      */}
+      <div className="overflow-hidden rounded-xl bg-black">
+        <div
+          className="relative w-full"
+          style={aspectRatio ? { aspectRatio } : undefined}
+        >
+          <video
+            ref={videoRef}
+            src={downloadUrl}
+            playsInline
+            className={aspectRatio ? 'block h-full w-full object-contain' : 'block h-auto w-full'}
+            onClick={togglePlay}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onTimeUpdate={(e) => setTime(e.currentTarget.currentTime)}
+            onLoadedMetadata={(e) => {
+              const video = e.currentTarget
+              setDuration(video.duration || 0)
+              if (video.videoWidth && video.videoHeight) {
+                setAspectRatio(`${video.videoWidth} / ${video.videoHeight}`)
+              }
+            }}
+          />
+        </div>
+        <div className="flex items-center gap-2 px-3 py-2">
+          <button
+            type="button"
+            onClick={togglePlay}
+            className="shrink-0 rounded-md p-1 text-white/90 hover:bg-white/10"
+            aria-label={playing ? 'Pause' : 'Play'}
+          >
+            {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          </button>
+          <input
+            type="range"
+            min={0}
+            max={duration || 1}
+            step={0.05}
+            value={Math.min(time, duration || 0)}
+            onChange={(e) => seekTo(Number(e.target.value))}
+            className="h-1 flex-1 cursor-pointer accent-white"
+            aria-label="Seek"
+          />
+          <span className="shrink-0 tabular-nums text-xs text-white/70">
+            {formatClock(time)} / {formatClock(duration)}
+          </span>
+          <button
+            type="button"
+            onClick={enterFullscreen}
+            className="shrink-0 rounded-md p-1 text-white/90 hover:bg-white/10"
+            aria-label="Full screen"
+          >
+            <Maximize2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
       <div className="flex flex-col items-center gap-3">
         <p className="text-lg font-semibold text-fg">Captions burned in</p>
         <a
