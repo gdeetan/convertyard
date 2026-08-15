@@ -10,14 +10,19 @@ import {
   type TranscriptionErrorShape,
   type TranscriptionLoadAttempt,
 } from './transcription-errors'
+import {
+  decodeParamsForQuality,
+  filterWhisperResult,
+  type WhisperQuality,
+} from './whisper-postprocess'
+
+export type { WhisperQuality }
 
 env.allowLocalModels = false
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ;(env.backends as any).onnx.wasm.proxy = false
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-
-export type WhisperQuality = 'fast' | 'balanced' | 'accurate'
 
 interface LoadMsg {
   type: 'load'
@@ -161,22 +166,24 @@ async function runTranscribe(
   audioData: Float32Array,
   sampleRate: number,
   language: string | null,
-  timestamps: boolean
+  timestamps: boolean | 'word',
 ) {
   self.postMessage({ type: 'transcribe-progress', id, progress: 10 })
 
+  const decode = decodeParamsForQuality(loadedQuality ?? 'balanced')
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const result = await (whisperPipeline as any)(audioData, {
+  const raw = await (whisperPipeline as any)(audioData, {
     language: language ?? undefined,
     task: 'transcribe',
     return_timestamps: timestamps,
     chunk_length_s: 30,
     stride_length_s: 3,
     sampling_rate: sampleRate,
-    num_beams: 5,
-    no_repeat_ngram_size: 3,
-    condition_on_previous_text: false,
+    ...decode,
   })
+
+  const result = filterWhisperResult(raw)
 
   self.postMessage({ type: 'transcribe-progress', id, progress: 95 })
   self.postMessage({ type: 'transcribe-result', id, result })

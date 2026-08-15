@@ -40,6 +40,18 @@ export interface CaptionOptions {
   maxCharsPerLine: number
 }
 
+/** Position, case, and outline that match each style's preview and copy. */
+export const STYLE_PRESETS: Record<
+  CaptionStyleId,
+  Pick<CaptionOptions, 'position' | 'uppercase' | 'outlineWidth'>
+> = {
+  mrbeast: { position: 'center', uppercase: false, outlineWidth: 4 },
+  tiktok:  { position: 'center', uppercase: true,  outlineWidth: 6 },
+  netflix: { position: 'bottom', uppercase: false, outlineWidth: 0 },
+  classic: { position: 'bottom', uppercase: false, outlineWidth: 2 },
+  karaoke: { position: 'bottom', uppercase: false, outlineWidth: 2 },
+}
+
 export const DEFAULT_CAPTION_OPTIONS: CaptionOptions = {
   styleId: 'mrbeast',
   fontSource: 'builtin',
@@ -51,8 +63,6 @@ export const DEFAULT_CAPTION_OPTIONS: CaptionOptions = {
   primaryColor: '#FFFFFF',
   highlightColor: '#FFFF00',
   outlineColor: '#000000',
-  outlineWidth: 4,
-  position: 'bottom',
-  uppercase: false,
+  ...STYLE_PRESETS.mrbeast,
   maxCharsPerLine: 42,
 }

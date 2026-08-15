@@ -74,15 +74,20 @@ interface ASSStyleConfig {
   marginV: number
 }
 
-function styleConfig(id: CaptionStyleId, position: 'top' | 'center' | 'bottom'): ASSStyleConfig {
+function styleConfig(
+  id: CaptionStyleId,
+  position: 'top' | 'center' | 'bottom',
+  outlineWidth: number,
+): ASSStyleConfig {
   const alignment = position === 'top' ? 8 : position === 'center' ? 5 : 2
   const marginV = position === 'bottom' ? 80 : position === 'top' ? 80 : 0
   switch (id) {
-    case 'mrbeast': return { bold: true,  alignment, borderStyle: 1, outline: 4, shadow: 0, marginV }
-    case 'tiktok':  return { bold: true,  alignment, borderStyle: 1, outline: 6, shadow: 0, marginV }
+    // Netflix BorderStyle=3 uses Outline as box padding, not a stroke.
+    case 'mrbeast': return { bold: true,  alignment, borderStyle: 1, outline: outlineWidth, shadow: 0, marginV }
+    case 'tiktok':  return { bold: true,  alignment, borderStyle: 1, outline: outlineWidth, shadow: 0, marginV }
     case 'netflix': return { bold: false, alignment, borderStyle: 3, outline: 10, shadow: 0, marginV }
-    case 'classic': return { bold: false, alignment, borderStyle: 1, outline: 2, shadow: 1, marginV }
-    case 'karaoke': return { bold: false, alignment, borderStyle: 1, outline: 2, shadow: 0, marginV }
+    case 'classic': return { bold: false, alignment, borderStyle: 1, outline: outlineWidth, shadow: 1, marginV }
+    case 'karaoke': return { bold: false, alignment, borderStyle: 1, outline: outlineWidth, shadow: 0, marginV }
   }
 }
 
@@ -195,7 +200,7 @@ export function buildASS(
   videoWidth = 1920,
   videoHeight = 1080,
 ): string {
-  const cfg = styleConfig(opts.styleId, opts.position)
+  const cfg = styleConfig(opts.styleId, opts.position, opts.outlineWidth)
   const header = buildHeader(opts, cfg, fontName, videoWidth, videoHeight)
 
   let events: string[]

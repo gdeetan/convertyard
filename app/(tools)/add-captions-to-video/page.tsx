@@ -25,7 +25,7 @@ export default function Page() {
           Add Captions to Video
         </h1>
         <p className="mt-2 text-base text-fg-muted">
-          Drop a video, Whisper transcribes it in your browser, you fix any mistakes, pick a style, and download with captions burned permanently into the file.
+          Drop a video, choose a language and quality (or import an SRT/VTT), fix any mistakes, pick a style, then download burned-in captions or a subtitle file.
         </p>
       </div>
 
@@ -44,8 +44,8 @@ export default function Page() {
             },
             {
               n: '2',
-              label: 'Whisper transcribes it',
-              desc: "OpenAI's Whisper model runs locally in your browser and generates word-level timestamps. First run downloads ~74 MB, cached after that.",
+              label: 'Transcribe or import',
+              desc: 'Pick a language and quality, then Whisper runs locally — or import an SRT/VTT and skip transcription. First Balanced run downloads ~74 MB, cached after that.',
             },
             {
               n: '3',

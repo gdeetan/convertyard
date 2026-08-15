@@ -1,8 +1,9 @@
 import { getFFmpeg } from './ffmpeg-client'
 import { loadTranscriptionModel, transcribeAudio } from './transcription-client'
-import type { WordChunk } from './caption-types'
+import { wordsFromTranscription, type CaptionTranscript } from './caption-words'
 
 export type CaptionQuality = 'fast' | 'balanced' | 'accurate'
+export type { CaptionTranscript }
 
 async function extractAudio(videoFile: File): Promise<Float32Array> {
   const { fetchFile } = await import('@ffmpeg/util')
@@ -39,7 +40,7 @@ export async function transcribeToWords(
   language: string | null,
   onModelProgress: (pct: number) => void,
   onTranscribeProgress: (pct: number) => void,
-): Promise<WordChunk[]> {
+): Promise<CaptionTranscript> {
   await loadTranscriptionModel(quality, onModelProgress)
   onModelProgress(100)
 
@@ -54,30 +55,5 @@ export async function transcribeToWords(
     onTranscribeProgress,
   )
 
-  if (!result.chunks || result.chunks.length === 0) {
-    // No word timestamps from model — split text into approximate 3-word groups with estimated timing
-    const allWords = result.text.trim().split(/\s+/).filter(Boolean)
-    if (allWords.length === 0) return []
-    const wordsPerGroup = 3
-    const secsPerGroup = 2
-    const chunks: WordChunk[] = []
-    for (let i = 0; i < allWords.length; i += wordsPerGroup) {
-      const groupWords = allWords.slice(i, i + wordsPerGroup)
-      const groupIndex = Math.floor(i / wordsPerGroup)
-      chunks.push({
-        text: groupWords.join(' '),
-        start: groupIndex * secsPerGroup,
-        end: (groupIndex + 1) * secsPerGroup,
-      })
-    }
-    return chunks
-  }
-
-  return result.chunks
-    .filter((c) => c.text.trim().length > 0)
-    .map((c) => ({
-      text: c.text.trim(),
-      start: c.timestamp?.[0] ?? 0,
-      end: c.timestamp?.[1] ?? 0,
-    }))
+  return wordsFromTranscription(result)
 }

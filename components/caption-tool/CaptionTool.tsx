@@ -1,16 +1,45 @@
 'use client'
 
-import { useState, useCallback, useMemo, useEffect } from 'react'
-import { Download, RefreshCcw } from 'lucide-react'
-import type { WordChunk, CaptionOptions } from '@/lib/converters/caption-types'
-import { DEFAULT_CAPTION_OPTIONS } from '@/lib/converters/caption-types'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
+import { Download, RefreshCcw, FileDown, FileUp } from 'lucide-react'
+import type { WordChunk, CaptionOptions, CaptionStyleId } from '@/lib/converters/caption-types'
+import { DEFAULT_CAPTION_OPTIONS, STYLE_PRESETS } from '@/lib/converters/caption-types'
+import type { CaptionQuality } from '@/lib/converters/caption-transcribe'
 import { Dropzone } from '@/components/tool-shell/dropzone'
 import { CaptionStylePicker } from './CaptionStylePicker'
 import { CaptionFontPanel } from './CaptionFontPanel'
 import { CaptionEditor } from './CaptionEditor'
 import { CaptionPreview } from './CaptionPreview'
+import { downloadFile, formatBytes } from '@/lib/utils/download'
 
-type Phase = 'idle' | 'transcribing' | 'edit' | 'burning' | 'done'
+type Phase = 'idle' | 'ready' | 'transcribing' | 'edit' | 'burning' | 'done'
+
+const QUALITY_OPTIONS: { value: CaptionQuality; label: string; hint: string }[] = [
+  { value: 'fast', label: 'Fast', hint: 'Whisper Tiny · ~40 MB · quickest' },
+  { value: 'balanced', label: 'Balanced', hint: 'Whisper Base · ~74 MB · recommended' },
+  { value: 'accurate', label: 'Accurate', hint: 'Whisper Turbo/Small · larger · best quality' },
+]
+
+const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
+  { value: 'en', label: 'English' },
+  { value: '', label: 'Auto-detect' },
+  { value: 'es', label: 'Spanish' },
+  { value: 'fr', label: 'French' },
+  { value: 'de', label: 'German' },
+  { value: 'ja', label: 'Japanese' },
+  { value: 'pt', label: 'Portuguese' },
+  { value: 'ar', label: 'Arabic' },
+  { value: 'hi', label: 'Hindi' },
+  { value: 'zh', label: 'Chinese' },
+  { value: 'ru', label: 'Russian' },
+  { value: 'ko', label: 'Korean' },
+]
+
+const MODEL_SIZE: Record<CaptionQuality, string> = {
+  fast: '~40 MB',
+  balanced: '~74 MB',
+  accurate: 'a larger model',
+}
 
 function getVideoDimensions(file: File): Promise<{ width: number; height: number }> {
   return new Promise((resolve) => {
@@ -34,6 +63,10 @@ function smartMaxChars(videoWidth: number, fontSize: number): number {
 
 const VIDEO_ACCEPTS = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/x-matroska']
 const VIDEO_EXTS = ['.mp4', '.mov', '.webm', '.avi', '.mkv']
+
+function baseName(name: string): string {
+  return name.replace(/\.[^.]+$/, '')
+}
 
 function DonePanel({ resultFile, onReset }: { resultFile: File; onReset: () => void }) {
   const downloadUrl = useMemo(() => URL.createObjectURL(resultFile), [resultFile])
@@ -69,36 +102,45 @@ export function CaptionTool() {
   const [error, setError] = useState<string | null>(null)
   const [activeWordIdx, setActiveWordIdx] = useState(0)
   const [videoDims, setVideoDims] = useState<{ width: number; height: number } | null>(null)
+  const [quality, setQuality] = useState<CaptionQuality>('balanced')
+  const [language, setLanguage] = useState('en')
+  const [timestampsEstimated, setTimestampsEstimated] = useState(false)
+  const importRef = useRef<HTMLInputElement>(null)
 
-  const handleDrop = useCallback(async (files: File[]) => {
-    if (!files.length) return
-    const file = files[0]
+  const applyVideoFile = useCallback((file: File) => {
     setVideoFile(file)
-    setPhase('transcribing')
-
-    // Detect dimensions so the ASS subtitle file uses the correct PlayRes and
-    // the initial maxCharsPerLine fits the actual screen width.
+    setWords([])
+    setResultFile(null)
+    setTimestampsEstimated(false)
+    setError(null)
+    setPhase('ready')
     getVideoDimensions(file).then((dims) => {
       setVideoDims(dims)
       setOptions((prev) => ({ ...prev, maxCharsPerLine: smartMaxChars(dims.width, prev.fontSize) }))
     })
-    setProgress(0)
-    setError(null)
-    setStatusText('Downloading Whisper model (one-time, ~40 MB)…')
-
-    // Warm the burn-time ffmpeg core in the background while transcription
-    // runs. Transcription takes 30s+; without this preload the user waits
-    // another ~5-10s after clicking Burn just for the ffmpeg core to load.
     import('@/lib/converters/ffmpeg-client').then(({ getSingleThreadFFmpeg }) => {
       getSingleThreadFFmpeg().catch(() => { /* burn click will surface errors */ })
     })
+  }, [])
+
+  const handleDrop = useCallback((files: File[]) => {
+    if (!files.length) return
+    applyVideoFile(files[0])
+  }, [applyVideoFile])
+
+  const handleTranscribe = useCallback(async () => {
+    if (!videoFile) return
+    setPhase('transcribing')
+    setProgress(0)
+    setError(null)
+    setStatusText(`Downloading Whisper model (one-time, ${MODEL_SIZE[quality]})…`)
 
     try {
       const { transcribeToWords } = await import('@/lib/converters/caption-transcribe')
       const result = await transcribeToWords(
-        file,
-        'balanced',
-        null,
+        videoFile,
+        quality,
+        language || null,
         (pct) => {
           setProgress(Math.round(pct * 0.5))
           if (pct < 100) setStatusText(`Downloading Whisper model… ${pct}%`)
@@ -106,16 +148,44 @@ export function CaptionTool() {
         },
         (pct) => setProgress(50 + Math.round(pct * 0.5)),
       )
-      setWords(result)
+      if (result.words.length === 0) {
+        setError('No speech detected. Try Accurate, set the language, or import an SRT/VTT.')
+        setPhase('ready')
+        return
+      }
+      setWords(result.words)
+      setTimestampsEstimated(result.timestampsEstimated)
       setPhase('edit')
     } catch (err) {
       setError(err instanceof Error ? err.message : (err != null ? String(err) : 'Transcription failed'))
-      setPhase('idle')
+      setPhase('ready')
+    }
+  }, [videoFile, quality, language])
+
+  const handleImportFile = useCallback(async (file: File) => {
+    try {
+      const text = await file.text()
+      const { parseSubtitleText } = await import('@/lib/converters/caption-subtitles')
+      const imported = parseSubtitleText(text)
+      setWords(imported)
+      setTimestampsEstimated(false)
+      setError(null)
+      setPhase('edit')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not read that subtitle file.')
     }
   }, [])
 
+  const handleExport = useCallback(async (format: 'srt' | 'vtt') => {
+    if (words.length === 0 || !videoFile) return
+    const { buildCaptionSRT, buildCaptionVTT } = await import('@/lib/converters/caption-subtitles')
+    const text = format === 'srt' ? buildCaptionSRT(words) : buildCaptionVTT(words)
+    const mime = format === 'srt' ? 'application/x-subrip' : 'text/vtt'
+    downloadFile(new File([text], `${baseName(videoFile.name)}.${format}`, { type: mime }))
+  }, [words, videoFile])
+
   const handleBurn = useCallback(async () => {
-    if (!videoFile || words.length === 0) return
+    if (!videoFile || words.length === 0 || timestampsEstimated) return
     setPhase('burning')
     setProgress(0)
     setStatusText('Preparing ffmpeg…')
@@ -146,7 +216,7 @@ export function CaptionTool() {
       setError(err instanceof Error ? err.message : (err != null ? String(err) : 'Burn failed'))
       setPhase('edit')
     }
-  }, [videoFile, words, options, videoDims])
+  }, [videoFile, words, options, videoDims, timestampsEstimated])
 
   function handleReset() {
     setPhase('idle')
@@ -155,6 +225,7 @@ export function CaptionTool() {
     setResultFile(null)
     setProgress(0)
     setError(null)
+    setTimestampsEstimated(false)
   }
 
   function handleTimeUpdate(time: number) {
@@ -165,6 +236,24 @@ export function CaptionTool() {
   function patchOptions(patch: Partial<CaptionOptions>) {
     setOptions((prev) => ({ ...prev, ...patch }))
   }
+
+  function handleStyleChange(styleId: CaptionStyleId) {
+    patchOptions({ styleId, ...STYLE_PRESETS[styleId] })
+  }
+
+  const importInput = (
+    <input
+      ref={importRef}
+      type="file"
+      accept=".srt,.vtt,text/vtt,application/x-subrip"
+      className="hidden"
+      onChange={(e) => {
+        const file = e.target.files?.[0]
+        e.target.value = ''
+        if (file) void handleImportFile(file)
+      }}
+    />
+  )
 
   if (phase === 'idle') {
     return (
@@ -180,6 +269,87 @@ export function CaptionTool() {
           </p>
         )}
       </>
+    )
+  }
+
+  if (phase === 'ready' && videoFile) {
+    return (
+      <div className="space-y-4">
+        {importInput}
+        <div className="rounded-xl border border-border bg-bg p-4">
+          <p className="text-sm font-medium text-fg">{videoFile.name}</p>
+          <p className="mt-0.5 text-xs text-fg-muted">{formatBytes(videoFile.size)}</p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="caption-quality" className="mb-1.5 block text-sm font-medium text-fg">
+              Transcription quality
+            </label>
+            <select
+              id="caption-quality"
+              value={quality}
+              onChange={(e) => setQuality(e.target.value as CaptionQuality)}
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              {QUALITY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label} — {opt.hint}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label htmlFor="caption-language" className="mb-1.5 block text-sm font-medium text-fg">
+              Language
+            </label>
+            <select
+              id="caption-language"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary/50"
+            >
+              {LANGUAGE_OPTIONS.map((opt) => (
+                <option key={opt.value || 'auto'} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <p className="text-xs text-fg-muted">
+          Set the spoken language for better accuracy. Or skip Whisper and import an existing SRT or VTT.
+        </p>
+
+        {error && (
+          <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>
+        )}
+
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+          <button type="button" onClick={handleReset} className="flex items-center gap-2 text-sm text-fg-muted hover:text-fg">
+            <RefreshCcw className="h-3.5 w-3.5" />
+            Start over
+          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => importRef.current?.click()}
+              className="flex items-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-fg hover:bg-bg-muted"
+            >
+              <FileUp className="h-4 w-4" />
+              Import SRT / VTT
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleTranscribe()}
+              className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/90"
+            >
+              Transcribe
+            </button>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -205,6 +375,7 @@ export function CaptionTool() {
 
   return (
     <div className="space-y-6">
+      {importInput}
       {videoFile && (
         <CaptionPreview
           videoFile={videoFile}
@@ -214,9 +385,15 @@ export function CaptionTool() {
         />
       )}
 
+      {timestampsEstimated && (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+          Whisper returned text but no word timings. Import an SRT/VTT to place captions, or transcribe again with a different quality.
+        </p>
+      )}
+
       <CaptionStylePicker
         value={options.styleId}
-        onChange={(styleId) => patchOptions({ styleId })}
+        onChange={handleStyleChange}
       />
 
       <CaptionFontPanel options={options} onChange={patchOptions} />
@@ -226,6 +403,35 @@ export function CaptionTool() {
         activeIndex={activeWordIdx}
         onChange={setWords}
       />
+
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => importRef.current?.click()}
+          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-fg hover:bg-bg-muted"
+        >
+          <FileUp className="h-3.5 w-3.5" />
+          Import SRT / VTT
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleExport('srt')}
+          disabled={words.length === 0}
+          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
+        >
+          <FileDown className="h-3.5 w-3.5" />
+          Download SRT
+        </button>
+        <button
+          type="button"
+          onClick={() => void handleExport('vtt')}
+          disabled={words.length === 0}
+          className="flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
+        >
+          <FileDown className="h-3.5 w-3.5" />
+          Download VTT
+        </button>
+      </div>
 
       {error && (
         <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>
@@ -238,8 +444,8 @@ export function CaptionTool() {
         </button>
         <button
           type="button"
-          onClick={handleBurn}
-          disabled={words.length === 0}
+          onClick={() => void handleBurn()}
+          disabled={words.length === 0 || timestampsEstimated}
           className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
         >
           Burn Captions into Video

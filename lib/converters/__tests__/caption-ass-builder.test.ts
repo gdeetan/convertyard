@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildASS, hexToASS, toASSTime, groupWordsIntoLines } from '../caption-ass-builder'
 import type { WordChunk } from '../caption-types'
-import { DEFAULT_CAPTION_OPTIONS } from '../caption-types'
+import { DEFAULT_CAPTION_OPTIONS, STYLE_PRESETS } from '../caption-types'
 
 const words: WordChunk[] = [
   { text: 'Hello', start: 0.0, end: 0.4 },
@@ -82,5 +82,41 @@ describe('buildASS - uppercase', () => {
     const ass = buildASS(words, { ...DEFAULT_CAPTION_OPTIONS, styleId: 'classic', uppercase: true })
     expect(ass).toContain('HELLO')
     expect(ass).not.toContain('Hello')
+  })
+})
+
+function styleOutline(ass: string): string {
+  const line = ass.split('\n').find((l) => l.startsWith('Style: Default,'))
+  if (!line) throw new Error('missing style line')
+  // Name, Fontname, Fontsize, Primary, Secondary, OutlineColour, Back, Bold,
+  // Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline
+  return line.split(',')[16]
+}
+
+function styleAlignment(ass: string): string {
+  const line = ass.split('\n').find((l) => l.startsWith('Style: Default,'))
+  if (!line) throw new Error('missing style line')
+  return line.split(',')[18]
+}
+
+describe('buildASS - outline and position match options', () => {
+  it('uses the outlineWidth slider for stroke styles', () => {
+    const ass = buildASS(words, { ...DEFAULT_CAPTION_OPTIONS, styleId: 'mrbeast', outlineWidth: 8 })
+    expect(styleOutline(ass)).toBe('8')
+  })
+
+  it('does not let the slider override Netflix box padding', () => {
+    const ass = buildASS(words, { ...DEFAULT_CAPTION_OPTIONS, styleId: 'netflix', outlineWidth: 0 })
+    expect(styleOutline(ass)).toBe('10')
+  })
+
+  it('centers Mr. Beast / TikTok when position is center', () => {
+    const ass = buildASS(words, { ...DEFAULT_CAPTION_OPTIONS, styleId: 'tiktok', position: 'center' })
+    expect(styleAlignment(ass)).toBe('5')
+  })
+
+  it('applies TikTok preset as all-caps, centered, heavy outline', () => {
+    expect(STYLE_PRESETS.tiktok).toEqual({ position: 'center', uppercase: true, outlineWidth: 6 })
+    expect(DEFAULT_CAPTION_OPTIONS.position).toBe('center')
   })
 })

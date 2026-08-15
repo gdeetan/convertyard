@@ -9,7 +9,11 @@ export const faq: FAQItem[] = [
   },
   {
     q: 'How accurate is the auto-transcription?',
-    a: 'Transcription uses OpenAI\'s Whisper model (the "balanced" preset is Whisper Base at ~74 MB). Accuracy is good for clear speech in English and many other languages, but it makes mistakes — especially with names, technical terms, accents, and background noise. Always review the transcript before burning.',
+    a: 'Set the spoken language before transcribing — that is the biggest accuracy win. Fast uses Whisper Tiny (~40 MB), Balanced uses Base (~74 MB), and Accurate tries Turbo then Small. All three still stumble on names, jargon, accents, and noise. Review the transcript, or import an SRT/VTT you already trust.',
+  },
+  {
+    q: 'Can I import or export SRT and VTT?',
+    a: 'Yes. After you drop a video you can import an existing SRT or VTT and skip Whisper entirely. After editing you can download SRT or VTT without burning captions into the file — useful for YouTube and players that read sidecar subtitles.',
   },
   {
     q: 'What is the Mr. Beast caption style?',
