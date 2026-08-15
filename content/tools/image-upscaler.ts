@@ -5,7 +5,7 @@ export const config: ToolConfig = {
   slug: 'image-upscaler',
   title: 'AI Image Upscaler',
   subtitle:
-    'Enlarge photos 2×–8× with Real-ESRGAN in your browser. Graphics use Lanczos resize, not a neural net. No upload, no account.',
+    'Enlarge photos and illustrations 2×–8× in your browser. Logos can stay on Lanczos. No upload, no account.',
   bestFor:
     'Best for enlarging product photos and web images at 2×–4×. Not a replacement for desktop print tools.',
   category: 'ai',
@@ -36,7 +36,7 @@ export const config: ToolConfig = {
 
   limitationNote: {
     summary: 'Sharper than a normal resize — not a desktop upscaler',
-    body: 'On GPU browsers, photos at 4× run Real-ESRGAN general v3 (~5 MB). Other browsers use Swin2SR, with a separate compressed-JPEG model. 2× is always Swin2SR. It does not denoise, recover faces, or match desktop tools such as Topaz Photo AI. Graphic / logo mode is Lanczos resize plus light sharpen — no neural net.',
+    body: 'On GPU browsers, photos at 4× run Real-ESRGAN general v3 (~5 MB). Illustrations, badges, and line art use RealESR AnimeVideo v3 (~2.5 MB). Other browsers use Swin2SR for photos and Lanczos for illustrations. 2× photos always use Swin2SR. It does not denoise, recover faces, or match desktop tools such as Topaz Photo AI. Graphic / logo mode is Lanczos resize plus light sharpen — no neural net.',
   },
 
   options: [
@@ -61,12 +61,14 @@ export const config: ToolConfig = {
       choices: [
         { value: 'auto', label: 'Auto-detect' },
         { value: 'photo', label: 'Photo (AI)' },
+        { value: 'illustration', label: 'Illustration (AI)' },
         { value: 'graphic', label: 'Graphic / logo (Lanczos)' },
       ],
       conditionalHints: {
-        auto: 'Detects photo vs graphic from colour count and flat areas. Override if it guesses wrong.',
+        auto: 'Photos use the photo model. Icons, badges, comics, and other 2D files use Illustration. Override if it guesses wrong.',
         photo: '4× uses Real-ESRGAN v3 on GPU browsers, Swin2SR otherwise. 2× always uses Swin2SR. Compressed JPEGs get a different 2× model when auto-detected.',
-        graphic: 'Lanczos resize plus light sharpen. No neural net. Use for logos, UI, and flat-colour graphics.',
+        illustration: 'RealESR AnimeVideo v3 on GPU browsers — linework and flat colour. Falls back to Lanczos if WebGPU is unavailable. Can halo small type.',
+        graphic: 'Lanczos resize plus light sharpen. No neural net. Use for wordmarks and UI if Illustration looks wrong.',
       },
     },
     {
@@ -86,15 +88,15 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my images uploaded to run the upscaler?',
-      a: 'No. Photos are upscaled in your browser. Nothing is sent to a server. GPU browsers download Real-ESRGAN v3 (~5 MB) for 4×; other browsers use Swin2SR (~20 MB). Models cache after the first load.',
+      a: 'No. Files are upscaled in your browser. Nothing is sent to a server. GPU browsers download Real-ESRGAN v3 (~5 MB) for photos and AnimeVideo v3 (~2.5 MB) for illustrations; other browsers use Swin2SR for photos and Lanczos for illustrations. Models cache after the first load.',
     },
     {
-      q: 'What does Photo vs Graphic actually do?',
-      a: 'Photo runs an AI super-resolution model: Real-ESRGAN v3 at 4× (and as the first hop of 3×/8×), Swin2SR at 2×. Graphic / logo skips the model and uses Lanczos resize plus a light unsharp mask — the right choice for logos, UI, and flat-colour graphics, and not an illustration AI. Auto-detect picks from colour variety and flat patches; override it if the guess is wrong.',
+      q: 'What do Photo, Illustration, and Graphic actually do?',
+      a: 'Photo runs Real-ESRGAN v3 at 4× (Swin2SR at 2×, or as a fallback). Illustration runs RealESR AnimeVideo v3 — better for line art, badges, comics, and flat colour. Graphic / logo is Lanczos plus a light unsharp, with no neural net. Auto-detect sends few-colour / flat-patch files to Illustration; pick Graphic if the model halos type or a wordmark.',
     },
     {
       q: 'Is this better than a standard resize?',
-      a: 'On photographs, usually yes at 2×–4×. A normal resize interpolates pixels and looks soft. Real-ESRGAN reconstructs edges and some texture. It is not as sharp or detailed as desktop tools that use larger models, and it does not recover faces or strip noise first. On graphics, this tool already is a standard (Lanczos) resize.',
+      a: 'On photographs and 2D art, usually yes at 2×–4×. A normal resize interpolates pixels and looks soft. The photo and illustration models reconstruct edges. They are not as sharp as desktop tools that use larger models, and they do not recover faces or strip noise first. Graphic / logo mode is a standard (Lanczos) resize.',
     },
     {
       q: 'How does this compare to Topaz or other desktop upscalers?',
@@ -102,11 +104,11 @@ export const config: ToolConfig = {
     },
     {
       q: 'Which scale should I pick?',
-      a: '4× is the usual balance of quality and time. Use 2× for a small bump or a faster result. 3× runs the 4× model and then Lanczos-downsamples. 8× runs Real-ESRGAN 4× then Swin2SR 2× — much slower, much larger files, and more likely to hit browser memory limits.',
+      a: '4× is the usual balance of quality and time. Use 2× for a small bump or a faster result. 3× runs the 4× model and then Lanczos-downsamples. Photo 8× runs Real-ESRGAN 4× then Swin2SR 2×. Illustration 8× runs AnimeVideo 4× then Lanczos — much slower, much larger files, and more likely to hit browser memory limits.',
     },
     {
       q: 'What types of images produce poor results?',
-      a: 'Portraits (no face-recovery pass), noisy or low-light photos, old scans, painted illustrations, line art, and anything under about 50 px on a side. Very large sources (above ~4000×4000 px) may fail or get pre-shrunk to fit the browser canvas limit.',
+      a: 'Portraits (no face-recovery pass), noisy or low-light photos, old scans, and anything under about 50 px on a side. Illustration mode can halo tiny type on logos — switch to Graphic / logo if that happens. Very large sources (above ~4000×4000 px) may fail or get pre-shrunk to fit the browser canvas limit.',
     },
     {
       q: 'What scale should I use for printing?',
@@ -124,6 +126,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'AI Image Upscaler — ConvertYard',
     description:
-      'Upscale photos 2×–8× with on-device Real-ESRGAN in your browser. Graphics use Lanczos, not a neural net. No upload, no account. Batch 1,000 files.',
+      'Upscale photos and illustrations 2×–8× with on-device Real-ESRGAN in your browser. No upload, no account. Batch 1,000 files.',
   },
 }

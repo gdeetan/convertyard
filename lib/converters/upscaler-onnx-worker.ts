@@ -6,14 +6,17 @@
 
 import { GaussianAccumulator, detectFlatOutputMismatch, nchwFloat01ToRgba, rgbaToNchwFloat01 } from './upscaler-render'
 import {
-  REALESRGAN_HF_URL,
-  REALESRGAN_LOCAL_URL,
+  REALESRGAN_ANIME_X4,
+  REALESRGAN_SOURCES,
+  REALESRGAN_X4,
   type ModelChain,
   type OnnxDevice,
   type PhotoMode,
   type UpscaleScale,
   blobEncodeOptions,
+  illustrationRouting,
   modelRouting,
+  resolveImageMode,
   swin2srFallbackRouting,
   tileSettings,
 } from './upscaler-settings'
@@ -21,7 +24,7 @@ import {
 declare const __HF_TOKEN__: string
 
 export type { UpscaleScale }
-export type ImageMode = 'auto' | 'photo' | 'photo-compressed' | 'graphic'
+export type ImageMode = 'auto' | 'photo' | 'photo-compressed' | 'graphic' | 'illustration'
 
 interface LoadMsg  { type: 'load';  scale: UpscaleScale }
 interface InferMsg {
@@ -101,7 +104,11 @@ async function getPipeline(modelId: string, scale: UpscaleScale, device: OnnxDev
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const realesrganSessions = new Map<OnnxDevice, Promise<any>>()
+const realesrganSessions = new Map<string, Promise<any>>()
+
+function realesrganKey(modelId: string, device: OnnxDevice) {
+  return `${modelId}::${device}`
+}
 
 function uniqueChains(chains: ModelChain[]): ModelChain[] {
   return chains.filter((c, i) => chains.findIndex((x) => x.modelId === c.modelId) === i)
@@ -122,10 +129,12 @@ async function getOrt() {
   return api
 }
 
-async function createRealesrganSession(device: OnnxDevice, scale: UpscaleScale) {
+async function createRealesrganSession(device: OnnxDevice, scale: UpscaleScale, modelId: string) {
+  const source = REALESRGAN_SOURCES[modelId]
+  if (!source) throw new Error(`Unknown Real-ESRGAN model: ${modelId}`)
   self.postMessage({ type: 'model-progress', scale, progress: 20 })
   let buffer: ArrayBuffer | null = null
-  for (const url of [REALESRGAN_LOCAL_URL, REALESRGAN_HF_URL]) {
+  for (const url of [source.local, source.remote]) {
     try {
       const res = await fetch(url)
       if (res.ok) {
@@ -136,7 +145,7 @@ async function createRealesrganSession(device: OnnxDevice, scale: UpscaleScale) 
       /* try next source */
     }
   }
-  if (!buffer) throw new Error('Failed to download Real-ESRGAN v3 model')
+  if (!buffer) throw new Error(source.fail)
 
   self.postMessage({ type: 'model-progress', scale, progress: 70 })
   const ort = await getOrt()
@@ -148,15 +157,16 @@ async function createRealesrganSession(device: OnnxDevice, scale: UpscaleScale) 
   return session
 }
 
-async function ensureRealesrgan(device: OnnxDevice, scale: UpscaleScale) {
-  const cached = realesrganSessions.get(device)
+async function ensureRealesrgan(device: OnnxDevice, scale: UpscaleScale, modelId: string = REALESRGAN_X4) {
+  const key = realesrganKey(modelId, device)
+  const cached = realesrganSessions.get(key)
   if (cached) return cached
-  const p = createRealesrganSession(device, scale)
-  realesrganSessions.set(device, p)
+  const p = createRealesrganSession(device, scale, modelId)
+  realesrganSessions.set(key, p)
   try {
     return await p
   } catch (err) {
-    realesrganSessions.delete(device)
+    realesrganSessions.delete(key)
     throw err
   }
 }
@@ -164,7 +174,7 @@ async function ensureRealesrgan(device: OnnxDevice, scale: UpscaleScale) {
 async function loadChains(chains: ModelChain[], device: OnnxDevice, scale: UpscaleScale) {
   for (const chain of uniqueChains(chains)) {
     if (chain.kind === 'realesrgan') {
-      await ensureRealesrgan(device, scale)
+      await ensureRealesrgan(device, scale, chain.modelId)
     } else {
       const cacheKey = `${chain.modelId}::${device}`
       if (!pipelineCache.has(cacheKey)) {
@@ -177,8 +187,10 @@ async function loadChains(chains: ModelChain[], device: OnnxDevice, scale: Upsca
 function dropDeviceCaches(chains: ModelChain[], device: OnnxDevice) {
   for (const chain of uniqueChains(chains)) {
     pipelineCache.delete(`${chain.modelId}::${device}`)
+    if (chain.kind === 'realesrgan') {
+      realesrganSessions.delete(realesrganKey(chain.modelId, device))
+    }
   }
-  realesrganSessions.delete(device)
 }
 
 // ── Model load (warm-up) ───────────────────────────────────────────────────────
@@ -381,7 +393,8 @@ async function inferRealesrganTile(
   extW: number,
   extH: number,
   tileRgba: Uint8ClampedArray,
-  id: string
+  id: string,
+  modelId: string = REALESRGAN_X4
 ): Promise<{ rgba: Uint8ClampedArray; width: number; height: number }> {
   const ort = await getOrt()
 
@@ -390,25 +403,25 @@ async function inferRealesrganTile(
 
   while (deviceIdx < deviceOrder.length) {
     const device = deviceOrder[deviceIdx]
-    const session = await ensureRealesrgan(device, '4x')
+    const session = await ensureRealesrgan(device, '4x', modelId)
     const inputName = session.inputNames[0] as string
     const outputName = session.outputNames[0] as string
     self.postMessage({
       type: 'log',
       id,
-      message: `Real-ESRGAN tile ${extW}×${extH} on ${device} in=${inputName} out=${outputName}`,
+      message: `Real-ESRGAN ${modelId} tile ${extW}×${extH} on ${device} in=${inputName} out=${outputName}`,
     })
     const tensor = new ort.Tensor('float32', rgbaToNchwFloat01(tileRgba, extW, extH), [1, 3, extH, extW])
     let out: Record<string, { data: ArrayLike<number> }>
     try {
-      out = await withTimeout(session.run({ [inputName]: tensor }), 45_000, `realesrgan-run:${device}`)
+      out = await withTimeout(session.run({ [inputName]: tensor }), 90_000, `realesrgan-run:${modelId}:${device}`)
     } catch (err) {
       self.postMessage({
         type: 'log',
         id,
         message: `Real-ESRGAN run failed on ${device}: ${(err as Error).message}`,
       })
-      realesrganSessions.delete(device)
+      realesrganSessions.delete(realesrganKey(modelId, device))
       if (deviceIdx + 1 >= deviceOrder.length) {
         throw new Error(`Real-ESRGAN run failed on ${device}: ${(err as Error).message}`)
       }
@@ -438,7 +451,7 @@ async function inferRealesrganTile(
 
     const nextDevice = deviceOrder[deviceIdx + 1]
     self.postMessage({ type: 'log', id, message: `Blank Real-ESRGAN tile on ${device}, retrying with ${nextDevice}` })
-    realesrganSessions.delete(device)
+    realesrganSessions.delete(realesrganKey(modelId, device))
     await clearPipelineCache()
     activeDevice = nextDevice
     deviceIdx++
@@ -712,7 +725,7 @@ async function runOnnxTiling(
       const tileData = tileCanvas.getContext('2d')!.getImageData(0, 0, extW, extH)
 
       const result = chain.kind === 'realesrgan'
-        ? await inferRealesrganTile(extW, extH, tileData.data, id)
+        ? await inferRealesrganTile(extW, extH, tileData.data, id, chain.modelId)
         : await inferSwinTile(chain.modelId, extW, extH, tileData.data, id)
 
       // Validate tile output shape
@@ -789,35 +802,87 @@ async function runInference(
       })
     }
 
-    // Resolve image mode
-    const resolvedMode: 'photo' | 'photo-compressed' | 'graphic' =
-      imageMode === 'auto' ? detectImageMode(workBitmap) :
-      imageMode === 'photo-compressed' ? 'photo-compressed' :
-      imageMode === 'graphic' ? 'graphic' : 'photo'
+    const detected = imageMode === 'auto' ? detectImageMode(workBitmap) : undefined
+    const resolvedMode = resolveImageMode(imageMode, detected)
 
-    self.postMessage({ type: 'log', id, message: `Image mode: ${resolvedMode}${imageMode === 'auto' ? ' (auto-detected)' : ''}` })
+    self.postMessage({
+      type: 'log',
+      id,
+      message: `Image mode: ${resolvedMode}${imageMode === 'auto' ? ` (auto-detected from ${detected})` : ''}`,
+    })
 
-    // ── Graphic path ───────────────────────────────────────────────────────────
-    if (resolvedMode === 'graphic') {
-      const rawOutW = srcW * scaleFactor
-      const rawOutH = srcH * scaleFactor
-      const capRatio = Math.min(1, MAX_GRAPHIC_DIM / rawOutW, MAX_GRAPHIC_DIM / rawOutH)
-      const capW = Math.round(rawOutW * capRatio)
-      const capH = Math.round(rawOutH * capRatio)
-      if (capRatio < 1) {
-        self.postMessage({ type: 'log', id, message: `Graphic: capping output ${rawOutW}×${rawOutH} → ${capW}×${capH}` })
-      }
-      const out = await graphicScale(
-        bitmap,
-        capW,
-        capH,
-        (pct) => self.postMessage({ type: 'infer-progress', id, progress: pct })
-      )
+    const emitCanvas = async (out: OffscreenCanvas) => {
       self.postMessage({ type: 'infer-progress', id, progress: 95 })
       const resultBlob   = await out.convertToBlob(blobEncodeOptions(outMime))
       const resultBuffer = await resultBlob.arrayBuffer()
       self.postMessage({ type: 'infer-progress', id, progress: 100 })
       self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
+    }
+
+    const emitLanczos = async (src: ImageBitmap, label: string) => {
+      const rawOutW = src.width * scaleFactor
+      const rawOutH = src.height * scaleFactor
+      const capRatio = Math.min(1, MAX_GRAPHIC_DIM / rawOutW, MAX_GRAPHIC_DIM / rawOutH)
+      const capW = Math.round(rawOutW * capRatio)
+      const capH = Math.round(rawOutH * capRatio)
+      if (capRatio < 1) {
+        self.postMessage({ type: 'log', id, message: `${label}: capping output ${rawOutW}×${rawOutH} → ${capW}×${capH}` })
+      }
+      const out = await graphicScale(
+        src,
+        capW,
+        capH,
+        (pct) => self.postMessage({ type: 'infer-progress', id, progress: pct })
+      )
+      await emitCanvas(out)
+    }
+
+    // ── Illustration path (2D model; Lanczos if WebGPU/model fails) ───────────
+    if (resolvedMode === 'illustration') {
+      try {
+        if (!(await webgpuUsable())) throw new Error('No WebGPU for illustration model')
+        await withTimeout(
+          ensureRealesrgan('webgpu', scale, REALESRGAN_ANIME_X4),
+          15_000,
+          'illustration-webgpu'
+        )
+        activeDevice = 'webgpu'
+        self.postMessage({ type: 'infer-progress', id, progress: 10 })
+        const routing = illustrationRouting(scale)
+        const tileCanvas = await runOnnxTiling(
+          id,
+          workBitmap,
+          routing.chains[0],
+          (done, total) => {
+            const pct = 10 + (done / total) * 75
+            self.postMessage({ type: 'infer-progress', id, progress: Math.round(pct) })
+          }
+        )
+        const targetW = Math.round(workW * routing.actualScale)
+        const targetH = Math.round(workH * routing.actualScale)
+        if (tileCanvas.width !== targetW || tileCanvas.height !== targetH) {
+          const fourX = await createImageBitmap(tileCanvas)
+          const resized = await graphicScale(fourX, targetW, targetH, () => {}, { unsharp: false })
+          fourX.close()
+          await emitCanvas(resized)
+        } else {
+          await emitCanvas(tileCanvas)
+        }
+        return
+      } catch (err) {
+        self.postMessage({
+          type: 'log',
+          id,
+          message: `Illustration model failed, Lanczos fallback: ${(err as Error).message}`,
+        })
+        await emitLanczos(bitmap, 'Illustration fallback')
+        return
+      }
+    }
+
+    // ── Graphic path ───────────────────────────────────────────────────────────
+    if (resolvedMode === 'graphic') {
+      await emitLanczos(bitmap, 'Graphic')
       return
     }
 

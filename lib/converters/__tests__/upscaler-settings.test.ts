@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  REALESRGAN_ANIME_X4,
   REALESRGAN_X4,
   SWIN2SR_CLASSICAL_X2,
   SWIN2SR_COMPRESSED_X2,
   SWIN2SR_REALWORLD_X4,
   blobEncodeOptions,
+  illustrationRouting,
   modelRouting,
+  resolveImageMode,
   swin2srFallbackRouting,
   tileSettings,
 } from '../upscaler-settings'
@@ -76,5 +79,32 @@ describe('swin2srFallbackRouting', () => {
   it('still splits 2× clean vs compressed', () => {
     expect(swin2srFallbackRouting('2x', 'photo').chains[0]?.modelId).toBe(SWIN2SR_CLASSICAL_X2)
     expect(swin2srFallbackRouting('2x', 'photo-compressed').chains[0]?.modelId).toBe(SWIN2SR_COMPRESSED_X2)
+  })
+})
+
+describe('resolveImageMode', () => {
+  it('sends auto-detected graphics to illustration, not Lanczos', () => {
+    expect(resolveImageMode('auto', 'graphic')).toBe('illustration')
+    expect(resolveImageMode('auto', 'photo')).toBe('photo')
+    expect(resolveImageMode('auto', 'photo-compressed')).toBe('photo-compressed')
+  })
+
+  it('keeps explicit Graphic on Lanczos and Illustration on the 2D model', () => {
+    expect(resolveImageMode('graphic')).toBe('graphic')
+    expect(resolveImageMode('illustration')).toBe('illustration')
+    expect(resolveImageMode('photo')).toBe('photo')
+  })
+})
+
+describe('illustrationRouting', () => {
+  it('uses AnimeVideo v3 at 4× for every scale; extra scale is Lanczos after', () => {
+    for (const scale of ['2x', '3x', '4x', '8x'] as const) {
+      expect(illustrationRouting(scale).chains).toEqual([
+        { modelId: REALESRGAN_ANIME_X4, scale: 4, kind: 'realesrgan' },
+      ])
+    }
+    expect(illustrationRouting('2x').actualScale).toBe(2)
+    expect(illustrationRouting('4x').actualScale).toBe(4)
+    expect(illustrationRouting('8x').actualScale).toBe(8)
   })
 })
