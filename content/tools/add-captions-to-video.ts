@@ -9,7 +9,7 @@ export const faq: FAQItem[] = [
   },
   {
     q: 'How accurate is the auto-transcription?',
-    a: 'Set the spoken language before transcribing — that is the biggest accuracy win. Fast uses Whisper Tiny (~40 MB), Balanced uses Base (~74 MB), and Accurate tries Turbo then Small. All three still stumble on names, jargon, accents, and noise. Review the transcript, or import an SRT/VTT you already trust.',
+    a: 'Set the spoken language before transcribing — that is the biggest accuracy win. Fast uses Whisper Tiny (~40 MB), Balanced uses Base (~74 MB), and Accurate uses Small (~244 MB). All three still stumble on names, jargon, accents, and noise. Review the transcript, or import an SRT/VTT you already trust.',
   },
   {
     q: 'Can I import or export SRT and VTT?',

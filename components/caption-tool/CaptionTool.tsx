@@ -13,6 +13,7 @@ import { CaptionPreview } from './CaptionPreview'
 import { downloadFile, formatBytes } from '@/lib/utils/download'
 import { captionWorkloadWarning } from '@/lib/converters/caption-workload'
 import { isCancelError } from '@/lib/converters/audio-decode'
+import { toTranscriptionUserMessage } from '@/lib/converters/transcription-errors'
 import { probeVideoDuration } from '@/lib/converters/media-probe'
 
 type Phase = 'idle' | 'ready' | 'transcribing' | 'edit' | 'burning' | 'done'
@@ -20,7 +21,7 @@ type Phase = 'idle' | 'ready' | 'transcribing' | 'edit' | 'burning' | 'done'
 const QUALITY_OPTIONS: { value: CaptionQuality; label: string; hint: string }[] = [
   { value: 'fast', label: 'Fast', hint: 'Whisper Tiny · ~40 MB · quickest' },
   { value: 'balanced', label: 'Balanced', hint: 'Whisper Base · ~74 MB · recommended' },
-  { value: 'accurate', label: 'Accurate', hint: 'Whisper Turbo/Small · larger · best quality' },
+  { value: 'accurate', label: 'Accurate', hint: 'Whisper Small · ~244 MB · best quality' },
 ]
 
 const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
@@ -41,7 +42,7 @@ const LANGUAGE_OPTIONS: { value: string; label: string }[] = [
 const MODEL_SIZE: Record<CaptionQuality, string> = {
   fast: '~40 MB',
   balanced: '~74 MB',
-  accurate: 'a larger model',
+  accurate: '~244 MB',
 }
 
 function getVideoDimensions(file: File): Promise<{ width: number; height: number }> {
@@ -203,7 +204,7 @@ export function CaptionTool() {
         setPhase('ready')
         return
       }
-      setError(err instanceof Error ? err.message : (err != null ? String(err) : 'Transcription failed'))
+      setError(toTranscriptionUserMessage(err))
       setPhase('ready')
     }
   }, [videoFile, quality, language])

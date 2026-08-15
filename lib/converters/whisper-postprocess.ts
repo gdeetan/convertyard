@@ -1,5 +1,29 @@
 export type WhisperQuality = 'fast' | 'balanced' | 'accurate'
 
+export interface ModelVariant {
+  modelId: string
+  dtype: 'fp32' | 'fp16' | 'int8' | 'q4' | 'q8'
+}
+
+/** Accurate uses Small, not Turbo — Turbo often OOMs and poisons the WASM heap. */
+export function modelVariantsForQuality(quality: WhisperQuality): ModelVariant[] {
+  switch (quality) {
+    case 'fast':
+      return [{ modelId: 'Xenova/whisper-tiny', dtype: 'fp32' }]
+    case 'balanced':
+      return [
+        { modelId: 'Xenova/whisper-base', dtype: 'fp32' },
+        { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
+      ]
+    case 'accurate':
+      return [
+        { modelId: 'Xenova/whisper-small', dtype: 'fp32' },
+        { modelId: 'Xenova/whisper-base', dtype: 'fp32' },
+        { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
+      ]
+  }
+}
+
 export interface WhisperChunk {
   text: string
   timestamp?: [number, number]

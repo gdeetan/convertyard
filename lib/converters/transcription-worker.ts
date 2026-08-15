@@ -13,6 +13,8 @@ import {
 import {
   decodeParamsForQuality,
   filterWhisperResult,
+  modelVariantsForQuality,
+  type ModelVariant,
   type WhisperQuality,
 } from './whisper-postprocess'
 
@@ -40,11 +42,6 @@ interface TranscribeMsg {
 
 type IncomingMsg = LoadMsg | TranscribeMsg
 
-interface ModelVariant {
-  modelId: string
-  dtype: 'fp32' | 'fp16' | 'int8' | 'q4' | 'q8'
-}
-
 interface ModelErrorMsg {
   type: 'error'
   id?: string
@@ -70,27 +67,6 @@ interface ModelReadyMsg {
 let whisperPipeline: any = null
 let loadedQuality: WhisperQuality | null = null
 let loadedVariant: ModelVariant | null = null
-
-// ── Model fallback mapping ────────────────────────────────────────────────────
-
-function modelVariantsForQuality(quality: WhisperQuality): ModelVariant[] {
-  switch (quality) {
-    case 'fast':
-      return [{ modelId: 'Xenova/whisper-tiny', dtype: 'fp32' }]
-    case 'balanced':
-      return [
-        { modelId: 'Xenova/whisper-base', dtype: 'fp32' },
-        { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
-      ]
-    case 'accurate':
-      return [
-        { modelId: 'onnx-community/whisper-large-v3-turbo', dtype: 'int8' },
-        { modelId: 'Xenova/whisper-small', dtype: 'fp32' },
-        { modelId: 'Xenova/whisper-base', dtype: 'fp32' },
-        { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
-      ]
-  }
-}
 
 // ── Aggregated download progress tracker ──────────────────────────────────────
 

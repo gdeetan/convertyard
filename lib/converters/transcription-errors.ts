@@ -90,6 +90,23 @@ export function classifyTranscriptionError(
   return error
 }
 
+export function isTranscriptionErrorShape(err: unknown): err is TranscriptionErrorShape {
+  return (
+    typeof err === 'object' &&
+    err !== null &&
+    'code' in err &&
+    'message' in err &&
+    typeof (err as { code: unknown }).code === 'string' &&
+    typeof (err as { message: unknown }).message === 'string'
+  )
+}
+
+/** Never return "[object Object]" — caption UI and the transcription page share this. */
+export function toTranscriptionUserMessage(err: unknown): string {
+  const shaped = isTranscriptionErrorShape(err) ? err : classifyTranscriptionError(err)
+  return formatTranscriptionError(shaped)
+}
+
 export function formatTranscriptionError(error: TranscriptionErrorShape): string {
   switch (error.code) {
     case 'MODEL_UNSUPPORTED_QUANTIZATION':

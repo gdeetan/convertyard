@@ -75,24 +75,40 @@ export function loadTranscriptionModel(
   const p = new Promise<void>((resolve, reject) => {
     const worker = getWorker()
 
+    const cleanup = () => {
+      worker.removeEventListener('message', handler)
+      worker.removeEventListener('error', errorHandler)
+    }
+
     const handler = (e: MessageEvent) => {
       const d = e.data
       if (d.type === 'model-progress' && d.quality === quality) {
         onProgress(d.progress as number)
       } else if (d.type === 'model-ready' && d.quality === quality) {
-        worker.removeEventListener('message', handler)
+        cleanup()
         modelReady[quality] = true
         delete loadingPromise[quality]
         onProgress(100)
         resolve()
       } else if (d.type === 'error' && !d.id) {
-        worker.removeEventListener('message', handler)
+        cleanup()
         delete loadingPromise[quality]
         reject(d.error as TranscriptionErrorShape)
       }
     }
 
+    const errorHandler = (e: ErrorEvent) => {
+      cleanup()
+      delete loadingPromise[quality]
+      abortTranscription()
+      reject(classifyTranscriptionError(e.message ?? 'Worker error', {
+        code: 'WORKER_INIT_FAILED',
+        phase: 'worker',
+      }))
+    }
+
     worker.addEventListener('message', handler)
+    worker.addEventListener('error', errorHandler, { once: true })
     worker.postMessage({ type: 'load', quality })
   })
 

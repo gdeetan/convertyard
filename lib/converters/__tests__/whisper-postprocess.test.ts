@@ -4,7 +4,16 @@ import {
   filterWhisperChunks,
   filterWhisperResult,
   dedupeStrideOverlaps,
+  modelVariantsForQuality,
 } from '../whisper-postprocess'
+
+describe('modelVariantsForQuality', () => {
+  it('uses whisper-small for accurate, not large-v3-turbo', () => {
+    const ids = modelVariantsForQuality('accurate').map((v) => v.modelId)
+    expect(ids[0]).toBe('Xenova/whisper-small')
+    expect(ids.some((id) => id.includes('turbo'))).toBe(false)
+  })
+})
 
 describe('decodeParamsForQuality', () => {
   it('uses greedy decode for fast and balanced', () => {
