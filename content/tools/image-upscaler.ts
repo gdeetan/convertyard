@@ -13,17 +13,17 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff'],
   outputExt: '.jpg',
 
-  convertFn: async (files, options, onProgress): Promise<ConversionResult[]> => {
+  convertFn: async (files, options, onProgress, onResult): Promise<ConversionResult[]> => {
     const scale = ((options.scale as string) ?? '4x') as UpscaleScale
     const outputFormat = ((options.outputFormat as string) ?? 'match') as UpscaleOutputFormat
     const imageMode = ((options.imageMode as string) ?? 'auto') as ImageMode
-    const results = await upscaleBatch(
+    return upscaleBatch(
       files,
       { scale, outputFormat, imageMode },
       () => {},
-      (fileIndex: number, pct: number) => onProgress?.(fileIndex, pct)
+      (fileIndex: number, pct: number) => onProgress?.(fileIndex, pct),
+      onResult
     )
-    return results
   },
   enablePresets: true,
 

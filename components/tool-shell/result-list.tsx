@@ -7,19 +7,21 @@ import { cn } from '@/lib/utils/cn'
 import { downloadFile, formatBytes } from '@/lib/utils/download'
 import { downloadAsZip } from '@/lib/utils/zip'
 import { ImageLightbox } from './image-lightbox'
+import { resultRowPresentation } from '@/lib/utils/conversion-results'
 import type { FileEntry } from '@/lib/types'
 
 interface ResultListProps {
   entries: FileEntry[]
   zipName?: string
   resultMode?: 'per-file' | 'combined-output'
+  allDone?: boolean
 }
 
 const ROW_H = 80
 const VIRTUALIZE_AT = 50
 const MAX_LIST_H = 480
 
-export function ResultList({ entries, zipName = 'convertyard.zip', resultMode = 'per-file' }: ResultListProps) {
+export function ResultList({ entries, zipName = 'convertyard.zip', resultMode = 'per-file', allDone = true }: ResultListProps) {
   const parentRef = useRef<HTMLDivElement>(null)
   const [zipping, setZipping] = useState(false)
   const [lightbox, setLightbox] = useState<{
@@ -95,7 +97,7 @@ export function ResultList({ entries, zipName = 'convertyard.zip', resultMode = 
           )}
         </div>
 
-        {succeeded.length > 0 && (
+        {succeeded.length > 0 && allDone && (
           <button
             type="button"
             data-testid="download-all"
@@ -327,10 +329,11 @@ function ResultRow({
   entry: FileEntry
   onOpenLightbox: (entry: FileEntry) => void
 }) {
-  const { file, status, result, error } = entry
-  const doneResult = status === 'done' && result ? result : null
-  const isDone = doneResult !== null
-  const isError = status === 'error'
+  const { file, result, error } = entry
+  const kind = resultRowPresentation(entry)
+  const doneResult = kind === 'success' && result ? result : null
+  const isDone = kind === 'success'
+  const isError = kind === 'error'
   const saved = doneResult ? file.size - doneResult.size : 0
   const savedPct = isDone && file.size > 0 ? Math.round((saved / file.size) * 100) : 0
 
@@ -339,7 +342,7 @@ function ResultRow({
 
   return (
     <div
-      data-testid={isDone ? 'result-success' : 'result-error'}
+      data-testid={isDone ? 'result-success' : isError ? 'result-error' : 'result-pending'}
       className={cn(
         'flex items-center gap-3 border-b border-border px-4 last:border-0',
         'bg-bg-elevated'
@@ -370,10 +373,13 @@ function ResultRow({
 
       {/* Status icon */}
       <div className="shrink-0">
-        {isDone
-          ? <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
-          : <XCircle className="h-4 w-4 text-error" aria-hidden="true" />
-        }
+        {isDone ? (
+          <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+        ) : isError ? (
+          <XCircle className="h-4 w-4 text-error" aria-hidden="true" />
+        ) : (
+          <Loader2 className="h-4 w-4 animate-spin text-primary" aria-hidden="true" />
+        )}
       </div>
 
       {/* Filename + size info */}
