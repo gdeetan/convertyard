@@ -2,6 +2,13 @@
 
 import { useState, useRef } from 'react'
 import type { WordChunk } from '@/lib/converters/caption-types'
+import {
+  splitWord,
+  mergeWordWithNext,
+  insertWordAfter,
+  setWordTiming,
+  nudgeWord,
+} from '@/lib/converters/caption-edit'
 
 interface Props {
   words: WordChunk[]
@@ -10,10 +17,15 @@ interface Props {
   onSeek?: (time: number) => void
 }
 
+function fmt(sec: number): string {
+  return Math.max(0, sec).toFixed(2)
+}
+
 export function CaptionEditor({ words, activeIndex, onChange, onSeek }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  const selected = words[activeIndex]
 
   function startEdit(idx: number) {
     setEditingIdx(idx)
@@ -41,12 +53,12 @@ export function CaptionEditor({ words, activeIndex, onChange, onSeek }: Props) {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-fg">Transcript</p>
-        <p className="text-xs text-fg-muted">Click a word to jump. Double-click to edit. Empty = delete.</p>
+        <p className="text-xs text-fg-muted">Click to jump. Double-click to edit text. Empty = delete.</p>
       </div>
       <div className="max-h-48 overflow-y-auto rounded-xl border border-border bg-bg p-3">
         <div className="flex flex-wrap gap-1">
           {words.map((word, idx) => (
-            <span key={idx}>
+            <span key={`${idx}-${word.start}`}>
               {editingIdx === idx ? (
                 <input
                   ref={inputRef}
@@ -74,6 +86,55 @@ export function CaptionEditor({ words, activeIndex, onChange, onSeek }: Props) {
           ))}
         </div>
       </div>
+
+      {selected && (
+        <div className="flex flex-wrap items-end gap-2 rounded-xl border border-border bg-bg p-3">
+          <div>
+            <label className="block text-[11px] text-fg-muted" htmlFor="cap-start">Start</label>
+            <input
+              id="cap-start"
+              type="number"
+              step="0.05"
+              min="0"
+              value={fmt(selected.start)}
+              onChange={(e) => onChange(setWordTiming(words, activeIndex, Number(e.target.value), selected.end))}
+              className="w-20 rounded border border-border bg-bg px-2 py-1 text-sm text-fg"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] text-fg-muted" htmlFor="cap-end">End</label>
+            <input
+              id="cap-end"
+              type="number"
+              step="0.05"
+              min="0"
+              value={fmt(selected.end)}
+              onChange={(e) => onChange(setWordTiming(words, activeIndex, selected.start, Number(e.target.value)))}
+              className="w-20 rounded border border-border bg-bg px-2 py-1 text-sm text-fg"
+            />
+          </div>
+          <button type="button" onClick={() => onChange(nudgeWord(words, activeIndex, -0.1))} className="rounded border border-border px-2 py-1 text-xs text-fg hover:bg-bg-muted">
+            −0.1s
+          </button>
+          <button type="button" onClick={() => onChange(nudgeWord(words, activeIndex, 0.1))} className="rounded border border-border px-2 py-1 text-xs text-fg hover:bg-bg-muted">
+            +0.1s
+          </button>
+          <button type="button" onClick={() => onChange(splitWord(words, activeIndex))} className="rounded border border-border px-2 py-1 text-xs text-fg hover:bg-bg-muted">
+            Split
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange(mergeWordWithNext(words, activeIndex))}
+            disabled={activeIndex >= words.length - 1}
+            className="rounded border border-border px-2 py-1 text-xs text-fg hover:bg-bg-muted disabled:opacity-40"
+          >
+            Merge next
+          </button>
+          <button type="button" onClick={() => onChange(insertWordAfter(words, activeIndex))} className="rounded border border-border px-2 py-1 text-xs text-fg hover:bg-bg-muted">
+            Insert after
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -3,7 +3,7 @@ import type { WordChunk, CaptionOptions } from './caption-types'
 import { builtinAssFontName, loadBuiltinFont } from './caption-fonts'
 import { buildASS } from './caption-ass-builder'
 import { probeVideoDimensions, probeVideoDuration } from './media-probe'
-import { throwIfAborted } from './audio-decode'
+import { throwIfAborted, isCancelError } from './audio-decode'
 
 // ffmpeg emits stats lines like "frame= 123 fps=45 ... time=00:01:23.45 bitrate=..."
 // Parse the time= field into seconds so real encode progress can drive the UI.
@@ -34,6 +34,18 @@ export async function burnCaptions(
   signal?: AbortSignal,
 ): Promise<File> {
   throwIfAborted(signal)
+
+  try {
+    const { canUseWebCodecs, burnCaptionsWebCodecs } = await import('./caption-webcodecs')
+    if (canUseWebCodecs()) {
+      onProgress(4)
+      return await burnCaptionsWebCodecs(videoFile, words, opts, onProgress, signal)
+    }
+  } catch (err) {
+    if (isCancelError(err)) throw err
+    // Hardware path unavailable or failed — fall through to ffmpeg.wasm.
+  }
+
   const { fetchFile } = await import('@ffmpeg/util')
   const ffmpeg = await getSingleThreadFFmpeg()
   throwIfAborted(signal)

@@ -50,12 +50,12 @@ export default function Page() {
             {
               n: '3',
               label: 'Edit, style, and preview',
-              desc: 'Fix any transcript mistakes, pick a caption style (Mr. Beast, TikTok, Netflix, Classic, Karaoke), choose a font, set colors and position. The video previews your changes live.',
+              desc: 'Fix any transcript mistakes, pick a style (One Word, Outline, Bar, Classic, Follow), choose a font, set colors and position. The video previews your changes live.',
             },
             {
               n: '4',
               label: 'Burn and download',
-              desc: 'ffmpeg encodes the captions permanently into the video in your browser. Download the finished MP4 — captions are baked in, no subtitle file needed.',
+              desc: 'Burn captions into the picture, or mux a soft subtitle track without re-encoding. Download the finished MP4. Files never leave your browser.',
             },
           ].map((step) => (
             <li key={step.n} className="flex gap-4">

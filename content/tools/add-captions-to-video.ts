@@ -16,8 +16,12 @@ export const faq: FAQItem[] = [
     a: 'Yes. After you drop a video you can import an existing SRT or VTT and skip Whisper entirely. After editing you can download SRT or VTT without burning captions into the file — useful for YouTube and players that read sidecar subtitles.',
   },
   {
-    q: 'What is the Mr. Beast caption style?',
-    a: 'The Mr. Beast style shows one word at a time, centered on screen, in large bold text. Each word appears exactly when it is spoken and disappears when the next word starts. This style is popular on YouTube Shorts and TikTok for high-energy, easy-to-read captions.',
+    q: 'What is the One Word caption style?',
+    a: 'One Word shows a single bold word at a time, centered on screen. Each word appears when it is spoken and disappears when the next word starts. Outline is the same timing with all-caps and a heavier stroke. Bar uses a dark background behind full lines. Follow keeps the line on screen and changes the color of the spoken word.',
+  },
+  {
+    q: 'Can I add captions without re-encoding the video?',
+    a: 'Yes. After you have a transcript, use “Soft captions” to mux an SRT track into the MP4. The video and audio are stream-copied — usually a few seconds — and players like YouTube, VLC, and QuickTime can turn the track on or off. Burn-in is still required for most social apps.',
   },
   {
     q: 'Can I use my own font?',
@@ -33,19 +37,19 @@ export const faq: FAQItem[] = [
   },
   {
     q: 'Can I edit the transcript before burning?',
-    a: 'Yes. After transcription, every word appears in the transcript panel. Click any word to edit it inline. Delete a word by clearing its text. The video preview updates in real time as you make changes.',
+    a: 'Yes. Click a word to jump the preview. Double-click to edit text. Select a word to split, merge, insert, or nudge its start and end times. The preview updates as you edit.',
   },
   {
-    q: 'What is the difference between karaoke and classic styles?',
-    a: 'Classic shows 1–2 lines of text at a time, white with a black shadow, in the style of traditional subtitles. Karaoke shows the full current line and highlights the word being spoken in a different color as it plays — similar to sing-along captions.',
+    q: 'What is the difference between Follow and Classic?',
+    a: 'Classic shows 1–2 lines of white text with a black shadow, like traditional subtitles. Follow keeps the current line on screen and changes the color of the word being spoken.',
   },
 ]
 
-export const relatedTools = ['compress-video', 'mp4-to-mp3', 'video-to-gif', 'merge-video']
+export const relatedTools = ['transcription', 'compress-video', 'mp4-to-mp3', 'video-to-gif']
 export const relatedArticles: string[] = []
 
 export const meta = {
   title: 'Add Captions to Video — ConvertYard',
   description:
-    'Auto-transcribe your video with Whisper AI and burn in styled captions — Mr. Beast, TikTok, Netflix, or classic. Runs entirely in your browser. No uploads.',
+    'Auto-transcribe your video with Whisper and add captions — burn them in or mux a soft subtitle track. Runs in your browser. No uploads.',
 }

@@ -231,6 +231,34 @@ export function CaptionTool() {
     downloadFile(new File([text], `${baseName(videoFile.name)}.${format}`, { type: mime }))
   }, [words, videoFile])
 
+  const handleSoftCaptions = useCallback(async () => {
+    if (!videoFile || words.length === 0 || timestampsEstimated) return
+    abortRef.current?.abort()
+    const ac = new AbortController()
+    abortRef.current = ac
+    setPhase('burning')
+    setProgress(0)
+    setStatusText('Muxing soft captions…')
+    setError(null)
+    try {
+      const { muxSoftCaptions } = await import('@/lib/converters/caption-soft')
+      const output = await muxSoftCaptions(videoFile, words, (pct) => {
+        setProgress(Math.max(0, Math.min(100, Math.round(pct))))
+        setStatusText(`Muxing soft captions… ${Math.round(pct)}%`)
+      }, ac.signal)
+      if (ac.signal.aborted) return
+      setResultFile(output)
+      setPhase('done')
+    } catch (err) {
+      if (isCancelError(err) || ac.signal.aborted) {
+        setPhase('edit')
+        return
+      }
+      setError(err instanceof Error ? err.message : 'Soft captions failed')
+      setPhase('edit')
+    }
+  }, [videoFile, words, timestampsEstimated])
+
   const handleBurn = useCallback(async () => {
     if (!videoFile || words.length === 0 || timestampsEstimated) return
     abortRef.current?.abort()
@@ -249,13 +277,13 @@ export function CaptionTool() {
         options.fontSource === 'system' && options.systemFontBlob ? options.systemFontBlob :
         null
 
-      setStatusText('Burning captions into video…')
+      setStatusText('Encoding captions…')
       const output = await burnCaptions(
         videoFile, words, options, fontBlob,
         (pct) => {
           const safePct = Math.max(0, Math.min(100, Math.round(pct)))
           setProgress(safePct)
-          setStatusText(`Burning captions… ${safePct}% (may take 1–3 min)`)
+          setStatusText(`Encoding captions… ${safePct}%`)
         },
         videoDims ?? undefined,
         ac.signal,
@@ -541,14 +569,24 @@ export function CaptionTool() {
           <RefreshCcw className="h-3.5 w-3.5" />
           Start over
         </button>
-        <button
-          type="button"
-          onClick={() => void handleBurn()}
-          disabled={words.length === 0 || timestampsEstimated}
-          className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
-        >
-          Burn Captions into Video
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleSoftCaptions()}
+            disabled={words.length === 0 || timestampsEstimated}
+            className="rounded-xl border border-border px-4 py-2.5 text-sm font-medium text-fg hover:bg-bg-muted disabled:opacity-50"
+          >
+            Soft captions (no re-encode)
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleBurn()}
+            disabled={words.length === 0 || timestampsEstimated}
+            className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
+          >
+            Burn Captions into Video
+          </button>
+        </div>
       </div>
     </div>
   )

@@ -7,10 +7,10 @@ export interface BuiltinFont {
 }
 
 export const BUILTIN_FONTS: BuiltinFont[] = [
-  { name: 'Komika Axis',         assName: 'Komika Axis',           label: 'Komika Axis — Mr. Beast', file: '/fonts/caption-komika-axis.ttf' },
+  { name: 'Komika Axis',         assName: 'Komika Axis',           label: 'Komika Axis — Display', file: '/fonts/caption-komika-axis.ttf' },
   { name: 'Bangers',             assName: 'Bangers',               label: 'Bangers — Creator Bold',  file: '/fonts/caption-bangers.ttf' },
   { name: 'Anton',               assName: 'Anton',                 label: 'Anton — Impact Style',    file: '/fonts/caption-anton.ttf' },
-  { name: 'Bebas Neue',          assName: 'Bebas Neue',            label: 'Bebas Neue — YouTube',    file: '/fonts/caption-bebas-neue.ttf' },
+  { name: 'Bebas Neue',          assName: 'Bebas Neue',            label: 'Bebas Neue — Condensed',  file: '/fonts/caption-bebas-neue.ttf' },
   { name: 'Oswald Bold',         assName: 'Oswald',                label: 'Oswald Bold',             file: '/fonts/caption-oswald-bold.ttf' },
   { name: 'Montserrat Black',    assName: 'Montserrat Thin Black', label: 'Montserrat Black',        file: '/fonts/caption-montserrat-black.ttf' },
   { name: 'Roboto Bold',         assName: 'Roboto',                label: 'Roboto Bold',             file: '/fonts/caption-roboto-bold.ttf' },

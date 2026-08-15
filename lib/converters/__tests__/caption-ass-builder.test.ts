@@ -110,12 +110,12 @@ describe('buildASS - outline and position match options', () => {
     expect(styleOutline(ass)).toBe('10')
   })
 
-  it('centers Mr. Beast / TikTok when position is center', () => {
+  it('centers One Word / Outline when position is center', () => {
     const ass = buildASS(words, { ...DEFAULT_CAPTION_OPTIONS, styleId: 'tiktok', position: 'center' })
     expect(styleAlignment(ass)).toBe('5')
   })
 
-  it('applies TikTok preset as all-caps, centered, heavy outline', () => {
+  it('applies Outline preset as all-caps, centered, heavy outline', () => {
     expect(STYLE_PRESETS.tiktok).toEqual({ position: 'center', uppercase: true, outlineWidth: 6 })
     expect(DEFAULT_CAPTION_OPTIONS.position).toBe('center')
   })

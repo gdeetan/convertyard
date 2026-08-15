@@ -14,11 +14,11 @@ export interface CaptionStyleMeta {
 }
 
 export const CAPTION_STYLES: CaptionStyleMeta[] = [
-  { id: 'mrbeast',  label: 'Mr. Beast',   description: 'One bold word at a time, centered, high contrast',    wordByWord: true  },
-  { id: 'tiktok',   label: 'TikTok',      description: 'Bold all-caps, heavy outline, word by word',          wordByWord: true  },
-  { id: 'netflix',  label: 'Netflix',     description: 'White text on dark pill background, full sentences',  wordByWord: false },
-  { id: 'classic',  label: 'Classic SRT', description: 'White text, black shadow, bottom of screen',          wordByWord: false },
-  { id: 'karaoke',  label: 'Karaoke',     description: 'Full line shown, active word highlights as spoken',   wordByWord: false },
+  { id: 'mrbeast',  label: 'One Word', description: 'One bold word at a time, centered, high contrast', wordByWord: true  },
+  { id: 'tiktok',   label: 'Outline',  description: 'Bold all-caps, heavy outline, word by word',       wordByWord: true  },
+  { id: 'netflix',  label: 'Bar',      description: 'White text on a dark bar, full sentences',         wordByWord: false },
+  { id: 'classic',  label: 'Classic',  description: 'White text, black shadow, bottom of the frame',    wordByWord: false },
+  { id: 'karaoke',  label: 'Follow',   description: 'Full line shown, spoken word changes color',       wordByWord: false },
 ]
 
 export type FontSource = 'builtin' | 'upload' | 'system'
