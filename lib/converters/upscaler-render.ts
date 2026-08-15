@@ -86,6 +86,37 @@ export function sampleChannelVariance(
   return varianceSum / sampleCount
 }
 
+export function rgbaToNchwFloat01(
+  rgba: Uint8ClampedArray,
+  width: number,
+  height: number
+): Float32Array {
+  const plane = width * height
+  const nchw = new Float32Array(3 * plane)
+  for (let i = 0; i < plane; i++) {
+    nchw[i] = rgba[i * 4] / 255
+    nchw[plane + i] = rgba[i * 4 + 1] / 255
+    nchw[2 * plane + i] = rgba[i * 4 + 2] / 255
+  }
+  return nchw
+}
+
+export function nchwFloat01ToRgba(
+  nchw: Float32Array | ArrayLike<number>,
+  width: number,
+  height: number
+): Uint8ClampedArray {
+  const plane = width * height
+  const rgba = new Uint8ClampedArray(plane * 4)
+  for (let i = 0; i < plane; i++) {
+    rgba[i * 4] = Math.round(Math.min(1, Math.max(0, nchw[i])) * 255)
+    rgba[i * 4 + 1] = Math.round(Math.min(1, Math.max(0, nchw[plane + i])) * 255)
+    rgba[i * 4 + 2] = Math.round(Math.min(1, Math.max(0, nchw[2 * plane + i])) * 255)
+    rgba[i * 4 + 3] = 255
+  }
+  return rgba
+}
+
 export function detectFlatOutputMismatch(
   sourcePixels: Uint8ClampedArray,
   outputPixels: Uint8ClampedArray

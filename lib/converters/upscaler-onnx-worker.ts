@@ -1,14 +1,26 @@
 /// <reference lib="webworker" />
 
-// Web Worker for image upscaling via Swin2SR (ONNX Runtime Web / @huggingface/transformers).
-// Backend priority: WebGPU → WebGL → WASM.
-// Blank-image detection triggers automatic backend downgrade per tile.
+// Web Worker for image upscaling.
+// Photos: Real-ESRGAN v3 at 4× (Swin2SR at 2×), WebGPU → WASM → CPU.
+// Graphics: Lanczos + unsharp. Blank-tile detection downgrades the backend.
 
-import { GaussianAccumulator, detectFlatOutputMismatch } from './upscaler-render'
+import { GaussianAccumulator, detectFlatOutputMismatch, nchwFloat01ToRgba, rgbaToNchwFloat01 } from './upscaler-render'
+import {
+  REALESRGAN_HF_URL,
+  REALESRGAN_LOCAL_URL,
+  type ModelChain,
+  type OnnxDevice,
+  type PhotoMode,
+  type UpscaleScale,
+  blobEncodeOptions,
+  modelRouting,
+  swin2srFallbackRouting,
+  tileSettings,
+} from './upscaler-settings'
 
 declare const __HF_TOKEN__: string
 
-export type UpscaleScale = '2x' | '3x' | '4x' | '8x'
+export type { UpscaleScale }
 export type ImageMode = 'auto' | 'photo' | 'photo-compressed' | 'graphic'
 
 interface LoadMsg  { type: 'load';  scale: UpscaleScale }
@@ -45,8 +57,8 @@ async function ensureHfAuth() {
 
 // ── Device management ──────────────────────────────────────────────────────────
 
-type OnnxDevice = 'webgpu' | 'wasm' | 'cpu'
 let activeDevice: OnnxDevice = 'webgpu'
+let realesrganAvailable = false
 
 // Cache: modelId → pipeline Promise (Promise cached to prevent TOCTOU duplicate creation)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -64,56 +76,6 @@ async function clearPipelineCache() {
   pipelineCache.clear()
 }
 
-// ── Model routing ──────────────────────────────────────────────────────────────
-
-type PhotoMode = 'photo' | 'photo-compressed'
-
-interface ModelChain {
-  modelId: string
-  scale: number
-}
-
-interface ModelRouting {
-  chains: ModelChain[]
-  actualScale: number
-}
-
-function modelRouting(scale: UpscaleScale, mode: PhotoMode): ModelRouting {
-  const CLASSICAL_X2 = 'Xenova/swin2SR-classical-sr-x2-64'
-  const COMPRESSED_X2 = 'Xenova/swin2SR-compressed-sr-x2-48'
-  const REALWORLD_X4 = 'Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr'
-
-  const x2Model = mode === 'photo-compressed' ? COMPRESSED_X2 : CLASSICAL_X2
-
-  switch (scale) {
-    case '2x':
-      return {
-        chains: [{ modelId: x2Model, scale: 2 }],
-        actualScale: 2,
-      }
-    case '3x':
-      // Run x4 model, then bicubic 0.75× downsample to get 3×
-      return {
-        chains: [{ modelId: REALWORLD_X4, scale: 4 }],
-        actualScale: 4, // will be downsampled to 3× after
-      }
-    case '4x':
-      return {
-        chains: [{ modelId: REALWORLD_X4, scale: 4 }],
-        actualScale: 4,
-      }
-    case '8x':
-      // Chain: x4 realworld → x2 classical
-      return {
-        chains: [
-          { modelId: REALWORLD_X4, scale: 4 },
-          { modelId: x2Model, scale: 2 },
-        ],
-        actualScale: 8,
-      }
-  }
-}
-
 // ── Pipeline loader ────────────────────────────────────────────────────────────
 
 async function getPipeline(modelId: string, scale: UpscaleScale, device: OnnxDevice) {
@@ -126,7 +88,7 @@ async function getPipeline(modelId: string, scale: UpscaleScale, device: OnnxDev
   // Cache the Promise immediately to prevent TOCTOU: concurrent callers get the same Promise
   const p = pipeline('image-to-image', modelId, {
     device,
-    dtype: 'q8',
+    dtype: tileSettings(device).dtype,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     progress_callback: (info: any) => {
       const pct = typeof info?.progress === 'number' ? Math.round(info.progress) : 0
@@ -136,6 +98,87 @@ async function getPipeline(modelId: string, scale: UpscaleScale, device: OnnxDev
 
   pipelineCache.set(cacheKey, p)
   return p
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const realesrganSessions = new Map<OnnxDevice, Promise<any>>()
+
+function uniqueChains(chains: ModelChain[]): ModelChain[] {
+  return chains.filter((c, i) => chains.findIndex((x) => x.modelId === c.modelId) === i)
+}
+
+async function getOrt() {
+  await import('@huggingface/transformers')
+  const mod = await import('onnxruntime-web/webgpu')
+  const api = (mod as { default?: typeof mod }).default ?? mod
+  if (!api.Tensor || !api.InferenceSession) {
+    throw new Error('onnxruntime-web/webgpu is missing Tensor or InferenceSession')
+  }
+  // A second ORT wasm proxy inside this worker deadlocks session.run.
+  if (api.env?.wasm) {
+    api.env.wasm.proxy = false
+    api.env.wasm.numThreads = 1
+  }
+  return api
+}
+
+async function createRealesrganSession(device: OnnxDevice, scale: UpscaleScale) {
+  self.postMessage({ type: 'model-progress', scale, progress: 20 })
+  let buffer: ArrayBuffer | null = null
+  for (const url of [REALESRGAN_LOCAL_URL, REALESRGAN_HF_URL]) {
+    try {
+      const res = await fetch(url)
+      if (res.ok) {
+        buffer = await res.arrayBuffer()
+        break
+      }
+    } catch {
+      /* try next source */
+    }
+  }
+  if (!buffer) throw new Error('Failed to download Real-ESRGAN v3 model')
+
+  self.postMessage({ type: 'model-progress', scale, progress: 70 })
+  const ort = await getOrt()
+  const providers = device === 'webgpu' ? ['webgpu'] : ['wasm']
+  const session = await ort.InferenceSession.create(new Uint8Array(buffer), {
+    executionProviders: providers,
+  })
+  self.postMessage({ type: 'model-progress', scale, progress: 95 })
+  return session
+}
+
+async function ensureRealesrgan(device: OnnxDevice, scale: UpscaleScale) {
+  const cached = realesrganSessions.get(device)
+  if (cached) return cached
+  const p = createRealesrganSession(device, scale)
+  realesrganSessions.set(device, p)
+  try {
+    return await p
+  } catch (err) {
+    realesrganSessions.delete(device)
+    throw err
+  }
+}
+
+async function loadChains(chains: ModelChain[], device: OnnxDevice, scale: UpscaleScale) {
+  for (const chain of uniqueChains(chains)) {
+    if (chain.kind === 'realesrgan') {
+      await ensureRealesrgan(device, scale)
+    } else {
+      const cacheKey = `${chain.modelId}::${device}`
+      if (!pipelineCache.has(cacheKey)) {
+        await getPipeline(chain.modelId, scale, device)
+      }
+    }
+  }
+}
+
+function dropDeviceCaches(chains: ModelChain[], device: OnnxDevice) {
+  for (const chain of uniqueChains(chains)) {
+    pipelineCache.delete(`${chain.modelId}::${device}`)
+  }
+  realesrganSessions.delete(device)
 }
 
 // ── Model load (warm-up) ───────────────────────────────────────────────────────
@@ -154,6 +197,16 @@ function ensureModel(scale: UpscaleScale): Promise<void> {
   return p
 }
 
+async function webgpuUsable(): Promise<boolean> {
+  const gpu = (self as unknown as { navigator?: { gpu?: { requestAdapter: () => Promise<unknown> } } }).navigator?.gpu
+  if (!gpu) return false
+  try {
+    return !!(await gpu.requestAdapter())
+  } catch {
+    return false
+  }
+}
+
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return Promise.race([
     p,
@@ -166,53 +219,61 @@ function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
 async function loadModel(scale: UpscaleScale) {
   if (readyModels.has(scale)) return
 
-  // For 2x we need BOTH classical and compressed variants because the correct one is
-  // chosen at inference time based on detected image content. Loading both here prevents
-  // a silent mid-inference download that stalls the progress bar at 10%.
-  const routings =
-    scale === '2x'
-      ? [modelRouting('2x', 'photo'), modelRouting('2x', 'photo-compressed')]
-      : [modelRouting(scale, 'photo')]
-
-  // Deduplicate model IDs (e.g. 4x and 3x both use REALWORLD_X4)
-  const allChains = routings.flatMap((r) => r.chains)
-  const uniqueChains = allChains.filter(
-    (c, i) => allChains.findIndex((x) => x.modelId === c.modelId) === i
+  // 2× / 8× need both x2 variants because the image mode is chosen at inference time.
+  const primaryChains = uniqueChains(
+    [modelRouting(scale, 'photo'), modelRouting(scale, 'photo-compressed')].flatMap((r) => r.chains)
+  )
+  const fallbackChains = uniqueChains(
+    [swin2srFallbackRouting(scale, 'photo'), swin2srFallbackRouting(scale, 'photo-compressed')].flatMap((r) => r.chains)
   )
 
   const deviceOrder: OnnxDevice[] = ['webgpu', 'wasm', 'cpu']
-  // WebGPU negotiation can hang indefinitely on unsupported browsers — cap it at 15s
   const DEVICE_TIMEOUT_MS: Record<OnnxDevice, number> = { webgpu: 15_000, wasm: 60_000, cpu: 120_000 }
 
-  // Try each device in order until one succeeds. GPU may fail or stall on unsupported
-  // browsers — fall through to WASM silently.
-  for (const device of deviceOrder) {
+  let loaded = false
+  let usedFallback = false
+  const wantsRealesrgan = primaryChains.some((c) => c.kind === 'realesrgan')
+  const canWebgpu = await webgpuUsable()
+
+  // Real-ESRGAN v3's WASM EP deadlocks session.run inside this worker.
+  // Only attempt it on WebGPU; everything else uses Swin2SR.
+  if (wantsRealesrgan && canWebgpu) {
     try {
-      for (const chain of uniqueChains) {
-        const cacheKey = `${chain.modelId}::${device}`
-        if (!pipelineCache.has(cacheKey)) {
-          await withTimeout(
-            getPipeline(chain.modelId, scale, device),
-            DEVICE_TIMEOUT_MS[device],
-            device
-          )
-        }
-      }
-      activeDevice = device
-      break
+      await withTimeout(loadChains(primaryChains, 'webgpu', scale), DEVICE_TIMEOUT_MS.webgpu, 'webgpu')
+      activeDevice = 'webgpu'
+      loaded = true
     } catch {
-      // Remove the stalled/rejected promise so the next device can cache its own
-      for (const chain of uniqueChains) {
-        pipelineCache.delete(`${chain.modelId}::${device}`)
-      }
-      if (device === 'cpu') throw new Error('Failed to initialize upscaler on any ONNX device')
+      dropDeviceCaches(primaryChains, 'webgpu')
     }
   }
 
+  if (!loaded) {
+    usedFallback = wantsRealesrgan
+    const chains = wantsRealesrgan ? fallbackChains : primaryChains
+    for (const device of deviceOrder) {
+      try {
+        await withTimeout(loadChains(chains, device, scale), DEVICE_TIMEOUT_MS[device], device)
+        activeDevice = device
+        loaded = true
+        break
+      } catch {
+        dropDeviceCaches(chains, device)
+      }
+    }
+  }
+
+  if (!loaded) throw new Error('Failed to initialize upscaler on any ONNX device')
+
+  if (primaryChains.some((c) => c.kind === 'realesrgan')) {
+    realesrganAvailable = !usedFallback
+  }
   readyModels.add(scale)
   self.postMessage({ type: 'model-ready', scale })
   self.postMessage({ type: 'device-ready', device: activeDevice })
-  self.postMessage({ type: 'log', message: `ONNX upscaler ready on ${activeDevice}` })
+  self.postMessage({
+    type: 'log',
+    message: `ONNX upscaler ready on ${activeDevice} (${realesrganAvailable ? 'Real-ESRGAN v3' : 'Swin2SR fallback'})`,
+  })
 }
 
 // ── RawImage → RGBA Uint8ClampedArray ─────────────────────────────────────────
@@ -232,6 +293,22 @@ function rawImageToRgba(rawImg: any): { rgba: Uint8ClampedArray; width: number; 
 }
 
 // ── Tile inference with blank-image retry ──────────────────────────────────────
+
+async function inferSwinTile(
+  modelId: string,
+  extW: number,
+  extH: number,
+  tileRgba: Uint8ClampedArray,
+  id: string
+): Promise<{ rgba: Uint8ClampedArray; width: number; height: number }> {
+  const rgbData = new Uint8Array(extW * extH * 3)
+  for (let i = 0; i < extW * extH; i++) {
+    rgbData[i * 3]     = tileRgba[i * 4]
+    rgbData[i * 3 + 1] = tileRgba[i * 4 + 1]
+    rgbData[i * 3 + 2] = tileRgba[i * 4 + 2]
+  }
+  return inferTile(modelId, '4x', extW, extH, rgbData, tileRgba, id)
+}
 
 async function inferTile(
   modelId: string,
@@ -298,6 +375,76 @@ async function inferTile(
   }
 
   throw new Error('Exhausted all ONNX backends')
+}
+
+async function inferRealesrganTile(
+  extW: number,
+  extH: number,
+  tileRgba: Uint8ClampedArray,
+  id: string
+): Promise<{ rgba: Uint8ClampedArray; width: number; height: number }> {
+  const ort = await getOrt()
+
+  const deviceOrder: OnnxDevice[] = ['webgpu']
+  let deviceIdx = 0
+
+  while (deviceIdx < deviceOrder.length) {
+    const device = deviceOrder[deviceIdx]
+    const session = await ensureRealesrgan(device, '4x')
+    const inputName = session.inputNames[0] as string
+    const outputName = session.outputNames[0] as string
+    self.postMessage({
+      type: 'log',
+      id,
+      message: `Real-ESRGAN tile ${extW}×${extH} on ${device} in=${inputName} out=${outputName}`,
+    })
+    const tensor = new ort.Tensor('float32', rgbaToNchwFloat01(tileRgba, extW, extH), [1, 3, extH, extW])
+    let out: Record<string, { data: ArrayLike<number> }>
+    try {
+      out = await withTimeout(session.run({ [inputName]: tensor }), 45_000, `realesrgan-run:${device}`)
+    } catch (err) {
+      self.postMessage({
+        type: 'log',
+        id,
+        message: `Real-ESRGAN run failed on ${device}: ${(err as Error).message}`,
+      })
+      realesrganSessions.delete(device)
+      if (deviceIdx + 1 >= deviceOrder.length) {
+        throw new Error(`Real-ESRGAN run failed on ${device}: ${(err as Error).message}`)
+      }
+      activeDevice = deviceOrder[deviceIdx + 1]
+      deviceIdx++
+      continue
+    }
+    const outTensor = out[outputName]
+    const outW = extW * 4
+    const outH = extH * 4
+    const data = (outTensor.data instanceof Float32Array)
+      ? outTensor.data
+      : Float32Array.from(outTensor.data as ArrayLike<number>)
+    const rgba = nchwFloat01ToRgba(data, outW, outH)
+
+    if (!detectFlatOutputMismatch(tileRgba, rgba)) {
+      if (device !== activeDevice) {
+        self.postMessage({ type: 'log', id, message: `Real-ESRGAN backend switched to ${device}` })
+        activeDevice = device
+      }
+      return { rgba, width: outW, height: outH }
+    }
+
+    if (deviceIdx + 1 >= deviceOrder.length) {
+      throw new Error('Real-ESRGAN produced flat output on all ONNX backends')
+    }
+
+    const nextDevice = deviceOrder[deviceIdx + 1]
+    self.postMessage({ type: 'log', id, message: `Blank Real-ESRGAN tile on ${device}, retrying with ${nextDevice}` })
+    realesrganSessions.delete(device)
+    await clearPipelineCache()
+    activeDevice = nextDevice
+    deviceIdx++
+  }
+
+  throw new Error('Exhausted all Real-ESRGAN backends')
 }
 
 // ── Image mode detection ───────────────────────────────────────────────────────
@@ -400,8 +547,10 @@ async function graphicScale(
   bitmap: ImageBitmap,
   targetW: number,
   targetH: number,
-  onProgress: (pct: number) => void
+  onProgress: (pct: number) => void,
+  opts: { unsharp?: boolean } = {}
 ): Promise<OffscreenCanvas> {
+  const applyUnsharp = opts.unsharp !== false
   const srcW = bitmap.width
   const srcH = bitmap.height
   const scaleX = targetW / srcW
@@ -480,21 +629,22 @@ async function graphicScale(
       }
     }
 
-    // Unsharp mask
-    const USM_STRENGTH = 0.35
-    const orig = new Uint8ClampedArray(outPx)
-    for (let ry = 0; ry < nOutRows; ry++) {
-      const prevRy = Math.max(0, ry - 1)
-      const nextRy = Math.min(nOutRows - 1, ry + 1)
-      for (let rx = 0; rx < targetW; rx++) {
-        const ci = (ry      * targetW + rx) * 4
-        const li = (ry      * targetW + Math.max(0, rx - 1)) * 4
-        const ri = (ry      * targetW + Math.min(targetW - 1, rx + 1)) * 4
-        const ti = (prevRy  * targetW + rx) * 4
-        const bi = (nextRy  * targetW + rx) * 4
-        for (let c = 0; c < 3; c++) {
-          const lap = 4 * orig[ci + c] - orig[li + c] - orig[ri + c] - orig[ti + c] - orig[bi + c]
-          outPx[ci + c] = Math.max(0, Math.min(255, orig[ci + c] + USM_STRENGTH * lap))
+    if (applyUnsharp) {
+      const USM_STRENGTH = 0.35
+      const orig = new Uint8ClampedArray(outPx)
+      for (let ry = 0; ry < nOutRows; ry++) {
+        const prevRy = Math.max(0, ry - 1)
+        const nextRy = Math.min(nOutRows - 1, ry + 1)
+        for (let rx = 0; rx < targetW; rx++) {
+          const ci = (ry      * targetW + rx) * 4
+          const li = (ry      * targetW + Math.max(0, rx - 1)) * 4
+          const ri = (ry      * targetW + Math.min(targetW - 1, rx + 1)) * 4
+          const ti = (prevRy  * targetW + rx) * 4
+          const bi = (nextRy  * targetW + rx) * 4
+          for (let c = 0; c < 3; c++) {
+            const lap = 4 * orig[ci + c] - orig[li + c] - orig[ri + c] - orig[ti + c] - orig[bi + c]
+            outPx[ci + c] = Math.max(0, Math.min(255, orig[ci + c] + USM_STRENGTH * lap))
+          }
         }
       }
     }
@@ -515,8 +665,6 @@ function buildStarts(dim: number, tileSize: number): number[] {
   return starts
 }
 
-const TILE_PX = 128
-const OVERLAP = 8
 const SAFE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const SCALE_NUM: Record<UpscaleScale, number> = { '2x': 2, '3x': 3, '4x': 4, '8x': 8 }
 const MAX_CANVAS_DIM  = 8192
@@ -527,17 +675,17 @@ const MAX_GRAPHIC_DIM = 16384
 async function runOnnxTiling(
   id: string,
   bitmap: ImageBitmap,
-  modelId: string,
-  chainScale: number,
+  chain: ModelChain,
   onProgress: (done: number, total: number) => void
 ): Promise<OffscreenCanvas> {
+  const { tilePx, overlap } = tileSettings(activeDevice)
   const srcW = bitmap.width
   const srcH = bitmap.height
-  const outW = srcW * chainScale
-  const outH = srcH * chainScale
+  const outW = srcW * chain.scale
+  const outH = srcH * chain.scale
 
-  const xStarts = buildStarts(srcW, TILE_PX)
-  const yStarts = buildStarts(srcH, TILE_PX)
+  const xStarts = buildStarts(srcW, tilePx)
+  const yStarts = buildStarts(srcH, tilePx)
   const total   = xStarts.length * yStarts.length
   let done = 0
 
@@ -545,13 +693,13 @@ async function runOnnxTiling(
 
   for (const sy of yStarts) {
     for (const sx of xStarts) {
-      const tw = Math.min(TILE_PX, srcW - sx)
-      const th = Math.min(TILE_PX, srcH - sy)
+      const tw = Math.min(tilePx, srcW - sx)
+      const th = Math.min(tilePx, srcH - sy)
 
-      const padL = sx > 0 ? OVERLAP : 0
-      const padT = sy > 0 ? OVERLAP : 0
-      const padR = sx + tw < srcW ? OVERLAP : 0
-      const padB = sy + th < srcH ? OVERLAP : 0
+      const padL = sx > 0 ? overlap : 0
+      const padT = sy > 0 ? overlap : 0
+      const padR = sx + tw < srcW ? overlap : 0
+      const padB = sy + th < srcH ? overlap : 0
 
       const extX = sx - padL
       const extY = sy - padT
@@ -563,36 +711,21 @@ async function runOnnxTiling(
       tileCanvas.getContext('2d')!.drawImage(bitmap, extX, extY, extW, extH, 0, 0, extW, extH)
       const tileData = tileCanvas.getContext('2d')!.getImageData(0, 0, extW, extH)
 
-      // Convert RGBA → RGB for RawImage
-      const rgbData = new Uint8Array(extW * extH * 3)
-      for (let i = 0; i < extW * extH; i++) {
-        rgbData[i * 3]     = tileData.data[i * 4]
-        rgbData[i * 3 + 1] = tileData.data[i * 4 + 1]
-        rgbData[i * 3 + 2] = tileData.data[i * 4 + 2]
-      }
-
-      const result = await inferTile(
-        modelId,
-        // scale is just for model-progress messages during lazy load; pass as '4x' placeholder
-        '4x',
-        extW,
-        extH,
-        rgbData,
-        tileData.data,
-        id
-      )
+      const result = chain.kind === 'realesrgan'
+        ? await inferRealesrganTile(extW, extH, tileData.data, id)
+        : await inferSwinTile(chain.modelId, extW, extH, tileData.data, id)
 
       // Validate tile output shape
-      if (result.width !== extW * chainScale || result.height !== extH * chainScale) {
+      if (result.width !== extW * chain.scale || result.height !== extH * chain.scale) {
         throw new Error(
-          `Swin2SR tile shape mismatch: expected ${extW * chainScale}×${extH * chainScale}, got ${result.width}×${result.height}`
+          `Tile shape mismatch: expected ${extW * chain.scale}×${extH * chain.scale}, got ${result.width}×${result.height}`
         )
       }
 
       // Accumulate tile with Gaussian weights (covers full tile including overlap)
-      const sigma = extW * chainScale * 0.35
-      const destX = (sx - padL) * chainScale
-      const destY = (sy - padT) * chainScale
+      const sigma = extW * chain.scale * 0.35
+      const destX = (sx - padL) * chain.scale
+      const destY = (sy - padT) * chain.scale
       acc.accumulate(result.rgba, result.width, result.height, destX, destY, sigma)
 
       done++
@@ -647,13 +780,12 @@ async function runInference(
       )
       workW = Math.round(srcW * limitRatio)
       workH = Math.round(srcH * limitRatio)
-      const scaleCanvas = new OffscreenCanvas(workW, workH)
-      scaleCanvas.getContext('2d')!.drawImage(bitmap, 0, 0, workW, workH)
-      workBitmap = await createImageBitmap(scaleCanvas)
+      const shrunk = await graphicScale(bitmap, workW, workH, () => {}, { unsharp: false })
+      workBitmap = await createImageBitmap(shrunk)
       self.postMessage({
         type: 'log',
         id,
-        message: `Source scaled ${srcW}×${srcH} → ${workW}×${workH} to fit GPU canvas limit`,
+        message: `Source Lanczos-scaled ${srcW}×${srcH} → ${workW}×${workH} to fit GPU canvas limit`,
       })
     }
 
@@ -682,19 +814,21 @@ async function runInference(
         (pct) => self.postMessage({ type: 'infer-progress', id, progress: pct })
       )
       self.postMessage({ type: 'infer-progress', id, progress: 95 })
-      const resultBlob   = await out.convertToBlob({ type: outMime, quality: 0.92 })
+      const resultBlob   = await out.convertToBlob(blobEncodeOptions(outMime))
       const resultBuffer = await resultBlob.arrayBuffer()
       self.postMessage({ type: 'infer-progress', id, progress: 100 })
       self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
       return
     }
 
-    // ── Photo path: Swin2SR tiling ─────────────────────────────────────────────
+    // ── Photo path ─────────────────────────────────────────────────────────────
 
     self.postMessage({ type: 'infer-progress', id, progress: 10 })
 
     const photoMode: PhotoMode = resolvedMode === 'photo-compressed' ? 'photo-compressed' : 'photo'
-    const routing = modelRouting(scale, photoMode)
+    const routing = realesrganAvailable
+      ? modelRouting(scale, photoMode)
+      : swin2srFallbackRouting(scale, photoMode)
 
     // Run chain (single model for most scales; two models for 8×)
     let currentBitmap = workBitmap
@@ -705,8 +839,7 @@ async function runInference(
       const tileCanvas = await runOnnxTiling(
         id,
         chainBitmap,
-        chain.modelId,
-        chain.scale,
+        chain,
         (done, total) => {
           // Progress range 10–85 for all chained tiles
           const chainIdx = routing.chains.indexOf(chain)
@@ -732,13 +865,11 @@ async function runInference(
         if (scale === '3x') {
           const finalW = Math.round(workW * 3)
           const finalH = Math.round(workH * 3)
-          const downCanvas = new OffscreenCanvas(finalW, finalH)
-          downCanvas.getContext('2d')!.drawImage(
-            tileCanvas as unknown as CanvasImageSource,
-            0, 0, finalW, finalH
-          )
+          const fourX = await createImageBitmap(tileCanvas)
+          const downCanvas = await graphicScale(fourX, finalW, finalH, () => {}, { unsharp: false })
+          fourX.close()
           self.postMessage({ type: 'infer-progress', id, progress: 95 })
-          const resultBlob   = await downCanvas.convertToBlob({ type: outMime, quality: 0.92 })
+          const resultBlob   = await downCanvas.convertToBlob(blobEncodeOptions(outMime))
           const resultBuffer = await resultBlob.arrayBuffer()
           self.postMessage({ type: 'infer-progress', id, progress: 100 })
           self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
@@ -747,7 +878,7 @@ async function runInference(
 
         // Normal output
         self.postMessage({ type: 'infer-progress', id, progress: 95 })
-        const resultBlob   = await tileCanvas.convertToBlob({ type: outMime, quality: 0.92 })
+        const resultBlob   = await tileCanvas.convertToBlob(blobEncodeOptions(outMime))
         const resultBuffer = await resultBlob.arrayBuffer()
         self.postMessage({ type: 'infer-progress', id, progress: 100 })
         self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
@@ -783,9 +914,11 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
   if (msg.type === 'infer') {
     const { id, scale, buffer, mimeType, outputFormat, imageMode } = msg
     _inferQueue = _inferQueue.then(() =>
-      runInference(id, scale, buffer, mimeType, outputFormat, imageMode).catch(err =>
-        self.postMessage({ type: 'error', id, message: (err as Error).message })
-      )
+      runInference(id, scale, buffer, mimeType, outputFormat, imageMode).catch(err => {
+        const message = (err as Error).message
+        self.postMessage({ type: 'log', id, message: `infer error: ${message}` })
+        self.postMessage({ type: 'error', id, message })
+      })
     )
   }
 })

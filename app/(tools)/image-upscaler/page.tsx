@@ -126,8 +126,8 @@ function ImageUpscalerPage() {
                 />
                 <span>
                   {modelState === 'slow'
-                    ? 'Loading AI model… (large file, may take a minute)'
-                    : 'Loading AI model…'}
+                    ? 'Loading upscaler model… (large file, may take a minute)'
+                    : 'Loading upscaler model…'}
                 </span>
               </>
             )}
