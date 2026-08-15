@@ -1,3 +1,4 @@
+import type { ConversionResult } from '@/lib/types'
 import { loadUpscalerModel, upscaleImageFile, type UpscaleScale, type ImageMode } from './upscaler-engine'
 
 export type { UpscaleScale, ImageMode }
@@ -13,8 +14,9 @@ export async function upscaleBatch(
   files: File[],
   options: UpscaleOptions,
   onModelProgress: (pct: number) => void,
-  onFileProgress: (fileIndex: number, pct: number) => void
-): Promise<(File | Error)[]> {
+  onFileProgress: (fileIndex: number, pct: number) => void,
+  onResult?: (fileIndex: number, result: ConversionResult) => void
+): Promise<ConversionResult[]> {
   // Map model loading (0–100%) to per-file bars at 0–15% so users see feedback
   // during the potentially long model download phase.
   await loadUpscalerModel(options.scale, (pct) => {
@@ -24,7 +26,7 @@ export async function upscaleBatch(
     }
   })
 
-  const results: (File | Error)[] = []
+  const results: ConversionResult[] = []
   for (let i = 0; i < files.length; i++) {
     const outputFormat = options.outputFormat === 'match' ? null : options.outputFormat
     try {
@@ -36,8 +38,11 @@ export async function upscaleBatch(
         options.imageMode
       )
       results.push(result)
+      onResult?.(i, result)
     } catch (err) {
-      results.push(err instanceof Error ? err : new Error(String(err)))
+      const error = err instanceof Error ? err : new Error(String(err))
+      results.push(error)
+      onResult?.(i, error)
     }
   }
   return results

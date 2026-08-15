@@ -19,6 +19,7 @@ import { sizeTargets } from '@/content/size-target-registry'
 import { useRecentTools } from '@/lib/hooks/use-recent-tools'
 import { diagLog, diagError } from '@/lib/debug/mobile-diagnostics'
 import { acquireWakeLock } from '@/lib/utils/wake-lock'
+import { returnedResultsToDispatch } from '@/lib/utils/conversion-results'
 
 const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
   images:           { label: 'Image Converters',     href: '/images' },
@@ -251,10 +252,11 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions,
       wakeLock.release()
     }
 
-    if (!onResult) {
-      for (let i = 0; i < results.length; i++) {
-        dispatchResult(i, results[i])
-      }
+    // Always apply the return value. onResult is incremental UX only —
+    // tools that just return an array (upscaler, background remover, …)
+    // were previously dropped here and rendered as a failed empty file.
+    for (const { fileIndex, result } of returnedResultsToDispatch(results)) {
+      dispatchResult(fileIndex, result)
     }
 
     dispatch({ type: 'FINISH', resultMode: config.resultMode })
@@ -465,7 +467,7 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions,
                 }
               />
             )}
-            <ResultList entries={entries} zipName={zipName} resultMode={config.resultMode} />
+            <ResultList entries={entries} zipName={zipName} resultMode={config.resultMode} allDone={phase === 'done'} />
             <div className="border-t border-border pt-4">
               <button
                 type="button"
