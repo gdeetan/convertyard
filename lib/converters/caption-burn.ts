@@ -1,8 +1,8 @@
 import { getSingleThreadFFmpeg } from './ffmpeg-client'
 import type { WordChunk, CaptionOptions } from './caption-types'
-import { loadBuiltinFont } from './caption-fonts'
+import { builtinAssFontName, loadBuiltinFont } from './caption-fonts'
 import { buildASS } from './caption-ass-builder'
-import { probeVideoDuration } from './media-probe'
+import { probeVideoDimensions, probeVideoDuration } from './media-probe'
 import { throwIfAborted } from './audio-decode'
 
 // ffmpeg emits stats lines like "frame= 123 fps=45 ... time=00:01:23.45 bitrate=..."
@@ -19,7 +19,7 @@ function parseFFmpegTimeSeconds(line: string): number | null {
 // filename stem which is usually close enough; libass falls back to Arial if
 // it can't find an exact match.
 function assFontName(opts: CaptionOptions): string {
-  if (opts.fontSource === 'builtin') return opts.builtinFont
+  if (opts.fontSource === 'builtin') return builtinAssFontName(opts.builtinFont)
   if (opts.fontSource === 'system')  return opts.systemFontFamily || 'Arial'
   return opts.uploadedFont?.name.replace(/\.[^.]+$/, '') ?? 'Arial'
 }
@@ -48,6 +48,9 @@ export async function burnCaptions(
   // Duration drives real progress. If probe fails (0), fall back to a slow
   // timer so the bar still moves — better than freezing at a fake number.
   const duration = await probeVideoDuration(videoFile)
+  const probed = await probeVideoDimensions(videoFile)
+  const frameW = probed?.width || videoDims?.width || 1920
+  const frameH = probed?.height || videoDims?.height || 1080
   onProgress(5)
   await ffmpeg.writeFile(inputName, await fetchFile(videoFile))
 
@@ -62,7 +65,7 @@ export async function burnCaptions(
   // Build the subtitle file. Each style maps to the correct event format
   // (word-by-word for mrbeast/tiktok, grouped lines for others) via buildASS —
   // no filter count limit, exact match to the preview.
-  const assContent = buildASS(words, opts, assFontName(opts), videoDims?.width, videoDims?.height)
+  const assContent = buildASS(words, opts, assFontName(opts), frameW, frameH)
   await ffmpeg.writeFile(assName, new TextEncoder().encode(assContent))
 
   onProgress(10)
@@ -127,7 +130,7 @@ export async function burnCaptions(
 
     let exitCode = await ffmpeg.exec([
       '-i', inputName,
-      '-vf', `format=yuv420p,subtitles=${assName}:fontsdir=/capfonts`,
+      '-vf', `format=yuv420p,subtitles=${assName}:fontsdir=/capfonts:original_size=${frameW}x${frameH}`,
       '-c:v', 'libx264',
       '-preset', 'ultrafast',
       '-crf', '23',
@@ -178,7 +181,7 @@ export async function burnCaptions(
 
       exitCode = await ffmpeg.exec([
         '-i', midName,
-        '-vf', `format=yuv420p,subtitles=${assName}:fontsdir=/capfonts`,
+        '-vf', `format=yuv420p,subtitles=${assName}:fontsdir=/capfonts:original_size=${frameW}x${frameH}`,
         '-c:v', 'libx264',
         '-preset', 'ultrafast',
         '-crf', '23',

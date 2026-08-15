@@ -1,4 +1,10 @@
 import type { WordChunk, CaptionOptions, CaptionStyleId } from './caption-types'
+import {
+  captionAlignment,
+  captionFontSizePx,
+  captionMarginVPx,
+  captionOutlinePx,
+} from './caption-layout'
 
 /** Maximum words per subtitle line before wrapping */
 const LINE_MAX_WORDS = 8
@@ -78,16 +84,18 @@ function styleConfig(
   id: CaptionStyleId,
   position: 'top' | 'center' | 'bottom',
   outlineWidth: number,
+  videoHeight: number,
 ): ASSStyleConfig {
-  const alignment = position === 'top' ? 8 : position === 'center' ? 5 : 2
-  const marginV = position === 'bottom' ? 80 : position === 'top' ? 80 : 0
+  const alignment = captionAlignment(position)
+  const marginV = captionMarginVPx(position, videoHeight)
+  const outline = captionOutlinePx(id, outlineWidth, videoHeight)
   switch (id) {
     // Netflix BorderStyle=3 uses Outline as box padding, not a stroke.
-    case 'mrbeast': return { bold: true,  alignment, borderStyle: 1, outline: outlineWidth, shadow: 0, marginV }
-    case 'tiktok':  return { bold: true,  alignment, borderStyle: 1, outline: outlineWidth, shadow: 0, marginV }
-    case 'netflix': return { bold: false, alignment, borderStyle: 3, outline: 10, shadow: 0, marginV }
-    case 'classic': return { bold: false, alignment, borderStyle: 1, outline: outlineWidth, shadow: 1, marginV }
-    case 'karaoke': return { bold: false, alignment, borderStyle: 1, outline: outlineWidth, shadow: 0, marginV }
+    case 'mrbeast': return { bold: true,  alignment, borderStyle: 1, outline, shadow: 0, marginV }
+    case 'tiktok':  return { bold: true,  alignment, borderStyle: 1, outline, shadow: 0, marginV }
+    case 'netflix': return { bold: false, alignment, borderStyle: 3, outline, shadow: 0, marginV }
+    case 'classic': return { bold: false, alignment, borderStyle: 1, outline, shadow: 1, marginV }
+    case 'karaoke': return { bold: false, alignment, borderStyle: 1, outline, shadow: 0, marginV }
   }
 }
 
@@ -107,23 +115,18 @@ function buildHeader(
   const outline   = opts.styleId === 'netflix' ? '&H40000000' : hexToASS(opts.outlineColor)
   const backColor = opts.styleId === 'netflix' ? '&H40000000' : '&H00000000'
   const bold = cfg.bold ? '-1' : '0'
-
-  // The preview draws text scaled by canvas.height/1080, treating fontSize as
-  // "points in a 1080p frame". The ASS font size is in PlayRes units, so with
-  // PlayResY = videoHeight the raw fontSize value renders as-is in pixels —
-  // correct only at 1080p. Scale by videoHeight/1080 so the proportion matches
-  // the preview at every resolution (e.g. portrait 1080×1920 or 4K).
-  const assFS = Math.round(opts.fontSize * videoHeight / 1080)
+  const assFS = captionFontSizePx(opts.fontSize, videoHeight)
 
   return [
     '[Script Info]',
     'ScriptType: v4.00+',
-    // Use actual video dimensions so libass never applies asymmetric scaling.
-    // With mismatched PlayRes (e.g. 1920×1080 on a portrait 1080×1920 video)
-    // the outline, font size, and margins all scale differently on each axis,
-    // making text look distorted and Netflix pills span the full screen width.
+    // PlayRes = LayoutRes = decoded frame size so libass does not rescale
+    // font/outline/margins relative to the preview's pixel math.
     `PlayResX: ${videoWidth}`,
     `PlayResY: ${videoHeight}`,
+    `LayoutResX: ${videoWidth}`,
+    `LayoutResY: ${videoHeight}`,
+    'ScaledBorderAndShadow: yes',
     'WrapStyle: 1',
     '',
     '[V4+ Styles]',
@@ -200,7 +203,7 @@ export function buildASS(
   videoWidth = 1920,
   videoHeight = 1080,
 ): string {
-  const cfg = styleConfig(opts.styleId, opts.position, opts.outlineWidth)
+  const cfg = styleConfig(opts.styleId, opts.position, opts.outlineWidth, videoHeight)
   const header = buildHeader(opts, cfg, fontName, videoWidth, videoHeight)
 
   let events: string[]

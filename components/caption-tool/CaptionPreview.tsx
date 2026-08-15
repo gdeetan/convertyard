@@ -1,9 +1,14 @@
 'use client'
 
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, useState } from 'react'
 import type { WordChunk, CaptionOptions } from '@/lib/converters/caption-types'
 import { groupWordsIntoLines } from '@/lib/converters/caption-ass-builder'
 import { BUILTIN_FONTS } from '@/lib/converters/caption-fonts'
+import {
+  captionFontSizePx,
+  captionMarginVPx,
+  captionOutlinePx,
+} from '@/lib/converters/caption-layout'
 
 interface Props {
   videoFile: File
@@ -104,8 +109,9 @@ function drawCaption(
   const activeWords = getActiveWords(words, currentTime, options)
   if (activeWords.length === 0) return
 
-  const scale = canvas.height / 1080
-  const fs = Math.round(options.fontSize * scale)
+  const fs = captionFontSizePx(options.fontSize, canvas.height)
+  const outlinePx = captionOutlinePx(options.styleId, options.outlineWidth, canvas.height)
+  const marginV = captionMarginVPx(options.position, canvas.height)
   const lineHeight = fs * 1.3
 
   ctx.font = `${options.styleId === 'mrbeast' || options.styleId === 'tiktok' ? 'bold ' : ''}${fs}px "${fontName}", Arial`
@@ -116,7 +122,11 @@ function drawCaption(
   const lines = wrapWordTexts(wordTexts, options.maxCharsPerLine)
 
   const x = canvas.width / 2
-  const yMap = { top: fs + 20 * scale, center: canvas.height / 2, bottom: canvas.height - 40 * scale }
+  const yMap = {
+    top: fs + marginV,
+    center: canvas.height / 2,
+    bottom: canvas.height - marginV,
+  }
   const baseY = yMap[options.position]
 
   let lineYs: number[]
@@ -130,17 +140,18 @@ function drawCaption(
   }
 
   if (options.styleId === 'netflix') {
-    const pad = 12 * scale
+    const pad = outlinePx
     ctx.fillStyle = 'rgba(0,0,0,0.75)'
     for (let i = 0; i < lines.length; i++) {
       const metrics = ctx.measureText(lines[i])
       ctx.beginPath()
-      ctx.roundRect(x - metrics.width / 2 - pad, lineYs[i] - fs - pad / 2, metrics.width + pad * 2, fs + pad, 6 * scale)
+      ctx.roundRect(x - metrics.width / 2 - pad, lineYs[i] - fs - pad / 2, metrics.width + pad * 2, fs + pad, Math.max(2, Math.round(outlinePx * 0.6)))
       ctx.fill()
     }
-  } else if (options.outlineWidth > 0) {
+  } else if (outlinePx > 0) {
     ctx.strokeStyle = options.outlineColor
-    ctx.lineWidth = options.outlineWidth * scale * 2
+    // Centered stroke: 2× outline so the outside matches ASS's outline width.
+    ctx.lineWidth = outlinePx * 2
     ctx.lineJoin = 'round'
     for (let i = 0; i < lines.length; i++) {
       ctx.strokeText(lines[i], x, lineYs[i])
@@ -175,6 +186,7 @@ export function CaptionPreview({ videoFile, words, options, onTimeUpdate, seekTi
   const urlRef = useRef<string | null>(null)
   const rafRef = useRef<number>(0)
   const loadedFaceRef = useRef<FontFace | null>(null)
+  const [aspectRatio, setAspectRatio] = useState<string | undefined>(undefined)
   // Always points to the latest draw fn so font-load can trigger one redraw without
   // adding draw to the font-load effect's dependency array (which would cause loops).
   const drawRef = useRef<() => void>(() => {})
@@ -253,7 +265,16 @@ export function CaptionPreview({ videoFile, words, options, onTimeUpdate, seekTi
     if (urlRef.current) URL.revokeObjectURL(urlRef.current)
     urlRef.current = URL.createObjectURL(videoFile)
     vid.src = urlRef.current
-    return () => { if (urlRef.current) URL.revokeObjectURL(urlRef.current) }
+    const onMeta = () => {
+      if (vid.videoWidth && vid.videoHeight) {
+        setAspectRatio(`${vid.videoWidth} / ${vid.videoHeight}`)
+      }
+    }
+    vid.addEventListener('loadedmetadata', onMeta)
+    return () => {
+      vid.removeEventListener('loadedmetadata', onMeta)
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current)
+    }
   }, [videoFile])
 
   const draw = useCallback(() => {
@@ -311,11 +332,14 @@ export function CaptionPreview({ videoFile, words, options, onTimeUpdate, seekTi
   }, [seekNonce, seekTime])
 
   return (
-    <div className="relative w-full overflow-hidden rounded-xl bg-black">
+    <div
+      className="relative w-full overflow-hidden rounded-xl bg-black"
+      style={aspectRatio ? { aspectRatio } : undefined}
+    >
       <video
         ref={videoRef}
         controls
-        className="w-full"
+        className={aspectRatio ? 'block h-full w-full object-contain' : 'block h-auto w-full'}
         playsInline
       />
       <canvas
