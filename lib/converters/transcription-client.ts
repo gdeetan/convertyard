@@ -49,6 +49,16 @@ export function __resetTranscriptionClientForTests(): void {
   for (const key of Object.keys(loadingPromise) as QualityMode[]) delete loadingPromise[key]
 }
 
+/** Stop an in-flight Whisper job. The next transcribe reloads the model. */
+export function abortTranscription(): void {
+  if (workerInstance) {
+    workerInstance.terminate()
+    workerInstance = null
+  }
+  for (const key of Object.keys(modelReady) as QualityMode[]) delete modelReady[key]
+  for (const key of Object.keys(loadingPromise) as QualityMode[]) delete loadingPromise[key]
+}
+
 // ── Model loading ─────────────────────────────────────────────────────────────
 
 const modelReady: Partial<Record<QualityMode, boolean>> = {}
@@ -97,11 +107,29 @@ export function transcribeAudio(
   sampleRate: number,
   language: string | null,
   timestamps: boolean | 'word',
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number) => void,
+  signal?: AbortSignal,
 ): Promise<TranscriptionResult> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(Object.assign(new Error('Cancelled'), { name: 'AbortError' }))
+      return
+    }
+
     const worker = getWorker()
     const id = crypto.randomUUID()
+
+    const cleanup = () => {
+      worker.removeEventListener('message', handler)
+      worker.removeEventListener('error', errorHandler)
+      signal?.removeEventListener('abort', onAbort)
+    }
+
+    const onAbort = () => {
+      cleanup()
+      abortTranscription()
+      reject(Object.assign(new Error('Cancelled'), { name: 'AbortError' }))
+    }
 
     const handler = (e: MessageEvent) => {
       const d = e.data
@@ -110,8 +138,7 @@ export function transcribeAudio(
       if (d.type === 'transcribe-progress') {
         onProgress?.(d.progress as number)
       } else if (d.type === 'transcribe-result') {
-        worker.removeEventListener('message', handler)
-        worker.removeEventListener('error', errorHandler)
+        cleanup()
         const result = d.result
         // Transform Whisper result into TranscriptionResult format
         const output: TranscriptionResult = {
@@ -126,15 +153,13 @@ export function transcribeAudio(
         }
         resolve(output)
       } else if (d.type === 'error' && d.id === id) {
-        worker.removeEventListener('message', handler)
-        worker.removeEventListener('error', errorHandler)
+        cleanup()
         reject(d.error as TranscriptionErrorShape)
       }
     }
 
     const errorHandler = (e: ErrorEvent) => {
-      worker.removeEventListener('message', handler)
-      worker.removeEventListener('error', errorHandler)
+      cleanup()
       reject(classifyTranscriptionError(e.message ?? 'Worker error', {
         code: 'WORKER_INIT_FAILED',
         phase: 'worker',
@@ -143,6 +168,7 @@ export function transcribeAudio(
 
     worker.addEventListener('message', handler)
     worker.addEventListener('error', errorHandler, { once: true })
+    signal?.addEventListener('abort', onAbort, { once: true })
     worker.postMessage({
       type: 'transcribe',
       id,

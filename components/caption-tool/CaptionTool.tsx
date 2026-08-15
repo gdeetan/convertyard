@@ -11,6 +11,9 @@ import { CaptionFontPanel } from './CaptionFontPanel'
 import { CaptionEditor } from './CaptionEditor'
 import { CaptionPreview } from './CaptionPreview'
 import { downloadFile, formatBytes } from '@/lib/utils/download'
+import { captionWorkloadWarning } from '@/lib/converters/caption-workload'
+import { isCancelError } from '@/lib/converters/audio-decode'
+import { probeVideoDuration } from '@/lib/converters/media-probe'
 
 type Phase = 'idle' | 'ready' | 'transcribing' | 'edit' | 'burning' | 'done'
 
@@ -68,25 +71,41 @@ function baseName(name: string): string {
   return name.replace(/\.[^.]+$/, '')
 }
 
-function DonePanel({ resultFile, onReset }: { resultFile: File; onReset: () => void }) {
+function DonePanel({
+  resultFile,
+  onReset,
+  onAdjust,
+}: {
+  resultFile: File
+  onReset: () => void
+  onAdjust: () => void
+}) {
   const downloadUrl = useMemo(() => URL.createObjectURL(resultFile), [resultFile])
   useEffect(() => () => URL.revokeObjectURL(downloadUrl), [downloadUrl])
 
   return (
-    <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-bg-elevated p-8">
-      <p className="text-lg font-semibold text-fg">Captions burned in</p>
-      <a
-        href={downloadUrl}
-        download={resultFile.name}
-        className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary/90"
-      >
-        <Download className="h-4 w-4" />
-        Download {resultFile.name}
-      </a>
-      <button type="button" onClick={onReset} className="flex items-center gap-2 text-sm text-fg-muted hover:text-fg">
-        <RefreshCcw className="h-3.5 w-3.5" />
-        Caption another video
-      </button>
+    <div className="space-y-4">
+      <video src={downloadUrl} controls playsInline className="w-full rounded-xl bg-black" />
+      <div className="flex flex-col items-center gap-3">
+        <p className="text-lg font-semibold text-fg">Captions burned in</p>
+        <a
+          href={downloadUrl}
+          download={resultFile.name}
+          className="flex items-center gap-2 rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white hover:bg-primary/90"
+        >
+          <Download className="h-4 w-4" />
+          Download {resultFile.name}
+        </a>
+        <div className="flex flex-wrap items-center justify-center gap-4">
+          <button type="button" onClick={onAdjust} className="text-sm font-medium text-primary hover:underline">
+            Adjust captions and re-burn
+          </button>
+          <button type="button" onClick={onReset} className="flex items-center gap-2 text-sm text-fg-muted hover:text-fg">
+            <RefreshCcw className="h-3.5 w-3.5" />
+            Caption another video
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -105,7 +124,20 @@ export function CaptionTool() {
   const [quality, setQuality] = useState<CaptionQuality>('balanced')
   const [language, setLanguage] = useState('en')
   const [timestampsEstimated, setTimestampsEstimated] = useState(false)
+  const [durationSec, setDurationSec] = useState(0)
+  const [seekTime, setSeekTime] = useState(0)
+  const [seekNonce, setSeekNonce] = useState(0)
   const importRef = useRef<HTMLInputElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
+
+  const workloadWarning = videoFile && videoDims
+    ? captionWorkloadWarning({
+        durationSec,
+        width: videoDims.width,
+        height: videoDims.height,
+        bytes: videoFile.size,
+      })
+    : null
 
   const applyVideoFile = useCallback((file: File) => {
     setVideoFile(file)
@@ -113,11 +145,13 @@ export function CaptionTool() {
     setResultFile(null)
     setTimestampsEstimated(false)
     setError(null)
+    setDurationSec(0)
     setPhase('ready')
     getVideoDimensions(file).then((dims) => {
       setVideoDims(dims)
       setOptions((prev) => ({ ...prev, maxCharsPerLine: smartMaxChars(dims.width, prev.fontSize) }))
     })
+    probeVideoDuration(file).then(setDurationSec)
     import('@/lib/converters/ffmpeg-client').then(({ getSingleThreadFFmpeg }) => {
       getSingleThreadFFmpeg().catch(() => { /* burn click will surface errors */ })
     })
@@ -130,6 +164,9 @@ export function CaptionTool() {
 
   const handleTranscribe = useCallback(async () => {
     if (!videoFile) return
+    abortRef.current?.abort()
+    const ac = new AbortController()
+    abortRef.current = ac
     setPhase('transcribing')
     setProgress(0)
     setError(null)
@@ -144,10 +181,15 @@ export function CaptionTool() {
         (pct) => {
           setProgress(Math.round(pct * 0.5))
           if (pct < 100) setStatusText(`Downloading Whisper model… ${pct}%`)
-          else setStatusText('Transcribing audio…')
+          else setStatusText('Extracting audio…')
         },
-        (pct) => setProgress(50 + Math.round(pct * 0.5)),
+        (pct) => {
+          setProgress(50 + Math.round(pct * 0.5))
+          setStatusText('Transcribing audio…')
+        },
+        ac.signal,
       )
+      if (ac.signal.aborted) return
       if (result.words.length === 0) {
         setError('No speech detected. Try Accurate, set the language, or import an SRT/VTT.')
         setPhase('ready')
@@ -157,6 +199,10 @@ export function CaptionTool() {
       setTimestampsEstimated(result.timestampsEstimated)
       setPhase('edit')
     } catch (err) {
+      if (isCancelError(err) || ac.signal.aborted) {
+        setPhase('ready')
+        return
+      }
       setError(err instanceof Error ? err.message : (err != null ? String(err) : 'Transcription failed'))
       setPhase('ready')
     }
@@ -186,6 +232,9 @@ export function CaptionTool() {
 
   const handleBurn = useCallback(async () => {
     if (!videoFile || words.length === 0 || timestampsEstimated) return
+    abortRef.current?.abort()
+    const ac = new AbortController()
+    abortRef.current = ac
     setPhase('burning')
     setProgress(0)
     setStatusText('Preparing ffmpeg…')
@@ -208,17 +257,36 @@ export function CaptionTool() {
           setStatusText(`Burning captions… ${safePct}% (may take 1–3 min)`)
         },
         videoDims ?? undefined,
+        ac.signal,
       )
 
+      if (ac.signal.aborted) return
       setResultFile(output)
       setPhase('done')
     } catch (err) {
+      if (isCancelError(err) || ac.signal.aborted) {
+        setPhase('edit')
+        return
+      }
       setError(err instanceof Error ? err.message : (err != null ? String(err) : 'Burn failed'))
       setPhase('edit')
     }
   }, [videoFile, words, options, videoDims, timestampsEstimated])
 
+  const handleCancel = useCallback(() => {
+    abortRef.current?.abort()
+    setPhase((current) => current === 'burning' ? 'edit' : current === 'transcribing' ? 'ready' : current)
+    void import('@/lib/converters/ffmpeg-client').then(({ resetFFmpeg, resetSingleThreadFFmpeg }) => {
+      void resetFFmpeg()
+      void resetSingleThreadFFmpeg()
+    })
+    void import('@/lib/converters/transcription-client').then(({ abortTranscription }) => {
+      abortTranscription()
+    })
+  }, [])
+
   function handleReset() {
+    handleCancel()
     setPhase('idle')
     setVideoFile(null)
     setWords([])
@@ -226,6 +294,13 @@ export function CaptionTool() {
     setProgress(0)
     setError(null)
     setTimestampsEstimated(false)
+    setDurationSec(0)
+  }
+
+  function handleSeek(time: number) {
+    setSeekTime(time)
+    setSeekNonce((n) => n + 1)
+    setActiveWordIdx(words.findIndex((w) => time >= w.start && time < w.end))
   }
 
   function handleTimeUpdate(time: number) {
@@ -262,6 +337,7 @@ export function CaptionTool() {
           accepts={VIDEO_ACCEPTS}
           acceptsExt={VIDEO_EXTS}
           onAdd={handleDrop}
+          multiple={false}
         />
         {error && (
           <p className="mt-3 rounded bg-red-50 px-3 py-1.5 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">
@@ -318,6 +394,12 @@ export function CaptionTool() {
           </div>
         </div>
 
+        {workloadWarning && (
+          <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-100">
+            {workloadWarning}
+          </p>
+        )}
+
         <p className="text-xs text-fg-muted">
           Set the spoken language for better accuracy. Or skip Whisper and import an existing SRT or VTT.
         </p>
@@ -365,12 +447,25 @@ export function CaptionTool() {
           />
         </div>
         <p className="text-xs text-fg-subtle">{progress}%</p>
+        <button
+          type="button"
+          onClick={handleCancel}
+          className="text-sm text-fg-muted hover:text-fg"
+        >
+          Cancel
+        </button>
       </div>
     )
   }
 
   if (phase === 'done' && resultFile) {
-    return <DonePanel resultFile={resultFile} onReset={handleReset} />
+    return (
+      <DonePanel
+        resultFile={resultFile}
+        onReset={handleReset}
+        onAdjust={() => setPhase('edit')}
+      />
+    )
   }
 
   return (
@@ -382,6 +477,8 @@ export function CaptionTool() {
           words={words}
           options={options}
           onTimeUpdate={handleTimeUpdate}
+          seekTime={seekTime}
+          seekNonce={seekNonce}
         />
       )}
 
@@ -402,6 +499,7 @@ export function CaptionTool() {
         words={words}
         activeIndex={activeWordIdx}
         onChange={setWords}
+        onSeek={handleSeek}
       />
 
       <div className="flex flex-wrap gap-2">

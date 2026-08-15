@@ -13,6 +13,7 @@ interface DropzoneProps {
   compact?: boolean           // collapsed "add more" row
   fileCount?: number
   totalBytes?: number
+  multiple?: boolean
 }
 
 type DragState = 'idle' | 'over' | 'error'
@@ -25,6 +26,7 @@ export function Dropzone({
   compact = false,
   fileCount = 0,
   totalBytes = 0,
+  multiple = true,
 }: DropzoneProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [drag, setDrag] = useState<DragState>('idle')
@@ -44,21 +46,22 @@ export function Dropzone({
 
   const handleFiles = useCallback(
     (raw: File[]) => {
-      const valid = validate(raw)
-      const rejected = raw.length - valid.length
+      const typed = validate(raw)
+      const valid = multiple ? typed : typed.slice(0, 1)
+      const typeRejected = raw.length - typed.length
       if (valid.length > 0) {
         onAdd(valid)
         setSrMsg(
-          `${valid.length} file${valid.length > 1 ? 's' : ''} added.${rejected > 0 ? ` ${rejected} rejected (wrong type).` : ''}`
+          `${valid.length} file${valid.length > 1 ? 's' : ''} added.${typeRejected > 0 ? ` ${typeRejected} rejected (wrong type).` : ''}`
         )
       }
       if (valid.length === 0 && raw.length > 0) {
         setDrag('error')
-        setSrMsg(`${rejected} file${rejected > 1 ? 's' : ''} rejected. Accepted types: ${acceptsExt.join(', ')}.`)
+        setSrMsg(`${typeRejected} file${typeRejected > 1 ? 's' : ''} rejected. Accepted types: ${acceptsExt.join(', ')}.`)
         setTimeout(() => setDrag('idle'), 2000)
       }
     },
-    [validate, onAdd, acceptsExt]
+    [validate, onAdd, acceptsExt, multiple]
   )
 
   // Paste from clipboard
@@ -104,7 +107,7 @@ export function Dropzone({
     <input
       ref={inputRef}
       type="file"
-      multiple
+      multiple={multiple}
       accept={[...accepts, ...acceptsExt].join(',')}
       className="sr-only"
       tabIndex={-1}
@@ -162,7 +165,7 @@ export function Dropzone({
       <div
         role="button"
         tabIndex={disabled ? -1 : 0}
-        aria-label={`Drop zone. Accepts ${extLabel}. Press Enter or Space to open file picker, or drag and drop files here.`}
+        aria-label={`Drop zone. Accepts ${extLabel}${multiple ? '' : ', one file'}. Press Enter or Space to open file picker, or drag and drop files here.`}
         aria-disabled={disabled}
         onClick={open}
         onKeyDown={onKeyDown}
@@ -203,7 +206,7 @@ export function Dropzone({
             </div>
             <div className="space-y-1">
               <p className="text-sm font-medium text-fg">
-                {isOver ? 'Release to add' : 'Drop files here'}
+                {isOver ? 'Release to add' : multiple ? 'Drop files here' : 'Drop a video here'}
               </p>
               <p className="text-xs text-fg-muted">
                 or{' '}
@@ -214,7 +217,7 @@ export function Dropzone({
               </p>
             </div>
             <p className="text-xs text-fg-subtle">
-              Accepts {extLabel} · Up to 1,000 files
+              Accepts {extLabel} · {multiple ? 'Up to 1,000 files' : 'One video'}
             </p>
           </>
         )}

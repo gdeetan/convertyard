@@ -1,11 +1,12 @@
 import { getFFmpeg } from './ffmpeg-client'
 import { loadTranscriptionModel, transcribeAudio } from './transcription-client'
 import { wordsFromTranscription, type CaptionTranscript } from './caption-words'
+import { decodeAudioViaWebAudio, throwIfAborted, isCancelError } from './audio-decode'
 
 export type CaptionQuality = 'fast' | 'balanced' | 'accurate'
 export type { CaptionTranscript }
 
-async function extractAudio(videoFile: File): Promise<Float32Array> {
+async function extractAudioViaFfmpeg(videoFile: File): Promise<Float32Array> {
   const { fetchFile } = await import('@ffmpeg/util')
   const ffmpeg = await getFFmpeg()
   const inputName = `cap_in_${Date.now()}`
@@ -34,17 +35,35 @@ async function extractAudio(videoFile: File): Promise<Float32Array> {
   }
 }
 
+export async function extractAudio(
+  videoFile: File,
+  signal?: AbortSignal,
+): Promise<Float32Array> {
+  throwIfAborted(signal)
+  try {
+    return await decodeAudioViaWebAudio(videoFile)
+  } catch (err) {
+    throwIfAborted(signal)
+    if (isCancelError(err)) throw err
+    return extractAudioViaFfmpeg(videoFile)
+  }
+}
+
 export async function transcribeToWords(
   videoFile: File,
   quality: CaptionQuality,
   language: string | null,
   onModelProgress: (pct: number) => void,
   onTranscribeProgress: (pct: number) => void,
+  signal?: AbortSignal,
 ): Promise<CaptionTranscript> {
+  throwIfAborted(signal)
   await loadTranscriptionModel(quality, onModelProgress)
+  throwIfAborted(signal)
   onModelProgress(100)
 
-  const audioData = await extractAudio(videoFile)
+  const audioData = await extractAudio(videoFile, signal)
+  throwIfAborted(signal)
   onTranscribeProgress(10)
 
   const result = await transcribeAudio(
@@ -53,7 +72,9 @@ export async function transcribeToWords(
     language,
     'word',
     onTranscribeProgress,
+    signal,
   )
 
+  throwIfAborted(signal)
   return wordsFromTranscription(result)
 }

@@ -99,3 +99,29 @@ export function getMobileFFmpeg(): Promise<any> {
   }
   return mobileLoadPromise
 }
+
+async function resetLoaded(
+  getter: () => Promise<unknown> | null,
+  clear: () => void,
+): Promise<void> {
+  const pending = getter()
+  clear()
+  if (!pending) return
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ffmpeg = await pending as { terminate: () => void }
+    ffmpeg.terminate()
+  } catch {
+    /* load failed or already dead */
+  }
+}
+
+/** Kill the multi-thread/default instance (used for audio extract). */
+export function resetFFmpeg(): Promise<void> {
+  return resetLoaded(() => loadPromise, () => { loadPromise = null })
+}
+
+/** Kill the single-thread instance (used for caption burn). */
+export function resetSingleThreadFFmpeg(): Promise<void> {
+  return resetLoaded(() => stLoadPromise, () => { stLoadPromise = null })
+}

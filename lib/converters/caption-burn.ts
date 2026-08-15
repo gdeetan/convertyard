@@ -3,6 +3,7 @@ import type { WordChunk, CaptionOptions } from './caption-types'
 import { loadBuiltinFont } from './caption-fonts'
 import { buildASS } from './caption-ass-builder'
 import { probeVideoDuration } from './media-probe'
+import { throwIfAborted } from './audio-decode'
 
 // ffmpeg emits stats lines like "frame= 123 fps=45 ... time=00:01:23.45 bitrate=..."
 // Parse the time= field into seconds so real encode progress can drive the UI.
@@ -30,9 +31,12 @@ export async function burnCaptions(
   fontBlob: Blob | null,
   onProgress: (pct: number) => void,
   videoDims?: { width: number; height: number },
+  signal?: AbortSignal,
 ): Promise<File> {
+  throwIfAborted(signal)
   const { fetchFile } = await import('@ffmpeg/util')
   const ffmpeg = await getSingleThreadFFmpeg()
+  throwIfAborted(signal)
 
   const ts = Date.now()
   const inputName  = `cap_in_${ts}${getExt(videoFile.name)}`
@@ -134,6 +138,7 @@ export async function burnCaptions(
     ])
 
     stopFallbackTimer()
+    throwIfAborted(signal)
 
     if (exitCode !== 0) {
       // Single-pass failed; wipe partial output and fall back to 2-pass.

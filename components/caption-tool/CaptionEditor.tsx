@@ -7,9 +7,10 @@ interface Props {
   words: WordChunk[]
   activeIndex: number
   onChange: (words: WordChunk[]) => void
+  onSeek?: (time: number) => void
 }
 
-export function CaptionEditor({ words, activeIndex, onChange }: Props) {
+export function CaptionEditor({ words, activeIndex, onChange, onSeek }: Props) {
   const [editingIdx, setEditingIdx] = useState<number | null>(null)
   const [draft, setDraft] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
@@ -40,7 +41,7 @@ export function CaptionEditor({ words, activeIndex, onChange }: Props) {
     <div className="space-y-2">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-fg">Transcript</p>
-        <p className="text-xs text-fg-muted">Click any word to edit. Empty = delete.</p>
+        <p className="text-xs text-fg-muted">Click a word to jump. Double-click to edit. Empty = delete.</p>
       </div>
       <div className="max-h-48 overflow-y-auto rounded-xl border border-border bg-bg p-3">
         <div className="flex flex-wrap gap-1">
@@ -58,7 +59,8 @@ export function CaptionEditor({ words, activeIndex, onChange }: Props) {
               ) : (
                 <button
                   type="button"
-                  onClick={() => startEdit(idx)}
+                  onClick={() => onSeek?.(word.start)}
+                  onDoubleClick={() => startEdit(idx)}
                   className={`rounded px-1 py-0.5 text-sm transition-colors ${
                     idx === activeIndex
                       ? 'bg-primary/20 text-primary font-semibold'

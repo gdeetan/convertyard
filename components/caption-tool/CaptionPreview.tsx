@@ -10,6 +10,8 @@ interface Props {
   words: WordChunk[]
   options: CaptionOptions
   onTimeUpdate?: (time: number) => void
+  seekTime?: number
+  seekNonce?: number
 }
 
 function getActiveWords(words: WordChunk[], time: number, options: CaptionOptions): WordChunk[] {
@@ -167,7 +169,7 @@ function drawCaption(
   }
 }
 
-export function CaptionPreview({ videoFile, words, options, onTimeUpdate }: Props) {
+export function CaptionPreview({ videoFile, words, options, onTimeUpdate, seekTime, seekNonce }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const urlRef = useRef<string | null>(null)
@@ -278,9 +280,12 @@ export function CaptionPreview({ videoFile, words, options, onTimeUpdate }: Prop
     const startRAF = () => { rafRef.current = requestAnimationFrame(draw) }
     const stopRAF = () => cancelAnimationFrame(rafRef.current)
 
+    const onSeeked = () => draw()
+
     vid.addEventListener('play', startRAF)
     vid.addEventListener('pause', stopRAF)
     vid.addEventListener('ended', stopRAF)
+    vid.addEventListener('seeked', onSeeked)
 
     // Draw once immediately (handles seeked/paused state)
     draw()
@@ -293,8 +298,17 @@ export function CaptionPreview({ videoFile, words, options, onTimeUpdate }: Prop
       vid.removeEventListener('play', startRAF)
       vid.removeEventListener('pause', stopRAF)
       vid.removeEventListener('ended', stopRAF)
+      vid.removeEventListener('seeked', onSeeked)
     }
   }, [draw])
+
+  useEffect(() => {
+    if (seekNonce == null || seekTime == null) return
+    const vid = videoRef.current
+    if (!vid) return
+    vid.currentTime = seekTime
+    drawRef.current()
+  }, [seekNonce, seekTime])
 
   return (
     <div className="relative w-full overflow-hidden rounded-xl bg-black">
