@@ -1,5 +1,8 @@
 export type UpscaleScale = '2x' | '3x' | '4x' | '8x'
 export type PhotoMode = 'photo' | 'photo-compressed'
+export type ImageMode = 'auto' | 'photo' | 'photo-compressed' | 'graphic' | 'illustration'
+export type DetectedMode = 'photo' | 'photo-compressed' | 'graphic'
+export type ResolvedMode = 'photo' | 'photo-compressed' | 'graphic' | 'illustration'
 export type OnnxDevice = 'webgpu' | 'wasm' | 'cpu'
 export type ChainKind = 'swin2sr' | 'realesrgan'
 
@@ -7,10 +10,27 @@ export const SWIN2SR_CLASSICAL_X2 = 'Xenova/swin2SR-classical-sr-x2-64'
 export const SWIN2SR_COMPRESSED_X2 = 'Xenova/swin2SR-compressed-sr-x2-48'
 export const SWIN2SR_REALWORLD_X4 = 'Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr'
 export const REALESRGAN_X4 = 'realesr-general-x4v3'
+export const REALESRGAN_ANIME_X4 = 'realesr-animevideov3'
 
 export const REALESRGAN_LOCAL_URL = '/models/realesr-general-x4v3.onnx'
 export const REALESRGAN_HF_URL =
   'https://huggingface.co/CoderViking/realesr-general-x4v3-onnx/resolve/main/realesr-general-x4v3.onnx'
+export const REALESRGAN_ANIME_LOCAL_URL = '/models/realesr-animevideov3.onnx'
+export const REALESRGAN_ANIME_HF_URL =
+  'https://huggingface.co/tidus2102/Real-ESRGAN/resolve/main/RealESR-AnimeVideo-v3_x4.onnx'
+
+export const REALESRGAN_SOURCES: Record<string, { local: string; remote: string; fail: string }> = {
+  [REALESRGAN_X4]: {
+    local: REALESRGAN_LOCAL_URL,
+    remote: REALESRGAN_HF_URL,
+    fail: 'Failed to download Real-ESRGAN v3 model',
+  },
+  [REALESRGAN_ANIME_X4]: {
+    local: REALESRGAN_ANIME_LOCAL_URL,
+    remote: REALESRGAN_ANIME_HF_URL,
+    fail: 'Failed to download illustration upscaler model',
+  },
+}
 
 export interface ModelChain {
   modelId: string
@@ -60,6 +80,30 @@ export function modelRouting(scale: UpscaleScale, mode: PhotoMode): ModelRouting
         ],
         actualScale: 8,
       }
+  }
+}
+
+export function resolveImageMode(imageMode: ImageMode, detected?: DetectedMode): ResolvedMode {
+  switch (imageMode) {
+    case 'auto':
+      if (!detected) throw new Error('auto-detect requires a detected mode')
+      return detected === 'graphic' ? 'illustration' : detected
+    case 'illustration':
+      return 'illustration'
+    case 'graphic':
+      return 'graphic'
+    case 'photo-compressed':
+      return 'photo-compressed'
+    default:
+      return 'photo'
+  }
+}
+
+export function illustrationRouting(scale: UpscaleScale): ModelRouting {
+  const actualScale = { '2x': 2, '3x': 3, '4x': 4, '8x': 8 }[scale]
+  return {
+    chains: [{ modelId: REALESRGAN_ANIME_X4, scale: 4, kind: 'realesrgan' }],
+    actualScale,
   }
 }
 

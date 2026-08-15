@@ -5,7 +5,7 @@
 const USE_ONNX_BACKEND = true
 
 export type UpscaleScale = '2x' | '3x' | '4x' | '8x'
-export type ImageMode = 'auto' | 'photo' | 'photo-compressed' | 'graphic'
+export type ImageMode = 'auto' | 'photo' | 'photo-compressed' | 'graphic' | 'illustration'
 type OnnxDevice = 'webgpu' | 'wasm' | 'cpu'
 
 const deviceReadyCallbacks: Array<(device: OnnxDevice) => void> = []
