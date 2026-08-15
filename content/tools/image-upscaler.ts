@@ -7,7 +7,7 @@ export const config: ToolConfig = {
   subtitle:
     'Enlarge photos and illustrations 2×–8× in your browser. Logos can stay on Lanczos. No upload, no account.',
   bestFor:
-    'Best for enlarging product photos and web images at 2×–4×. Not a replacement for desktop print tools.',
+    'Best for enlarging product photos and web images at 2×–4×. Not a replacement for desktop print tools. Very tall or wide files — long infographics, full-page screenshots — cannot be enlarged to a true 4×. The browser canvas stops at 8,192 px on a side, so those are pre-shrunk first and the result can be smaller than the original.',
   category: 'ai',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff'],
@@ -36,7 +36,7 @@ export const config: ToolConfig = {
 
   limitationNote: {
     summary: 'Sharper than a normal resize — not a desktop upscaler',
-    body: 'On GPU browsers, photos at 4× run Real-ESRGAN general v3 (~5 MB). Illustrations, badges, and line art use RealESR AnimeVideo v3 (~2.5 MB). Other browsers use Swin2SR for photos and Lanczos for illustrations. 2× photos always use Swin2SR. It does not denoise, recover faces, or match desktop tools such as Topaz Photo AI. Graphic / logo mode is Lanczos resize plus light sharpen — no neural net.',
+    body: 'On GPU browsers, photos at 4× run Real-ESRGAN general v3 (~5 MB). Illustrations, badges, and line art use RealESR AnimeVideo v3 (~2.5 MB). Other browsers use Swin2SR for photos and Lanczos for illustrations. 2× photos always use Swin2SR. It does not denoise, recover faces, or match desktop tools such as Topaz Photo AI. Graphic / logo mode is Lanczos resize plus light sharpen — no neural net. A 4× result cannot exceed 8,192 px on a side. A 1,000×13,000 infographic is shrunk before upscaling — export those from the design file, or split them into shorter sections.',
   },
 
   options: [
@@ -108,7 +108,11 @@ export const config: ToolConfig = {
     },
     {
       q: 'What types of images produce poor results?',
-      a: 'Portraits (no face-recovery pass), noisy or low-light photos, old scans, and anything under about 50 px on a side. Illustration mode can halo tiny type on logos — switch to Graphic / logo if that happens. Very large sources (above ~4000×4000 px) may fail or get pre-shrunk to fit the browser canvas limit.',
+      a: 'Portraits (no face-recovery pass), noisy or low-light photos, old scans, and anything under about 50 px on a side. Illustration mode can halo tiny type on logos — switch to Graphic / logo if that happens. Very tall or wide sources (a 4× side over 8,192 px) are pre-shrunk to fit the browser canvas — the download can be smaller than the original.',
+    },
+    {
+      q: 'Can I upscale a long infographic or full-page screenshot?',
+      a: 'Not to a true 4× of the whole file. The browser cannot draw a bitmap larger than 8,192 px on a side, so at 4× the source must stay under about 2,048 px in its longest dimension. Taller files are shrunk first. Split the graphic into shorter sections, or export a larger raster from the original design (Canva, Figma, Illustrator).',
     },
     {
       q: 'What scale should I use for printing?',
