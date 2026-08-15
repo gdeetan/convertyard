@@ -186,7 +186,7 @@ export function CaptionTool() {
         },
         (pct) => {
           setProgress(50 + Math.round(pct * 0.5))
-          setStatusText('Transcribing audio…')
+          setStatusText(`Transcribing audio… ${Math.round(pct)}% (keep this tab open)`)
         },
         ac.signal,
       )

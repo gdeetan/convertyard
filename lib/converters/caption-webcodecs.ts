@@ -79,6 +79,10 @@ export async function burnCaptionsWebCodecs(
   video.muted = true
   video.playsInline = true
   video.preload = 'auto'
+  // Detached videos often stop decoding after a few frames, which freezes
+  // requestVideoFrameCallback mid-encode (progress stuck around 50–60%).
+  video.style.cssText = 'position:fixed;right:0;bottom:0;width:4px;height:4px;opacity:0.01;pointer-events:none;z-index:-1'
+  document.body.appendChild(video)
   video.src = url
 
   try {
@@ -126,15 +130,35 @@ export async function burnCaptionsWebCodecs(
     }
 
     let frameIndex = 0
+    let lastFrameAt = Date.now()
     await new Promise<void>((resolve, reject) => {
+      let settled = false
+      const finish = () => {
+        if (settled) return
+        settled = true
+        clearInterval(watchdog)
+        video.pause()
+        resolve()
+      }
       const fail = (err: unknown) => {
+        if (settled) return
+        settled = true
+        clearInterval(watchdog)
         video.pause()
         reject(err instanceof Error ? err : new Error(String(err)))
       }
+      const watchdog = window.setInterval(() => {
+        if (Date.now() - lastFrameAt > 8000) {
+          fail(new Error('Hardware encode stalled — no frames for 8s'))
+        }
+      }, 1000)
+      const onEnded = () => finish()
+      video.addEventListener('ended', onEnded, { once: true })
       const onFrame = (_now: number, meta: { mediaTime: number }) => {
         try {
           throwIfAborted(signal)
           if (encodeError) throw encodeError
+          lastFrameAt = Date.now()
           const t = meta.mediaTime
           ctx.drawImage(video, 0, 0, width, height)
           drawCaptionOverlay(ctx, width, height, words, opts, t, fontName)
@@ -146,24 +170,29 @@ export async function burnCaptionsWebCodecs(
           frame.close()
           frameIndex += 1
           onProgress(8 + Math.round(Math.min(1, t / duration) * 70))
-          if (encoder.encodeQueueSize > 12) video.playbackRate = 1
-          else video.playbackRate = 4
-          if (video.ended || t >= duration - 0.04) {
-            resolve()
+          if (encoder.encodeQueueSize > 10) video.playbackRate = 1
+          else video.playbackRate = 2
+          if (video.ended || t >= duration - 0.05) {
+            video.removeEventListener('ended', onEnded)
+            finish()
             return
           }
           rVFC.call(video, onFrame)
         } catch (err) {
+          video.removeEventListener('ended', onEnded)
           fail(err)
         }
       }
-      video.playbackRate = 4
+      video.playbackRate = 2
       video.play().then(() => rVFC.call(video, onFrame)).catch(fail)
     })
 
     video.pause()
-    await encoder.flush()
-    encoder.close()
+    try {
+      await encoder.flush()
+    } finally {
+      try { encoder.close() } catch { /* already closed on error */ }
+    }
     if (encodeError) throw encodeError
     if (chunks.length === 0) throw new Error('Hardware encoder produced no frames')
 
@@ -172,8 +201,10 @@ export async function burnCaptionsWebCodecs(
     return muxWithOriginalAudio(videoFile, annexB, onProgress, signal)
   } finally {
     URL.revokeObjectURL(url)
+    video.pause()
     video.removeAttribute('src')
     video.load()
+    video.remove()
   }
 }
 

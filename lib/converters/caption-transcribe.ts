@@ -64,17 +64,43 @@ export async function transcribeToWords(
 
   const audioData = await extractAudio(videoFile, signal)
   throwIfAborted(signal)
-  onTranscribeProgress(10)
 
-  const result = await transcribeAudio(
-    audioData,
-    16000,
-    language,
-    'word',
-    onTranscribeProgress,
-    signal,
-  )
+  // Whisper's pipeline only reports 10% then 95%. Split into 30s slices so the
+  // bar actually moves — otherwise the UI sits at 55% for the whole inference.
+  const sampleRate = 16000
+  const chunkSamples = 30 * sampleRate
+  const totalChunks = Math.max(1, Math.ceil(audioData.length / chunkSamples))
+  const merged: { text: string; timestamp?: [number, number] }[] = []
+  const textParts: string[] = []
 
+  for (let i = 0; i < totalChunks; i++) {
+    throwIfAborted(signal)
+    const start = i * chunkSamples
+    const end = Math.min(audioData.length, start + chunkSamples)
+    const offsetSec = start / sampleRate
+    const slice = audioData.slice(start, end)
+    onTranscribeProgress(Math.round((i / totalChunks) * 100))
+
+    const result = await transcribeAudio(
+      slice,
+      sampleRate,
+      language,
+      'word',
+      (p) => onTranscribeProgress(Math.round(((i + p / 100) / totalChunks) * 100)),
+      signal,
+    )
+
+    if (result.chunks) {
+      for (const c of result.chunks) {
+        const t0 = (c.timestamp?.[0] ?? 0) + offsetSec
+        const t1 = (c.timestamp?.[1] ?? t0) + offsetSec
+        merged.push({ text: c.text, timestamp: [t0, t1] })
+      }
+    }
+    if (result.text) textParts.push(result.text)
+  }
+
+  onTranscribeProgress(100)
   throwIfAborted(signal)
-  return wordsFromTranscription(result)
+  return wordsFromTranscription({ text: textParts.join(' '), chunks: merged })
 }
