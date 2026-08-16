@@ -16,19 +16,25 @@ const mockDeleteFile = vi.fn(async () => {})
 const mockOn = vi.fn()
 const mockOff = vi.fn()
 
+const ffmpegMock = {
+  exec: mockExec,
+  writeFile: mockWriteFile,
+  readFile: mockReadFile,
+  deleteFile: mockDeleteFile,
+  on: mockOn,
+  off: mockOff,
+}
+
 vi.mock('@/lib/converters/ffmpeg-client', () => ({
-  getFFmpeg: vi.fn(async () => ({
-    exec: mockExec,
-    writeFile: mockWriteFile,
-    readFile: mockReadFile,
-    deleteFile: mockDeleteFile,
-    on: mockOn,
-    off: mockOff,
-  })),
+  getFFmpeg: vi.fn(async () => ffmpegMock),
+  getCompressVideoFFmpeg: vi.fn(async () => ffmpegMock),
+  getSingleThreadFFmpeg: vi.fn(async () => ffmpegMock),
+  getMobileFFmpeg: vi.fn(async () => ffmpegMock),
 }))
 
 import { compressVideo } from '../ffmpeg'
 import { probeVideoDuration, probeVideoDimensions, probeAudioInfo } from '@/lib/converters/media-probe'
+import { getCompressVideoFFmpeg, getFFmpeg } from '@/lib/converters/ffmpeg-client'
 
 describe('compressVideo', () => {
   beforeEach(() => vi.clearAllMocks())
@@ -37,6 +43,13 @@ describe('compressVideo', () => {
     const f = new File([new Uint8Array(size)], name, { type: 'video/mp4' })
     return f
   }
+
+  it('loads the compress-video ST instance, not the default MT core', async () => {
+    const file = makeFile('video.mp4')
+    await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: false })
+    expect(getCompressVideoFFmpeg).toHaveBeenCalledOnce()
+    expect(getFFmpeg).not.toHaveBeenCalled()
+  })
 
   it('preset mode: calls exec with libx264 and CRF 23 for medium', async () => {
     const file = makeFile('video.mp4')

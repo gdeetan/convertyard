@@ -10,6 +10,7 @@ import { verticals } from '@/content/vertical-registry'
 import { config as compressPdfConfig } from '@/content/tools/compress-pdf'
 import { config as compressImageConfig } from '@/content/tools/compress-image'
 import { config as compressVideoConfig } from '@/content/tools/compress-video'
+import { CompressVideoEngineBanner } from '@/components/tool-shell/compress-video-engine-banner'
 import type { SizeTargetConfig, ToolConfig, ToolOption } from '@/lib/types'
 
 const INHERITED_FAQ_INDICES: Record<string, number[]> = {
@@ -97,7 +98,11 @@ export function SizeTargetShell({
 
       {/* Tool — pre-filled with target */}
       <div className="mb-12">
-        <ToolShell config={toolConfig} embedded />
+        <ToolShell
+          config={toolConfig}
+          embedded
+          notice={config.parentTool === 'compress-video' ? <CompressVideoEngineBanner /> : undefined}
+        />
       </div>
 
       {/* Intro */}
