@@ -221,11 +221,49 @@ describe('compressVideo', () => {
     expect(args).toContain('128k')
   })
 
-  it('preset mode: always uses 128kbps audio regardless of target', async () => {
+  it('preset mode: re-encodes audio at 128kbps when probe finds no copyable AAC', async () => {
     const file = makeFile('video.mp4')
     await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: false })
     const args: string[] = mockExec.mock.calls[0][0]
     expect(args).toContain('128k')
+    expect(probeAudioInfo).toHaveBeenCalledOnce()
+  })
+
+  it('preset mode: uses -c:a copy when source is AAC at or below 144 kbps', async () => {
+    vi.mocked(probeAudioInfo).mockResolvedValueOnce({ codec: 'aac', bitrateKbps: 128 })
+    const file = makeFile('video.mp4')
+    await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    const caIndex = args.indexOf('-c:a')
+    expect(caIndex).toBeGreaterThan(-1)
+    expect(args[caIndex + 1]).toBe('copy')
+    expect(args).not.toContain('128k')
+  })
+
+  it('preset mode: re-encodes audio when source AAC bitrate is too high', async () => {
+    vi.mocked(probeAudioInfo).mockResolvedValueOnce({ codec: 'aac', bitrateKbps: 320 })
+    const file = makeFile('video.mp4')
+    await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('128k')
+    const caIndex = args.indexOf('-c:a')
+    expect(args[caIndex + 1]).toBe('aac')
+  })
+
+  it('preset mode: re-encodes audio when source is not AAC', async () => {
+    vi.mocked(probeAudioInfo).mockResolvedValueOnce({ codec: 'mp3', bitrateKbps: 128 })
+    const file = makeFile('video.mp4')
+    await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    const caIndex = args.indexOf('-c:a')
+    expect(args[caIndex + 1]).toBe('aac')
+    expect(args).toContain('128k')
+  })
+
+  it('preset mode: does not probe audio when stripAudio is true', async () => {
+    const file = makeFile('video.mp4')
+    await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: true })
+    expect(probeAudioInfo).not.toHaveBeenCalled()
   })
 
   it('target size mode: auto-scales 4K source to 1080p for targets at or below 50MB', async () => {

@@ -962,6 +962,17 @@ export async function compressVideo(
             effectiveCrfVfArgs = ['-vf', `scale=-2:${mobileCapHeight}`]
           }
         }
+        let presetAudioArgs = audioArgs
+        if (!stripAudio) {
+          const audioInfo = await probeAudioInfo(ffmpeg, inputName)
+          const shouldCopyAudio =
+            audioInfo !== null &&
+            audioInfo.codec === 'aac' &&
+            audioInfo.bitrateKbps <= 128 + 16
+          if (shouldCopyAudio) {
+            presetAudioArgs = ['-c:a', 'copy']
+          }
+        }
         const progressHandler = ({ progress }: { progress: number }) => {
           onProgress?.(i, Math.round(10 + progress * 85))
         }
@@ -974,7 +985,7 @@ export async function compressVideo(
             '-c:v', codec,
             '-crf', String(crf),
             '-preset', 'ultrafast',
-            ...audioArgs,
+            ...presetAudioArgs,
             outputName,
           ])
           data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
