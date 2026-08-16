@@ -1,5 +1,5 @@
 import { fetchFile } from '@ffmpeg/util'
-import { getFFmpeg, getMobileFFmpeg, getSingleThreadFFmpeg } from './ffmpeg-client'
+import { getFFmpeg, getCompressVideoFFmpeg } from './ffmpeg-client'
 import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo } from './media-probe'
 import type { ToolOptions, ConversionResult } from '@/lib/types'
 
@@ -941,7 +941,7 @@ export async function compressVideo(
         continue
       }
 
-      const ffmpeg = isMobileBrowser() ? await getMobileFFmpeg() : await getSingleThreadFFmpeg()
+      const ffmpeg = await getCompressVideoFFmpeg()
       const ext    = file.name.split('.').pop() ?? 'mp4'
       const inputName  = `cv_in_${i}.${ext}`
       const outputName = `cv_out_${i}.mp4`

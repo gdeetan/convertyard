@@ -75,6 +75,19 @@ export function getSingleThreadFFmpeg(): Promise<any> {
   return stLoadPromise
 }
 
+// Compress-video always uses the ST core. The MT build deadlocks on -vf scale
+// (ffmpegwasm#772) and was measured slower than ST even without filters.
+// Pages must preload this getter — not getFFmpeg() — so the first encode does
+// not download a second unused ~25 MB core.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getCompressVideoFFmpeg(): Promise<any> {
+  return getSingleThreadFFmpeg()
+}
+
+export function preloadCompressVideoFFmpeg(): void {
+  getCompressVideoFFmpeg().catch(() => {})
+}
+
 // Mobile always gets ST: the MT build deadlocks on Android Chrome on certain
 // encode paths, and ST is safer at no meaningful speed cost for mobile workloads.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
