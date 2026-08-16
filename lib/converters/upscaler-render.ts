@@ -117,6 +117,52 @@ export function nchwFloat01ToRgba(
   return rgba
 }
 
+export function nhwcFloat01ToRgba(
+  nhwc: Float32Array | ArrayLike<number>,
+  width: number,
+  height: number
+): Uint8ClampedArray {
+  const rgba = new Uint8ClampedArray(width * height * 4)
+  for (let i = 0; i < width * height; i++) {
+    rgba[i * 4] = Math.round(Math.min(1, Math.max(0, nhwc[i * 3])) * 255)
+    rgba[i * 4 + 1] = Math.round(Math.min(1, Math.max(0, nhwc[i * 3 + 1])) * 255)
+    rgba[i * 4 + 2] = Math.round(Math.min(1, Math.max(0, nhwc[i * 3 + 2])) * 255)
+    rgba[i * 4 + 3] = 255
+  }
+  return rgba
+}
+
+export function srFloatsToRgba(
+  data: Float32Array | ArrayLike<number>,
+  width: number,
+  height: number,
+  dims?: readonly number[]
+): Uint8ClampedArray {
+  if (dims && dims.length === 4 && dims[3] === 3 && dims[1] === height && dims[2] === width) {
+    return nhwcFloat01ToRgba(data, width, height)
+  }
+  return nchwFloat01ToRgba(data, width, height)
+}
+
+export function cropRgba(
+  src: Uint8ClampedArray,
+  srcW: number,
+  srcH: number,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): Uint8ClampedArray {
+  const out = new Uint8ClampedArray(w * h * 4)
+  for (let row = 0; row < h; row++) {
+    const sy = y + row
+    if (sy < 0 || sy >= srcH) continue
+    const srcOff = (sy * srcW + x) * 4
+    out.set(src.subarray(srcOff, srcOff + w * 4), row * w * 4)
+  }
+  return out
+}
+
 export function detectFlatOutputMismatch(
   sourcePixels: Uint8ClampedArray,
   outputPixels: Uint8ClampedArray

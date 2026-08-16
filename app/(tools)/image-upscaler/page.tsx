@@ -95,9 +95,12 @@ function ImageUpscalerPage() {
     const slowTimeout = setTimeout(() => setModelState('slow'), 30_000)
     const hardCutoff  = setTimeout(() => setModelState('ready'), 210_000)
 
+    const mobile = navigator.maxTouchPoints > 1 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
     import('@/lib/converters/upscaler-engine')
       .then(({ loadUpscalerModel, onDeviceReady }) => {
         onDeviceReady(setActiveDevice)
+        // Phones OOM if we warm the 5 MB WebGPU session on page load.
+        if (mobile) return
         return loadUpscalerModel('4x')
       })
       .catch(() => {/* error surfaces in progress bar when user converts */})
