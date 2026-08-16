@@ -7,7 +7,7 @@ export const config: ToolConfig = {
   subtitle:
     'Enlarge photos and illustrations 2×–8× in your browser. Logos can stay on Lanczos. No upload, no account.',
   bestFor:
-    'Best for enlarging product photos and web images at 2×–4×. Not a replacement for desktop print tools. Very tall or wide files — long infographics, full-page screenshots — cannot be enlarged to a true 4×. The browser canvas stops at 8,192 px on a side, so those are pre-shrunk first and the result can be smaller than the original.',
+    'Best for enlarging product photos and web images at 2×–4×. Not a replacement for desktop print tools. On phones the output is capped at 2,048 px so Safari and Chrome do not reload the tab. Very tall or wide files — long infographics, full-page screenshots — cannot be enlarged to a true 4×. Desktop is capped at 8,192 px; those files are pre-shrunk first and the result can be smaller than the original.',
   category: 'ai',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff'],

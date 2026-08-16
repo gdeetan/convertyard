@@ -7,9 +7,13 @@ import {
   SWIN2SR_COMPRESSED_X2,
   SWIN2SR_REALWORLD_X4,
   blobEncodeOptions,
+  detectUpscalerClientProfile,
   illustrationRouting,
+  maxOutputDim,
   modelRouting,
+  padToMultiple,
   resolveImageMode,
+  shouldUseOnnxOnClient,
   swin2srFallbackRouting,
   tileSettings,
 } from '../upscaler-settings'
@@ -36,6 +40,40 @@ describe('tileSettings', () => {
   it('keeps conservative tiles and q8 on WASM and CPU', () => {
     expect(tileSettings('wasm')).toEqual({ tilePx: 128, overlap: 8, dtype: 'q8' })
     expect(tileSettings('cpu')).toEqual({ tilePx: 128, overlap: 8, dtype: 'q8' })
+  })
+
+  it('uses 64px tiles on phones so WebGPU work and RAM stay small', () => {
+    expect(tileSettings('webgpu', 'android')).toEqual({ tilePx: 64, overlap: 8, dtype: 'fp16' })
+    expect(tileSettings('webgpu', 'ios')).toEqual({ tilePx: 64, overlap: 8, dtype: 'fp16' })
+  })
+})
+
+describe('detectUpscalerClientProfile', () => {
+  it('treats iPhone and iPad-as-Mac as ios', () => {
+    expect(detectUpscalerClientProfile('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X)', 5)).toBe('ios')
+    expect(detectUpscalerClientProfile('Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)', 5, 'MacIntel')).toBe('ios')
+  })
+
+  it('treats Android as android and desktop Chrome as desktop', () => {
+    expect(detectUpscalerClientProfile('Mozilla/5.0 (Linux; Android 14) Chrome/120', 5)).toBe('android')
+    expect(detectUpscalerClientProfile('Mozilla/5.0 (Macintosh; Intel Mac OS X) Chrome/120', 0, 'MacIntel')).toBe('desktop')
+  })
+})
+
+describe('mobile upscaler caps', () => {
+  it('caps phone output at 2048 px and skips ONNX on iOS', () => {
+    expect(maxOutputDim('android', 'onnx')).toBe(2048)
+    expect(maxOutputDim('ios', 'onnx')).toBe(2048)
+    expect(maxOutputDim('desktop', 'onnx')).toBe(8192)
+    expect(shouldUseOnnxOnClient('ios')).toBe(false)
+    expect(shouldUseOnnxOnClient('android')).toBe(true)
+    expect(shouldUseOnnxOnClient('desktop')).toBe(true)
+  })
+
+  it('pads tile sides to a multiple of 8 for WebGPU conv', () => {
+    expect(padToMultiple(60, 8)).toBe(64)
+    expect(padToMultiple(256, 8)).toBe(256)
+    expect(padToMultiple(1, 8)).toBe(8)
   })
 })
 

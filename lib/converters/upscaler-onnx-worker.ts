@@ -4,7 +4,7 @@
 // Photos: Real-ESRGAN v3 at 4× (Swin2SR at 2×), WebGPU → WASM → CPU.
 // Graphics: Lanczos + unsharp. Blank-tile detection downgrades the backend.
 
-import { GaussianAccumulator, detectFlatOutputMismatch, nchwFloat01ToRgba, rgbaToNchwFloat01 } from './upscaler-render'
+import { GaussianAccumulator, cropRgba, detectFlatOutputMismatch, rgbaToNchwFloat01, srFloatsToRgba } from './upscaler-render'
 import {
   REALESRGAN_ANIME_X4,
   REALESRGAN_SOURCES,
@@ -14,9 +14,13 @@ import {
   type PhotoMode,
   type UpscaleScale,
   blobEncodeOptions,
+  detectUpscalerClientProfile,
   illustrationRouting,
+  maxOutputDim,
   modelRouting,
+  padToMultiple,
   resolveImageMode,
+  shouldUseOnnxOnClient,
   swin2srFallbackRouting,
   tileSettings,
 } from './upscaler-settings'
@@ -411,7 +415,17 @@ async function inferRealesrganTile(
       id,
       message: `Real-ESRGAN ${modelId} tile ${extW}×${extH} on ${device} in=${inputName} out=${outputName}`,
     })
-    const tensor = new ort.Tensor('float32', rgbaToNchwFloat01(tileRgba, extW, extH), [1, 3, extH, extW])
+    const padW = padToMultiple(extW)
+    const padH = padToMultiple(extH)
+    let inferRgba = tileRgba
+    if (padW !== extW || padH !== extH) {
+      const paddedTile = new Uint8ClampedArray(padW * padH * 4)
+      for (let y = 0; y < extH; y++) {
+        paddedTile.set(tileRgba.subarray(y * extW * 4, (y + 1) * extW * 4), y * padW * 4)
+      }
+      inferRgba = paddedTile
+    }
+    const tensor = new ort.Tensor('float32', rgbaToNchwFloat01(inferRgba, padW, padH), [1, 3, padH, padW])
     let out: Record<string, { data: ArrayLike<number> }>
     try {
       out = await withTimeout(session.run({ [inputName]: tensor }), 90_000, `realesrgan-run:${modelId}:${device}`)
@@ -430,12 +444,18 @@ async function inferRealesrganTile(
       continue
     }
     const outTensor = out[outputName]
-    const outW = extW * 4
-    const outH = extH * 4
+    const rawW = padW * 4
+    const rawH = padH * 4
     const data = (outTensor.data instanceof Float32Array)
       ? outTensor.data
       : Float32Array.from(outTensor.data as ArrayLike<number>)
-    const rgba = nchwFloat01ToRgba(data, outW, outH)
+    const dims = (outTensor as { dims?: number[] }).dims
+    const padded = srFloatsToRgba(data, rawW, rawH, dims)
+    const outW = extW * 4
+    const outH = extH * 4
+    const rgba = (rawW === outW && rawH === outH)
+      ? padded
+      : cropRgba(padded, rawW, rawH, 0, 0, outW, outH)
 
     if (!detectFlatOutputMismatch(tileRgba, rgba)) {
       if (device !== activeDevice) {
@@ -680,8 +700,11 @@ function buildStarts(dim: number, tileSize: number): number[] {
 
 const SAFE_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const SCALE_NUM: Record<UpscaleScale, number> = { '2x': 2, '3x': 3, '4x': 4, '8x': 8 }
-const MAX_CANVAS_DIM  = 8192
-const MAX_GRAPHIC_DIM = 16384
+
+function clientProfile() {
+  const nav = self.navigator
+  return detectUpscalerClientProfile(nav?.userAgent ?? '', nav?.maxTouchPoints ?? 0, nav?.platform ?? '')
+}
 
 // ── Run ONNX tiling on a bitmap ────────────────────────────────────────────────
 
@@ -691,18 +714,22 @@ async function runOnnxTiling(
   chain: ModelChain,
   onProgress: (done: number, total: number) => void
 ): Promise<OffscreenCanvas> {
-  const { tilePx, overlap } = tileSettings(activeDevice)
+  const profile = clientProfile()
+  const { tilePx, overlap } = tileSettings(activeDevice, profile)
   const srcW = bitmap.width
   const srcH = bitmap.height
   const outW = srcW * chain.scale
   const outH = srcH * chain.scale
+  const blend = profile === 'desktop'
 
   const xStarts = buildStarts(srcW, tilePx)
   const yStarts = buildStarts(srcH, tilePx)
   const total   = xStarts.length * yStarts.length
   let done = 0
 
-  const acc = new GaussianAccumulator(outW, outH)
+  const acc = blend ? new GaussianAccumulator(outW, outH) : null
+  const out    = new OffscreenCanvas(outW, outH)
+  const outCtx = out.getContext('2d')!
 
   for (const sy of yStarts) {
     for (const sx of xStarts) {
@@ -719,7 +746,6 @@ async function runOnnxTiling(
       const extW = tw + padL + padR
       const extH = th + padT + padB
 
-      // Extract tile with overlap as ImageData
       const tileCanvas = new OffscreenCanvas(extW, extH)
       tileCanvas.getContext('2d')!.drawImage(bitmap, extX, extY, extW, extH, 0, 0, extW, extH)
       const tileData = tileCanvas.getContext('2d')!.getImageData(0, 0, extW, extH)
@@ -728,29 +754,37 @@ async function runOnnxTiling(
         ? await inferRealesrganTile(extW, extH, tileData.data, id, chain.modelId)
         : await inferSwinTile(chain.modelId, extW, extH, tileData.data, id)
 
-      // Validate tile output shape
       if (result.width !== extW * chain.scale || result.height !== extH * chain.scale) {
         throw new Error(
           `Tile shape mismatch: expected ${extW * chain.scale}×${extH * chain.scale}, got ${result.width}×${result.height}`
         )
       }
 
-      // Accumulate tile with Gaussian weights (covers full tile including overlap)
-      const sigma = extW * chain.scale * 0.35
-      const destX = (sx - padL) * chain.scale
-      const destY = (sy - padT) * chain.scale
-      acc.accumulate(result.rgba, result.width, result.height, destX, destY, sigma)
+      if (acc) {
+        const sigma = extW * chain.scale * 0.35
+        acc.accumulate(result.rgba, result.width, result.height, (sx - padL) * chain.scale, (sy - padT) * chain.scale, sigma)
+      } else {
+        const inner = cropRgba(
+          result.rgba,
+          result.width,
+          result.height,
+          padL * chain.scale,
+          padT * chain.scale,
+          tw * chain.scale,
+          th * chain.scale
+        )
+        outCtx.putImageData(new ImageData(inner, tw * chain.scale, th * chain.scale), sx * chain.scale, sy * chain.scale)
+      }
 
       done++
       onProgress(done, total)
+      await new Promise<void>((r) => setTimeout(r, 0))
     }
   }
 
-  // Normalize all accumulated tile contributions and write to output canvas
-  const normalizedRGBA = acc.normalize()
-  const out    = new OffscreenCanvas(outW, outH)
-  const outCtx = out.getContext('2d')!
-  outCtx.putImageData(new ImageData(normalizedRGBA, outW, outH), 0, 0)
+  if (acc) {
+    outCtx.putImageData(new ImageData(acc.normalize(), outW, outH), 0, 0)
+  }
 
   return out
 }
@@ -768,8 +802,7 @@ async function runInference(
   // Wait for model device negotiation to complete (webgpu timeout → wasm fallback).
   // Without this, inferTile picks up activeDevice='webgpu' before loadModel finishes,
   // then hangs awaiting the stalled WebGPU pipeline promise.
-  await ensureModel(scale)
-
+  const profile = clientProfile()
   const rawMime = outputFormat ?? mimeType
   const outMime = SAFE_MIMES.has(rawMime) ? rawMime : 'image/png'
   const scaleFactor = SCALE_NUM[scale]
@@ -782,33 +815,14 @@ async function runInference(
   try {
     const srcW = bitmap.width
     const srcH = bitmap.height
-
-    // Canvas size guard (photo/ONNX path)
-    let workW = srcW
-    let workH = srcH
-    if (srcW * scaleFactor > MAX_CANVAS_DIM || srcH * scaleFactor > MAX_CANVAS_DIM) {
-      const limitRatio = Math.min(
-        MAX_CANVAS_DIM / (srcW * scaleFactor),
-        MAX_CANVAS_DIM / (srcH * scaleFactor)
-      )
-      workW = Math.round(srcW * limitRatio)
-      workH = Math.round(srcH * limitRatio)
-      const shrunk = await graphicScale(bitmap, workW, workH, () => {}, { unsharp: false })
-      workBitmap = await createImageBitmap(shrunk)
-      self.postMessage({
-        type: 'log',
-        id,
-        message: `Source Lanczos-scaled ${srcW}×${srcH} → ${workW}×${workH} to fit GPU canvas limit`,
-      })
-    }
-
-    const detected = imageMode === 'auto' ? detectImageMode(workBitmap) : undefined
-    const resolvedMode = resolveImageMode(imageMode, detected)
+    const detectedEarly = imageMode === 'auto' ? detectImageMode(bitmap) : undefined
+    const resolvedMode = resolveImageMode(imageMode, detectedEarly)
+    const cap = maxOutputDim(profile, resolvedMode === 'graphic' || !shouldUseOnnxOnClient(profile) ? 'graphic' : 'onnx')
 
     self.postMessage({
       type: 'log',
       id,
-      message: `Image mode: ${resolvedMode}${imageMode === 'auto' ? ` (auto-detected from ${detected})` : ''}`,
+      message: `Image mode: ${resolvedMode}${imageMode === 'auto' ? ` (auto-detected from ${detectedEarly})` : ''} profile=${profile}`,
     })
 
     const emitCanvas = async (out: OffscreenCanvas) => {
@@ -822,7 +836,7 @@ async function runInference(
     const emitLanczos = async (src: ImageBitmap, label: string) => {
       const rawOutW = src.width * scaleFactor
       const rawOutH = src.height * scaleFactor
-      const capRatio = Math.min(1, MAX_GRAPHIC_DIM / rawOutW, MAX_GRAPHIC_DIM / rawOutH)
+      const capRatio = Math.min(1, cap / rawOutW, cap / rawOutH)
       const capW = Math.round(rawOutW * capRatio)
       const capH = Math.round(rawOutH * capRatio)
       if (capRatio < 1) {
@@ -835,6 +849,30 @@ async function runInference(
         (pct) => self.postMessage({ type: 'infer-progress', id, progress: pct })
       )
       await emitCanvas(out)
+    }
+
+    if (!shouldUseOnnxOnClient(profile) || resolvedMode === 'graphic') {
+      await emitLanczos(bitmap, resolvedMode === 'graphic' ? 'Graphic' : 'Mobile')
+      return
+    }
+
+    // Canvas size guard (photo/ONNX path)
+    let workW = srcW
+    let workH = srcH
+    if (srcW * scaleFactor > cap || srcH * scaleFactor > cap) {
+      const limitRatio = Math.min(
+        cap / (srcW * scaleFactor),
+        cap / (srcH * scaleFactor)
+      )
+      workW = Math.round(srcW * limitRatio)
+      workH = Math.round(srcH * limitRatio)
+      const shrunk = await graphicScale(bitmap, workW, workH, () => {}, { unsharp: false })
+      workBitmap = await createImageBitmap(shrunk)
+      self.postMessage({
+        type: 'log',
+        id,
+        message: `Source Lanczos-scaled ${srcW}×${srcH} → ${workW}×${workH} to fit GPU canvas limit`,
+      })
     }
 
     // ── Illustration path (2D model; Lanczos if WebGPU/model fails) ───────────
@@ -888,6 +926,7 @@ async function runInference(
 
     // ── Photo path ─────────────────────────────────────────────────────────────
 
+    await ensureModel(scale)
     self.postMessage({ type: 'infer-progress', id, progress: 10 })
 
     const photoMode: PhotoMode = resolvedMode === 'photo-compressed' ? 'photo-compressed' : 'photo'

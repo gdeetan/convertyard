@@ -55,9 +55,43 @@ export function blobEncodeOptions(mime: string): { type: string; quality?: numbe
   return { type: mime }
 }
 
-export function tileSettings(device: OnnxDevice): TileSettings {
+export type UpscalerClientProfile = 'desktop' | 'android' | 'ios'
+
+export function detectUpscalerClientProfile(
+  ua: string,
+  maxTouchPoints = 0,
+  platform = ''
+): UpscalerClientProfile {
+  if (/iPhone|iPad|iPod/i.test(ua) || (platform === 'MacIntel' && maxTouchPoints > 1)) {
+    return 'ios'
+  }
+  if (/Android/i.test(ua)) return 'android'
+  return 'desktop'
+}
+
+export function tileSettings(
+  device: OnnxDevice,
+  profile: UpscalerClientProfile = 'desktop'
+): TileSettings {
+  if (profile !== 'desktop') return { tilePx: 64, overlap: 8, dtype: 'fp16' }
   if (device === 'webgpu') return { tilePx: 256, overlap: 16, dtype: 'fp16' }
   return { tilePx: 128, overlap: 8, dtype: 'q8' }
+}
+
+export function maxOutputDim(
+  profile: UpscalerClientProfile,
+  kind: 'onnx' | 'graphic' = 'onnx'
+): number {
+  if (profile === 'desktop') return kind === 'graphic' ? 16384 : 8192
+  return 2048
+}
+
+export function shouldUseOnnxOnClient(profile: UpscalerClientProfile): boolean {
+  return profile !== 'ios'
+}
+
+export function padToMultiple(n: number, multiple = 8): number {
+  return Math.ceil(n / multiple) * multiple
 }
 
 function x2Model(mode: PhotoMode): string {
