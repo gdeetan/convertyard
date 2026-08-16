@@ -93,13 +93,18 @@ describe('probeAudioInfo', () => {
     expect(result).toBeNull()
   })
 
-  it('calls exec with null output to trigger log', async () => {
+  it('probes headers only — does not decode the file', async () => {
     const mockFfmpeg = {
       on: vi.fn(),
       off: vi.fn(),
       exec: vi.fn(async () => {}),
     }
     await probeAudioInfo(mockFfmpeg as any, 'cv_in_0.mp4')
-    expect(mockFfmpeg.exec).toHaveBeenCalledWith(['-i', 'cv_in_0.mp4', '-f', 'null', '/dev/null'])
+    expect(mockFfmpeg.exec).toHaveBeenCalledOnce()
+    const args = mockFfmpeg.exec.mock.calls[0][0] as string[]
+    expect(args).toContain('-i')
+    expect(args).toContain('cv_in_0.mp4')
+    expect(args).not.toContain('-f')
+    expect(args).not.toContain('/dev/null')
   })
 })

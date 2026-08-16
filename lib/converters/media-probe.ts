@@ -115,7 +115,8 @@ export async function probeAudioInfo(
   const handler = ({ message }: { message: string }) => { lines.push(message) }
   ffmpeg.on('log', handler)
   try {
-    await ffmpeg.exec(['-i', inputName, '-f', 'null', '/dev/null']).catch(() => {})
+    // Header dump only. `-f null /dev/null` would decode the whole file.
+    await ffmpeg.exec(['-i', inputName]).catch(() => {})
   } finally {
     ffmpeg.off('log', handler)
   }
