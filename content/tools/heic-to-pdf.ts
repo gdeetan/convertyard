@@ -60,7 +60,7 @@ export const config: ToolConfig = {
   relatedTools: ['heic-to-jpg', 'heic-to-png', 'jpg-to-pdf', 'compress-pdf'],
   relatedArticles: [],
   meta: {
-    title: 'HEIC to PDF Converter — ConvertYard',
+    title: 'iPhone HEIC to PDF Converter — ConvertYard',
     description: 'Convert HEIC photos to PDF in your browser. Batch convert iPhone photos — one PDF per image or all in one. No uploads, entirely local.',
   },
 }
