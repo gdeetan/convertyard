@@ -128,7 +128,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'AI Image Upscaler — ConvertYard',
+    title: 'Upscale an Image — ConvertYard',
     description:
       'Upscale photos and illustrations 2×–8× with on-device Real-ESRGAN in your browser. No upload, no account. Batch 1,000 files.',
   },

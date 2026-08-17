@@ -56,7 +56,7 @@ export const config: ToolConfig = {
   relatedTools: ['audio-trimmer', 'audio-speed', 'extract-audio', 'merge-video'],
   relatedArticles: [],
   meta: {
-    title: 'Merge Audio Files — Join MP3, WAV, M4A and More — ConvertYard',
+    title: 'Merge Audio Files — ConvertYard',
     description:
       'Combine multiple audio files into one in your browser. Supports MP3, WAV, M4A, OGG, FLAC. No uploads, no account. Batch-ready.',
   },

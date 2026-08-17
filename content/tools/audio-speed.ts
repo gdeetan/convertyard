@@ -70,7 +70,7 @@ export const config: ToolConfig = {
   relatedTools: ['video-speed', 'audio-trimmer', 'extract-audio', 'ringtone-maker'],
   relatedArticles: [],
   meta: {
-    title: 'Audio Speed Changer — Speed Up or Slow Down Audio — ConvertYard',
+    title: 'Speed Up or Slow Down Audio — ConvertYard',
     description:
       'Speed up or slow down MP3, WAV, M4A, OGG, and FLAC audio in your browser. Presets from 0.25× to 4×. No uploads, batch up to 1,000 files.',
   },

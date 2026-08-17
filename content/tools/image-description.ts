@@ -43,7 +43,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'AI Image Description Generator — Batch, Free, Private — ConvertYard',
+    title: 'Describe an Image — ConvertYard',
     description:
       'Generate product descriptions, captions, or accessibility text from photos. Batch process 200 images, edit inline, export as CSV. No upload.',
   },

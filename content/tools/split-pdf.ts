@@ -90,7 +90,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'Split PDF — ConvertYard',
+    title: 'Split a PDF — ConvertYard',
     description: 'Split PDF into individual pages, chunks of N pages, or extract a page range in your browser. Batch 1,000 files — no uploads, no account.',
   },
 }

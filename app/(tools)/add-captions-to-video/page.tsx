@@ -6,8 +6,9 @@ import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { meta, faq, relatedTools } from '@/content/tools/add-captions-to-video'
 
 export const metadata: Metadata = {
-  title: meta.title,
+  title: { absolute: meta.title },
   description: meta.description,
+  alternates: { canonical: 'https://convertyard.com/add-captions-to-video/' },
   openGraph: { title: meta.title, description: meta.description },
 }
 

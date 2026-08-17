@@ -79,7 +79,7 @@ export const config: ToolConfig = {
   relatedTools: ['audio-trimmer', 'compress-video', 'extract-audio', 'video-muter'],
   relatedArticles: [],
   meta: {
-    title: 'Video Trimmer — ConvertYard',
+    title: 'Trim a Video — ConvertYard',
     description:
       'Trim MP4, MOV, MKV, WebM, and AVI clips in your browser. Fast mode is instant — no re-encode, no upload. Batch trim up to 1,000 videos.',
   },

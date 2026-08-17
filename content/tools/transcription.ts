@@ -59,7 +59,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'Transcribe Audio & Video — Free, In-Browser, No Upload — ConvertYard',
+    title: 'Transcribe Audio and Video — ConvertYard',
     description:
       'Browser-based Whisper transcription. MP3, MP4, WAV, and more. 50+ languages. No upload, no account. Export TXT or SRT captions.',
   },

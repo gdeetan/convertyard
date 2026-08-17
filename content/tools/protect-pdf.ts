@@ -39,7 +39,7 @@ export const config: ToolConfig = {
   relatedTools: ['unlock-pdf', 'redact-pdf', 'compress-pdf', 'watermark-pdf'],
   relatedArticles: [],
   meta: {
-    title: 'Protect PDF — Password Protect PDF — ConvertYard',
+    title: 'Password-Protect a PDF — ConvertYard',
     description: 'Add password protection to your PDFs with AES-256 encryption. Set open and permission passwords. Browser-only — your password never leaves your device.',
   },
 }

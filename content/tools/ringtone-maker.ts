@@ -72,7 +72,7 @@ export const config: ToolConfig = {
   relatedTools: ['audio-trimmer', 'm4a-to-mp3', 'extract-audio', 'audio-speed'],
   relatedArticles: [],
   meta: {
-    title: 'Ringtone Maker — Make iPhone Ringtones (.m4r) — ConvertYard',
+    title: 'Make an iPhone Ringtone — ConvertYard',
     description:
       'Cut any MP3, M4A, or WAV to an iPhone ringtone (.m4r) in your browser. Set start and end times, download instantly — no uploads, no software.',
   },

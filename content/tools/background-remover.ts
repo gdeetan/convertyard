@@ -61,7 +61,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'AI Background Remover — ConvertYard',
+    title: 'Remove Image Background — ConvertYard',
     description:
       'Remove image backgrounds with AI in your browser. No uploads, no account needed. PNG output with transparent background.',
   },

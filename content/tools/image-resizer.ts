@@ -101,7 +101,7 @@ export const config: ToolConfig = {
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'batch-convert-images', 'best-webp-quality'],
 
   meta: {
-    title: 'Batch Image Resizer — ConvertYard',
+    title: 'Resize Images — ConvertYard',
     description:
       'Resize JPG, PNG, and WebP images in bulk. Set width, height, and fit mode. Batch up to 1,000 files — all processing in your browser, no uploads.',
   },

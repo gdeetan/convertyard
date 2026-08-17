@@ -40,7 +40,7 @@ export const config: ToolConfig = {
   relatedTools: ['flatten-pdf', 'watermark-pdf'],
   relatedArticles: [],
   meta: {
-    title: 'Sign PDF Online — ConvertYard',
+    title: 'Sign a PDF — ConvertYard',
     description: 'Add your signature to a PDF in your browser. Draw or type your signature, drag to position, and download. No uploads, no account, entirely local.',
   },
 }

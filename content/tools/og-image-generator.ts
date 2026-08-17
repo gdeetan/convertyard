@@ -40,7 +40,7 @@ export const config: ToolConfig = {
   relatedTools: ['favicon-generator', 'qr-code-generator', 'gradient-generator', 'color-picker', 'image-resizer'],
   relatedArticles: [],
   meta: {
-    title: 'OG Image Generator — ConvertYard',
+    title: 'Make an Open Graph Image — ConvertYard',
     description:
       'Create 1200x630 Open Graph images in your browser. Add brand colors, logo, templates, and copy-ready meta tags. No uploads.',
   },

@@ -52,7 +52,7 @@ export const config: ToolConfig = {
   relatedTools: ['extract-audio', 'video-trimmer', 'compress-video', 'video-speed'],
   relatedArticles: [],
   meta: {
-    title: 'Mute Video — Remove Audio from Any Video — ConvertYard',
+    title: 'Remove Audio from a Video — ConvertYard',
     description:
       'Remove the audio track from MP4, MOV, MKV, AVI, and WebM videos in your browser. Stream-copied — instant processing, no quality loss, no uploads.',
   },
