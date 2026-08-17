@@ -44,7 +44,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'Redact a PDF — ConvertYard',
+    title: 'Redact PDF — Remove Text Permanently — ConvertYard',
     description: 'Permanently remove text from a PDF, not just hide it. Preview before you save. Runs in your browser — the file never leaves your device. Cannot be undone.',
   },
 }

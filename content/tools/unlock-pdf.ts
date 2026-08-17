@@ -43,7 +43,7 @@ export const config: ToolConfig = {
   relatedTools: ['protect-pdf', 'compress-pdf', 'merge-pdf'],
   relatedArticles: [],
   meta: {
-    title: 'Remove a PDF Password — ConvertYard',
+    title: 'Unlock PDF — Remove Password — ConvertYard',
     description: 'Remove the password from your own PDF files. Browser-only — your password never leaves your device. Batch unlock up to 1,000 PDFs with the correct password.',
   },
 }
