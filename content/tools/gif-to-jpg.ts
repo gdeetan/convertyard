@@ -78,7 +78,7 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-images-without-losing-quality', 'exif-data-whats-hiding-in-your-photo'],
 
   meta: {
-    title: 'GIF to JPG Converter — ConvertYard',
+    title: 'GIF to JPG — First Frame Only — ConvertYard',
     description:
       'Extract the first frame of a GIF as a static JPG. Batch up to 1,000 GIFs in your browser. Set quality. Files never leave your device — no account needed.',
   },
