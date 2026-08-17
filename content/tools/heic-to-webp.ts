@@ -95,7 +95,7 @@ export const config: ToolConfig = {
   relatedArticles: ['what-is-heic', 'avif-vs-webp-vs-jpeg-2026', 'batch-convert-images'],
 
   meta: {
-    title: 'HEIC to WebP Converter — ConvertYard',
+    title: 'Convert iPhone HEIC to WebP — ConvertYard',
     description:
       'Convert iPhone HEIC photos to WebP in your browser. Smaller than JPG at similar quality. Batch up to 1,000 files — nothing is uploaded, no account needed.',
   },

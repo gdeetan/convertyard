@@ -75,7 +75,7 @@ export const config: ToolConfig = {
   relatedArticles: ['what-is-heic', 'heic-to-jpg-on-windows', 'batch-convert-images'],
 
   meta: {
-    title: 'HEIC to PNG Converter — ConvertYard',
+    title: 'Convert iPhone HEIC to PNG — ConvertYard',
     description:
       'Convert iPhone HEIC photos to PNG. Lossless quality, batch up to 1,000 files locally in your browser — no uploads, no account. Auto-orient and resize included.',
   },
