@@ -157,7 +157,7 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-video-without-uploading', 'h264-vs-h265-video-compression', 'batch-compress-videos'],
 
   meta: {
-    title: 'Compress Video — ConvertYard',
+    title: 'Video Compressor — No Upload — ConvertYard',
     description:
       'Compress MP4, MOV, WebM, and more in your browser. No uploads. Drop multiple videos at once — preset compression levels or hit an exact file size target.',
   },

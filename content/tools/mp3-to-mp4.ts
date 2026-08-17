@@ -113,7 +113,7 @@ export const config: ToolConfig = {
   relatedArticles: ['audio-bitrate-explained', 'extract-audio-from-mp4'],
 
   meta: {
-    title: 'MP3 to MP4 Converter — ConvertYard',
+    title: 'MP3 to MP4 — Add a Still Image — ConvertYard',
     description:
       'Turn an MP3 into an MP4 with a black screen, a solid color, or album art. Batch convert in your browser — files never leave your device. Ready to share.',
   },
