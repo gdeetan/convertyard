@@ -44,7 +44,7 @@ export const config: ToolConfig = {
   relatedArticles: ['alt-text-guide', 'import-alt-text-csv-to-cms'],
 
   meta: {
-    title: 'Generate Alt Text — ConvertYard',
+    title: 'Alt Text Generator — ConvertYard',
     description:
       'Generate alt text for images with AI in your browser. Batch process 100+ images, export CSV for accessibility compliance. No uploads, no account needed.',
   },
