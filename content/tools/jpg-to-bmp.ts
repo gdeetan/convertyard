@@ -45,7 +45,7 @@ export const config: ToolConfig = {
   relatedTools: ['bmp-to-jpg', 'jpg-to-png', 'png-to-jpg'],
   relatedArticles: [],
   meta: {
-    title: 'JPG to BMP Converter — ConvertYard',
+    title: 'JPG to BMP for Legacy Software — ConvertYard',
     description:
       'Convert JPG to uncompressed BMP for legacy Windows software and game engines. Batch convert in your browser — files never leave your device. No quality loss.',
   },

@@ -85,7 +85,7 @@ export const config: ToolConfig = {
   relatedArticles: ['batch-convert-images'],
 
   meta: {
-    title: 'BMP to JPG Converter — ConvertYard',
+    title: 'BMP to JPG Converter — Shrink Files — ConvertYard',
     description:
       'Convert BMP to JPG in your browser. Batch up to 1,000 files — no uploads, no account, no watermarks. Shrink Windows BMP files by 10–50x with no visible quality loss.',
   },

@@ -49,7 +49,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'PNG to BMP Converter — ConvertYard',
+    title: 'PNG to BMP for Legacy Software — ConvertYard',
     description:
       'Convert PNG to uncompressed BMP for legacy Windows software and game toolchains. Batch convert locally in your browser — no uploads, no account needed.',
   },
