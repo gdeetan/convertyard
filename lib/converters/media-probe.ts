@@ -126,3 +126,20 @@ export async function probeAudioInfo(
   if (!m) return null
   return { codec: m[1], bitrateKbps: parseInt(m[2], 10) }
 }
+
+export async function probeVideoCodec(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ffmpeg: { on: (event: string, handler: (data: { message: string }) => void) => void; off: (event: string, handler: unknown) => void; exec: (args: string[]) => Promise<void> },
+  inputName: string
+): Promise<string | null> {
+  const lines: string[] = []
+  const handler = ({ message }: { message: string }) => { lines.push(message) }
+  ffmpeg.on('log', handler)
+  try {
+    await ffmpeg.exec(['-i', inputName]).catch(() => {})
+  } finally {
+    ffmpeg.off('log', handler)
+  }
+  const m = lines.join('\n').match(/Video: (\w+)/)
+  return m ? m[1] : null
+}

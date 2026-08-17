@@ -1,6 +1,6 @@
 import { fetchFile } from '@ffmpeg/util'
 import { getFFmpeg, getCompressVideoFFmpeg } from './ffmpeg-client'
-import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo } from './media-probe'
+import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from './media-probe'
 import type { ToolOptions, ConversionResult } from '@/lib/types'
 
 function toError(err: unknown): Error {
@@ -928,6 +928,11 @@ export async function compressVideo(
   const audioArgs: string[] = stripAudio
     ? ['-an']
     : ['-c:a', 'aac', '-b:a', '128k']
+  // 8-bit 4:2:0 + moov-at-front so QuickTime, browsers, and Windows play the file.
+  // HEVC must be tagged hvc1 (not hev1) or Apple players refuse it.
+  const playableArgs = h265
+    ? ['-pix_fmt', 'yuv420p', '-tag:v', 'hvc1', '-movflags', '+faststart']
+    : ['-pix_fmt', 'yuv420p', '-movflags', '+faststart']
 
   for (let i = 0; i < files.length; i++) {
     onProgress?.(i, 5)
@@ -985,6 +990,7 @@ export async function compressVideo(
             '-c:v', codec,
             '-crf', String(crf),
             '-preset', 'ultrafast',
+            ...playableArgs,
             ...presetAudioArgs,
             outputName,
           ])
@@ -997,14 +1003,23 @@ export async function compressVideo(
       } else {
         const targetBytes = targetKB * 1024
 
+        let remuxable = false
         if (file.size <= targetBytes) {
-          // Already fits: fast remux to MP4 container, no re-encode
+          const videoCodec = await probeVideoCodec(ffmpeg, inputName)
+          const remuxAudioInfo = !stripAudio ? await probeAudioInfo(ffmpeg, inputName) : null
+          remuxable =
+            videoCodec === 'h264' &&
+            (stripAudio || remuxAudioInfo === null || remuxAudioInfo.codec === 'aac')
+        }
+
+        if (remuxable) {
+          // Already a playable H.264/AAC MP4 that fits — remux only, add faststart
           const progressHandler = ({ progress }: { progress: number }) => {
             onProgress?.(i, Math.round(10 + progress * 85))
           }
           ffmpeg.on('progress', progressHandler)
           try {
-            await ffmpeg.exec(['-i', inputName, '-c', 'copy', outputName])
+            await ffmpeg.exec(['-i', inputName, '-c', 'copy', '-movflags', '+faststart', outputName])
             data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
           } finally {
             ffmpeg.off('progress', progressHandler)
@@ -1064,6 +1079,7 @@ export async function compressVideo(
                 '-maxrate', String(Math.floor(videoBitsPerSec * 1.5)),
                 '-bufsize', String(videoBitsPerSec * 2),
                 '-preset', 'ultrafast',
+                ...playableArgs,
                 ...targetAudioArgs,
                 outputName,
               ])
@@ -1092,6 +1108,7 @@ export async function compressVideo(
                     '-c:v', codec,
                     '-crf', String(crf),
                     '-preset', 'ultrafast',
+                    ...playableArgs,
                     ...audioArgs,
                     outputName,
                   ])

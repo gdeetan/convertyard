@@ -7,6 +7,7 @@ vi.mock('@/lib/converters/media-probe', () => ({
   probeVideoDuration: vi.fn(async () => 0),
   probeVideoDimensions: vi.fn(async () => null),
   probeAudioInfo: vi.fn(async () => null),
+  probeVideoCodec: vi.fn(async () => 'h264'),
 }))
 
 const mockExec = vi.fn(async () => {})
@@ -33,7 +34,7 @@ vi.mock('@/lib/converters/ffmpeg-client', () => ({
 }))
 
 import { compressVideo } from '../ffmpeg'
-import { probeVideoDuration, probeVideoDimensions, probeAudioInfo } from '@/lib/converters/media-probe'
+import { probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from '@/lib/converters/media-probe'
 import { getCompressVideoFFmpeg, getFFmpeg } from '@/lib/converters/ffmpeg-client'
 
 describe('compressVideo', () => {
@@ -137,6 +138,7 @@ describe('compressVideo', () => {
     expect(mockExec).toHaveBeenCalledOnce()
     const args: string[] = mockExec.mock.calls[0][0]
     expect(args).toContain('copy')
+    expect(args).toContain('+faststart')
   })
 
   it('target size mode: 1-pass ABR when duration is available', async () => {
@@ -346,5 +348,43 @@ describe('compressVideo', () => {
     const file = makeFile('video.mp4', 200 * 1024 * 1024)
     await compressVideo([file], { targetSizeMode: true, targetKB: 50 * 1024, resolution: 'original', h265: false, stripAudio: true })
     expect(probeAudioInfo).not.toHaveBeenCalled()
+  })
+
+  it('preset encode writes a playable MP4 (yuv420p + faststart)', async () => {
+    const file = makeFile('clip.mov')
+    await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args[args.indexOf('-pix_fmt') + 1]).toBe('yuv420p')
+    expect(args).toContain('+faststart')
+  })
+
+  it('target-size encode of an oversize MOV writes a playable MP4', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    const file = makeFile('iphone.mov', 200 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 100 * 1024, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('libx264')
+    expect(args[args.indexOf('-pix_fmt') + 1]).toBe('yuv420p')
+    expect(args).toContain('+faststart')
+  })
+
+  it('does not stream-copy an HEVC MOV that already fits the target', async () => {
+    vi.mocked(probeVideoCodec).mockResolvedValueOnce('hevc')
+    vi.mocked(probeAudioInfo).mockResolvedValueOnce({ codec: 'aac', bitrateKbps: 128 })
+    const file = makeFile('iphone.mov', 40 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 100 * 1024, resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('libx264')
+    expect(args).not.toContain('copy')
+    expect(args[args.indexOf('-pix_fmt') + 1]).toBe('yuv420p')
+  })
+
+  it('H.265 output is tagged hvc1 so Apple players can open it', async () => {
+    const file = makeFile('clip.mov')
+    await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: true, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('libx265')
+    expect(args[args.indexOf('-tag:v') + 1]).toBe('hvc1')
+    expect(args[args.indexOf('-pix_fmt') + 1]).toBe('yuv420p')
   })
 })
