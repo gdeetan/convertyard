@@ -25,6 +25,9 @@ import { AltTextCsvIllustration } from './alt-text-csv-import'
 import { CompressVideoPrivacyIllustration } from './compress-video-privacy'
 import { H264VsH265Illustration } from './h264-vs-h265'
 import { BatchCompressVideosIllustration } from './batch-compress-videos'
+import { AudioBitrateIllustration } from './audio-bitrate'
+import { ExtractAudioIllustration } from './extract-audio'
+import { BrowserVideoEditingIllustration } from './browser-video-editing'
 
 export const articleIllustrations: Record<string, ComponentType> = {
   'compress-pdf-without-uploading-privacy-guide': CompressPdfPrivacyIllustration,
@@ -52,4 +55,7 @@ export const articleIllustrations: Record<string, ComponentType> = {
   'compress-video-without-uploading': CompressVideoPrivacyIllustration,
   'h264-vs-h265-video-compression': H264VsH265Illustration,
   'batch-compress-videos': BatchCompressVideosIllustration,
+  'audio-bitrate-explained': AudioBitrateIllustration,
+  'extract-audio-from-mp4': ExtractAudioIllustration,
+  'browser-video-editing-2026': BrowserVideoEditingIllustration,
 }

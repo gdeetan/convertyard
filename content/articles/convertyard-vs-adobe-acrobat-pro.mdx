@@ -6,7 +6,7 @@ export const meta = {
   faq: [
     {
       q: 'Is ConvertYard a full replacement for Adobe Acrobat Pro?',
-      a: 'For most day-to-day PDF tasks — compressing, merging, splitting, watermarking, converting to Word or Excel, and password protection — yes. Acrobat Pro still leads on e-signatures, OCR, and advanced form creation.',
+      a: 'For day-to-day work — compress, merge, split, watermark, convert, password-protect, OCR a scan, stamp a signature image — yes. Acrobat Pro still leads on legally binding e-sign workflows, advanced form logic, and the desktop annotation suite.',
     },
     {
       q: 'Does ConvertYard upload my files to a server?',
@@ -22,7 +22,7 @@ export const meta = {
     },
     {
       q: 'Can ConvertYard handle e-signatures?',
-      a: 'No — e-signatures are not supported. If you regularly need legally binding e-signatures, Acrobat Pro (or a dedicated e-sign service) is the right tool.',
+      a: 'You can draw or type a signature image onto a PDF in the browser. That is not a legally binding e-sign workflow — no certificate, no signing order, no audit trail. For court-admissible signatures use Acrobat Sign or a dedicated service.',
     },
     {
       q: 'Is the comparison in this article up to date?',
@@ -38,7 +38,7 @@ Adobe Acrobat Pro is the industry standard for PDF work. It's also a paid monthl
 
 For most users, the list looks like this: compress a PDF that's too big to email, merge a few PDFs into one, split a large document, add a watermark, convert a Word file to PDF, or unlock a protected file. All of those tasks run entirely in your browser on ConvertYard — no account, no upload, no subscription.
 
-Acrobat Pro earns its price for a narrower set of tasks: legally binding e-signatures, OCR on scanned documents, and advanced interactive form creation. If those are central to your workflow, Acrobat Pro is justified. If they're not, you're paying for features you don't use.
+Acrobat Pro earns its price for a narrower set of tasks: legally binding e-sign workflows, advanced interactive form creation, and a full desktop annotation suite. ConvertYard now covers OCR and a visual signature stamp in the browser. If Acrobat Sign or form logic is central to your work, the subscription is justified. If it is not, you are paying for features you do not use.
 
 ---
 
@@ -55,8 +55,9 @@ Acrobat Pro earns its price for a narrower set of tasks: legally binding e-signa
 | PDF → Word | ✓ (browser, no upload) | ✓ |
 | [Unlock PDF](/unlock-pdf/) | ✓ (browser, no upload) | ✓ |
 | [Password protect PDF](/protect-pdf/) | ✓ (browser, no upload) | ✓ |
-| E-signature | ✗ | ✓ (Acrobat Sign) |
-| OCR (scanned docs) | ✗ | ✓ |
+| Visual signature stamp | ✓ ([Sign PDF](/digital-sign-pdf/)) | ✓ |
+| Legally binding e-sign | ✗ | ✓ (Acrobat Sign) |
+| OCR (scanned docs) | ✓ ([OCR PDF](/ocr-pdf/)) | ✓ |
 | Advanced form creation | ✗ | ✓ |
 | Batch processing | ✓ (no limit) | Limited on free tier |
 | File uploads to server | Never | Yes (Acrobat web) |
@@ -68,13 +69,13 @@ Acrobat Pro earns its price for a narrower set of tasks: legally binding e-signa
 
 Acrobat Pro has a clear lead in four areas. Be direct about them.
 
-**E-signatures.** Acrobat Sign is a full legally binding e-signature workflow. You can send documents for signature, track completion, and store signed copies. ConvertYard has no e-signature feature. If you need court-admissible signatures or are managing contract workflows, Acrobat Pro (or a dedicated service like DocuSign) is the right tool.
+**Legally binding e-signatures.** Acrobat Sign sends a document for signature, tracks completion, and stores an audit trail. ConvertYard’s [Sign PDF](/digital-sign-pdf/) tool stamps a drawn or typed image onto the page. Useful for a letter. Not a substitute for Acrobat Sign or DocuSign on a contract that has to hold up.
 
-**OCR.** Acrobat Pro can take a scanned document — an image of a page — and convert it into searchable, selectable text. That's optical character recognition, and ConvertYard does not currently offer it. If you work with scanned contracts, paper records, or archival documents, this is a real gap.
+**OCR.** Both tools can turn a scan into searchable text. ConvertYard’s [OCR PDF](/ocr-pdf/) runs in the browser. Acrobat’s OCR is generally stronger on poor scans and mixed languages. If you live in scanned archives, Acrobat still wins on accuracy. If you have a handful of scans and do not want them uploaded, ConvertYard is enough.
 
 **Advanced form creation.** Acrobat Pro supports conditional logic, calculated fields, dropdowns, radio groups, and digital signature fields inside PDFs. These are interactive forms with embedded business logic. ConvertYard's tools handle file-level operations, not form field authoring.
 
-**Redaction.** Acrobat Pro's redaction tool permanently removes content from the PDF's content stream — the data is gone, not hidden. ConvertYard's current approach overlays a black box, which conceals content visually but may not remove it from the underlying file. For legal or compliance redaction, Acrobat Pro's implementation is more appropriate.
+**Redaction.** Acrobat Pro removes marked content from the PDF structure. ConvertYard’s [Redact PDF](/redact-pdf/) rasterises affected pages and burns the blackout into the pixels, then verifies the string is gone. Both are real redaction, not a black rectangle sitting on top of live text. Acrobat still has the richer review UI for large legal sets.
 
 **Desktop app and Adobe ecosystem.** Acrobat Pro has a full desktop application with keyboard shortcuts, annotation tools, and deep integration with Adobe Creative Cloud. If your team already lives in the Adobe ecosystem, that integration has real value.
 
@@ -103,14 +104,14 @@ This isn't a privacy claim. It's a technical fact you can verify in 30 seconds w
 ## Decision Framework
 
 **Use ConvertYard if:**
-- Your work is compress, merge, split, convert, watermark, or password-protect
+- Your work is compress, merge, split, convert, watermark, password-protect, OCR a scan, or stamp a signature
 - You handle confidential documents and want zero upload exposure
 - You process files in batches
 - You want free, no account required
 
 **Use Acrobat Pro if:**
-- You need e-signatures (legally binding)
-- You work with scanned documents that need OCR
+- You need legally binding e-sign (send, track, audit trail)
+- You live in poor-quality scanned archives and need Acrobat’s OCR
 - You're already in the Adobe ecosystem
 - You need advanced interactive forms
 

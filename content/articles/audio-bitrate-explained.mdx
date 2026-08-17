@@ -1,8 +1,8 @@
 export const meta = {
   title: 'Audio Bitrate Explained: What It Is and What Setting to Use',
   description:
-    'Audio bitrate controls how much data is used to store each second of audio. Here is what the numbers mean, how they affect quality, and which setting to pick for every use case.',
-  lastUpdated: '2026-07-25',
+    'What kbps actually means, where quality stops improving, and which bitrate to pick for speech, music, email, and uploads.',
+  lastUpdated: '2026-07-16',
   faq: [
     {
       q: 'What is audio bitrate?',
@@ -14,7 +14,7 @@ export const meta = {
     },
     {
       q: 'Does higher bitrate always mean better sound?',
-      a: 'Up to a point. Most people cannot distinguish 192 kbps from 320 kbps in a double-blind test. The audible ceiling depends on the format: 128 kbps AAC often sounds as good as 192 kbps MP3 because AAC uses a more efficient compression algorithm. Above the audible ceiling, increasing bitrate only increases file size.',
+      a: 'Up to a point. Most people cannot tell 192 kbps from 320 kbps in a blind test. The ceiling depends on the format: 128 kbps AAC often matches 192 kbps MP3 because AAC is more efficient. Past that ceiling you are only buying a larger file.',
     },
     {
       q: 'What bitrate should I use for streaming?',
@@ -32,9 +32,9 @@ export const meta = {
   relatedTools: ['mp4-to-mp3', 'extract-audio', 'audio-trimmer', 'wav-to-mp3'],
 }
 
-Audio bitrate is the single number that determines the trade-off between file size and audio quality. Understanding it takes about five minutes and will inform every audio conversion decision you make.
+Bitrate is the number that trades file size for sound quality. If you only remember one setting: **192 kbps VBR for music, 96 kbps mono for speech.** The rest of this page is when to break that rule.
 
-**[Extract audio from video in your browser — no uploads →](/extract-audio/)**
+**[Extract audio from a video →](/extract-audio/)**
 
 ## What bitrate actually measures
 
@@ -59,7 +59,7 @@ Not all bitrate increases produce audible improvements. Each format has a point 
 **AAC:**
 - 96 kbps: roughly equivalent to 128 kbps MP3. More efficient algorithm.
 - 128 kbps: transparent to most listeners.
-- 256 kbps: used by Apple Music and Amazon Music HD. Effectively lossless for practical purposes.
+- 256 kbps: what Apple Music and Amazon Music use for lossy streams. Transparent for almost all listeners. Not the same as lossless (ALAC / FLAC).
 
 **OGG Vorbis:**
 - Similar efficiency to AAC. Q5 (around 160 kbps variable) is the standard recommendation.

@@ -1,7 +1,7 @@
 export const meta = {
   title: 'Browser-Based Video Editing in 2026: What You Can (and Cannot) Do',
   description:
-    'Modern browsers can compress, convert, extract audio, trim, and package video entirely locally — no uploads. Here is what works, what the limits are, and when to use a desktop app instead.',
+    'What a browser can do with video today — compress, convert, extract, trim — and the jobs that still need DaVinci Resolve or ffmpeg on the desktop.',
   lastUpdated: '2026-07-25',
   faq: [
     {
@@ -10,7 +10,7 @@ export const meta = {
     },
     {
       q: 'Are browser video tools as good as desktop software?',
-      a: 'For the tasks they support, they are equivalent or close. ffmpeg.wasm — the engine behind most browser video tools — is the same ffmpeg used in professional pipelines, compiled to WebAssembly. Compression quality and format support are the same as desktop ffmpeg. Speed is slower on large files because browsers run single-threaded WASM, but the output quality is identical.',
+      a: 'For the tasks they support, quality is the same family as desktop ffmpeg — same codecs, same CRF. Speed is the gap. A browser cannot use NVENC, VideoToolbox, or Quick Sync. Some WASM builds can use more than one CPU thread, but a 10-minute 1080p encode still takes several times longer than desktop ffmpeg. The file looks the same when it finishes.',
     },
     {
       q: 'Do browser video tools upload my files?',
@@ -22,7 +22,7 @@ export const meta = {
     },
     {
       q: 'How slow is browser video processing compared to desktop?',
-      a: 'Single-file processing is typically 2–5x slower in the browser than desktop ffmpeg, because browsers run WebAssembly single-threaded without hardware encoding access (no GPU, no H.264 hardware encoder). A 3-minute HD video that compresses in 30 seconds with desktop ffmpeg might take 2–3 minutes in the browser. For one-off tasks, this is acceptable. For batch processing large files, desktop ffmpeg or HandBrake is faster.',
+      a: 'Typically 2–5× slower than desktop ffmpeg on the same machine. There is no hardware encoder. A 3-minute HD clip that finishes in 30 seconds on the desktop might take 2–3 minutes in a tab. Fine for one-off work. For a folder of long files, use HandBrake or desktop ffmpeg.',
     },
     {
       q: 'Which browser video tasks still need desktop software?',
@@ -32,9 +32,9 @@ export const meta = {
   relatedTools: ['compress-video', 'extract-audio', 'audio-trimmer', 'mp4-to-mp3'],
 }
 
-"Video editing" covers a wide range of tasks — from compressing a screen recording before emailing it to cutting a multicamera documentary. Browsers can handle more of that range than most people realize, but not all of it. Knowing where the line is saves you from downloading software you don't need, or frustrating yourself trying to do in a browser something that requires a proper editor.
+“Video editing” covers compressing a screen recording for email and cutting a multicamera documentary. A browser can do the first group. It cannot do the second. The line is the useful part.
 
-**[Compress video in your browser — no uploads →](/compress-video/)**
+**[Compress a video →](/compress-video/)**
 
 ## What WebAssembly makes possible
 
@@ -64,11 +64,11 @@ Works for: pulling a podcast episode from a video, grabbing music from a local v
 
 **[Try it: Extract Audio →](/extract-audio/)**
 
-### Trim audio (and video with audio-only output)
+### Trim start and end
 
-Set a start time and end time, discard the rest. For audio, this works entirely in the browser. For video trimming with a visual preview, browser tools currently lag behind desktop — most browser trimmers operate on timestamps rather than a visual scrubber.
+Set a start time and an end time; drop the rest. ConvertYard’s [video trimmer](/video-trimmer/) has a fast mode that copies the stream (instant, cut on keyframes) and a precise mode that re-encodes (frame-accurate, slower). There is no timeline scrubber like Resolve — you type seconds.
 
-**[Try it: Audio Trimmer →](/audio-trimmer/)**
+Audio-only trims use the [audio trimmer](/audio-trimmer/).
 
 ### Convert between video formats
 
@@ -84,7 +84,7 @@ MP4 → MP3, MP4 → WAV, any video → any audio format. The video track is dro
 
 ### Batch processing
 
-Browser video tools can process multiple files in a session — drop 20 screen recordings, compress them all, download as a ZIP. This doesn't require an upload limit negotiation or a cloud queue.
+Drop the files or the folder onto the dropzone, set the options once, download a ZIP. Files encode one after another in the tab. See [batch compress videos](/blog/batch-compress-videos/) for settings that scale.
 
 ## What still needs desktop software
 
@@ -128,7 +128,7 @@ A rough guide for a 10-minute 1080p MP4 compressed to medium quality (CRF 23):
 | Desktop ffmpeg (CPU) | 3–8 minutes |
 | Desktop ffmpeg (hardware encoder) | Under 2 minutes |
 
-Browser tools are CPU-only and single-threaded in WASM. They can't access the H.264/H.265 hardware encoder built into most modern CPUs and GPUs. The output is identical — the wait is longer.
+Browser tools are CPU-only. They cannot use the H.264/H.265 hardware encoder in your GPU or chipset. A multi-thread WASM build can use more than one core; it still loses to desktop ffmpeg. The output is the same. The wait is longer.
 
 For files under 5 minutes, the difference is rarely annoying. For long files you need to process regularly, desktop ffmpeg is worth learning.
 

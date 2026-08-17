@@ -1,8 +1,8 @@
 export const meta = {
   title: 'How to Extract Audio from MP4 (Without Desktop Software)',
   description:
-    'Three ways to pull audio out of an MP4 file: a browser tool (no uploads, no software), ffmpeg on the command line, and desktop apps. Includes format and quality guidance.',
-  lastUpdated: '2026-07-25',
+    'Pull the audio track out of an MP4 — in the browser, with ffmpeg, or in a desktop app. When to copy the stream and when to convert.',
+  lastUpdated: '2026-07-21',
   faq: [
     {
       q: 'How do I extract audio from an MP4 file?',
@@ -10,7 +10,7 @@ export const meta = {
     },
     {
       q: 'Does extracting audio from MP4 reduce quality?',
-      a: 'It depends on the method. If you extract the audio stream without re-encoding (ffmpeg -acodec copy, or "lossless extract" in browser tools), quality is bit-perfect — you get exactly what was in the original MP4. If you convert to a different format (e.g., AAC in the MP4 → MP3), there is a small quality loss from re-encoding. The original MP4 audio track is usually AAC, so extracting to AAC without re-encoding is the highest-fidelity option.',
+      a: 'If you copy the stream with ffmpeg (`-acodec copy`), quality is bit-perfect. ConvertYard’s browser tool re-encodes to the format you pick — MP3/AAC at your bitrate, or WAV/FLAC if you need lossless. For listening, 192 kbps MP3 is fine. For editing, extract to WAV or FLAC.',
     },
     {
       q: 'What audio format is inside an MP4 file?',
@@ -32,26 +32,25 @@ export const meta = {
   relatedTools: ['extract-audio', 'mp4-to-mp3', 'audio-trimmer', 'compress-video'],
 }
 
-An MP4 is a container — it holds a video track, an audio track, and sometimes subtitles, all in one file. Extracting the audio means pulling that audio track out, either as-is or converted to a standalone audio format like MP3, WAV, or AAC.
+An MP4 is a container. It holds a video track, an audio track, and sometimes subtitles. Extracting the audio means pulling that track out — copied as-is, or converted to MP3, AAC, WAV, or FLAC.
 
-**[Extract audio from video in your browser — no uploads →](/extract-audio/)**
+The same steps work on MOV, WebM, MKV, AVI, WMV, and TS. Most people search for MP4 because that is what their phone or recorder wrote.
 
-## Method 1: Browser tool (no uploads, no software)
+**[Open the extract-audio tool →](/extract-audio/)**
 
-The fastest approach for most people. Drop the file in a browser tool, choose a format, download the audio.
+## Method 1: Browser (nothing to install)
 
-**How to do it:**
+1. Go to [convertyard.com/extract-audio](/extract-audio/).
+2. Drop one file, several files, or the folder itself onto the dropzone. Mixed containers are fine.
+3. Pick an output:
+   - **MP3** — plays everywhere. Default 192 kbps is enough for listening. See [bitrate](/blog/audio-bitrate-explained/) if you want a different number.
+   - **AAC / M4A** — smaller than MP3 at the same quality. The browser tool re-encodes; it does not copy the original AAC packet-for-packet.
+   - **WAV or FLAC** — if you will edit it. Bitrate is ignored; these are lossless.
+4. Extract. One file downloads directly. Several come back as a ZIP.
 
-1. Go to [convertyard.com/extract-audio](/extract-audio/)
-2. Drop one or more MP4 files onto the tool
-3. Choose an output format — MP3 for universal compatibility, WAV if you plan to edit the audio further, AAC to match the original format inside the MP4
-4. Click Extract and download the result (or a ZIP if you submitted multiple files)
+ffmpeg runs in the tab as WebAssembly. The video is not uploaded. You can confirm that in the Network tab the same way as in the [no-upload video guide](/blog/compress-video-without-uploading/).
 
-Processing happens entirely in your browser using ffmpeg compiled to WebAssembly. The MP4 never leaves your device — there is no upload step.
-
-This method handles batch extraction: drop 50 MP4 files and it processes all of them, packaging the audio files into a ZIP.
-
-**When to use this:** You want audio from a video you recorded, a downloaded lecture, a screen recording, or any file you have on disk. You don't want to install software. The file contains personal or confidential content.
+**Use this when** the file is on disk, you do not want to install anything, or you would not upload the video to a random site (calls, lectures, kids, internal recordings).
 
 ## Method 2: ffmpeg command line
 
@@ -118,7 +117,7 @@ For occasional one-off extractions, several desktop apps include audio extractio
 | FLAC | Archiving | Lossless and compressed (~50% smaller than WAV). Not as universally supported as WAV. |
 | OGG | Web delivery | Open format, good quality. Less widely supported on mobile. |
 
-**The re-encoding question:** If the MP4 contains AAC audio and you extract to AAC without re-encoding, quality is bit-perfect. If you convert AAC → MP3, there is a small generation loss. For listening, this loss is inaudible at 192 kbps. For repeated editing and re-encoding, accumulating loss matters — in that case, extract to WAV or FLAC first.
+**The re-encoding question:** A bit-perfect extract is `ffmpeg -vn -acodec copy`. ConvertYard re-encodes so you can pick MP3, a bitrate, or WAV/FLAC. For listening, 192 kbps MP3 is inaudible as a generation loss. If you will edit and export again, extract to WAV or FLAC first so you only re-encode once.
 
 ## Checking what audio format is inside your MP4
 

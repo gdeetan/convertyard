@@ -178,21 +178,21 @@ export const articles: ArticleEntry[] = [
     slug: 'audio-bitrate-explained',
     title: 'Audio Bitrate Explained: What It Is and What Setting to Use',
     description:
-      'Audio bitrate controls how much data is used to store each second of audio. Here is what the numbers mean, how they affect quality, and which setting to pick for every use case.',
-    lastUpdated: '2026-07-25',
+      'What kbps actually means, where quality stops improving, and which bitrate to pick for speech, music, email, and uploads.',
+    lastUpdated: '2026-07-16',
   },
   {
     slug: 'extract-audio-from-mp4',
     title: 'How to Extract Audio from MP4 (Without Desktop Software)',
     description:
-      'Three ways to pull audio out of an MP4 file: a browser tool (no uploads, no software), ffmpeg on the command line, and desktop apps. Includes format and quality guidance.',
-    lastUpdated: '2026-07-25',
+      'Pull the audio track out of an MP4 — in the browser, with ffmpeg, or in a desktop app. When to copy the stream and when to convert.',
+    lastUpdated: '2026-07-21',
   },
   {
     slug: 'browser-video-editing-2026',
     title: 'Browser-Based Video Editing in 2026: What You Can (and Cannot) Do',
     description:
-      'Modern browsers can compress, convert, extract audio, trim, and package video entirely locally — no uploads. Here is what works, what the limits are, and when to use a desktop app instead.',
+      'What a browser can do with video today — compress, convert, extract, trim — and the jobs that still need DaVinci Resolve or ffmpeg on the desktop.',
     lastUpdated: '2026-07-25',
   },
   {

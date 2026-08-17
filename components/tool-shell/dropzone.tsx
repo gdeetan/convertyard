@@ -4,6 +4,7 @@ import { useRef, useState, useCallback, useEffect } from 'react'
 import { UploadCloud, Plus, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { formatBytes } from '@/lib/utils/download'
+import { fileMatchesAccept, filesFromDataTransfer } from '@/lib/utils/drop-files'
 
 interface DropzoneProps {
   accepts: string[]          // MIME types
@@ -37,11 +38,8 @@ export function Dropzone({
   }
 
   const validate = useCallback(
-    (files: File[]): File[] => {
-      if (accepts.length === 0) return files
-      return files.filter((f) => accepts.some((a) => f.type === a || a === '*/*'))
-    },
-    [accepts]
+    (files: File[]): File[] => files.filter((f) => fileMatchesAccept(f, accepts, acceptsExt)),
+    [accepts, acceptsExt]
   )
 
   const handleFiles = useCallback(
@@ -85,7 +83,7 @@ export function Dropzone({
     e.preventDefault()
     setDrag('idle')
     if (disabled) return
-    handleFiles(Array.from(e.dataTransfer.files))
+    void filesFromDataTransfer(e.dataTransfer).then(handleFiles)
   }
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
@@ -165,7 +163,7 @@ export function Dropzone({
       <div
         role="button"
         tabIndex={disabled ? -1 : 0}
-        aria-label={`Drop zone. Accepts ${extLabel}${multiple ? '' : ', one file'}. Press Enter or Space to open file picker, or drag and drop files here.`}
+        aria-label={`Drop zone. Accepts ${extLabel}${multiple ? '' : ', one file'}. Press Enter or Space to open file picker, or drag and drop files or a folder here.`}
         aria-disabled={disabled}
         onClick={open}
         onKeyDown={onKeyDown}
@@ -206,7 +204,7 @@ export function Dropzone({
             </div>
             <div className="space-y-1">
               <p className="text-sm font-medium text-fg">
-                {isOver ? 'Release to add' : multiple ? 'Drop files here' : 'Drop a video here'}
+                {isOver ? 'Release to add' : multiple ? 'Drop files or a folder here' : 'Drop a video here'}
               </p>
               <p className="text-xs text-fg-muted">
                 or{' '}
