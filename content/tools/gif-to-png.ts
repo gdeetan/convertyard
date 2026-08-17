@@ -71,7 +71,7 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-images-without-losing-quality', 'how-browser-based-file-conversion-works'],
 
   meta: {
-    title: 'GIF to PNG Converter — ConvertYard',
+    title: 'GIF to PNG — First Frame Only — ConvertYard',
     description:
       'Extract the first frame of a GIF as a lossless PNG. Batch up to 1,000 GIFs in your browser. Transparency kept where the frame allows. Nothing is uploaded.',
   },

@@ -88,7 +88,7 @@ export const config: ToolConfig = {
   relatedArticles: ['what-is-heic', 'avif-vs-webp-vs-jpeg-2026', 'batch-convert-images'],
 
   meta: {
-    title: 'HEIC to AVIF Converter — ConvertYard',
+    title: 'Convert iPhone HEIC to AVIF — ConvertYard',
     description:
       'Convert iPhone HEIC photos to AVIF in your browser. Often around 50% smaller than JPG at similar quality. Batch up to 1,000 files — nothing is uploaded.',
   },

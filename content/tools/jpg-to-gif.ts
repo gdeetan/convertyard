@@ -73,7 +73,7 @@ export const config: ToolConfig = {
   relatedTools: ['png-to-gif', 'webp-to-gif', 'jpg-to-webp'],
   relatedArticles: [],
   meta: {
-    title: 'JPG to GIF Converter — ConvertYard',
+    title: 'JPG to GIF — Animate a Sequence — ConvertYard',
     description: 'Convert JPG images to animated GIF. Set frame rate, output size, and loop count. Two-pass palette for better colour quality. No uploads.',
   },
 }
