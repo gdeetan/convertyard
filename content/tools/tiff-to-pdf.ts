@@ -56,7 +56,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'TIFF to PDF Converter — ConvertYard',
+    title: 'TIFF to PDF Converter — Bundle Scans — ConvertYard',
     description: 'Convert TIFF scans to PDF for legal, medical, and archival workflows. Combine multiple TIFFs into one PDF. Runs locally — no uploads.',
   },
 }

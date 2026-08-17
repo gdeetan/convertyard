@@ -58,7 +58,7 @@ export const config: ToolConfig = {
   relatedTools: ['tiff-to-jpg', 'jpg-to-png', 'tiff-to-pdf'],
   relatedArticles: [],
   meta: {
-    title: 'JPG to TIFF Converter — ConvertYard',
+    title: 'JPG to TIFF Converter — For Print — ConvertYard',
     description:
       'Convert JPG to TIFF for print workflows and archival. Choose LZW, ZIP, or uncompressed output. Batch convert locally — no uploads.',
   },
