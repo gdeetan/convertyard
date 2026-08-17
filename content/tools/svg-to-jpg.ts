@@ -76,7 +76,7 @@ export const config: ToolConfig = {
   relatedTools: ['svg-to-png', 'svg-to-webp', 'jpg-to-webp'],
   relatedArticles: [],
   meta: {
-    title: 'SVG to JPG Converter — ConvertYard',
+    title: 'SVG to JPG Converter — Set Background — ConvertYard',
     description: 'Convert SVG to JPG for blog thumbnails and social images. Set scale, quality, and background colour. Batch convert in your browser — nothing is uploaded.',
   },
 }

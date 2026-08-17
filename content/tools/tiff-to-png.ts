@@ -71,7 +71,7 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-images-without-losing-quality', 'exif-data-whats-hiding-in-your-photo'],
 
   meta: {
-    title: 'TIFF to PNG Converter — ConvertYard',
+    title: 'TIFF to PNG — Keep Every Pixel — ConvertYard',
     description:
       'Convert TIFF to PNG in your browser. Lossless — every pixel preserved. Batch up to 1,000 files, no uploads, no account. Files never leave your device.',
   },

@@ -88,7 +88,7 @@ export const config: ToolConfig = {
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'batch-convert-images'],
 
   meta: {
-    title: 'WebP to AVIF Converter — ConvertYard',
+    title: 'WebP to AVIF Converter — Smaller Files — ConvertYard',
     description:
       'Convert WebP to AVIF in your browser. Batch up to 1,000 files — no uploads, no account. 10–20% smaller than WebP with no visible quality loss.',
   },
