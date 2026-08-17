@@ -1,0 +1,108 @@
+export const meta = {
+  title: 'How to Batch Compress Videos',
+  description:
+    'Drop a folder of videos, set a size or quality once, download a ZIP. What works in a browser, what settings to use, and when HandBrake is faster.',
+  lastUpdated: '2026-08-14',
+  faq: [
+    {
+      q: 'Can I compress multiple videos at once?',
+      a: 'Yes. Drop the whole set into ConvertYard’s video compressor, set the level or size target once, and it encodes them one after another. Several outputs come back as a ZIP. There is no file-count cap.',
+    },
+    {
+      q: 'Does a batch upload the videos?',
+      a: 'Not here. Each file is encoded in the tab with ffmpeg.wasm. In the Network tab you should not see a POST the size of your videos. The no-upload guide has the exact check.',
+    },
+    {
+      q: 'How many videos can I do in one go?',
+      a: 'Whatever the tab can hold and you can leave open. A handful of short clips is easy. A folder of 4K files belongs on a desktop, and you may want to split it. On a phone, do one large file at a time.',
+    },
+    {
+      q: 'Is batch quality worse than doing files one by one?',
+      a: 'No. The same CRF, codec, resolution, and audio settings apply to every file. A clip in a batch of 20 matches that clip compressed alone.',
+    },
+    {
+      q: 'Why is a batch so slow?',
+      a: 'Video encode is per-frame. A 3-minute 1080p30 clip is about 5,400 frames. Files run one after another so two uncompressed videos do not sit in memory at once. Keep the tab in the foreground.',
+    },
+    {
+      q: 'Can every file in the batch share a 25 MB limit?',
+      a: 'Yes. Target size 25 MB (or the 25 MB page), then drop the set. Each file is measured on its own. Files already under the cap are remuxed, not re-encoded.',
+    },
+  ],
+  relatedTools: ['compress-video', 'extract-audio', 'video-trimmer', 'mp4-to-mp3'],
+}
+
+One video is a settings choice. Twenty videos is an afternoon if you upload, wait, download, and rename each one.
+
+Batch compression: drop the folder, set the knobs once, download a ZIP.
+
+**[Open the video compressor →](/compress-video/)**
+
+## When this is the right job
+
+- A week of lectures has to go out as email attachments.
+- Fifteen screen recordings will not send in Slack.
+- Every clip must sit under the same cap — [25 MB for Gmail](/compress-video/to-25mb/), 10 MB for a form, 50 MB for a portal.
+- A pile of iPhone HEVC clips needs to become H.264 MP4s for people on older PCs.
+
+One 8-minute file? Skip the batch framing and [compress that file](/compress-video/). Same engine.
+
+## Three ways to do a folder
+
+**HandBrake or Media Encoder.** Local, hardware encode, a real queue. Right if you already live there. Heavy if you wanted to shrink a folder once.
+
+**Desktop ffmpeg.** Fastest honest option for a big directory:
+
+```bash
+for f in *.mp4; do
+  ffmpeg -i "$f" -c:v libx264 -crf 23 -preset medium -c:a aac -b:a 128k "compressed/$f"
+done
+```
+
+No upload, no file-count fiction. You need ffmpeg installed, and you need to know what to do when one file has no video track.
+
+**Browser, locally.** ffmpeg compiled to WebAssembly, running in the tab. ConvertYard processes files one at a time so the tab does not hold two uncompressed videos plus two outputs. No install. No GPU encoder — a phone is the wrong machine for a folder of 200 MB clips. Use a desktop browser.
+
+## Steps
+
+1. Open [convertyard.com/compress-video](/compress-video/). If every file has the same cap, start on [10 MB](/compress-video/to-10mb/), [25 MB](/compress-video/to-25mb/), or [50 MB](/compress-video/to-50mb/) instead.
+2. Drop the set. MP4, MOV, WebM, AVI, MKV, WMV, TS can be mixed. Output is MP4. Audio-only files fail (no video track) and do not stop the rest.
+3. Set the knobs once. They apply to every file.
+4. Test one representative clip first. Play it on the device that has to work. Fix CRF or resolution now — a batch has no preview pass.
+5. Stay on the tab. Files encode in order. Android Chrome stalls a background encode. On iPhone and iPad, treat anything over 50 MB as risky and anything over 100 MB as a desktop job.
+6. Download the ZIP. Names stay the same, extension becomes `.mp4`. Originals on disk are not touched.
+
+## One policy per drop
+
+If half the files need High + 720p and the other half need Medium at original size, do two drops.
+
+| Destination | Start here |
+|---|---|
+| Gmail / generic email | Target 25 MB. 720p if the source is 1080p or 4K. |
+| Strict form (10 MB) | Target 10 MB. 720p or 480p. H.265 only if playback is on phones. |
+| Internal Slack / Drive, quality first | Medium, original resolution, H.264. |
+| Rough proxies / archive | High or Maximum, 720p. |
+| Mixed old hardware | H.264, Medium, 720p. |
+| Only recent iPhones / Androids | H.265 on, Medium. |
+
+Sport and games shrink less than slides and talking heads. If the folder is half screen recordings and half a soccer match, split it. See [H.264 vs H.265](/blog/h264-vs-h265-video-compression/) if the codec is the open question.
+
+## What will actually stop a batch
+
+There is no product file-count limit. The machine is the limit.
+
+- **Memory.** A 4K file in a WASM heap can kill the tab. Split huge files onto a desktop session.
+- **Time.** Ten 3-minute clips is roughly ten times one clip. Start it when you can leave the machine alone.
+- **Phones.** Fine for one or two small files. Not a field batch station.
+- **Sleep / closed tab.** In-progress work is gone. Files you already downloaded are safe. This is not a cloud job you can resume.
+- **A bad file.** No video track → that row fails, the rest continue.
+
+A hundred long files overnight: HandBrake’s queue or desktop ffmpeg. The browser tool is for the folder on the computer in front of you, today, without installing anything.
+
+How the file stays local is covered in [Compress video without uploading](/blog/compress-video-without-uploading/).
+
+## Also useful
+
+- [Compress video without uploading](/blog/compress-video-without-uploading/)
+- [H.264 vs H.265: which to pick](/blog/h264-vs-h265-video-compression/)
+- [What a browser can (and cannot) do with video](/blog/browser-video-editing-2026/)

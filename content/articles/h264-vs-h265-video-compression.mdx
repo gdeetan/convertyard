@@ -1,0 +1,130 @@
+export const meta = {
+  title: 'H.264 vs H.265 Video Compression: Which Should You Use?',
+  description:
+    'H.264 plays on almost every device. H.265 makes a smaller file. Which to pick for email, phones, and old Windows PCs — and how to switch.',
+  lastUpdated: '2026-08-07',
+  faq: [
+    {
+      q: 'What is the difference between H.264 and H.265?',
+      a: 'They are video codecs — the method used to shrink frames. H.264 (AVC, 2003) is the compatibility default. H.265 (HEVC, 2013) usually makes a file 30–50% smaller at the same look. It encodes more slowly and will not play on some older devices.',
+    },
+    {
+      q: 'Is H.265 better than H.264?',
+      a: 'More efficient, not universally better. Use H.265 when you know the player can handle it and size is the constraint. Use H.264 when the file has to open on the first try — unknown recipients, old Windows PCs, picky portals.',
+    },
+    {
+      q: 'Will H.265 play on iPhone, Android, and Windows?',
+      a: 'iPhone has decoded HEVC since the iPhone 7; recent iPhones record it by default. Recent Android phones decode it in hardware. Windows 10/11 can play it only if HEVC extensions are installed. Safari plays it natively. Chrome and Firefox use whatever the OS provides.',
+    },
+    {
+      q: 'Does ConvertYard support H.265?',
+      a: 'Yes. Output is MP4 with H.264 by default. Turn on “H.265 output (HEVC)” to encode with libx265 instead. Same duration; smaller file on footage that compresses well.',
+    },
+    {
+      q: 'Should I send H.265 to YouTube, Instagram, or WhatsApp?',
+      a: 'Those platforms re-encode whatever you give them. H.265 can help you stay under an upload or email cap on the way in. It does not control what viewers get. For WhatsApp, H.264 MP4 is safer — some older phones still fail on HEVC.',
+    },
+    {
+      q: 'Is H.265 the same as HEVC?',
+      a: 'Yes. H.265 is the ITU-T name. HEVC (High Efficiency Video Coding) is the ISO/MPEG name. Camera menus often say “H.265/HEVC.”',
+    },
+    {
+      q: 'What about AV1?',
+      a: 'A newer royalty-free codec in the same efficiency class as H.265, sometimes better. Support grew through 2025–2026, but phones still record H.265 and interchange is still H.264. ConvertYard writes H.264 or H.265 inside MP4.',
+    },
+  ],
+  relatedTools: ['compress-video', 'mp4-to-mp3', 'extract-audio', 'video-trimmer'],
+}
+
+H.264 and H.265 do the same job: make a playable file smaller. The trade-off is size versus who can open it.
+
+**Send H.264 if you do not know the other person’s device.** Use H.265 when you do, and you need the file smaller.
+
+**[Compress to H.264 or H.265 →](/compress-video/)**
+
+## MP4 is not a codec
+
+A **codec** compresses the frames. H.264 and H.265 are codecs.
+
+A **container** is the wrapper — MP4, MOV, MKV, WebM. It can hold a video track, an audio track, and subtitles.
+
+“Convert to MP4” is an incomplete instruction. An MP4 can contain H.264 or H.265. ConvertYard always writes an MP4; the H.265 toggle decides what is *inside* it.
+
+This is why an iPhone clip sometimes will not play on an older Windows PC. The file is an MP4, but Camera → Formats → High Efficiency recorded HEVC (H.265). Most Compatible records H.264.
+
+## How much smaller is H.265, really
+
+At matched visual quality, on the same resolution and frame rate:
+
+| Footage | Typical saving vs H.264 |
+|---|---|
+| Talking head, lecture, meeting | 35–50% |
+| Screen recording, slides, UI | 30–45% |
+| Walking / vlog | 30–40% |
+| Sport, games | 20–35% |
+
+Already-compressed clips have less left to give. Grain, low light, and fast motion cost bits in either codec. Treat the table as a planning range, not a promise.
+
+The compressor’s quality levels are CRF. The numbers differ by codec — CRF 23 in x264 is not the same knob position as CRF 23 in x265 — so use the named levels:
+
+| Level | H.264 CRF | H.265 CRF | Use |
+|---|---|---|---|
+| Small | 18 | 22 | Near-lossless. Small size win. |
+| Medium | 23 | 26 | Default. Usually the right first try. |
+| High | 28 | 30 | Noticeable if you look. Much smaller. |
+| Maximum | 35 | 36 | Soft. Previews and archives, not delivery. |
+
+Downscaling still beats a codec change when you do not need the original pixels. A 4K screen recording re-encoded to **720p H.264** is often smaller than **4K H.265**, and it plays everywhere.
+
+## What actually plays it
+
+**H.264** decodes in hardware on essentially every phone, laptop, smart TV, and browser from the last 15 years. First-try compatibility: H.264 in an MP4.
+
+**H.265** is fine on current devices and still a gap on older ones:
+
+- **iPhone / iPad** — hardware decode since iPhone 7. Recent iPhones record HEVC by default.
+- **Android** — hardware decode is normal from about 2016 on. Older than that is the problem set.
+- **macOS / Safari** — native.
+- **Windows 10 / 11** — only if HEVC extensions are installed. A clean Windows box without them will not play H.265 in every app.
+- **Chrome / Firefox / Edge** — they use the OS decoder. No OS support, no playback.
+- **4K TVs** — almost all decode HEVC (UHD Blu-ray required it).
+
+## A working rule
+
+| Situation | Codec |
+|---|---|
+| Unknown recipient, client, student, public download | H.264 |
+| Form / LMS / portal that says “MP4” | H.264 (they usually mean this) |
+| WhatsApp, MMS, old Windows laptop | H.264 |
+| You will edit it again in picky software | H.264 |
+| [Gmail 25 MB](/compress-video/to-25mb/) and H.264 looks ugly | H.265 |
+| Your own archive, modern hardware | H.265 |
+| Only recent phones or a current Mac will play it | H.265 |
+
+YouTube and Instagram re-encode on ingest. Picking H.265 will not “beat” their compressor. It can only help you stay under *their upload cap*. Start from the best source you have. Do not bounce H.264 → H.265 → H.264. Each lossy pass adds damage.
+
+## Encode time
+
+H.265 is heavier. In a browser there is no NVENC or VideoToolbox — ConvertYard runs libx265 on CPU with a fast preset.
+
+Same clip, H.265 takes longer than H.264. HandBrake at a slow preset can beat the in-browser file at the same nominal quality because it searches harder. For an email attachment that is rarely why you opened a tab.
+
+If the file already fits the cap as H.264 Medium, leave H.265 off.
+
+## How to switch
+
+1. Open the [video compressor](/compress-video/).
+2. Drop the file.
+3. Leave **H.265 output (HEVC)** off for H.264, or turn it on.
+4. Pick a level, or turn on Target size if you have a hard cap.
+5. Download the MP4.
+
+Duration does not change. Resolution changes only if you pick 1080p / 720p / 480p / 360p. Audio is copied when the source is already AAC at a bitrate that fits; otherwise it is re-encoded to AAC.
+
+The useful test: take a 20-second slice of *your* footage, compress it twice at Medium (toggle off, then on), and play both on the device that has to work. That beats any “50% smaller” claim.
+
+## Also useful
+
+- [Compress video without uploading](/blog/compress-video-without-uploading/)
+- [How to batch compress videos](/blog/batch-compress-videos/)
+- [What a browser can (and cannot) do with video](/blog/browser-video-editing-2026/)

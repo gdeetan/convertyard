@@ -22,6 +22,9 @@ import { AvifBrowserSupportIllustration } from './avif-browser-support'
 import { MergePdfIllustration } from './merge-pdf'
 import { AltTextIllustration } from './alt-text-guide'
 import { AltTextCsvIllustration } from './alt-text-csv-import'
+import { CompressVideoPrivacyIllustration } from './compress-video-privacy'
+import { H264VsH265Illustration } from './h264-vs-h265'
+import { BatchCompressVideosIllustration } from './batch-compress-videos'
 
 export const articleIllustrations: Record<string, ComponentType> = {
   'compress-pdf-without-uploading-privacy-guide': CompressPdfPrivacyIllustration,
@@ -46,4 +49,7 @@ export const articleIllustrations: Record<string, ComponentType> = {
   'merge-pdf-without-uploading': MergePdfIllustration,
   'alt-text-guide': AltTextIllustration,
   'import-alt-text-csv-to-cms': AltTextCsvIllustration,
+  'compress-video-without-uploading': CompressVideoPrivacyIllustration,
+  'h264-vs-h265-video-compression': H264VsH265Illustration,
+  'batch-compress-videos': BatchCompressVideosIllustration,
 }

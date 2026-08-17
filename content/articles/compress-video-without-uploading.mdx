@@ -1,0 +1,124 @@
+export const meta = {
+  title: 'How to Compress Video Without Uploading',
+  description:
+    'How to shrink a video for email or a form without sending the file to a server — and how to prove the tool is actually local.',
+  lastUpdated: '2026-07-30',
+  faq: [
+    {
+      q: 'How do I compress a video without uploading it?',
+      a: 'Use a tool that runs ffmpeg in the browser as WebAssembly. ConvertYard’s video compressor does that: drop the file, pick a quality level or a size target, download the result. The video stays in the tab.',
+    },
+    {
+      q: 'How can I tell a compressor is actually local?',
+      a: 'Open DevTools (F12, or Cmd+Option+I on a Mac), go to the Network tab, clear the log, then start compression. If you see a large POST or PUT whose size matches your file, that is an upload. If you only see the page’s own scripts and a WASM module, the video did not leave.',
+    },
+    {
+      q: 'Is browser compression as good as HandBrake?',
+      a: 'Same encoder family (libx264 / libx265). Quality at a given CRF is in the same range. Browser encodes use a fast preset so they finish on a laptop CPU, so HandBrake at a slower preset can squeeze a bit more. For an email attachment that rarely matters.',
+    },
+    {
+      q: 'Is there a file size limit?',
+      a: 'No upload cap. The limit is tab memory. A few hundred megabytes is comfortable on a desktop. A 500 MB file can take 5–15 minutes and the tab must stay open. On iPhone and iPad, files over 100 MB can restart the page.',
+    },
+    {
+      q: 'Does compression change length or resolution?',
+      a: 'Duration never changes. Resolution stays the same unless you pick 1080p, 720p, 480p, or 360p. If you do not need the original pixel size, downscaling cuts more bytes than turning the quality knob.',
+    },
+    {
+      q: 'Can I hit exactly 25 MB for Gmail?',
+      a: 'Turn on Target size mode and enter 25 MB, or use the 25 MB page. The tool measures duration, budgets bits for audio, and encodes the video track to fit. If the file is already under the cap, it remuxes to MP4 and skips the re-encode.',
+    },
+  ],
+  relatedTools: ['compress-video', 'extract-audio', 'video-trimmer', 'mp4-to-mp3'],
+}
+
+A 4K phone clip is often 200–400 MB. Gmail refuses attachments above 25 MB. Most free compressors solve that by uploading the file, encoding it on a server, and sending a smaller copy back.
+
+The smaller file is real. So is the upload. The original sat on a disk you do not control while it was processed.
+
+You can skip that step. A browser can run ffmpeg on your CPU. The file never leaves the tab.
+
+**[Open the video compressor →](/compress-video/)**
+
+## What an upload actually is
+
+On a typical online compressor:
+
+1. The browser reads the file from disk.
+2. It POSTs the bytes to something like `api.example.com/upload`.
+3. A server transcodes it.
+4. You download the result from that server.
+
+How long the original sits there is whoever wrote the privacy policy — an hour, a day, or “until you delete it.” Compression itself does not need a server. It is a local job: read frames, encode them with fewer bits, write an MP4.
+
+## How to prove the file stayed put
+
+Do not take a “no upload” label on faith. Check.
+
+1. Open DevTools — **F12** on Windows/Linux, **Cmd + Option + I** on a Mac.
+2. Open the **Network** tab and clear the log.
+3. Drop a throwaway clip into the [video compressor](/compress-video/) and start it. Ten seconds of screen recording is enough.
+4. Watch the request list.
+
+A server-side tool shows a large POST or PUT. Click it: the request size is close to your file size. That is the upload.
+
+A local tool shows the page’s scripts, maybe `ffmpeg-core.wasm` if it was not cached, maybe an analytics ping. Nothing carries the video.
+
+Second check: after the page and WASM module have loaded, disconnect from the network and compress again. A local tool still finishes. An upload tool dies as soon as it cannot reach its API.
+
+## Settings that actually change the size
+
+[ConvertYard’s compressor](/compress-video/) accepts MP4, MOV, WebM, AVI, MKV, WMV, and TS. Output is always MP4.
+
+**If you have a hard cap** (Gmail, a form, a portal), turn on Target size and type the number — or skip the main page:
+
+- [10 MB](/compress-video/to-10mb/)
+- [25 MB](/compress-video/to-25mb/) — Gmail’s attachment limit
+- [50 MB](/compress-video/to-50mb/)
+
+The tool measures duration, reserves bits for audio, and spends the rest on the video track. Already under the cap? It remuxes. No quality loss.
+
+**If you just want it smaller**, use a compression level:
+
+| Level | CRF | What you get |
+|---|---|---|
+| Small | 18 | Near-lossless. Often only 5–20% smaller. |
+| Medium | 23 | The H.264 default. Often 30–50% smaller. |
+| High | 28 | You can see it if you look. Often 50–70% smaller. |
+| Maximum | 35 | Soft. Fine for a rough preview, not for anything you will watch twice. |
+
+Two other levers beat CRF for a lot of footage:
+
+- **Resolution.** 4K screen recordings do not need 4K in email. 720p is usually enough.
+- **[H.265](/blog/h264-vs-h265-video-compression/).** Smaller than H.264 at the same look, but some older Windows PCs will not play it. Leave it off if the recipient is unknown.
+
+Silent screen recordings: strip the audio track. That is free size.
+
+Keep the tab visible while it runs. Closing it, or letting a phone background the tab, stops the encode.
+
+## When the upload is the actual problem
+
+A public product demo on a random compressor is a small risk. These are not:
+
+- Client interviews and user research — faces, names, unreleased product.
+- Kids, family, home video. You cannot un-upload those.
+- Screen recordings. Slack, mail, a password manager in the corner.
+- Medical, legal, or HR recordings.
+
+If you would not email the uncompressed file to the company running the tool, do not upload it to compress it.
+
+## When a desktop app is still the right tool
+
+Use the browser for attachments, form uploads, and one-off sharing. Use HandBrake or desktop ffmpeg when:
+
+- The file is several gigabytes or a long 4K timeline.
+- You need a slow preset, a streaming ladder, or a hardware encoder (VideoToolbox, NVENC, Quick Sync).
+- You are encoding hundreds of long clips overnight.
+
+Browser WASM has no GPU encoder. It is slower than `ffmpeg` on the same machine. On a phone, files over 50 MB are uncomfortable; over 100 MB can restart an iOS tab. For a [folder of large files](/blog/batch-compress-videos/), use a laptop.
+
+## Also useful
+
+- [H.264 vs H.265: which to pick](/blog/h264-vs-h265-video-compression/)
+- [How to batch compress videos](/blog/batch-compress-videos/)
+- [What a browser can (and cannot) do with video](/blog/browser-video-editing-2026/)

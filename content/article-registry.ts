@@ -195,4 +195,25 @@ export const articles: ArticleEntry[] = [
       'Modern browsers can compress, convert, extract audio, trim, and package video entirely locally — no uploads. Here is what works, what the limits are, and when to use a desktop app instead.',
     lastUpdated: '2026-07-25',
   },
+  {
+    slug: 'compress-video-without-uploading',
+    title: 'How to Compress Video Without Uploading',
+    description:
+      'How to shrink a video for email or a form without sending the file to a server — and how to prove the tool is actually local.',
+    lastUpdated: '2026-07-30',
+  },
+  {
+    slug: 'h264-vs-h265-video-compression',
+    title: 'H.264 vs H.265 Video Compression: Which Should You Use?',
+    description:
+      'H.264 plays on almost every device. H.265 makes a smaller file. Which to pick for email, phones, and old Windows PCs — and how to switch.',
+    lastUpdated: '2026-08-07',
+  },
+  {
+    slug: 'batch-compress-videos',
+    title: 'How to Batch Compress Videos',
+    description:
+      'Drop a folder of videos, set a size or quality once, download a ZIP. What works in a browser, what settings to use, and when HandBrake is faster.',
+    lastUpdated: '2026-08-14',
+  },
 ]
