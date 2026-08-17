@@ -77,6 +77,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'OGG to MP3 Converter — ConvertYard',
     description:
-      'Convert OGG to MP3 in your browser. Convert Discord and Telegram voice notes, OGG Vorbis audio files — batch convert up to 1,000 files, no uploads.',
+      'Convert Discord and Telegram voice notes from OGG to MP3 in your browser. Also handles OGG Vorbis audio. Batch up to 1,000 files — nothing is uploaded.',
   },
 }
