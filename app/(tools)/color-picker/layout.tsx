@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { breadcrumbSchema, BASE_URL } from '@/lib/seo/schema'
 
-const title = 'Pick and Convert Colors — ConvertYard'
+const title = 'Color Picker — ConvertYard'
 const description =
   'Pick a color and copy it as HEX, RGB, HSL, or OKLCH. Convert between formats in your browser. Nothing is uploaded.'
 
