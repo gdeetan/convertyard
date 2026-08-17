@@ -99,6 +99,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'Photo to Text Converter — ConvertYard',
-    description: 'Extract text from photos of documents and printed pages. HEIC supported. Batch convert locally — no uploads, no account.',
+    description: 'Extract text from photos of documents and printed pages. HEIC, JPG, and PNG. 14 languages. Batch up to 1,000 files locally — files never leave your browser.',
   },
 }

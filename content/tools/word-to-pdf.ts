@@ -84,6 +84,6 @@ export const config: ToolConfig = {
   relatedArticles: [],
   meta: {
     title: 'Word to PDF Converter — ConvertYard',
-    description: 'Convert Word DOCX files to PDF in your browser. Batch convert up to 1,000 files. No upload, no account. Files never leave your device.',
+    description: 'Convert Word DOCX files to PDF in your browser. Headings, lists, and images kept. Batch up to 1,000 files. Nothing is uploaded — the file stays local.',
   },
 }

@@ -101,6 +101,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'PNG to JPG Converter — ConvertYard',
     description:
-      'Convert PNG to JPG in your browser. Batch up to 1,000 files — no uploads, no account. Handles transparency, quality, resize, and metadata stripping.',
+      'Convert PNG to JPG in your browser. Fill transparent areas, set quality, resize, and strip metadata. Batch up to 1,000 files — no account needed. Smaller files.',
   },
 }

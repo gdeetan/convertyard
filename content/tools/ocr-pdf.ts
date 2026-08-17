@@ -94,6 +94,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'Make a Scanned PDF Searchable — ConvertYard',
     description:
-      'Make scanned PDFs searchable and selectable with free browser-based OCR. Supports English, Hindi, and 8 more languages. Files never uploaded.',
+      'Make a scanned PDF searchable and selectable with in-browser OCR. English, Hindi, and 8 more languages. Files never leave your device — no upload, no account.',
   },
 }

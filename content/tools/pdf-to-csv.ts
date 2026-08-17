@@ -41,6 +41,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'PDF to CSV Converter — ConvertYard',
-    description: 'Extract tables from any PDF as CSV files. One CSV per page, with preview. Free, local, no upload. Works in your browser.',
+    description: 'Extract tables from a PDF into CSV files, one CSV per page, with a preview before download. Runs in your browser. Batch multiple PDFs — nothing is uploaded.',
   },
 }

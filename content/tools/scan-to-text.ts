@@ -97,6 +97,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'Scan to Text Converter — ConvertYard',
-    description: 'Convert scanned document images (TIFF, JPG, PNG, BMP) to editable text. Batch up to 1,000 files locally. No uploads. 14 languages supported.',
+    description: 'Turn scanned document images (TIFF, JPG, PNG, BMP) into editable text. 14 languages. Batch up to 1,000 files in your browser — no uploads. Phone photos too.',
   },
 }

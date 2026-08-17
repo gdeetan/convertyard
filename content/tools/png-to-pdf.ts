@@ -86,6 +86,6 @@ export const config: ToolConfig = {
   relatedArticles: [],
   meta: {
     title: 'PNG to PDF Converter — ConvertYard',
-    description: 'Convert PNG images to PDF in your browser. Combine multiple PNGs into one PDF or create one per image. Batch convert up to 1,000 files. No upload.',
+    description: 'Convert PNG images to PDF. Combine several into one file or make one PDF per image. Batch up to 1,000 files in your browser — no account needed. Print-ready.',
   },
 }

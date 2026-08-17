@@ -5,11 +5,11 @@ import { Breadcrumb } from '@/components/ui/breadcrumb'
 export const metadata: Metadata = {
   title: 'About',
   description:
-    'Why ConvertYard exists. We got tired of uploading files to random websites just to convert them.',
+    'ConvertYard converts files in your browser. Nothing is uploaded — photos, PDFs, and documents stay on your device. Built for batches, not one file at a time.',
   openGraph: {
     title: 'About ConvertYard',
     description:
-      'Why ConvertYard exists. We got tired of uploading files to random websites just to convert them.',
+      'ConvertYard converts files in your browser. Nothing is uploaded — photos, PDFs, and documents stay on your device. Built for batches, not one file at a time.',
     url: 'https://convertyard.com/about',
   },
   alternates: {

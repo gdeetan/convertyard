@@ -80,6 +80,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'GIF to JPG Converter — ConvertYard',
     description:
-      'Convert GIF to JPG in your browser. Extracts the first frame as a static image. Batch convert 1,000 GIFs at once — no uploads, no account needed.',
+      'Extract the first frame of a GIF as a static JPG. Batch up to 1,000 GIFs in your browser. Set quality. Files never leave your device — no account needed.',
   },
 }

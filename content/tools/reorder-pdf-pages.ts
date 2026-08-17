@@ -45,6 +45,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'Reorder PDF Pages — ConvertYard',
-    description: 'Drag to rearrange PDF pages in your browser. Delete or duplicate pages. Undo/redo support. Preview before saving. Files never leave your device.',
+    description: 'Drag PDF pages into a new order. Delete or duplicate pages, undo if you miss. Preview before saving. Runs in your browser — the file never leaves your device.',
   },
 }

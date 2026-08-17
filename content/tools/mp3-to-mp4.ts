@@ -115,6 +115,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'MP3 to MP4 Converter — ConvertYard',
     description:
-      'Convert MP3 to MP4 in your browser — add a black screen, custom color, or album art. Batch convert audio files, no uploads, no account needed.',
+      'Turn an MP3 into an MP4 with a black screen, a solid color, or album art. Batch convert in your browser — files never leave your device. Ready to share.',
   },
 }

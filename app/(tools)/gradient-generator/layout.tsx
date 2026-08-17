@@ -3,7 +3,7 @@ import { breadcrumbSchema, BASE_URL } from '@/lib/seo/schema'
 
 const title = 'Make a CSS Gradient — ConvertYard'
 const description =
-  'Build a CSS gradient with a live preview. Copy the CSS or export a PNG. Nothing leaves your browser.'
+  'Build a CSS gradient with a live preview. Add color stops, pick linear or radial, copy the CSS or export a PNG. Runs in your browser — nothing is uploaded.'
 
 export const metadata: Metadata = {
   title: { absolute: title },

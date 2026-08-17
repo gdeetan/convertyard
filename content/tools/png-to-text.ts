@@ -99,6 +99,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'PNG to Text Converter — ConvertYard',
-    description: 'Extract text from PNG images — UI captures, diagram labels, transparent-background exports. Batch up to 1,000 files locally. No uploads, no account.',
+    description: 'Extract text from PNG screenshots, UI captures, and diagram labels. Transparent backgrounds handled. Batch up to 1,000 files locally — nothing is uploaded.',
   },
 }

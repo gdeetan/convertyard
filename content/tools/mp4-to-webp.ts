@@ -130,6 +130,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'MP4 to WebP Converter — ConvertYard',
     description:
-      'Convert MP4 to animated WebP in your browser. Trim, resize, crop, set FPS and loop count. Built for short web animations — no uploads.',
+      'Convert MP4 clips to animated WebP in your browser. Trim, resize, crop, set FPS and loop count. Built for short web animations — files never leave your device.',
   },
 }

@@ -47,6 +47,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'JPG to BMP Converter — ConvertYard',
     description:
-      'Convert JPG to uncompressed BMP for legacy Windows software and game toolchains. Batch convert locally in your browser — no uploads.',
+      'Convert JPG to uncompressed BMP for legacy Windows software and game engines. Batch convert in your browser — files never leave your device. No quality loss.',
   },
 }

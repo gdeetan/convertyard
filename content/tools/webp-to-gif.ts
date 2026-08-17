@@ -74,6 +74,6 @@ export const config: ToolConfig = {
   relatedArticles: [],
   meta: {
     title: 'WebP to GIF Converter — ConvertYard',
-    description: 'Convert animated WebP to GIF for email, legacy platforms, and anywhere WebP isn\'t supported. Two-pass palette GIF. Runs locally — no uploads.',
+    description: 'Convert animated WebP to GIF for email and older tools that still need GIF. Two-pass palette. Runs in your browser — files stay on your device. Broader support.',
   },
 }

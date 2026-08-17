@@ -98,6 +98,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'JPEG to Text Converter — ConvertYard',
-    description: 'Extract text from JPEG files with free browser-based OCR. No uploads, no account. 14 languages, batch processing.',
+    description: 'Extract text from JPEG photos and scans with browser OCR. 14 languages. Batch up to 1,000 files. Nothing is uploaded — documents, receipts, printed pages.',
   },
 }

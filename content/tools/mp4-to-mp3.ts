@@ -81,6 +81,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'MP4 to MP3 Converter — ConvertYard',
     description:
-      'Convert MP4 to MP3 in your browser. Format or switch any MP4 to MP3 — choose bitrate up to 320 kbps, batch files, no uploads, no account.',
+      'Pull the audio from an MP4 and save it as MP3. Choose bitrate up to 320 kbps. Batch multiple videos in your browser — nothing is uploaded. Audio only.',
   },
 }

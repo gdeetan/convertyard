@@ -97,6 +97,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'HEIC to WebP Converter — ConvertYard',
     description:
-      'Convert iPhone HEIC photos to WebP in your browser. Batch up to 1,000 files — no uploads, no account. Smaller than JPG with excellent quality.',
+      'Convert iPhone HEIC photos to WebP in your browser. Smaller than JPG at similar quality. Batch up to 1,000 files — nothing is uploaded, no account needed.',
   },
 }

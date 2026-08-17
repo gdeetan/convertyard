@@ -61,6 +61,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'TIFF to AVIF Converter — ConvertYard',
     description:
-      'Convert TIFF to AVIF for web delivery. 70–80% smaller than TIFF at equivalent quality. Batch convert locally in your browser — no uploads.',
+      'Convert TIFF scans and photos to AVIF for the web. Typically 70–80% smaller than the source TIFF. Batch convert in your browser — no uploads. Web-ready.',
   },
 }

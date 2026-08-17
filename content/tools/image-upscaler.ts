@@ -130,6 +130,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'Upscale an Image — ConvertYard',
     description:
-      'Upscale photos and illustrations 2×–8× with on-device Real-ESRGAN in your browser. No upload, no account. Batch 1,000 files.',
+      'Upscale photos and illustrations 2×–8× with on-device Real-ESRGAN. Runs in your browser — no upload, no account. Batch up to 1,000 files. PNG or JPG output.',
   },
 }
