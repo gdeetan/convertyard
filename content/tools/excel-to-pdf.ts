@@ -69,6 +69,6 @@ export const config: ToolConfig = {
   relatedArticles: [],
   meta: {
     title: 'Excel to PDF Converter — ConvertYard',
-    description: 'Convert Excel spreadsheets to PDF in your browser. Multi-sheet support. Batch convert up to 1,000 files. No upload required.',
+    description: 'Convert Excel spreadsheets to PDF in your browser. Multi-sheet workbooks, fit-to-page. Batch up to 1,000 files. Nothing is uploaded — the file stays local.',
   },
 }

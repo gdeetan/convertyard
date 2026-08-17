@@ -67,6 +67,6 @@ export const config: ToolConfig = {
   relatedArticles: [],
   meta: {
     title: 'SVG to PNG Converter — ConvertYard',
-    description: 'Convert SVG to PNG at any resolution — 1×, 2×, 4× or custom px. Batch convert icon sets locally in your browser. No uploads, no account.',
+    description: 'Rasterise SVG to PNG at 1×, 2×, 4×, or any custom pixel size. Batch convert icon sets in your browser. Transparency kept. Files stay on your device. No blur.',
   },
 }

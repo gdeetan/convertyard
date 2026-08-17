@@ -78,6 +78,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'Crop Images — ConvertYard',
     description:
-      'Crop JPG, PNG, and WebP images in batches. Preset aspect ratios for UPSC, SSC, passport, and social media. Set exact output dimensions. All processing in your browser, no uploads.',
+      'Crop JPG, PNG, and WebP in batches. Presets for UPSC, SSC, passport, and social sizes, or set exact pixels. Runs in your browser — nothing is uploaded.',
   },
 }

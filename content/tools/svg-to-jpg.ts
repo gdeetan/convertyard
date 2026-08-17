@@ -77,6 +77,6 @@ export const config: ToolConfig = {
   relatedArticles: [],
   meta: {
     title: 'SVG to JPG Converter — ConvertYard',
-    description: 'Convert SVG to JPG for blog thumbnails and social media. Set scale, quality, and background colour. Batch convert locally — no uploads.',
+    description: 'Convert SVG to JPG for blog thumbnails and social images. Set scale, quality, and background colour. Batch convert in your browser — nothing is uploaded.',
   },
 }

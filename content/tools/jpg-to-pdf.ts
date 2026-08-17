@@ -90,6 +90,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'JPG to PDF Converter — ConvertYard',
-    description: 'Convert JPG, PNG, and WebP images to PDF in your browser. Combine into one PDF or create one per image. Drag to reorder. No uploads, no account.',
+    description: 'Convert JPG, PNG, and WebP images to PDF. One image per page, or combine them. Drag to reorder. Runs in your browser — nothing is uploaded. Print-ready.',
   },
 }

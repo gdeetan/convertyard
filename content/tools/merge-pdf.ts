@@ -45,6 +45,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'Merge PDFs — ConvertYard',
     description:
-      'Merge multiple PDF files into one in your browser. Drag to reorder pages before combining. No uploads, no account — runs entirely locally.',
+      'Combine several PDFs into one file. Drag pages to reorder before merging. Runs in your browser — files never leave your device. Keep the page order intact.',
   },
 }

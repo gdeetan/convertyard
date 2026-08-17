@@ -73,6 +73,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'GIF to PNG Converter — ConvertYard',
     description:
-      'Convert GIF to PNG in your browser. Extracts the first frame as a lossless PNG. Batch convert 1,000 GIFs at once — no uploads, no account needed.',
+      'Extract the first frame of a GIF as a lossless PNG. Batch up to 1,000 GIFs in your browser. Transparency kept where the frame allows. Nothing is uploaded.',
   },
 }

@@ -75,6 +75,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'GIF to MP4 Converter — ConvertYard',
     description:
-      'Convert GIFs to H.264 MP4 in your browser. Up to 95% smaller files, animation preserved. Batch convert 1,000 GIFs at once — no uploads, no account.',
+      'Convert a GIF to H.264 MP4. Same animation, often much smaller. Batch up to 1,000 GIFs in your browser — files never leave your device, no account needed.',
   },
 }

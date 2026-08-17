@@ -3,7 +3,7 @@ import { breadcrumbSchema, BASE_URL } from '@/lib/seo/schema'
 
 const title = 'Compare Two Texts — ConvertYard'
 const description =
-  'Compare two texts side by side. Added, removed, and changed lines are highlighted. Runs in your browser — nothing is uploaded.'
+  'Compare two texts side by side. Added, removed, and changed lines are highlighted at line and word level. Runs in your browser — nothing is uploaded or stored.'
 
 export const metadata: Metadata = {
   title: { absolute: title },

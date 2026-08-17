@@ -87,6 +87,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'TIFF to JPG Converter — ConvertYard',
     description:
-      'Convert TIFF to JPG in your browser. Batch up to 1,000 files — no uploads, no account. Shrink scanner TIFFs by 10–50x with no visible loss.',
+      'Convert TIFF scans and photos to JPG in your browser. Shrink large scanner files with a quality slider. Batch up to 1,000 files — nothing is uploaded.',
   },
 }

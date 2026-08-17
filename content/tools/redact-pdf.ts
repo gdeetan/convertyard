@@ -45,6 +45,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'Redact a PDF — ConvertYard',
-    description: 'Permanently redact text from PDFs in your browser. True redaction — content removed, not hidden. Free, local, no uploads. Output verified.',
+    description: 'Permanently remove text from a PDF, not just hide it. Preview before you save. Runs in your browser — the file never leaves your device. Cannot be undone.',
   },
 }

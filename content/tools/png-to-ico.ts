@@ -61,6 +61,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'PNG to ICO Converter — ConvertYard',
     description:
-      'Convert PNG to ICO favicon in your browser. Packs 16×16, 32×32, 48×48, 64×64 and 128×128 into one .ico file. Batch convert 1,000 PNGs — no upload.',
+      'Pack a PNG into a multi-size ICO favicon — 16, 32, 48, 64, and 128 px in one file. Batch convert in your browser — nothing is uploaded. Site-ready icons.',
   },
 }

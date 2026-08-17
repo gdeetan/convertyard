@@ -3,7 +3,7 @@ import { breadcrumbSchema, BASE_URL } from '@/lib/seo/schema'
 
 const title = 'Decode a JWT — ConvertYard'
 const description =
-  'Paste a JWT to see its header, payload, and expiry. Optional signature check stays in your browser — the token is never sent anywhere.'
+  'Paste a JWT to inspect its header, payload, and expiry. Optional HS256, RS256, or ES256 check. Decoded in your browser — the token is never sent anywhere.'
 
 export const metadata: Metadata = {
   title: { absolute: title },

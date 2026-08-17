@@ -75,6 +75,6 @@ export const config: ToolConfig = {
   relatedArticles: [],
   meta: {
     title: 'PNG to GIF Converter — ConvertYard',
-    description: 'Convert PNG to GIF or animate PNG sequences. Binary transparency handled. Two-pass palette for better colours. Batch convert locally — no uploads.',
+    description: 'Convert a PNG to GIF, or animate a sequence of PNGs. Binary transparency and a two-pass palette. Batch convert in your browser — no uploads. Simple motion.',
   },
 }

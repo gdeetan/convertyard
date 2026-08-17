@@ -79,6 +79,6 @@ export const config: ToolConfig = {
 
   meta: {
     title: 'PNG to SVG Converter — ConvertYard',
-    description: 'Vectorise PNG logos and icons into scalable SVG — no Illustrator needed. Works on logos, icons, line art, QR codes. Runs locally in your browser.',
+    description: 'Trace PNG logos and icons into scalable SVG paths. Works on logos, icons, line art, and QR codes. Runs in your browser — files never leave your device.',
   },
 }

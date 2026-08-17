@@ -90,6 +90,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'HEIC to AVIF Converter — ConvertYard',
     description:
-      'Convert iPhone HEIC photos to AVIF in your browser. Up to 50% smaller than JPG. Batch convert up to 1,000 files — no uploads, no account.',
+      'Convert iPhone HEIC photos to AVIF in your browser. Often around 50% smaller than JPG at similar quality. Batch up to 1,000 files — nothing is uploaded.',
   },
 }

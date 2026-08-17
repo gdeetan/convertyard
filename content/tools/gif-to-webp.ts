@@ -83,6 +83,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'GIF to WebP Converter — ConvertYard',
     description:
-      'Convert animated GIFs to animated WebP in your browser. 25–40% smaller files, full animation preserved. Batch convert 1,000 GIFs — no uploads.',
+      'Convert animated GIFs to animated WebP. Same motion, typically 25–40% smaller files. Batch up to 1,000 GIFs in your browser — no uploads. Keeps looping.',
   },
 }
