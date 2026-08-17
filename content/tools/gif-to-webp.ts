@@ -81,7 +81,7 @@ export const config: ToolConfig = {
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'batch-convert-images'],
 
   meta: {
-    title: 'GIF to WebP Converter — ConvertYard',
+    title: 'Animated GIF to WebP Converter — ConvertYard',
     description:
       'Convert animated GIFs to animated WebP. Same motion, typically 25–40% smaller files. Batch up to 1,000 GIFs in your browser — no uploads. Keeps looping.',
   },
