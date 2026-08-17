@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { breadcrumbSchema, BASE_URL } from '@/lib/seo/schema'
 
-const title = 'Generate a QR Code — ConvertYard'
+const title = 'QR Code Generator — ConvertYard'
 const description =
   'Turn a URL or any text into a QR code. Download PNG or SVG, or generate a batch from a CSV. Everything runs in your browser.'
 

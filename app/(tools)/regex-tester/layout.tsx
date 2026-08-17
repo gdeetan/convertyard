@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import { breadcrumbSchema, BASE_URL } from '@/lib/seo/schema'
 
-const title = 'Test a Regular Expression — ConvertYard'
+const title = 'Regex Tester — ConvertYard'
 const description =
   'Test a JavaScript regular expression against sample text. See matches, capture groups, and flags as you type. Runs in your browser — nothing is uploaded.'
 
