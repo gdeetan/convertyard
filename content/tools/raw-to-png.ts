@@ -48,7 +48,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'RAW to PNG Converter — ConvertYard',
+    title: 'DNG RAW to PNG Converter — ConvertYard',
     description:
       'Convert DNG camera RAW files to PNG in your browser. Lossless decode, EXIF preserved. Batch convert 1,000 DNG files locally — no uploads, no account needed.',
   },

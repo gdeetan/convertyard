@@ -85,7 +85,7 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-images-without-losing-quality', 'exif-data-whats-hiding-in-your-photo'],
 
   meta: {
-    title: 'TIFF to JPG Converter — ConvertYard',
+    title: 'TIFF to JPG Converter — Scans & Photos — ConvertYard',
     description:
       'Convert TIFF scans and photos to JPG in your browser. Shrink large scanner files with a quality slider. Batch up to 1,000 files — nothing is uploaded.',
   },
