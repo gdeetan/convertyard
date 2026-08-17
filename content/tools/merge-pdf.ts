@@ -43,8 +43,8 @@ export const config: ToolConfig = {
   relatedArticles: ['merge-pdf-without-uploading', 'convertyard-vs-ilovepdf', 'compress-pdf-without-uploading-privacy-guide'],
 
   meta: {
-    title: 'Merge PDFs — ConvertYard',
+    title: 'Merge PDF — No Upload — ConvertYard',
     description:
-      'Combine several PDFs into one file. Drag pages to reorder before merging. Runs in your browser — files never leave your device. Keep the page order intact.',
+      'Merge or combine PDF files into one. Drag pages to reorder before saving. Runs in your browser — files never leave your device. Keep page order intact.',
   },
 }

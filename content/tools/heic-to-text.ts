@@ -93,7 +93,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'HEIC to Text Converter — ConvertYard',
+    title: 'iPhone HEIC to Text Converter — ConvertYard',
     description: 'Extract text from iPhone HEIC photos without converting first. Browser-based OCR — no uploads, no account. 12 languages supported.',
   },
 }
