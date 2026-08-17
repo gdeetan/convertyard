@@ -75,7 +75,7 @@ export const config: ToolConfig = {
   relatedTools: ['mp4-to-mp3', 'extract-audio', 'audio-trimmer', 'mp3-to-mp4'],
   relatedArticles: ['audio-bitrate-explained', 'extract-audio-from-mp4', 'browser-video-editing-2026'],
   meta: {
-    title: 'M4A to MP3 Converter — ConvertYard',
+    title: 'M4A to MP3 — iPhone Voice Memos — ConvertYard',
     description:
       'Convert M4A to MP3 in your browser. Batch convert iPhone voice memos and M4A audio files — choose bitrate up to 320 kbps, no uploads, no account.',
   },
