@@ -128,7 +128,7 @@ export const config: ToolConfig = {
   relatedTools: ['gif-to-webp', 'gif-to-mp4', 'mp4-to-mp3', 'webp-to-gif'],
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'how-browser-based-file-conversion-works', 'batch-convert-images'],
   meta: {
-    title: 'MP4 to WebP Converter — ConvertYard',
+    title: 'MP4 to Animated WebP Converter — ConvertYard',
     description:
       'Convert MP4 clips to animated WebP in your browser. Trim, resize, crop, set FPS and loop count. Built for short web animations — files never leave your device.',
   },

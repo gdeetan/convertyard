@@ -66,7 +66,7 @@ export const config: ToolConfig = {
   relatedTools: ['video-trimmer', 'compress-video', 'video-muter', 'extract-audio'],
   relatedArticles: [],
   meta: {
-    title: 'Rotate a Video — ConvertYard',
+    title: 'Rotate Video — Fix Sideways Phone — ConvertYard',
     description:
       'Rotate MP4, MOV, MKV, AVI, and WebM videos in your browser. Fix sideways phone recordings — 90°, 180°, or flip. No uploads, batch up to 1,000 files.',
   },
