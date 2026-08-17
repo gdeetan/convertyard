@@ -173,7 +173,7 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-images-without-losing-quality', 'avif-vs-webp-vs-jpeg-2026', 'best-webp-quality', 'batch-convert-images'],
 
   meta: {
-    title: 'Compress Images — ConvertYard',
+    title: 'Image Compressor — No Upload — ConvertYard',
     description:
       'Compress JPG, PNG, and WebP images in bulk. Set quality or target file size. Batch up to 1,000 files — all processing in your browser, no uploads, no account.',
   },
