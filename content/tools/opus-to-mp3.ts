@@ -75,7 +75,7 @@ export const config: ToolConfig = {
   relatedTools: ['ogg-to-mp3', 'amr-to-mp3', 'm4a-to-mp3', 'audio-trimmer'],
   relatedArticles: ['audio-bitrate-explained', 'extract-audio-from-mp4', 'browser-video-editing-2026'],
   meta: {
-    title: 'OPUS to MP3 Converter — ConvertYard',
+    title: 'OPUS to MP3 — WhatsApp Audio — ConvertYard',
     description:
       'Convert Opus voice notes to MP3 in your browser. Open WhatsApp voice messages and .opus files on any device — batch convert up to 1,000 files, no uploads.',
   },
