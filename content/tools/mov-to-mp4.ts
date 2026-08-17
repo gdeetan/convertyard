@@ -58,7 +58,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'MOV to MP4 Converter — ConvertYard',
+    title: 'iPhone MOV to MP4 Converter — ConvertYard',
     description:
       'Convert MOV files to MP4 in your browser. H.264 video, AAC audio, works on every device. Batch convert multiple MOV files at once — no uploads, no account.',
   },
