@@ -102,7 +102,7 @@ export const config: ToolConfig = {
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'best-webp-quality', 'batch-convert-images'],
 
   meta: {
-    title: 'PNG to WebP Converter — ConvertYard',
+    title: 'PNG to WebP Converter in Your Browser — ConvertYard',
     description:
       'Convert PNG to WebP with transparency support. Batch up to 1,000 files in your browser — no uploads, no account. Lossless mode, quality control, resize included.',
   },

@@ -89,7 +89,7 @@ export const config: ToolConfig = {
   relatedArticles: ['what-is-heic', 'heic-to-jpg-on-windows', 'batch-convert-images'],
 
   meta: {
-    title: 'HEIC to JPG Converter — ConvertYard',
+    title: 'Convert iPhone HEIC to JPG — ConvertYard',
     description:
       'Convert iPhone HEIC photos to JPG in your browser. Batch up to 1,000 files — no uploads, no account. Auto-orient, quality control, and resize included.',
   },
