@@ -146,7 +146,7 @@ export const config: ToolConfig = {
   relatedTools: ['protect-pdf', 'merge-pdf', 'compress-pdf', 'redact-pdf'],
   relatedArticles: [],
   meta: {
-    title: 'Watermark PDF — Add Text or Image Watermarks — ConvertYard',
+    title: 'Add a Watermark to a PDF — ConvertYard',
     description: 'Add text or image watermarks to PDFs. Set position, opacity, rotation. Live preview. Batch process up to 1,000 PDFs in your browser. No upload required.',
   },
 }

@@ -6,7 +6,7 @@ import { ALL_TOOLS } from '@/content/tool-catalog'
 const liveToolCount = ALL_TOOLS.filter((t) => t.status === 'live').length
 
 export const metadata: Metadata = {
-  title: 'Press Kit — ConvertYard',
+  title: { absolute: 'Press Kit — ConvertYard' },
   description:
     'Logos, boilerplate copy, and key facts about ConvertYard — the local-first batch file converter that never uploads your files.',
   alternates: {

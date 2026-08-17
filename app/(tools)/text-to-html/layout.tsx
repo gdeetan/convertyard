@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { breadcrumbSchema, BASE_URL } from '@/lib/seo/schema'
 
 export const metadata: Metadata = {
-  title: 'Text to HTML Converter — ConvertYard',
+  title: { absolute: 'Text to HTML Converter — ConvertYard' },
   description: 'Convert Markdown or plain text to a full HTML document in your browser. Live preview with GitHub styling. Files never leave your device.',
   alternates: { canonical: `${BASE_URL}/text-to-html/` },
   openGraph: {

@@ -3,7 +3,7 @@ import { CATEGORY_META } from '@/content/category-meta'
 import { toolsByCategory } from '@/content/tool-catalog'
 
 export const metadata = {
-  title: CATEGORY_META['image-to-text'].seoTitle,
+  title: { absolute: CATEGORY_META['image-to-text'].seoTitle },
   description: CATEGORY_META['image-to-text'].seoDescription,
 }
 

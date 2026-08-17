@@ -67,7 +67,7 @@ export const config: ToolConfig = {
   relatedTools: ['audio-speed', 'video-trimmer', 'compress-video', 'video-muter'],
   relatedArticles: [],
   meta: {
-    title: 'Video Speed Changer — Speed Up or Slow Down Videos — ConvertYard',
+    title: 'Speed Up or Slow Down a Video — ConvertYard',
     description:
       'Speed up or slow down MP4, MOV, MKV, and WebM videos in your browser. Presets from 0.25× to 4×. No uploads, batch up to 1,000 files.',
   },

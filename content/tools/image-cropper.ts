@@ -76,7 +76,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'Batch Image Cropper — ConvertYard',
+    title: 'Crop Images — ConvertYard',
     description:
       'Crop JPG, PNG, and WebP images in batches. Preset aspect ratios for UPSC, SSC, passport, and social media. Set exact output dimensions. All processing in your browser, no uploads.',
   },

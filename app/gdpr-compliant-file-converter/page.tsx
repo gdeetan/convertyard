@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
-  title: 'GDPR-Compliant File Converter — No Upload, No Server | ConvertYard',
+  title: { absolute: 'GDPR-Compliant File Converter — No Upload, No Server | ConvertYard' },
   description:
     'Convert PDFs, images, and documents without uploading to a server. Zero GDPR exposure — all processing runs locally in your browser. No BAA required for HIPAA.',
   openGraph: {

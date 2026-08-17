@@ -99,7 +99,7 @@ export const config: ToolConfig = {
   relatedTools: ['extract-audio', 'mp4-to-mp3', 'compress-video', 'mp3-to-mp4'],
   relatedArticles: ['extract-audio-from-mp4', 'audio-bitrate-explained', 'browser-video-editing-2026'],
   meta: {
-    title: 'Audio Trimmer — ConvertYard',
+    title: 'Trim Audio — ConvertYard',
     description:
       'Trim MP3, WAV, M4A, OGG, and FLAC in your browser. Set start and end times, batch trim up to 1,000 files — no uploads, no quality loss on lossless cuts.',
   },

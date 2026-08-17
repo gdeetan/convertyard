@@ -44,7 +44,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'Fill PDF Form — ConvertYard',
+    title: 'Fill a PDF Form — ConvertYard',
     description: 'Fill any PDF form in your browser. Supports text fields, checkboxes, dropdowns, radio buttons. Flatten to lock answers. Free, local, no upload.',
   },
 }

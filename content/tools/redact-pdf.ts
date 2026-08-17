@@ -44,7 +44,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'Redact PDF — True Redaction — ConvertYard',
+    title: 'Redact a PDF — ConvertYard',
     description: 'Permanently redact text from PDFs in your browser. True redaction — content removed, not hidden. Free, local, no uploads. Output verified.',
   },
 }

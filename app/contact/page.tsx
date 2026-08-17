@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 
 export const metadata: Metadata = {
-  title: 'Contact — ConvertYard',
+  title: { absolute: 'Contact — ConvertYard' },
   description:
     'Report a broken tool, request a format, or reach out for press inquiries. Email us at hello@convertyard.com.',
   alternates: {

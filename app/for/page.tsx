@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { verticals } from '@/content/vertical-registry'
 
 export const metadata: Metadata = {
-  title: 'Application Upload Kits for Exams & Visas — ConvertYard',
+  title: { absolute: 'Application Upload Kits for Exams & Visas — ConvertYard' },
   description:
     'Pre-configured photo, signature, and PDF tools for 17 exams, visas, and applications — UPSC, IBPS, SBI, NDA, US DS-160, Common App, and more. Runs in your browser.',
 }

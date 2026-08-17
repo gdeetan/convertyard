@@ -4,7 +4,7 @@ import { CATEGORY_META } from '@/content/category-meta'
 const meta = CATEGORY_META['images']
 
 export const metadata: Metadata = {
-  title: meta.seoTitle,
+  title: { absolute: meta.seoTitle },
   description: meta.seoDescription,
   alternates: { canonical: 'https://convertyard.com/images' },
   openGraph: {

@@ -61,7 +61,7 @@ export const config: ToolConfig = {
   relatedTools: ['compress-video', 'video-trimmer', 'video-muter', 'merge-audio'],
   relatedArticles: [],
   meta: {
-    title: 'Merge Video Files — Join MP4, MOV, MKV and More — ConvertYard',
+    title: 'Merge Video Files — ConvertYard',
     description:
       'Combine multiple videos into one MP4 in your browser. Supports MP4, MOV, WebM, AVI, MKV. No uploads, no account. Batch-ready.',
   },

@@ -5,7 +5,7 @@ import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
 import { RelatedToolsStrip } from '@/components/tool-shell/related-tools-strip'
 
 export const metadata: Metadata = {
-  title: 'Sensitive Document Conversion for Teams — ConvertYard',
+  title: { absolute: 'Sensitive Document Conversion for Teams — ConvertYard' },
   description:
     'Convert PDFs, compress documents, and merge files without uploading to any server. Zero upload logs. No BAA required. Built for legal, HR, healthcare, and finance.',
   openGraph: {

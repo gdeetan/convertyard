@@ -48,7 +48,7 @@ export const config: ToolConfig = {
   relatedTools: ['image-resizer', 'image-compressor', 'image-cropper'],
   relatedArticles: [],
   meta: {
-    title: 'Favicon Generator — ConvertYard',
+    title: 'Generate Favicons — ConvertYard',
     description:
       'Generate all favicon sizes from one image. Outputs ICO, PNG variants, site.webmanifest, and HTML snippet. No uploads — runs in your browser.',
   },
