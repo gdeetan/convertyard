@@ -1,5 +1,6 @@
 import { fetchFile } from '@ffmpeg/util'
 import { getFFmpeg, getCompressVideoFFmpeg } from './ffmpeg-client'
+import { tryCompressVideoHevcHardware } from './compress-video-webcodecs'
 import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from './media-probe'
 import type { ToolOptions, ConversionResult } from '@/lib/types'
 
@@ -896,6 +897,107 @@ const H264_CRF: Record<string, number> = { small: 18, medium: 23, high: 28, maxi
 const H265_CRF: Record<string, number> = { small: 22, medium: 26, high: 30, maximum: 36 }
 const RESOLUTION_HEIGHT: Record<string, number> = { '1080p': 1080, '720p': 720, '480p': 480, '360p': 360 }
 
+// ffmpeg.wasm ST is built --disable-asm --disable-pthreads. libx265 still
+// tries to set up WPP/frame-thread pools from hardwareConcurrency, which
+// only adds sync overhead. zerolatency + single-thread params skip that
+// pipeline; log-level=error avoids per-frame stderr → JS message spam.
+function compressVideoThreadArgs(h265: boolean): string[] {
+  if (h265) return ['-threads', '1']
+  const cpuThreads = typeof navigator !== 'undefined' && navigator.hardwareConcurrency > 0
+    ? Math.min(navigator.hardwareConcurrency, 16)
+    : 0
+  return cpuThreads > 0 ? ['-threads', String(cpuThreads)] : []
+}
+
+function compressVideoCodecArgs(h265: boolean): string[] {
+  if (!h265) return ['-c:v', 'libx264', '-preset', 'ultrafast']
+  return [
+    '-c:v', 'libx265',
+    '-preset', 'ultrafast',
+    '-tune', 'zerolatency',
+    '-x265-params', 'log-level=error:frame-threads=1:pools=none:wpp=0',
+  ]
+}
+
+async function tryHardwareHevcCompress(
+  file: File,
+  opts: {
+    resolution: string
+    resHeight: number | undefined
+    targetSizeMode: boolean
+    targetKB: number
+    stripAudio: boolean
+    level: string
+    onProgress: (pct: number) => void
+  },
+): Promise<File | null> {
+  let maxHeight = opts.resHeight ?? null
+  if (maxHeight == null && opts.resolution === 'original') {
+    const dims = await probeVideoDimensions(file)
+    if (dims) {
+      if (!opts.targetSizeMode && isMobileBrowser() && file.size > 50 * 1024 * 1024) {
+        const mobileCapHeight = file.size > 100 * 1024 * 1024 ? 480 : 720
+        if (dims.height > mobileCapHeight) maxHeight = mobileCapHeight
+      } else if (opts.targetSizeMode) {
+        const autoHeight = isMobileBrowser()
+          ? (opts.targetKB <= 50 * 1024 ? 720 : 1080)
+          : (opts.targetKB <= 10 * 1024 ? 720 : opts.targetKB <= 50 * 1024 ? 1080 : null)
+        if (autoHeight !== null && dims.height > autoHeight) maxHeight = autoHeight
+      }
+    }
+  }
+
+  let bitrate: number | null = null
+  if (opts.targetSizeMode) {
+    const durationSeconds = await probeVideoDuration(file)
+    if (durationSeconds > 0) {
+      const adaptiveAudioKbps = opts.targetKB <= 10 * 1024 ? 64 : opts.targetKB <= 50 * 1024 ? 96 : 128
+      const audioBitsPerSec = opts.stripAudio ? 0 : adaptiveAudioKbps * 1000
+      bitrate = Math.max(
+        100_000,
+        Math.floor((opts.targetKB * 1024 * 8 - audioBitsPerSec * durationSeconds) / durationSeconds),
+      )
+    }
+  }
+
+  return tryCompressVideoHevcHardware(file, {
+    maxHeight,
+    bitrate,
+    level: opts.level,
+    stripAudio: opts.stripAudio,
+    onProgress: opts.onProgress,
+  })
+}
+
+async function remuxToMp4(
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<File | null> {
+  const ffmpeg = await getCompressVideoFFmpeg()
+  const ext = file.name.split('.').pop() ?? 'mp4'
+  const inputName = `cv_remux_in.${ext}`
+  const outputName = 'cv_remux_out.mp4'
+  await ffmpeg.writeFile(inputName, await fetchFile(file))
+  onProgress?.(90)
+  const progressHandler = ({ progress }: { progress: number }) => {
+    onProgress?.(Math.round(90 + progress * 8))
+  }
+  ffmpeg.on('progress', progressHandler)
+  try {
+    await ffmpeg.exec(['-i', inputName, '-c', 'copy', '-movflags', '+faststart', outputName])
+    const data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+    if (!data?.byteLength) return null
+    const baseName = file.name.replace(/\.[^.]+$/, '')
+    return new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
+  } catch {
+    return null
+  } finally {
+    ffmpeg.off('progress', progressHandler)
+    await ffmpeg.deleteFile(inputName).catch(() => {})
+    await ffmpeg.deleteFile(outputName).catch(() => {})
+  }
+}
+
 export async function compressVideo(
   files: File[],
   options: ToolOptions,
@@ -911,15 +1013,9 @@ export async function compressVideo(
   const stripAudio    = options.stripAudio   === true || options.stripAudio === 'true'
   const targetKB      = typeof options.targetKB === 'number' ? options.targetKB : 51200
 
-  const codec  = h265 ? 'libx265' : 'libx264'
   const crfMap = h265 ? H265_CRF  : H264_CRF
-
-  // Tell x264/x265 to use all available CPU cores. Meaningful gain with the MT build;
-  // ignored by the ST build which is inherently single-threaded.
-  const cpuThreads = typeof navigator !== 'undefined' && navigator.hardwareConcurrency > 0
-    ? Math.min(navigator.hardwareConcurrency, 16)
-    : 0
-  const threadArgs = cpuThreads > 0 ? ['-threads', String(cpuThreads)] : []
+  const threadArgs = compressVideoThreadArgs(h265)
+  const codecArgs = compressVideoCodecArgs(h265)
 
   const resHeight = RESOLUTION_HEIGHT[resolution]
   const vfArgs: string[] = resHeight
@@ -944,6 +1040,36 @@ export async function compressVideo(
         results.push(noTrackErr)
         onResult?.(i, noTrackErr)
         continue
+      }
+
+      const alreadyFitsTarget = targetSizeMode && file.size <= targetKB * 1024
+      if (h265 && !alreadyFitsTarget) {
+        const hwFile = await tryHardwareHevcCompress(file, {
+          resolution,
+          resHeight,
+          targetSizeMode,
+          targetKB,
+          stripAudio,
+          level,
+          onProgress: (pct) => onProgress?.(i, pct),
+        })
+        if (hwFile) {
+          if (hwFile.size < file.size) {
+            console.info('[compress-video] hardware HEVC encoder')
+            results.push(hwFile)
+            onResult?.(i, hwFile)
+            onProgress?.(i, 100)
+            continue
+          }
+          // Hardware ran but did not shrink. Do not fall through to libx265
+          // (orders of magnitude slower in WASM). Remux the source instead.
+          const remuxed = await remuxToMp4(file, (pct) => onProgress?.(i, pct))
+          const outFile = remuxed ?? file
+          results.push(outFile)
+          onResult?.(i, outFile)
+          onProgress?.(i, 100)
+          continue
+        }
       }
 
       const ffmpeg = await getCompressVideoFFmpeg()
@@ -987,9 +1113,8 @@ export async function compressVideo(
             ...threadArgs,
             '-i', inputName,
             ...effectiveCrfVfArgs,
-            '-c:v', codec,
+            ...codecArgs,
             '-crf', String(crf),
-            '-preset', 'ultrafast',
             ...playableArgs,
             ...presetAudioArgs,
             outputName,
@@ -1074,11 +1199,10 @@ export async function compressVideo(
                 ...threadArgs,
                 '-i', inputName,
                 ...effectiveVfArgs,
-                '-c:v', codec,
+                ...codecArgs,
                 '-b:v', String(videoBitsPerSec),
                 '-maxrate', String(Math.floor(videoBitsPerSec * 1.5)),
                 '-bufsize', String(videoBitsPerSec * 2),
-                '-preset', 'ultrafast',
                 ...playableArgs,
                 ...targetAudioArgs,
                 outputName,
@@ -1105,9 +1229,8 @@ export async function compressVideo(
                     ...threadArgs,
                     '-i', inputName,
                     ...effectiveVfArgs,
-                    '-c:v', codec,
+                    ...codecArgs,
                     '-crf', String(crf),
-                    '-preset', 'ultrafast',
                     ...playableArgs,
                     ...audioArgs,
                     outputName,
