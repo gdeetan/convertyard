@@ -8,6 +8,7 @@ import {
   insertWordAfter,
   setWordTiming,
   nudgeWord,
+  nudgeAllWords,
 } from '@/lib/converters/caption-edit'
 
 interface Props {
@@ -118,6 +119,22 @@ export function CaptionEditor({ words, activeIndex, onChange, onSeek }: Props) {
           </button>
           <button type="button" onClick={() => onChange(nudgeWord(words, activeIndex, 0.1))} className="rounded border border-border px-2 py-1 text-xs text-fg hover:bg-bg-muted">
             +0.1s
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange(nudgeAllWords(words, -0.1))}
+            disabled={words.length === 0}
+            className="rounded border border-border px-2 py-1 text-xs text-fg hover:bg-bg-muted disabled:opacity-40"
+          >
+            Shift all −0.1s
+          </button>
+          <button
+            type="button"
+            onClick={() => onChange(nudgeAllWords(words, 0.1))}
+            disabled={words.length === 0}
+            className="rounded border border-border px-2 py-1 text-xs text-fg hover:bg-bg-muted disabled:opacity-40"
+          >
+            Shift all +0.1s
           </button>
           <button type="button" onClick={() => onChange(splitWord(words, activeIndex))} className="rounded border border-border px-2 py-1 text-xs text-fg hover:bg-bg-muted">
             Split

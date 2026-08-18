@@ -57,3 +57,10 @@ export function nudgeWord(words: WordChunk[], index: number, deltaSec: number): 
   if (!w) return words
   return setWordTiming(words, index, w.start + deltaSec, w.end + deltaSec)
 }
+
+export function nudgeAllWords(words: WordChunk[], deltaSec: number): WordChunk[] {
+  return words.map((w) => {
+    const start = Math.max(0, w.start + deltaSec)
+    return { ...w, start, end: Math.max(start + 0.05, w.end + deltaSec) }
+  })
+}
