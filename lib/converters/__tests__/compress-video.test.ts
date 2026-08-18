@@ -33,12 +33,20 @@ vi.mock('@/lib/converters/ffmpeg-client', () => ({
   getMobileFFmpeg: vi.fn(async () => ffmpegMock),
 }))
 
+const mockHevcHardware = vi.fn(async () => null)
+vi.mock('@/lib/converters/compress-video-webcodecs', () => ({
+  tryCompressVideoHevcHardware: (...args: unknown[]) => mockHevcHardware(...args),
+}))
+
 import { compressVideo } from '../ffmpeg'
 import { probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from '@/lib/converters/media-probe'
 import { getCompressVideoFFmpeg, getFFmpeg } from '@/lib/converters/ffmpeg-client'
 
 describe('compressVideo', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockHevcHardware.mockResolvedValue(null)
+  })
 
   const makeFile = (name: string, size = 1024) => {
     const f = new File([new Uint8Array(size)], name, { type: 'video/mp4' })
@@ -71,6 +79,60 @@ describe('compressVideo', () => {
     expect(args).toContain('26')
   })
 
+  it('preset mode: prefers hardware HEVC when the browser can encode it', async () => {
+    const hwFile = new File([new Uint8Array([1, 2, 3, 4])], 'clip.mp4', { type: 'video/mp4' })
+    mockHevcHardware.mockResolvedValueOnce(hwFile)
+    const file = makeFile('clip.mp4')
+    const results = await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: true, stripAudio: false })
+    expect(mockHevcHardware).toHaveBeenCalledOnce()
+    expect(mockExec).not.toHaveBeenCalled()
+    expect((results[0] as File).name).toBe('clip.mp4')
+    expect((results[0] as File).size).toBe(4)
+  })
+
+  it('preset mode: remuxes the source when hardware HEVC is larger, and does not run libx265', async () => {
+    const hwFile = new File([new Uint8Array(4000)], 'clip.mp4', { type: 'video/mp4' })
+    mockHevcHardware.mockResolvedValueOnce(hwFile)
+    const file = makeFile('clip.mp4', 1000)
+    await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: true, stripAudio: false })
+    expect(mockHevcHardware).toHaveBeenCalledOnce()
+    expect(mockExec).toHaveBeenCalledOnce()
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('copy')
+    expect(args).not.toContain('libx265')
+  })
+
+  it('preset mode: does not attempt hardware HEVC for H.264', async () => {
+    const file = makeFile('video.mp4')
+    await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: false })
+    expect(mockHevcHardware).not.toHaveBeenCalled()
+  })
+
+  it('preset mode: uses WASM-tuned x265 settings when h265=true', async () => {
+    const file = makeFile('video.mp4')
+    await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: true, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('ultrafast')
+    expect(args).toContain('zerolatency')
+    expect(args).toContain('-x265-params')
+    const params = args[args.indexOf('-x265-params') + 1]
+    expect(params).toContain('log-level=error')
+    expect(params).toContain('frame-threads=1')
+    expect(params).toContain('pools=none')
+    expect(params).toContain('wpp=0')
+    expect(args[args.indexOf('-tag:v') + 1]).toBe('hvc1')
+    expect(args[args.indexOf('-threads') + 1]).toBe('1')
+  })
+
+  it('preset mode: does not apply x265-only flags to H.264', async () => {
+    const file = makeFile('video.mp4')
+    await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('libx264')
+    expect(args).not.toContain('zerolatency')
+    expect(args).not.toContain('-x265-params')
+  })
+
   it('preset mode: includes -vf scale filter for 720p', async () => {
     const file = makeFile('video.mp4')
     await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: '720p', h265: false, stripAudio: false })
@@ -85,6 +147,19 @@ describe('compressVideo', () => {
     await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: false, stripAudio: true })
     const args: string[] = mockExec.mock.calls[0][0]
     expect(args).toContain('-an')
+  })
+
+  it('target size mode: uses WASM-tuned x265 settings when h265=true', async () => {
+    vi.mocked(probeVideoDuration).mockResolvedValueOnce(60)
+    const file = makeFile('video.mp4', 200 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 50 * 1024, resolution: 'original', h265: true, stripAudio: false })
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('libx265')
+    expect(args).toContain('zerolatency')
+    expect(args).toContain('-x265-params')
+    expect(args[args.indexOf('-threads') + 1]).toBe('1')
+    expect(args[args.indexOf('-tag:v') + 1]).toBe('hvc1')
+    expect(args).toContain('yuv420p')
   })
 
   it('target size mode: succeeds in 1 pass when mock output is tiny', async () => {
