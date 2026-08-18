@@ -17,13 +17,14 @@ import {
   type ModelVariant,
   type WhisperQuality,
 } from './whisper-postprocess'
-import { detectCaptionClientProfile } from './caption-workload'
+import { detectCaptionClientProfile, needsSafariOnnxWasm } from './caption-workload'
 
 export type { WhisperQuality }
 
+// Injected at build time — empty string when env var is not set
+declare const __HF_TOKEN__: string
+
 env.allowLocalModels = false
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-;(env.backends as any).onnx.wasm.proxy = false
 
 function isConstrainedClient(): boolean {
   const nav = self.navigator
@@ -31,11 +32,49 @@ function isConstrainedClient(): boolean {
   return detectCaptionClientProfile(nav.userAgent ?? '', nav.maxTouchPoints ?? 0, nav.platform ?? '') !== 'desktop'
 }
 
-if (isConstrainedClient()) {
+function applyOnnxRuntimeHints() {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    ;(env.backends as any).onnx.wasm.numThreads = 1
+    const onnx = (env.backends as any).onnx
+    if (!onnx?.wasm) return
+    onnx.wasm.proxy = false
+    onnx.wasm.numThreads = 1
+
+    const nav = self.navigator
+    const ios = Boolean(
+      nav && needsSafariOnnxWasm(nav.userAgent ?? '', nav.maxTouchPoints ?? 0, nav.platform ?? ''),
+    )
+    if (!ios) return
+    const version = onnx.versions?.web
+    if (!version) return
+    const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${version}/dist/`
+    onnx.wasm.wasmPaths = {
+      mjs: `${prefix}ort-wasm-simd-threaded.mjs`,
+      wasm: `${prefix}ort-wasm-simd-threaded.wasm`,
+    }
   } catch { /* env shape varies by transformers.js version */ }
+}
+
+applyOnnxRuntimeHints()
+
+let _authReady = false
+
+async function ensureHfAuth() {
+  if (_authReady) return
+  _authReady = true
+  if (typeof __HF_TOKEN__ === 'undefined' || !__HF_TOKEN__) return
+  const _fetch = env.fetch
+  env.fetch = (url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const u = url instanceof Request ? url.url : url instanceof URL ? url.href : String(url)
+    if (u.includes('huggingface.co') || u.includes('hf.co')) {
+      const headers = new Headers((init?.headers ?? {}) as HeadersInit)
+      headers.set('Authorization', `Bearer ${__HF_TOKEN__}`)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return _fetch(u as any, { ...init, headers })
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return _fetch(url as any, init)
+  }
 }
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -109,6 +148,8 @@ function postError(error: TranscriptionErrorShape, id?: string) {
 async function loadWhisperModel(quality: WhisperQuality) {
   if (whisperPipeline && loadedQuality === quality) return
 
+  await ensureHfAuth()
+
   const variants = modelVariantsForQuality(quality, { constrained: isConstrainedClient() })
   const attempts: TranscriptionLoadAttempt[] = []
   let lastError: TranscriptionErrorShape | null = null
@@ -122,6 +163,7 @@ async function loadWhisperModel(quality: WhisperQuality) {
       const cb = makeProgressCallback(quality)
       whisperPipeline = await pipeline('automatic-speech-recognition', variant.modelId, {
         dtype: variant.dtype,
+        device: 'wasm',
         progress_callback: cb,
       })
       loadedQuality = quality
@@ -138,6 +180,7 @@ async function loadWhisperModel(quality: WhisperQuality) {
         quality,
         error: lastError.rawMessage,
       })
+      try { await whisperPipeline?.dispose?.() } catch { /* ignore */ }
       whisperPipeline = null
     }
   }

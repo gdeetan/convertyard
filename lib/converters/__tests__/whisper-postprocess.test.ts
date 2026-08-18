@@ -14,16 +14,18 @@ describe('modelVariantsForQuality', () => {
     expect(ids.some((id) => id.includes('turbo'))).toBe(false)
   })
 
-  it('uses quantized tiny first on constrained devices so iOS does not reload the tab', () => {
-    const variants = modelVariantsForQuality('fast', { constrained: true })
-    expect(variants[0]).toEqual({ modelId: 'Xenova/whisper-tiny', dtype: 'q8' })
-    expect(variants.some((v) => v.dtype === 'fp32')).toBe(true)
+  it('uses whisper-tiny fp32 on constrained devices — q8 hits MatMulNBits and poisons the WASM heap', () => {
+    for (const quality of ['fast', 'balanced', 'accurate'] as const) {
+      const variants = modelVariantsForQuality(quality, { constrained: true })
+      expect(variants[0]).toEqual({ modelId: 'Xenova/whisper-tiny', dtype: 'fp32' })
+      expect(variants.every((v) => v.dtype !== 'q8' && v.dtype !== 'q4')).toBe(true)
+      expect(variants.every((v) => v.modelId === 'Xenova/whisper-tiny')).toBe(true)
+    }
   })
 
-  it('never starts constrained accurate on whisper-small fp32', () => {
+  it('never starts constrained accurate on whisper-small', () => {
     const variants = modelVariantsForQuality('accurate', { constrained: true })
     expect(variants[0].modelId).not.toBe('Xenova/whisper-small')
-    expect(variants[0].dtype).not.toBe('fp32')
   })
 })
 
