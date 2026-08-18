@@ -1,4 +1,5 @@
 import { getCompressVideoFFmpeg } from './ffmpeg-client'
+import { demuxMp4VideoFile } from './mp4-video-demux'
 
 type HevcEncoderConfig = VideoEncoderConfig & {
   hevc?: { format?: 'annexb' | 'hevc' }
@@ -22,6 +23,7 @@ const HEVC_BPP: Record<string, number> = {
 
 export function canAttemptHevcWebCodecs(): boolean {
   if (typeof VideoEncoder === 'undefined' || typeof VideoFrame === 'undefined') return false
+  if (typeof VideoDecoder !== 'undefined') return true
   if (typeof HTMLVideoElement === 'undefined') return false
   return typeof HTMLVideoElement.prototype.requestVideoFrameCallback === 'function'
 }
@@ -96,6 +98,146 @@ export type HevcHardwareOpts = {
   onProgress?: (pct: number) => void
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function scaleFrame(frame: VideoFrame, width: number, height: number): Promise<VideoFrame> {
+  if (frame.displayWidth === width && frame.displayHeight === height) return frame
+  if (typeof createImageBitmap !== 'function') {
+    frame.close()
+    throw new Error('createImageBitmap is not available')
+  }
+  const bitmap = await createImageBitmap(frame, {
+    resizeWidth: width,
+    resizeHeight: height,
+    resizeQuality: 'high',
+  })
+  const scaled = new VideoFrame(bitmap, {
+    timestamp: frame.timestamp,
+    duration: frame.duration ?? undefined,
+  })
+  bitmap.close()
+  frame.close()
+  return scaled
+}
+
+/**
+ * Decode MP4/MOV samples faster than realtime, then hardware-encode HEVC.
+ * Returns null so the caller can fall back to the playback path.
+ */
+async function tryEncodeViaVideoDecoder(
+  file: File,
+  opts: HevcHardwareOpts,
+): Promise<File | null> {
+  if (typeof VideoDecoder === 'undefined' || typeof VideoEncoder === 'undefined') return null
+  if (file.size > 120 * 1024 * 1024) return null
+
+  const demuxed = await demuxMp4VideoFile(file)
+  if (!demuxed || demuxed.samples.length === 0) return null
+
+  const srcW = even(demuxed.width)
+  const srcH = even(demuxed.height)
+  if (srcW < 2 || srcH < 2) return null
+  const height = opts.maxHeight && srcH > opts.maxHeight ? even(opts.maxHeight) : srcH
+  const width = height === srcH ? srcW : even(Math.round(srcW * (height / srcH)))
+  if (width < 2 || height < 2) return null
+
+  const durationSeconds = demuxed.samples.reduce((sum, s) => sum + s.durationUs, 0) / 1_000_000
+  const fps = durationSeconds > 0
+    ? Math.min(60, Math.max(1, Math.round(demuxed.samples.length / durationSeconds)))
+    : 30
+  const bitrate = opts.bitrate && opts.bitrate > 0
+    ? opts.bitrate
+    : hevcBitrateForLevel(width, height, fps, opts.level ?? 'medium', {
+        sourceBytes: file.size,
+        durationSeconds: durationSeconds || 1,
+      })
+
+  const encoderConfig = await pickHevcEncoderConfig(width, height, fps, bitrate)
+  if (!encoderConfig) return null
+
+  const decoderConfig: VideoDecoderConfig = {
+    codec: demuxed.codecString,
+    codedWidth: demuxed.width,
+    codedHeight: demuxed.height,
+    description: demuxed.description.slice(),
+  }
+  try {
+    const support = await VideoDecoder.isConfigSupported(decoderConfig)
+    if (!support.supported) return null
+  } catch {
+    return null
+  }
+
+  const chunks: Uint8Array[] = []
+  let encodeError: Error | null = null
+  let decodeError: Error | null = null
+  const pending: VideoFrame[] = []
+
+  const encoder = new VideoEncoder({
+    output: (chunk) => {
+      const buf = new Uint8Array(chunk.byteLength)
+      chunk.copyTo(buf)
+      chunks.push(buf)
+    },
+    error: (err) => { encodeError = err instanceof Error ? err : new Error(String(err)) },
+  })
+  encoder.configure(encoderConfig)
+
+  const decoder = new VideoDecoder({
+    output: (frame) => { pending.push(frame) },
+    error: (err) => { decodeError = err instanceof Error ? err : new Error(String(err)) },
+  })
+  decoder.configure(decoderConfig)
+
+  let frameIndex = 0
+  const drain = async () => {
+    while (pending.length > 0) {
+      if (encodeError || decodeError) throw encodeError ?? decodeError
+      while (encoder.encodeQueueSize > 8) await sleep(0)
+      let frame = pending.shift()!
+      frame = await scaleFrame(frame, width, height)
+      encoder.encode(frame, { keyFrame: frameIndex % (fps * 2) === 0 })
+      frame.close()
+      frameIndex += 1
+      opts.onProgress?.(12 + Math.round(Math.min(1, frameIndex / demuxed.samples.length) * 70))
+    }
+  }
+
+  try {
+    opts.onProgress?.(12)
+    for (const sample of demuxed.samples) {
+      if (encodeError || decodeError) throw encodeError ?? decodeError
+      while (decoder.decodeQueueSize > 8) {
+        await drain()
+        if (decoder.decodeQueueSize > 8) await sleep(0)
+      }
+      decoder.decode(new EncodedVideoChunk({
+        type: sample.keyframe ? 'key' : 'delta',
+        timestamp: sample.timestampUs,
+        duration: sample.durationUs,
+        data: sample.data,
+      }))
+      await drain()
+    }
+    await decoder.flush()
+    await drain()
+    await encoder.flush()
+    if (encodeError || decodeError) throw encodeError ?? decodeError
+    if (chunks.length === 0) return null
+    opts.onProgress?.(84)
+    return await muxHevcAnnexB(file, concatBytes(chunks), opts.stripAudio === true, opts.onProgress)
+  } finally {
+    for (const frame of pending) {
+      try { frame.close() } catch { /* already closed */ }
+    }
+    pending.length = 0
+    try { decoder.close() } catch { /* already closed */ }
+    try { encoder.close() } catch { /* already closed */ }
+  }
+}
+
 /**
  * Hardware HEVC via WebCodecs. Returns null when the browser cannot do it
  * so the caller can fall back to libx265.
@@ -105,6 +247,13 @@ export async function tryCompressVideoHevcHardware(
   opts: HevcHardwareOpts = {},
 ): Promise<File | null> {
   if (!canAttemptHevcWebCodecs()) return null
+
+  try {
+    const decoded = await tryEncodeViaVideoDecoder(file, opts)
+    if (decoded) return decoded
+  } catch {
+    /* fall through to the playback path */
+  }
 
   const url = URL.createObjectURL(file)
   const video = document.createElement('video')

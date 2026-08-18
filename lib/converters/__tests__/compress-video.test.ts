@@ -454,6 +454,18 @@ describe('compressVideo', () => {
     expect(args[args.indexOf('-pix_fmt') + 1]).toBe('yuv420p')
   })
 
+  it('stream-copies an HEVC source that already fits when H.265 output is on', async () => {
+    vi.mocked(probeVideoCodec).mockResolvedValueOnce('hevc')
+    vi.mocked(probeAudioInfo).mockResolvedValueOnce({ codec: 'aac', bitrateKbps: 128 })
+    const file = makeFile('iphone.mov', 40 * 1024 * 1024)
+    await compressVideo([file], { targetSizeMode: true, targetKB: 100 * 1024, resolution: 'original', h265: true, stripAudio: false })
+    expect(mockHevcHardware).not.toHaveBeenCalled()
+    const args: string[] = mockExec.mock.calls[0][0]
+    expect(args).toContain('copy')
+    expect(args).toContain('+faststart')
+    expect(args).not.toContain('libx265')
+  })
+
   it('H.265 output is tagged hvc1 so Apple players can open it', async () => {
     const file = makeFile('clip.mov')
     await compressVideo([file], { targetSizeMode: false, level: 'medium', resolution: 'original', h265: true, stripAudio: false })
