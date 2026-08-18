@@ -4,6 +4,7 @@ import {
   captionOutlinePx,
   captionMarginVPx,
   captionAlignment,
+  FOLLOW_ACTIVE_WORD_SCALE,
 } from '../caption-layout'
 import { buildASS } from '../caption-ass-builder'
 import { DEFAULT_CAPTION_OPTIONS } from '../caption-types'
@@ -47,5 +48,11 @@ describe('caption layout is shared between preview and burn', () => {
     expect(ass).toContain('PlayResY: 720')
     expect(ass).toContain('LayoutResX: 1280')
     expect(ass).toContain('ScaledBorderAndShadow: yes')
+  })
+})
+
+describe('FOLLOW_ACTIVE_WORD_SCALE', () => {
+  it('is 112 percent', () => {
+    expect(FOLLOW_ACTIVE_WORD_SCALE).toBe(1.12)
   })
 })

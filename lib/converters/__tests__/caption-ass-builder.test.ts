@@ -120,3 +120,21 @@ describe('buildASS - outline and position match options', () => {
     expect(DEFAULT_CAPTION_OPTIONS.position).toBe('center')
   })
 })
+
+describe('buildASS - karaoke active word scale', () => {
+  it('scales only the overlay word to 112 percent', () => {
+    const ass = buildASS(words, { ...DEFAULT_CAPTION_OPTIONS, styleId: 'karaoke' })
+    expect(ass).toContain('\\fscx112')
+    expect(ass).toContain('\\fscy112')
+    expect(ass).toContain('\\fscx100')
+    expect(ass).toContain('\\fscy100')
+    const overlay = ass.split('\n').find((l) => l.startsWith('Dialogue: 1,') && l.includes('\\fscx112'))
+    expect(overlay).toBeTruthy()
+    expect(overlay).toMatch(/\\c&H0000FFFF\\fscx112\\fscy112\}Hello\{\\c&H00FFFFFF\\fscx100\\fscy100/)
+  })
+
+  it('does not scale One Word dialogue', () => {
+    const ass = buildASS(words, { ...DEFAULT_CAPTION_OPTIONS, styleId: 'mrbeast' })
+    expect(ass).not.toContain('\\fscx112')
+  })
+})

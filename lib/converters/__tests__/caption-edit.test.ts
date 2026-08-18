@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { splitWord, mergeWordWithNext, insertWordAfter, setWordTiming, nudgeWord } from '../caption-edit'
+import { splitWord, mergeWordWithNext, insertWordAfter, setWordTiming, nudgeWord, nudgeAllWords } from '../caption-edit'
 import type { WordChunk } from '../caption-types'
 
 const words: WordChunk[] = [
@@ -38,5 +38,27 @@ describe('caption edit ops', () => {
   it('rejects inverted timings', () => {
     const out = setWordTiming(words, 1, 2, 1)
     expect(out[1].end).toBeGreaterThan(out[1].start)
+  })
+})
+
+describe('nudgeAllWords', () => {
+  it('shifts every word by the same delta', () => {
+    const out = nudgeAllWords(words, -0.1)
+    expect(out[0].start).toBeCloseTo(0)
+    expect(out[0].end).toBeCloseTo(0.9)
+    expect(out[1].start).toBeCloseTo(0.9)
+    expect(out[1].end).toBeCloseTo(1.4)
+  })
+
+  it('clamps a word at 0 without blocking later words', () => {
+    const early = [
+      { text: 'Hi', start: 0.05, end: 0.3 },
+      { text: 'there', start: 1.0, end: 1.4 },
+    ]
+    const out = nudgeAllWords(early, -0.1)
+    expect(out[0].start).toBe(0)
+    expect(out[0].end).toBeCloseTo(0.2)
+    expect(out[1].start).toBeCloseTo(0.9)
+    expect(out[1].end).toBeCloseTo(1.3)
   })
 })
