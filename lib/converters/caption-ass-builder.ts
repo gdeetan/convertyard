@@ -4,6 +4,7 @@ import {
   captionFontSizePx,
   captionMarginVPx,
   captionOutlinePx,
+  followActiveWordScalePercent,
 } from './caption-layout'
 
 /** Maximum words per subtitle line before wrapping */
@@ -186,9 +187,12 @@ function karaokeEvents(words: WordChunk[], opts: CaptionOptions): string[] {
     const baseText   = group.map(getText).join(' ')
     events.push(dialogue(groupStart, groupEnd, baseText, 0))
     group.forEach((w, i) => {
+      const pct = followActiveWordScalePercent()
       const overlay = group.map((word, j) => {
         const t = getText(word)
-        return j === i ? `{\\c${highlight}}${t}{\\c${primary}}` : t
+        return j === i
+          ? `{\\c${highlight}\\fscx${pct}\\fscy${pct}}${t}{\\c${primary}\\fscx100\\fscy100}`
+          : t
       }).join(' ')
       events.push(dialogue(w.start, w.end, overlay, 1))
     })

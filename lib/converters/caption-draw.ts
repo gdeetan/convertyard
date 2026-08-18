@@ -4,6 +4,7 @@ import {
   captionFontSizePx,
   captionMarginVPx,
   captionOutlinePx,
+  FOLLOW_ACTIVE_WORD_SCALE,
 } from './caption-layout'
 
 function getActiveWords(words: WordChunk[], time: number, options: CaptionOptions): WordChunk[] {
@@ -148,12 +149,18 @@ export function drawCaptionOverlay(
     for (let i = 0; i < lineChunks.length; i++) {
       const { text: lineText, chunks: lineWords } = lineChunks[i]
       let offsetX = x - ctx.measureText(lineText).width / 2
+      const baseFont = ctx.font
+      const scaledFs = Math.max(1, Math.round(fs * FOLLOW_ACTIVE_WORD_SCALE))
+      const weight = isWordByWord ? 'bold ' : ''
       for (const word of lineWords) {
         const t = (options.uppercase ? word.text.toUpperCase() : word.text) + ' '
-        ctx.fillStyle = word === activeWord ? options.highlightColor : options.primaryColor
+        const active = word === activeWord
+        ctx.fillStyle = active ? options.highlightColor : options.primaryColor
+        ctx.font = active ? `${weight}${scaledFs}px "${fontName}", Arial` : baseFont
         ctx.fillText(t, offsetX, lineYs[i])
         offsetX += ctx.measureText(t).width
       }
+      ctx.font = baseFont
     }
   } else {
     ctx.fillStyle = options.primaryColor

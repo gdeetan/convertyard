@@ -37,3 +37,10 @@ export function captionMarginVPx(
 export function captionAlignment(position: 'top' | 'center' | 'bottom'): number {
   return position === 'top' ? 8 : position === 'center' ? 5 : 2
 }
+
+/** Follow (karaoke) spoken word vs the rest of the line. */
+export const FOLLOW_ACTIVE_WORD_SCALE = 1.12
+
+export function followActiveWordScalePercent(): number {
+  return Math.round(FOLLOW_ACTIVE_WORD_SCALE * 100)
+}
