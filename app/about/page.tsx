@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
+import { DirectoryBadges } from '@/components/site-shell/directory-badges'
 
 export const metadata: Metadata = {
   title: 'About',
@@ -93,6 +94,8 @@ export default function AboutPage() {
           </a>
           .
         </p>
+
+        <DirectoryBadges />
       </div>
 
       <div className="mt-12 flex flex-wrap gap-4">
