@@ -21,9 +21,15 @@ const BADGES = [
 
 export function DirectoryBadges() {
   return (
-    <section aria-label="Write a review">
-      <h2 className="mb-4 mt-10 text-xl font-semibold text-fg">Write a review</h2>
-      <div className="flex flex-wrap items-center gap-4">
+    <section aria-label="Directory reviews">
+      <h2 className="mb-4 mt-10 text-xl font-semibold text-fg">
+        Heard of us from a directory?
+      </h2>
+      <p>
+        If a conversion worked, a short public review on SourceForge, Slashdot, or
+        Top Business Software helps the next person find us.
+      </p>
+      <div className="mt-4 flex flex-wrap items-center gap-4">
         {BADGES.map((badge) => (
           <div key={badge.variant} className="flex h-[116px] w-[100px] items-center justify-center">
             <div
