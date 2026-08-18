@@ -1,8 +1,49 @@
+export type CaptionClientProfile = 'desktop' | 'android' | 'ios'
+export type CaptionJobStep = 'extract' | 'release-ffmpeg' | 'load-model' | 'transcribe'
+
 export interface CaptionWorkload {
   durationSec: number
   width: number
   height: number
   bytes: number
+}
+
+const IOS_WEBAUDIO_MAX_BYTES = 8 * 1024 * 1024
+
+/** Same iPhone / iPad-as-Mac detection as the upscaler. */
+export function detectCaptionClientProfile(
+  ua: string,
+  maxTouchPoints = 0,
+  platform = '',
+): CaptionClientProfile {
+  if (/iPhone|iPad|iPod/i.test(ua) || (platform === 'MacIntel' && maxTouchPoints > 1)) {
+    return 'ios'
+  }
+  if (/Android/i.test(ua)) return 'android'
+  return 'desktop'
+}
+
+export function defaultCaptionQuality(profile: CaptionClientProfile): 'fast' | 'balanced' | 'accurate' {
+  return profile === 'desktop' ? 'balanced' : 'fast'
+}
+
+/** Preloading ffmpeg next to Whisper is what jetsams Safari mid-transcribe. */
+export function shouldPreloadCaptionFfmpeg(profile: CaptionClientProfile): boolean {
+  return profile === 'desktop'
+}
+
+/**
+ * Never keep ffmpeg.wasm and Whisper resident together.
+ * Extract PCM, terminate ffmpeg, then load the model.
+ */
+export function captionJobSteps(_profile: CaptionClientProfile): CaptionJobStep[] {
+  return ['extract', 'release-ffmpeg', 'load-model', 'transcribe']
+}
+
+/** Large iPhone camera files OOM if WebAudio copies the whole MOV into RAM. */
+export function preferWebAudioExtract(profile: CaptionClientProfile, fileBytes: number): boolean {
+  if (profile === 'ios') return fileBytes < IOS_WEBAUDIO_MAX_BYTES
+  return true
 }
 
 const LONG_SEC = 180

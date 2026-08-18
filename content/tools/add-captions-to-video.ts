@@ -33,7 +33,7 @@ export const faq: FAQItem[] = [
   },
   {
     q: 'How long does captioning take?',
-    a: 'Two steps: transcription (typically 2–5× real-time, so a 2-minute video takes ~1 minute) and burning (1–4× real-time depending on your device). Longer videos and slower devices take more time. Keep the tab open while processing.',
+    a: 'Two steps: transcription (typically 2–5× real-time, so a 2-minute video takes ~1 minute) and burning (1–4× real-time depending on your device). Longer videos and slower devices take more time. Keep the tab open and in the foreground while processing — iPhone Safari will reload the page if the tab is backgrounded or runs out of memory. On phones, Fast is the default for that reason.',
   },
   {
     q: 'Can I edit the transcript before burning?',

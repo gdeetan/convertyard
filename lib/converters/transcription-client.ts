@@ -185,6 +185,10 @@ export function transcribeAudio(
     worker.addEventListener('message', handler)
     worker.addEventListener('error', errorHandler, { once: true })
     signal?.addEventListener('abort', onAbort, { once: true })
+    const transfer =
+      audioData.byteOffset === 0 && audioData.byteLength === audioData.buffer.byteLength
+        ? [audioData.buffer]
+        : []
     worker.postMessage({
       type: 'transcribe',
       id,
@@ -192,6 +196,6 @@ export function transcribeAudio(
       sampleRate,
       language,
       timestamps,
-    })
+    }, transfer)
   })
 }

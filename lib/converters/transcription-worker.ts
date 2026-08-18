@@ -17,12 +17,26 @@ import {
   type ModelVariant,
   type WhisperQuality,
 } from './whisper-postprocess'
+import { detectCaptionClientProfile } from './caption-workload'
 
 export type { WhisperQuality }
 
 env.allowLocalModels = false
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ;(env.backends as any).onnx.wasm.proxy = false
+
+function isConstrainedClient(): boolean {
+  const nav = self.navigator
+  if (!nav) return false
+  return detectCaptionClientProfile(nav.userAgent ?? '', nav.maxTouchPoints ?? 0, nav.platform ?? '') !== 'desktop'
+}
+
+if (isConstrainedClient()) {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(env.backends as any).onnx.wasm.numThreads = 1
+  } catch { /* env shape varies by transformers.js version */ }
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -95,7 +109,7 @@ function postError(error: TranscriptionErrorShape, id?: string) {
 async function loadWhisperModel(quality: WhisperQuality) {
   if (whisperPipeline && loadedQuality === quality) return
 
-  const variants = modelVariantsForQuality(quality)
+  const variants = modelVariantsForQuality(quality, { constrained: isConstrainedClient() })
   const attempts: TranscriptionLoadAttempt[] = []
   let lastError: TranscriptionErrorShape | null = null
 
@@ -146,7 +160,9 @@ async function runTranscribe(
 ) {
   self.postMessage({ type: 'transcribe-progress', id, progress: 10 })
 
-  const decode = decodeParamsForQuality(loadedQuality ?? 'balanced')
+  const decode = decodeParamsForQuality(loadedQuality ?? 'balanced', {
+    constrained: isConstrainedClient(),
+  })
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const raw = await (whisperPipeline as any)(audioData, {
