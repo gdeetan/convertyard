@@ -21,21 +21,22 @@ const BADGES = [
 
 export function DirectoryBadges() {
   return (
-    <section aria-label="Software directory listings">
-      <h2 className="mb-4 mt-10 text-xl font-semibold text-fg">Reviews</h2>
-      <div className="flex flex-wrap items-start gap-4">
+    <section aria-label="Write a review">
+      <h2 className="mb-4 mt-10 text-xl font-semibold text-fg">Write a review</h2>
+      <div className="flex flex-wrap items-center gap-4">
         {BADGES.map((badge) => (
-          <div
-            key={badge.variant}
-            className="sf-root"
-            data-id={PRODUCT_ID}
-            data-badge="light-default"
-            data-variant-id={badge.variant}
-            style={{ width: 100 }}
-          >
-            <a href={badge.href} target="_blank" rel="noopener noreferrer">
-              ConvertYard Reviews
-            </a>
+          <div key={badge.variant} className="flex h-[116px] w-[100px] items-center justify-center">
+            <div
+              className="sf-root"
+              data-id={PRODUCT_ID}
+              data-badge="light-default"
+              data-variant-id={badge.variant}
+              style={{ width: 100 }}
+            >
+              <a href={badge.href} target="_blank" rel="noopener noreferrer">
+                ConvertYard Reviews
+              </a>
+            </div>
           </div>
         ))}
       </div>
