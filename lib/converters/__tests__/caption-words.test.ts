@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { looksLikeSegments, wordsFromTranscription } from '../caption-words'
+import {
+  applyWhisperWordLead,
+  looksLikeSegments,
+  WHISPER_WORD_LEAD_SEC,
+  wordsFromTranscription,
+} from '../caption-words'
 
 describe('wordsFromTranscription', () => {
   it('keeps real word timestamps', () => {
@@ -45,5 +50,51 @@ describe('looksLikeSegments', () => {
   it('detects phrase-level chunks', () => {
     expect(looksLikeSegments([{ text: 'Hello there world' }])).toBe(true)
     expect(looksLikeSegments([{ text: 'Hello' }, { text: 'world' }])).toBe(false)
+  })
+})
+
+describe('applyWhisperWordLead', () => {
+  it('is 120 ms', () => {
+    expect(WHISPER_WORD_LEAD_SEC).toBe(0.12)
+  })
+
+  it('shifts real timings earlier by 120 ms', () => {
+    const out = applyWhisperWordLead({
+      timestampsEstimated: false,
+      words: [
+        { text: 'Hello', start: 0.5, end: 0.8 },
+        { text: 'world', start: 0.8, end: 1.2 },
+      ],
+    })
+    expect(out.words).toEqual([
+      { text: 'Hello', start: 0.38, end: 0.68 },
+      { text: 'world', start: 0.68, end: 1.08 },
+    ])
+  })
+
+  it('clamps start to 0 and keeps a 0.05 s minimum span', () => {
+    const out = applyWhisperWordLead({
+      timestampsEstimated: false,
+      words: [{ text: 'Hi', start: 0.05, end: 0.2 }],
+    })
+    expect(out.words[0].start).toBe(0)
+    expect(out.words[0].end).toBeCloseTo(0.08)
+  })
+
+  it('does not change estimated or zero-span transcripts', () => {
+    const estimated = {
+      timestampsEstimated: true,
+      words: [
+        { text: 'Hello', start: 0, end: 0 },
+        { text: 'world', start: 0, end: 0 },
+      ],
+    }
+    expect(applyWhisperWordLead(estimated)).toEqual(estimated)
+
+    const zeros = {
+      timestampsEstimated: false,
+      words: [{ text: 'Hello', start: 0, end: 0 }],
+    }
+    expect(applyWhisperWordLead(zeros)).toEqual(zeros)
   })
 })

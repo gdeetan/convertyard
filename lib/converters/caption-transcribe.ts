@@ -1,6 +1,6 @@
 import { getSingleThreadFFmpeg, resetFFmpeg, resetSingleThreadFFmpeg } from './ffmpeg-client'
 import { loadTranscriptionModel, transcribeAudio } from './transcription-client'
-import { wordsFromTranscription, type CaptionTranscript } from './caption-words'
+import { applyWhisperWordLead, wordsFromTranscription, type CaptionTranscript } from './caption-words'
 import { decodeAudioViaWebAudio, throwIfAborted, isCancelError } from './audio-decode'
 import {
   detectCaptionClientProfile,
@@ -131,5 +131,5 @@ export async function transcribeToWords(
 
   onProgress('transcribe', 100)
   throwIfAborted(signal)
-  return wordsFromTranscription({ text: textParts.join(' '), chunks: merged })
+  return applyWhisperWordLead(wordsFromTranscription({ text: textParts.join(' '), chunks: merged }))
 }

@@ -7,6 +7,25 @@ export interface CaptionTranscript {
   timestampsEstimated: boolean
 }
 
+export const WHISPER_WORD_LEAD_SEC = 0.12
+const MIN_WORD_SPAN_SEC = 0.05
+
+/** Shift Whisper word stamps earlier. Skip estimated / all-zero timings. */
+export function applyWhisperWordLead(
+  transcript: CaptionTranscript,
+  leadSec = WHISPER_WORD_LEAD_SEC,
+): CaptionTranscript {
+  if (transcript.timestampsEstimated) return transcript
+  if (!transcript.words.some((w) => w.end > 0)) return transcript
+  return {
+    ...transcript,
+    words: transcript.words.map((w) => {
+      const start = Math.max(0, w.start - leadSec)
+      return { ...w, start, end: Math.max(start + MIN_WORD_SPAN_SEC, w.end - leadSec) }
+    }),
+  }
+}
+
 function splitWords(text: string): string[] {
   return text.replace(/<[^>]+>/g, ' ').trim().split(/\s+/).filter(Boolean)
 }
