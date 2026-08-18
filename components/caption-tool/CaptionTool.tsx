@@ -11,7 +11,13 @@ import { CaptionFontPanel } from './CaptionFontPanel'
 import { CaptionEditor } from './CaptionEditor'
 import { CaptionPreview } from './CaptionPreview'
 import { downloadFile, formatBytes } from '@/lib/utils/download'
-import { captionWorkloadWarning } from '@/lib/converters/caption-workload'
+import {
+  captionWorkloadWarning,
+  defaultCaptionQuality,
+  detectCaptionClientProfile,
+  shouldPreloadCaptionFfmpeg,
+} from '@/lib/converters/caption-workload'
+import { acquireWakeLock } from '@/lib/utils/wake-lock'
 import { isCancelError } from '@/lib/converters/audio-decode'
 import { toTranscriptionUserMessage } from '@/lib/converters/transcription-errors'
 import { probeVideoDuration } from '@/lib/converters/media-probe'
@@ -217,7 +223,12 @@ export function CaptionTool() {
   const [error, setError] = useState<string | null>(null)
   const [activeWordIdx, setActiveWordIdx] = useState(0)
   const [videoDims, setVideoDims] = useState<{ width: number; height: number } | null>(null)
-  const [quality, setQuality] = useState<CaptionQuality>('balanced')
+  const [quality, setQuality] = useState<CaptionQuality>(() => {
+    if (typeof navigator === 'undefined') return 'balanced'
+    return defaultCaptionQuality(
+      detectCaptionClientProfile(navigator.userAgent, navigator.maxTouchPoints, navigator.platform),
+    )
+  })
   const [language, setLanguage] = useState('en')
   const [timestampsEstimated, setTimestampsEstimated] = useState(false)
   const [durationSec, setDurationSec] = useState(0)
@@ -248,9 +259,18 @@ export function CaptionTool() {
       setOptions((prev) => ({ ...prev, maxCharsPerLine: smartMaxChars(dims.width, prev.fontSize) }))
     })
     probeVideoDuration(file).then(setDurationSec)
-    import('@/lib/converters/ffmpeg-client').then(({ getSingleThreadFFmpeg }) => {
-      getSingleThreadFFmpeg().catch(() => { /* burn click will surface errors */ })
-    })
+    if (typeof navigator !== 'undefined') {
+      const profile = detectCaptionClientProfile(
+        navigator.userAgent,
+        navigator.maxTouchPoints,
+        navigator.platform,
+      )
+      if (shouldPreloadCaptionFfmpeg(profile)) {
+        import('@/lib/converters/ffmpeg-client').then(({ getSingleThreadFFmpeg }) => {
+          getSingleThreadFFmpeg().catch(() => { /* burn click will surface errors */ })
+        })
+      }
+    }
   }, [])
 
   const handleDrop = useCallback((files: File[]) => {
@@ -266,22 +286,30 @@ export function CaptionTool() {
     setPhase('transcribing')
     setProgress(0)
     setError(null)
-    setStatusText(`Downloading Whisper model (one-time, ${MODEL_SIZE[quality]})…`)
+    setStatusText('Extracting audio…')
 
+    const wakeLock = await acquireWakeLock()
     try {
       const { transcribeToWords } = await import('@/lib/converters/caption-transcribe')
       const result = await transcribeToWords(
         videoFile,
         quality,
         language || null,
-        (pct) => {
-          setProgress(Math.round(pct * 0.5))
-          if (pct < 100) setStatusText(`Downloading Whisper model… ${pct}%`)
-          else setStatusText('Extracting audio…')
-        },
-        (pct) => {
-          setProgress(50 + Math.round(pct * 0.5))
-          setStatusText(`Transcribing audio… ${Math.round(pct)}% (keep this tab open)`)
+        (phase, pct) => {
+          if (phase === 'extract') {
+            setProgress(Math.round(pct * 0.15))
+            setStatusText(pct < 100 ? `Extracting audio… ${Math.round(pct)}%` : 'Extracting audio…')
+          } else if (phase === 'model') {
+            setProgress(15 + Math.round(pct * 0.35))
+            setStatusText(
+              pct < 100
+                ? `Downloading Whisper model (one-time, ${MODEL_SIZE[quality]})… ${pct}%`
+                : 'Loading Whisper…',
+            )
+          } else {
+            setProgress(50 + Math.round(pct * 0.5))
+            setStatusText(`Transcribing audio… ${Math.round(pct)}% (keep this tab open)`)
+          }
         },
         ac.signal,
       )
@@ -294,6 +322,18 @@ export function CaptionTool() {
       setWords(result.words)
       setTimestampsEstimated(result.timestampsEstimated)
       setPhase('edit')
+      if (typeof navigator !== 'undefined') {
+        const profile = detectCaptionClientProfile(
+          navigator.userAgent,
+          navigator.maxTouchPoints,
+          navigator.platform,
+        )
+        if (shouldPreloadCaptionFfmpeg(profile)) {
+          import('@/lib/converters/ffmpeg-client').then(({ getSingleThreadFFmpeg }) => {
+            getSingleThreadFFmpeg().catch(() => {})
+          })
+        }
+      }
     } catch (err) {
       if (isCancelError(err) || ac.signal.aborted) {
         setPhase('ready')
@@ -301,6 +341,8 @@ export function CaptionTool() {
       }
       setError(toTranscriptionUserMessage(err))
       setPhase('ready')
+    } finally {
+      wakeLock.release()
     }
   }, [videoFile, quality, language])
 
@@ -335,6 +377,7 @@ export function CaptionTool() {
     setProgress(0)
     setStatusText('Muxing soft captions…')
     setError(null)
+    const wakeLock = await acquireWakeLock()
     try {
       const { muxSoftCaptions } = await import('@/lib/converters/caption-soft')
       const output = await muxSoftCaptions(videoFile, words, (pct) => {
@@ -351,6 +394,8 @@ export function CaptionTool() {
       }
       setError(err instanceof Error ? err.message : 'Soft captions failed')
       setPhase('edit')
+    } finally {
+      wakeLock.release()
     }
   }, [videoFile, words, timestampsEstimated])
 
@@ -364,6 +409,7 @@ export function CaptionTool() {
     setStatusText('Preparing ffmpeg…')
     setError(null)
 
+    const wakeLock = await acquireWakeLock()
     try {
       const { burnCaptions } = await import('@/lib/converters/caption-burn')
 
@@ -394,6 +440,8 @@ export function CaptionTool() {
       }
       setError(err instanceof Error ? err.message : (err != null ? String(err) : 'Burn failed'))
       setPhase('edit')
+    } finally {
+      wakeLock.release()
     }
   }, [videoFile, words, options, videoDims, timestampsEstimated])
 
@@ -526,6 +574,7 @@ export function CaptionTool() {
 
         <p className="text-xs text-fg-muted">
           Set the spoken language for better accuracy. Or skip Whisper and import an existing SRT or VTT.
+          On iPhone, keep this tab in the foreground and leave Fast selected — Safari will reload the page if the tab runs out of memory.
         </p>
 
         {error && (

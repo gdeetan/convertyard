@@ -13,6 +13,18 @@ describe('modelVariantsForQuality', () => {
     expect(ids[0]).toBe('Xenova/whisper-small')
     expect(ids.some((id) => id.includes('turbo'))).toBe(false)
   })
+
+  it('uses quantized tiny first on constrained devices so iOS does not reload the tab', () => {
+    const variants = modelVariantsForQuality('fast', { constrained: true })
+    expect(variants[0]).toEqual({ modelId: 'Xenova/whisper-tiny', dtype: 'q8' })
+    expect(variants.some((v) => v.dtype === 'fp32')).toBe(true)
+  })
+
+  it('never starts constrained accurate on whisper-small fp32', () => {
+    const variants = modelVariantsForQuality('accurate', { constrained: true })
+    expect(variants[0].modelId).not.toBe('Xenova/whisper-small')
+    expect(variants[0].dtype).not.toBe('fp32')
+  })
 })
 
 describe('decodeParamsForQuality', () => {

@@ -6,7 +6,32 @@ export interface ModelVariant {
 }
 
 /** Accurate uses Small, not Turbo — Turbo often OOMs and poisons the WASM heap. */
-export function modelVariantsForQuality(quality: WhisperQuality): ModelVariant[] {
+export function modelVariantsForQuality(
+  quality: WhisperQuality,
+  opts?: { constrained?: boolean },
+): ModelVariant[] {
+  if (opts?.constrained) {
+    switch (quality) {
+      case 'fast':
+        return [
+          { modelId: 'Xenova/whisper-tiny', dtype: 'q8' },
+          { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
+        ]
+      case 'balanced':
+        return [
+          { modelId: 'Xenova/whisper-tiny', dtype: 'q8' },
+          { modelId: 'Xenova/whisper-base', dtype: 'q8' },
+          { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
+        ]
+      case 'accurate':
+        return [
+          { modelId: 'Xenova/whisper-base', dtype: 'q8' },
+          { modelId: 'Xenova/whisper-tiny', dtype: 'q8' },
+          { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
+        ]
+    }
+  }
+
   switch (quality) {
     case 'fast':
       return [{ modelId: 'Xenova/whisper-tiny', dtype: 'fp32' }]
@@ -35,13 +60,16 @@ export interface WhisperResultLike {
 }
 
 /** Greedy decode for Fast/Balanced. Accurate keeps a small beam for harder audio. */
-export function decodeParamsForQuality(quality: WhisperQuality): {
+export function decodeParamsForQuality(
+  quality: WhisperQuality,
+  opts?: { constrained?: boolean },
+): {
   num_beams: number
   no_repeat_ngram_size: number
   condition_on_previous_text: boolean
 } {
   return {
-    num_beams: quality === 'accurate' ? 5 : 1,
+    num_beams: !opts?.constrained && quality === 'accurate' ? 5 : 1,
     no_repeat_ngram_size: 3,
     condition_on_previous_text: false,
   }

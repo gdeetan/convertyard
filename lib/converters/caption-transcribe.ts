@@ -1,14 +1,29 @@
-import { getFFmpeg } from './ffmpeg-client'
+import { getSingleThreadFFmpeg, resetFFmpeg, resetSingleThreadFFmpeg } from './ffmpeg-client'
 import { loadTranscriptionModel, transcribeAudio } from './transcription-client'
 import { wordsFromTranscription, type CaptionTranscript } from './caption-words'
 import { decodeAudioViaWebAudio, throwIfAborted, isCancelError } from './audio-decode'
+import {
+  detectCaptionClientProfile,
+  preferWebAudioExtract,
+  type CaptionClientProfile,
+} from './caption-workload'
 
 export type CaptionQuality = 'fast' | 'balanced' | 'accurate'
+export type CaptionTranscribePhase = 'extract' | 'model' | 'transcribe'
 export type { CaptionTranscript }
+
+function currentProfile(): CaptionClientProfile {
+  if (typeof navigator === 'undefined') return 'desktop'
+  return detectCaptionClientProfile(
+    navigator.userAgent,
+    navigator.maxTouchPoints,
+    navigator.platform,
+  )
+}
 
 async function extractAudioViaFfmpeg(videoFile: File): Promise<Float32Array> {
   const { fetchFile } = await import('@ffmpeg/util')
-  const ffmpeg = await getFFmpeg()
+  const ffmpeg = await getSingleThreadFFmpeg()
   const inputName = `cap_in_${Date.now()}`
   const outputName = `cap_out_${Date.now()}.wav`
 
@@ -35,35 +50,48 @@ async function extractAudioViaFfmpeg(videoFile: File): Promise<Float32Array> {
   }
 }
 
+export async function releaseCaptionExtractRuntime(): Promise<void> {
+  await Promise.all([resetFFmpeg(), resetSingleThreadFFmpeg()])
+}
+
 export async function extractAudio(
   videoFile: File,
   signal?: AbortSignal,
+  profile: CaptionClientProfile = currentProfile(),
 ): Promise<Float32Array> {
   throwIfAborted(signal)
-  try {
-    return await decodeAudioViaWebAudio(videoFile)
-  } catch (err) {
-    throwIfAborted(signal)
-    if (isCancelError(err)) throw err
-    return extractAudioViaFfmpeg(videoFile)
+  if (preferWebAudioExtract(profile, videoFile.size)) {
+    try {
+      return await decodeAudioViaWebAudio(videoFile)
+    } catch (err) {
+      throwIfAborted(signal)
+      if (isCancelError(err)) throw err
+    }
   }
+  return extractAudioViaFfmpeg(videoFile)
 }
 
 export async function transcribeToWords(
   videoFile: File,
   quality: CaptionQuality,
   language: string | null,
-  onModelProgress: (pct: number) => void,
-  onTranscribeProgress: (pct: number) => void,
+  onProgress: (phase: CaptionTranscribePhase, pct: number) => void,
   signal?: AbortSignal,
 ): Promise<CaptionTranscript> {
+  const profile = currentProfile()
   throwIfAborted(signal)
-  await loadTranscriptionModel(quality, onModelProgress)
-  throwIfAborted(signal)
-  onModelProgress(100)
 
-  const audioData = await extractAudio(videoFile, signal)
+  onProgress('extract', 5)
+  const audioData = await extractAudio(videoFile, signal, profile)
   throwIfAborted(signal)
+  onProgress('extract', 100)
+
+  await releaseCaptionExtractRuntime()
+  throwIfAborted(signal)
+
+  await loadTranscriptionModel(quality, (pct) => onProgress('model', pct))
+  throwIfAborted(signal)
+  onProgress('model', 100)
 
   // Whisper's pipeline only reports 10% then 95%. Split into 30s slices so the
   // bar actually moves — otherwise the UI sits at 55% for the whole inference.
@@ -79,14 +107,14 @@ export async function transcribeToWords(
     const end = Math.min(audioData.length, start + chunkSamples)
     const offsetSec = start / sampleRate
     const slice = audioData.slice(start, end)
-    onTranscribeProgress(Math.round((i / totalChunks) * 100))
+    onProgress('transcribe', Math.round((i / totalChunks) * 100))
 
     const result = await transcribeAudio(
       slice,
       sampleRate,
       language,
       'word',
-      (p) => onTranscribeProgress(Math.round(((i + p / 100) / totalChunks) * 100)),
+      (p) => onProgress('transcribe', Math.round(((i + p / 100) / totalChunks) * 100)),
       signal,
     )
 
@@ -98,9 +126,10 @@ export async function transcribeToWords(
       }
     }
     if (result.text) textParts.push(result.text)
+    await new Promise<void>((r) => setTimeout(r, 0))
   }
 
-  onTranscribeProgress(100)
+  onProgress('transcribe', 100)
   throwIfAborted(signal)
   return wordsFromTranscription({ text: textParts.join(' '), chunks: merged })
 }

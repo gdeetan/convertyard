@@ -46,7 +46,7 @@ export default function Page() {
             {
               n: '2',
               label: 'Transcribe or import',
-              desc: 'Pick a language and quality, then Whisper runs locally — or import an SRT/VTT and skip transcription. First Balanced run downloads ~74 MB, cached after that.',
+              desc: 'Pick a language and quality, then Whisper runs locally — or import an SRT/VTT and skip transcription. Phones default to Fast (~40 MB). Desktop Balanced is ~74 MB, cached after the first run.',
             },
             {
               n: '3',
