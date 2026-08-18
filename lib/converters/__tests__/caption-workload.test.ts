@@ -4,6 +4,7 @@ import {
   captionWorkloadWarning,
   defaultCaptionQuality,
   detectCaptionClientProfile,
+  needsSafariOnnxWasm,
   preferWebAudioExtract,
   shouldPreloadCaptionFfmpeg,
 } from '../caption-workload'
@@ -69,5 +70,20 @@ describe('caption iOS memory policy', () => {
     expect(preferWebAudioExtract('ios', 20 * 1024 * 1024)).toBe(false)
     expect(preferWebAudioExtract('ios', 4 * 1024 * 1024)).toBe(true)
     expect(preferWebAudioExtract('desktop', 80 * 1024 * 1024)).toBe(true)
+  })
+
+  it('uses Safari-safe ONNX WASM on every iOS browser, including Chrome', () => {
+    expect(needsSafariOnnxWasm(
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+    )).toBe(true)
+    expect(needsSafariOnnxWasm(
+      'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.0.0 Mobile/15E148 Safari/604.1',
+    )).toBe(true)
+    expect(needsSafariOnnxWasm(
+      'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
+    )).toBe(false)
+    expect(needsSafariOnnxWasm(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    )).toBe(false)
   })
 })

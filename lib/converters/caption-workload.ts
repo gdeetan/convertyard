@@ -23,6 +23,19 @@ export function detectCaptionClientProfile(
   return 'desktop'
 }
 
+/**
+ * iOS Chrome/Firefox are WebKit but transformers.js only picks the Safari-safe
+ * (non-asyncify) ORT WASM build when the UA looks like Safari. Asyncify WASM
+ * fails session create on WebKit.
+ */
+export function needsSafariOnnxWasm(
+  ua: string,
+  maxTouchPoints = 0,
+  platform = '',
+): boolean {
+  return detectCaptionClientProfile(ua, maxTouchPoints, platform) === 'ios'
+}
+
 export function defaultCaptionQuality(profile: CaptionClientProfile): 'fast' | 'balanced' | 'accurate' {
   return profile === 'desktop' ? 'balanced' : 'fast'
 }

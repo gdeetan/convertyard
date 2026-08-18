@@ -5,31 +5,20 @@ export interface ModelVariant {
   dtype: 'fp32' | 'fp16' | 'int8' | 'q4' | 'q8'
 }
 
-/** Accurate uses Small, not Turbo — Turbo often OOMs and poisons the WASM heap. */
+/**
+ * Accurate uses Small, not Turbo — Turbo often OOMs and poisons the WASM heap.
+ *
+ * Constrained (phones) never use q8/q4. Xenova quantized Whisper files use
+ * MatMulNBits without the required scale tensors, so session create fails with
+ * TransposeDQWeightsForMatMulNBits. That failed session poisons ORT WASM and
+ * the fp32 fallback then also fails. Tiny fp32 is the working path (same as TrOCR).
+ */
 export function modelVariantsForQuality(
   quality: WhisperQuality,
   opts?: { constrained?: boolean },
 ): ModelVariant[] {
   if (opts?.constrained) {
-    switch (quality) {
-      case 'fast':
-        return [
-          { modelId: 'Xenova/whisper-tiny', dtype: 'q8' },
-          { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
-        ]
-      case 'balanced':
-        return [
-          { modelId: 'Xenova/whisper-tiny', dtype: 'q8' },
-          { modelId: 'Xenova/whisper-base', dtype: 'q8' },
-          { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
-        ]
-      case 'accurate':
-        return [
-          { modelId: 'Xenova/whisper-base', dtype: 'q8' },
-          { modelId: 'Xenova/whisper-tiny', dtype: 'q8' },
-          { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
-        ]
-    }
+    return [{ modelId: 'Xenova/whisper-tiny', dtype: 'fp32' }]
   }
 
   switch (quality) {
