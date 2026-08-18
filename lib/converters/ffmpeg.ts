@@ -1129,22 +1129,30 @@ export async function compressVideo(
         const targetBytes = targetKB * 1024
 
         let remuxable = false
+        let remuxHevc = false
         if (file.size <= targetBytes) {
           const videoCodec = await probeVideoCodec(ffmpeg, inputName)
           const remuxAudioInfo = !stripAudio ? await probeAudioInfo(ffmpeg, inputName) : null
+          remuxHevc = videoCodec === 'hevc' || videoCodec === 'h265'
           remuxable =
-            videoCodec === 'h264' &&
+            (videoCodec === 'h264' || (h265 && remuxHevc)) &&
             (stripAudio || remuxAudioInfo === null || remuxAudioInfo.codec === 'aac')
         }
 
         if (remuxable) {
-          // Already a playable H.264/AAC MP4 that fits — remux only, add faststart
+          // Already a playable MP4 that fits — remux only, add faststart
           const progressHandler = ({ progress }: { progress: number }) => {
             onProgress?.(i, Math.round(10 + progress * 85))
           }
           ffmpeg.on('progress', progressHandler)
           try {
-            await ffmpeg.exec(['-i', inputName, '-c', 'copy', '-movflags', '+faststart', outputName])
+            await ffmpeg.exec([
+              '-i', inputName,
+              '-c', 'copy',
+              ...(remuxHevc ? ['-tag:v', 'hvc1'] : []),
+              '-movflags', '+faststart',
+              outputName,
+            ])
             data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
           } finally {
             ffmpeg.off('progress', progressHandler)

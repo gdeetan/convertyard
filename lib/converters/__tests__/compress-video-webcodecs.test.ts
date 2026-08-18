@@ -8,6 +8,14 @@ describe('canAttemptHevcWebCodecs', () => {
     vi.stubGlobal('VideoEncoder', undefined)
     expect(canAttemptHevcWebCodecs()).toBe(false)
   })
+
+  it('returns true when VideoEncoder and VideoDecoder exist even without rVFC', () => {
+    vi.stubGlobal('VideoEncoder', function VideoEncoder() {})
+    vi.stubGlobal('VideoDecoder', function VideoDecoder() {})
+    vi.stubGlobal('VideoFrame', function VideoFrame() {})
+    vi.stubGlobal('HTMLVideoElement', function HTMLVideoElement() {})
+    expect(canAttemptHevcWebCodecs()).toBe(true)
+  })
 })
 
 describe('hevcBitrateForLevel', () => {
