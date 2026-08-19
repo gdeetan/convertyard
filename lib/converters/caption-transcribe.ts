@@ -6,6 +6,9 @@ import { decodeAudioViaWebAudio, throwIfAborted, isCancelError } from './audio-d
 import {
   detectCaptionClientProfile,
   preferWebAudioExtract,
+  shouldSnapWordOnsets,
+  shouldUseFfmpegExtract,
+  whisperAudioWindows,
   type CaptionClientProfile,
 } from './caption-workload'
 import { classifyTranscriptionError } from './transcription-errors'
@@ -182,6 +185,12 @@ export async function extractAudio(
       }
     }
 
+    if (!shouldUseFfmpegExtract(profile, file.size)) {
+      throw new Error(
+        errors.join(' | ') || 'This clip is too large for Safari. Use a shorter video or import an SRT/VTT.',
+      )
+    }
+
     try {
       return await extractAudioViaFfmpeg(file)
     } catch (err) {
@@ -220,36 +229,45 @@ export async function transcribeToWords(
   throwIfAborted(signal)
   onProgress('model', 100)
 
-  // One Whisper pass. The pipeline already windows at 30s with a 3s stride.
-  // Hard-cutting here mid-word made captions drift from the voice.
+  // Desktop: one Whisper pass (pipeline windows at 30s / 3s stride).
+  // iPhone: 20s slices so Safari is not holding the full PCM + model at once.
   const sampleRate = 16000
-  const durationSec = audioData.length / sampleRate
-  const started = Date.now()
-  const tick = setInterval(() => {
-    const elapsed = (Date.now() - started) / 1000
-    onProgress('transcribe', Math.min(95, Math.round((elapsed / Math.max(1, durationSec * 2)) * 100)))
-  }, 250)
+  const windows = whisperAudioWindows(audioData.length, sampleRate, profile)
+  const merged: { text: string; timestamp?: [number, number] }[] = []
+  const textParts: string[] = []
 
-  let result
-  try {
-    result = await transcribeAudio(
-      audioData.slice(),
+  for (let i = 0; i < windows.length; i++) {
+    throwIfAborted(signal)
+    const { start, end, offsetSec } = windows[i]
+    const slice = audioData.subarray(start, end)
+    onProgress('transcribe', Math.round((i / windows.length) * 100))
+    const result = await transcribeAudio(
+      slice,
       sampleRate,
       language,
       'word',
-      (p) => onProgress('transcribe', Math.min(95, Math.round(p))),
+      (p) => onProgress('transcribe', Math.round(((i + p / 100) / windows.length) * 100)),
       signal,
     )
-  } finally {
-    clearInterval(tick)
+    if (result.chunks) {
+      for (const c of result.chunks) {
+        const t0 = (c.timestamp?.[0] ?? 0) + offsetSec
+        const t1 = (c.timestamp?.[1] ?? t0) + offsetSec
+        merged.push({ text: c.text, timestamp: [t0, t1] })
+      }
+    }
+    if (result.text) textParts.push(result.text)
+    await new Promise<void>((r) => setTimeout(r, 0))
   }
 
   onProgress('transcribe', 100)
   throwIfAborted(signal)
-  const transcript = wordsFromTranscription(result)
+  const transcript = wordsFromTranscription({ text: textParts.join(' '), chunks: merged })
   if (transcript.timestampsEstimated) return transcript
-  const snapped = snapWordsToOnsets(transcript.words, audioData, sampleRate)
-  const moved = snapped.some((w, i) => Math.abs(w.start - transcript.words[i].start) > 0.03)
-  if (moved) return { ...transcript, words: snapped }
+  if (shouldSnapWordOnsets(profile)) {
+    const snapped = snapWordsToOnsets(transcript.words, audioData, sampleRate)
+    const moved = snapped.some((w, i) => Math.abs(w.start - transcript.words[i].start) > 0.03)
+    if (moved) return { ...transcript, words: snapped }
+  }
   return applyWhisperWordLead(transcript)
 }

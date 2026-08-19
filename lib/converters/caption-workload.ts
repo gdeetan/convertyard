@@ -65,6 +65,50 @@ export function preferWebAudioExtract(profile: CaptionClientProfile, fileBytes: 
   return true
 }
 
+/** Android revokes gallery File handles. iOS does not — copying the MOV jetsams Safari. */
+export function shouldMaterializePickerFile(profile: CaptionClientProfile): boolean {
+  return profile === 'android'
+}
+
+/** One full-audio Whisper pass plus the model exceeds iPhone Safari’s tab budget. */
+export function shouldSliceWhisperAudio(profile: CaptionClientProfile): boolean {
+  return profile === 'ios'
+}
+
+export function shouldSnapWordOnsets(profile: CaptionClientProfile): boolean {
+  return profile !== 'ios'
+}
+
+const IOS_FFMPEG_MAX_BYTES = 12 * 1024 * 1024
+
+/** ffmpeg.wasm + a camera file is what reloads the iPhone tab. */
+export function shouldUseFfmpegExtract(profile: CaptionClientProfile, fileBytes: number): boolean {
+  if (profile === 'ios' && fileBytes > IOS_FFMPEG_MAX_BYTES) return false
+  return true
+}
+
+const IOS_SLICE_SEC = 20
+const IOS_SLICE_HOP_SEC = 17
+
+export function whisperAudioWindows(
+  sampleCount: number,
+  sampleRate: number,
+  profile: CaptionClientProfile,
+): { start: number; end: number; offsetSec: number }[] {
+  if (!shouldSliceWhisperAudio(profile) || sampleCount <= 0) {
+    return [{ start: 0, end: sampleCount, offsetSec: 0 }]
+  }
+  const win = Math.round(IOS_SLICE_SEC * sampleRate)
+  const hop = Math.round(IOS_SLICE_HOP_SEC * sampleRate)
+  const out: { start: number; end: number; offsetSec: number }[] = []
+  for (let start = 0; start < sampleCount; start += hop) {
+    const end = Math.min(sampleCount, start + win)
+    out.push({ start, end, offsetSec: start / sampleRate })
+    if (end >= sampleCount) break
+  }
+  return out.length > 0 ? out : [{ start: 0, end: sampleCount, offsetSec: 0 }]
+}
+
 const LONG_SEC = 180
 const HD_PIXELS = 1920 * 1080
 const LARGE_BYTES = 80 * 1024 * 1024

@@ -16,6 +16,7 @@ import {
   captionWorkloadWarning,
   defaultCaptionQuality,
   detectCaptionClientProfile,
+  shouldMaterializePickerFile,
   shouldPreloadCaptionFfmpeg,
 } from '@/lib/converters/caption-workload'
 import { acquireWakeLock } from '@/lib/utils/wake-lock'
@@ -75,6 +76,8 @@ function getVideoDimensions(file: File): Promise<{ width: number; height: number
 function smartMaxChars(videoWidth: number, fontSize: number): number {
   return Math.max(10, Math.min(80, Math.floor(videoWidth / (fontSize * 0.55))))
 }
+
+const IOS_RELOAD_KEY = 'cy-caption-transcribing'
 
 const VIDEO_ACCEPTS = ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-msvideo', 'video/x-matroska']
 const VIDEO_EXTS = ['.mp4', '.mov', '.webm', '.avi', '.mkv']
@@ -242,6 +245,18 @@ export function CaptionTool() {
   const importRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const [fileReady, setFileReady] = useState(false)
+  const clientProfile = typeof navigator === 'undefined'
+    ? 'desktop'
+    : detectCaptionClientProfile(navigator.userAgent, navigator.maxTouchPoints, navigator.platform)
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem(IOS_RELOAD_KEY) === '1') {
+        sessionStorage.removeItem(IOS_RELOAD_KEY)
+        setError('Safari reloaded this tab, usually because it ran out of memory. Stay on Fast, keep the tab open, use a shorter clip, or import an SRT/VTT.')
+      }
+    } catch { /* private mode */ }
+  }, [])
 
   const workloadWarning = videoFile && videoDims
     ? captionWorkloadWarning({
@@ -252,39 +267,50 @@ export function CaptionTool() {
       })
     : null
 
-  const applyVideoFile = useCallback((file: File) => {
-    // Start the byte copy BEFORE any other await. Android Chrome revokes
-    // gallery File access after the picker callback yields.
-    const bytesPromise = file.arrayBuffer()
+  const finishApplyVideoFile = useCallback((file: File) => {
     setVideoFile(file)
+    setFileReady(true)
+    setPhase('ready')
+    getVideoDimensions(file).then((dims) => {
+      setVideoDims(dims)
+      setOptions((prev) => ({ ...prev, maxCharsPerLine: smartMaxChars(dims.width, prev.fontSize) }))
+    })
+    probeVideoDuration(file).then(setDurationSec)
+    if (typeof navigator !== 'undefined') {
+      const profile = detectCaptionClientProfile(
+        navigator.userAgent,
+        navigator.maxTouchPoints,
+        navigator.platform,
+      )
+      if (shouldPreloadCaptionFfmpeg(profile)) {
+        import('@/lib/converters/ffmpeg-client').then(({ getSingleThreadFFmpeg }) => {
+          getSingleThreadFFmpeg().catch(() => { /* burn click will surface errors */ })
+        })
+      }
+    }
+  }, [])
+
+  const applyVideoFile = useCallback((file: File) => {
     setWords([])
     setResultFile(null)
     setTimestampsEstimated(false)
     setError(null)
     setDurationSec(0)
+    const profile = typeof navigator === 'undefined'
+      ? 'desktop'
+      : detectCaptionClientProfile(navigator.userAgent, navigator.maxTouchPoints, navigator.platform)
+    // Android revokes gallery File handles; copy bytes immediately.
+    // iOS must NOT copy the camera MOV — that copy is what jetsams Safari.
+    if (!shouldMaterializePickerFile(profile)) {
+      finishApplyVideoFile(file)
+      return
+    }
+    const bytesPromise = file.arrayBuffer()
+    setVideoFile(file)
     setFileReady(false)
     setPhase('ready')
     void bytesPromise.then((buf) => {
-      const copy = captionFileFromBytes(buf, file)
-      setVideoFile(copy)
-      setFileReady(true)
-      getVideoDimensions(copy).then((dims) => {
-        setVideoDims(dims)
-        setOptions((prev) => ({ ...prev, maxCharsPerLine: smartMaxChars(dims.width, prev.fontSize) }))
-      })
-      probeVideoDuration(copy).then(setDurationSec)
-      if (typeof navigator !== 'undefined') {
-        const profile = detectCaptionClientProfile(
-          navigator.userAgent,
-          navigator.maxTouchPoints,
-          navigator.platform,
-        )
-        if (shouldPreloadCaptionFfmpeg(profile)) {
-          import('@/lib/converters/ffmpeg-client').then(({ getSingleThreadFFmpeg }) => {
-            getSingleThreadFFmpeg().catch(() => { /* burn click will surface errors */ })
-          })
-        }
-      }
+      finishApplyVideoFile(captionFileFromBytes(buf, file))
     }).catch((err) => {
       const shaped = classifyTranscriptionError(err, { code: 'FILE_READ_FAILED', phase: 'extract' })
       setError(toTranscriptionUserMessage(shaped))
@@ -292,7 +318,7 @@ export function CaptionTool() {
       setFileReady(false)
       setPhase('idle')
     })
-  }, [])
+  }, [finishApplyVideoFile])
 
   const handleDrop = useCallback((files: File[]) => {
     if (!files.length) return
@@ -308,6 +334,7 @@ export function CaptionTool() {
     setProgress(0)
     setError(null)
     setStatusText('Extracting audio…')
+    try { sessionStorage.setItem(IOS_RELOAD_KEY, '1') } catch { /* private mode */ }
 
     const wakeLock = await acquireWakeLock()
     try {
@@ -370,6 +397,7 @@ export function CaptionTool() {
       )
       setPhase('ready')
     } finally {
+      try { sessionStorage.removeItem(IOS_RELOAD_KEY) } catch { /* private mode */ }
       wakeLock.release()
     }
   }, [videoFile, fileReady, quality, language])
@@ -570,7 +598,11 @@ export function CaptionTool() {
               className="w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary/50"
             >
               {QUALITY_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
+                <option
+                  key={opt.value}
+                  value={opt.value}
+                  disabled={clientProfile === 'ios' && opt.value !== 'fast'}
+                >
                   {opt.label} — {opt.hint}
                 </option>
               ))}
@@ -603,7 +635,7 @@ export function CaptionTool() {
 
         <p className="text-xs text-fg-muted">
           Set the spoken language for better accuracy. Or skip Whisper and import an existing SRT or VTT.
-          On iPhone, keep this tab in the foreground and leave Fast selected — Safari will reload the page if the tab runs out of memory.
+          On iPhone, keep this tab in the foreground and leave Fast selected. Safari will reload the page if the tab is backgrounded or runs out of memory — import an SRT/VTT if that happens.
         </p>
 
         {error && (
