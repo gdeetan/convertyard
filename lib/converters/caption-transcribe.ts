@@ -165,9 +165,11 @@ export async function extractAudio(
       : await materializeCaptionFile(videoFile)
     throwIfAborted(signal)
 
-    if (looksLikeMp4(file)) {
+    // iPhone Safari can decode its own camera files. Try that before remux so a
+    // QuickTime-layout miss does not fail the whole job.
+    if (profile === 'ios' || preferWebAudioExtract(profile, file.size)) {
       try {
-        return await extractAudioViaMp4Aac(file)
+        return await decodeAudioViaWebAudio(file)
       } catch (err) {
         throwIfAborted(signal)
         if (isCancelError(err)) throw err
@@ -175,9 +177,9 @@ export async function extractAudio(
       }
     }
 
-    if (preferWebAudioExtract(profile, file.size)) {
+    if (looksLikeMp4(file)) {
       try {
-        return await decodeAudioViaWebAudio(file)
+        return await extractAudioViaMp4Aac(file)
       } catch (err) {
         throwIfAborted(signal)
         if (isCancelError(err)) throw err

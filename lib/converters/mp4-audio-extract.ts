@@ -176,12 +176,43 @@ export function adtsFrame(cfg: { objectType: number; sampleRateIndex: number; ch
   return h
 }
 
+const SAMPLE_RATE_INDEX: Record<number, number> = {
+  96000: 0, 88200: 1, 64000: 2, 48000: 3, 44100: 4, 32000: 5,
+  24000: 6, 22050: 7, 16000: 8, 12000: 9, 11025: 10, 8000: 11, 7350: 12,
+}
+
+function findEsdsBox(data: Uint8Array, start: number, end: number): Box | undefined {
+  const boxes = readBoxes(data, start, end)
+  for (const box of boxes) {
+    if (box.type === 'esds') return box
+    if (box.type === 'wave') {
+      const nested = findEsdsBox(data, box.payloadStart, box.payloadEnd)
+      if (nested) return nested
+    }
+  }
+  return undefined
+}
+
+function aacConfigFromSampleEntry(data: Uint8Array, entry: Box): { objectType: number; sampleRateIndex: number; channels: number } | null {
+  if (entry.payloadStart + 28 > entry.payloadEnd) return null
+  const view = viewOf(data)
+  const channels = view.getUint16(entry.payloadStart + 16)
+  const sampleRate = view.getUint32(entry.payloadStart + 24) >>> 16
+  const sampleRateIndex = SAMPLE_RATE_INDEX[sampleRate]
+  if (sampleRateIndex == null || channels < 1 || channels > 8) return null
+  return { objectType: 2, sampleRateIndex, channels }
+}
+
 function parseMp4aConfig(data: Uint8Array, entry: Box): { objectType: number; sampleRateIndex: number; channels: number } | null {
-  if (entry.type !== 'mp4a') return null
-  const kids = readBoxes(data, entry.start + 36, entry.payloadEnd)
-  const esds = kids.find((b) => b.type === 'esds')
-  if (!esds) return null
-  return parseAacConfig(data.subarray(esds.payloadStart, esds.payloadEnd))
+  if (entry.type !== 'mp4a' && entry.type !== 'enca') return null
+  const esds =
+    findEsdsBox(data, entry.start + 36, entry.payloadEnd)
+    ?? findEsdsBox(data, entry.start + 52, entry.payloadEnd)
+  if (esds) {
+    const cfg = parseAacConfig(data.subarray(esds.payloadStart, esds.payloadEnd))
+    if (cfg) return cfg
+  }
+  return aacConfigFromSampleEntry(data, entry)
 }
 
 export function looksLikeMp4(file: { name: string; type: string }): boolean {
@@ -216,7 +247,7 @@ export function extractMp4AacAdts(data: Uint8Array): Uint8Array | null {
     if (!stsd || !stsz || !stsc || !stco) continue
 
     const entries = readBoxes(data, stsd.payloadStart + 8, stsd.payloadEnd)
-    const mp4a = entries.find((e) => e.type === 'mp4a')
+    const mp4a = entries.find((e) => e.type === 'mp4a' || e.type === 'enca')
     if (!mp4a) continue
     const cfg = parseMp4aConfig(data, mp4a)
     if (!cfg) continue
