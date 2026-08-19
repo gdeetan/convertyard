@@ -8,6 +8,7 @@ import {
   type CaptionClientProfile,
 } from './caption-workload'
 import { classifyTranscriptionError } from './transcription-errors'
+import { extractMp4AacAdts, looksLikeMp4 } from './mp4-audio-extract'
 
 export type CaptionQuality = 'fast' | 'balanced' | 'accurate'
 export type CaptionTranscribePhase = 'extract' | 'model' | 'transcribe'
@@ -170,28 +171,59 @@ export async function releaseCaptionExtractRuntime(): Promise<void> {
   await Promise.all([resetFFmpeg(), resetSingleThreadFFmpeg()])
 }
 
+async function extractAudioViaMp4Aac(file: File): Promise<Float32Array> {
+  const bytes = new Uint8Array(await file.arrayBuffer())
+  const adts = extractMp4AacAdts(bytes)
+  if (!adts) throw new Error('No AAC audio track in MP4')
+  return decodeAudioViaWebAudio(new File([adts], 'track.aac', { type: 'audio/aac' }))
+}
+
 export async function extractAudio(
   videoFile: File,
   signal?: AbortSignal,
   profile: CaptionClientProfile = currentProfile(),
 ): Promise<Float32Array> {
+  const errors: string[] = []
   try {
     throwIfAborted(signal)
-    const file = await materializeCaptionFile(videoFile)
+    const file = videoFile.size > 0 && /\.[^.]+$/.test(videoFile.name)
+      ? videoFile
+      : await materializeCaptionFile(videoFile)
     throwIfAborted(signal)
+
+    if (looksLikeMp4(file)) {
+      try {
+        return await extractAudioViaMp4Aac(file)
+      } catch (err) {
+        throwIfAborted(signal)
+        if (isCancelError(err)) throw err
+        errors.push(err instanceof Error ? err.message : String(err))
+      }
+    }
+
     if (preferWebAudioExtract(profile, file.size)) {
       try {
         return await decodeAudioViaWebAudio(file)
       } catch (err) {
         throwIfAborted(signal)
         if (isCancelError(err)) throw err
+        errors.push(err instanceof Error ? err.message : String(err))
       }
     }
-    return await extractAudioViaFfmpeg(file)
+
+    try {
+      return await extractAudioViaFfmpeg(file)
+    } catch (err) {
+      throwIfAborted(signal)
+      if (isCancelError(err)) throw err
+      errors.push(err instanceof Error ? err.message : String(err))
+      throw err
+    }
   } catch (err) {
     throwIfAborted(signal)
     if (isCancelError(err)) throw err
-    throw classifyTranscriptionError(err, { code: 'VIDEO_AUDIO_EXTRACT_FAILED', phase: 'extract' })
+    const combined = errors.length > 0 ? errors.join(' | ') : err
+    throw classifyTranscriptionError(combined, { code: 'VIDEO_AUDIO_EXTRACT_FAILED', phase: 'extract' })
   }
 }
 
