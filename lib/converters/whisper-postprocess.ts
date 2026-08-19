@@ -48,6 +48,15 @@ export interface WhisperResultLike {
   chunks?: WhisperChunk[]
 }
 
+/**
+ * Xenova/whisper-* ONNX graphs are not exported with cross-attentions.
+ * transformers.js 4 needs those for `return_timestamps: 'word'` and throws
+ * mid-generation. Segment timestamps still drive caption layout.
+ */
+export function effectiveWhisperTimestamps(requested: boolean | 'word'): boolean {
+  return requested === 'word' ? true : requested
+}
+
 /** Greedy decode for Fast/Balanced. Accurate keeps a small beam for harder audio. */
 export function decodeParamsForQuality(
   quality: WhisperQuality,

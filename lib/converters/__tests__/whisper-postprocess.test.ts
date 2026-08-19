@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   decodeParamsForQuality,
+  effectiveWhisperTimestamps,
   filterWhisperChunks,
   filterWhisperResult,
   dedupeStrideOverlaps,
@@ -26,6 +27,12 @@ describe('modelVariantsForQuality', () => {
   it('never starts constrained accurate on whisper-small', () => {
     const variants = modelVariantsForQuality('accurate', { constrained: true })
     expect(variants[0].modelId).not.toBe('Xenova/whisper-small')
+  })
+})
+
+describe('effectiveWhisperTimestamps', () => {
+  it('maps word mode to segment timestamps so Xenova ONNX models do not throw', () => {
+    expect(effectiveWhisperTimestamps('word')).toBe(true)
   })
 })
 

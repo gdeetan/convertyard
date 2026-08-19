@@ -339,6 +339,7 @@ export function CaptionTool() {
         setPhase('ready')
         return
       }
+      console.error('[captions] transcription failed:', err)
       setError(toTranscriptionUserMessage(err))
       setPhase('ready')
     } finally {

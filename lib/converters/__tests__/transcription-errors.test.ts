@@ -32,4 +32,23 @@ describe('transcription error classification', () => {
     expect(error.code).toBe('VIDEO_AUDIO_EXTRACT_FAILED')
     expect(error.phase).toBe('extract')
   })
+
+  it('maps missing Whisper cross-attentions to a word-timestamp failure, not UNKNOWN', () => {
+    const error = classifyTranscriptionError(
+      'Model outputs must contain cross attentions to extract timestamps. This is most likely because the model was not exported with `output_attentions=True`.',
+    )
+
+    expect(error.code).toBe('TRANSCRIBE_FAILED')
+    expect(error.phase).toBe('transcribe')
+    expect(formatTranscriptionError(error)).not.toContain('unexpectedly')
+  })
+
+  it('maps Int16Array heap-view failures to audio extract errors', () => {
+    const error = classifyTranscriptionError(
+      new RangeError('byte length of Int16Array should be a multiple of 2'),
+    )
+
+    expect(error.code).toBe('VIDEO_AUDIO_EXTRACT_FAILED')
+    expect(toTranscriptionUserMessage(error)).toContain('audio track could not be extracted')
+  })
 })
