@@ -59,13 +59,17 @@ export function classifyTranscriptionError(
   } else if (/decodeAudioData|EncodingError|Unable to decode|decode/i.test(rawMessage)) {
     code = 'AUDIO_DECODE_FAILED'
     phase = 'decode'
-  } else if (/ffmpeg|Output file #0 does not contain any stream|no audio|stream/i.test(rawMessage)) {
+  } else if (
+    /ffmpeg|Output file #0 does not contain any stream|no audio|stream|Int16Array|WAV audio/i.test(rawMessage)
+  ) {
     code = 'VIDEO_AUDIO_EXTRACT_FAILED'
     phase = 'extract'
   } else if (/Worker error|worker/i.test(rawMessage)) {
     code = 'WORKER_INIT_FAILED'
     phase = 'worker'
-  } else if (/transcrib/i.test(rawMessage)) {
+  } else if (
+    /transcrib|cross attentions|alignment_heads|token-level timestamps|return_timestamps/i.test(rawMessage)
+  ) {
     code = 'TRANSCRIBE_FAILED'
     phase = 'transcribe'
   }

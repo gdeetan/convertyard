@@ -12,6 +12,7 @@ import {
 } from './transcription-errors'
 import {
   decodeParamsForQuality,
+  effectiveWhisperTimestamps,
   filterWhisperResult,
   modelVariantsForQuality,
   type ModelVariant,
@@ -211,7 +212,7 @@ async function runTranscribe(
   const raw = await (whisperPipeline as any)(audioData, {
     language: language ?? undefined,
     task: 'transcribe',
-    return_timestamps: timestamps,
+    return_timestamps: effectiveWhisperTimestamps(timestamps),
     chunk_length_s: 30,
     stride_length_s: 3,
     sampling_rate: sampleRate,

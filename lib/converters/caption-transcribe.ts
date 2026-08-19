@@ -7,6 +7,7 @@ import {
   preferWebAudioExtract,
   type CaptionClientProfile,
 } from './caption-workload'
+import { classifyTranscriptionError } from './transcription-errors'
 
 export type CaptionQuality = 'fast' | 'balanced' | 'accurate'
 export type CaptionTranscribePhase = 'extract' | 'model' | 'transcribe'
@@ -19,6 +20,54 @@ function currentProfile(): CaptionClientProfile {
     navigator.maxTouchPoints,
     navigator.platform,
   )
+}
+
+/** Copy ffmpeg MEMFS bytes out of the WASM heap and decode PCM s16le. */
+export function pcmFromWavBytes(raw: Uint8Array): Float32Array {
+  const bytes = raw.slice()
+  if (bytes.byteLength < 44) {
+    throw new Error('WAV audio is empty')
+  }
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+  let offset = 12
+  let dataOffset = -1
+  let dataLength = 0
+
+  while (offset + 8 <= bytes.byteLength) {
+    const id = String.fromCharCode(
+      bytes[offset],
+      bytes[offset + 1],
+      bytes[offset + 2],
+      bytes[offset + 3],
+    )
+    const size = view.getUint32(offset + 4, true)
+    if (id === 'data') {
+      dataOffset = offset + 8
+      dataLength = size
+      break
+    }
+    offset += 8 + size + (size % 2)
+    if (size < 0) break
+  }
+
+  if (dataOffset < 0) {
+    dataOffset = 44
+    dataLength = bytes.byteLength - 44
+  }
+
+  const available = bytes.byteLength - dataOffset
+  const sampleBytes = Math.max(0, Math.min(dataLength, available) & ~1)
+  if (sampleBytes < 2) {
+    throw new Error('WAV audio is empty')
+  }
+
+  const int16 = new Int16Array(bytes.buffer, bytes.byteOffset + dataOffset, sampleBytes / 2)
+  const float32 = new Float32Array(int16.length)
+  for (let i = 0; i < int16.length; i++) {
+    float32[i] = int16[i] / 32768
+  }
+  return float32
 }
 
 async function extractAudioViaFfmpeg(videoFile: File): Promise<Float32Array> {
@@ -36,14 +85,7 @@ async function extractAudioViaFfmpeg(videoFile: File): Promise<Float32Array> {
       outputName,
     ])
     const raw = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
-    const wav = raw.buffer
-    // Skip 44-byte WAV header, read Int16 samples, normalize to Float32
-    const int16 = new Int16Array(wav, 44)
-    const float32 = new Float32Array(int16.length)
-    for (let i = 0; i < int16.length; i++) {
-      float32[i] = int16[i] / 32768
-    }
-    return float32
+    return pcmFromWavBytes(raw)
   } finally {
     await ffmpeg.deleteFile(inputName).catch(() => {})
     await ffmpeg.deleteFile(outputName).catch(() => {})
@@ -59,16 +101,22 @@ export async function extractAudio(
   signal?: AbortSignal,
   profile: CaptionClientProfile = currentProfile(),
 ): Promise<Float32Array> {
-  throwIfAborted(signal)
-  if (preferWebAudioExtract(profile, videoFile.size)) {
-    try {
-      return await decodeAudioViaWebAudio(videoFile)
-    } catch (err) {
-      throwIfAborted(signal)
-      if (isCancelError(err)) throw err
+  try {
+    throwIfAborted(signal)
+    if (preferWebAudioExtract(profile, videoFile.size)) {
+      try {
+        return await decodeAudioViaWebAudio(videoFile)
+      } catch (err) {
+        throwIfAborted(signal)
+        if (isCancelError(err)) throw err
+      }
     }
+    return await extractAudioViaFfmpeg(videoFile)
+  } catch (err) {
+    throwIfAborted(signal)
+    if (isCancelError(err)) throw err
+    throw classifyTranscriptionError(err, { code: 'VIDEO_AUDIO_EXTRACT_FAILED', phase: 'extract' })
   }
-  return extractAudioViaFfmpeg(videoFile)
 }
 
 export async function transcribeToWords(
