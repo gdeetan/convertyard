@@ -22,6 +22,26 @@ function currentProfile(): CaptionClientProfile {
   )
 }
 
+/** MEMFS name with a safe extension. Extension-less names fail ffmpeg probe. */
+export function captionFfmpegInputName(fileName: string, now = Date.now()): string {
+  const m = fileName.match(/\.[^.]+$/)
+  const ext = (m ? m[0] : '.mp4').toLowerCase()
+  const safe = /^\.[a-z0-9]{1,8}$/.test(ext) ? ext : '.mp4'
+  return `cap_in_${now}${safe}`
+}
+
+export function captionExtractFfmpegArgs(inputName: string, outputName: string): string[] {
+  return [
+    '-i', inputName,
+    '-map', '0:a:0',
+    '-vn',
+    '-acodec', 'pcm_s16le',
+    '-ar', '16000',
+    '-ac', '1',
+    outputName,
+  ]
+}
+
 /** Copy ffmpeg MEMFS bytes out of the WASM heap and decode PCM s16le. */
 export function pcmFromWavBytes(raw: Uint8Array): Float32Array {
   const bytes = raw.slice()
@@ -73,20 +93,34 @@ export function pcmFromWavBytes(raw: Uint8Array): Float32Array {
 async function extractAudioViaFfmpeg(videoFile: File): Promise<Float32Array> {
   const { fetchFile } = await import('@ffmpeg/util')
   const ffmpeg = await getSingleThreadFFmpeg()
-  const inputName = `cap_in_${Date.now()}`
+  const inputName = captionFfmpegInputName(videoFile.name)
   const outputName = `cap_out_${Date.now()}.wav`
 
   await ffmpeg.writeFile(inputName, await fetchFile(videoFile))
+  const logs: string[] = []
+  const onLog = ({ message }: { message: string }) => {
+    if (message) logs.push(message)
+  }
+  ffmpeg.on('log', onLog)
   try {
-    await ffmpeg.exec([
-      '-i', inputName,
-      '-vn', '-acodec', 'pcm_s16le',
-      '-ar', '16000', '-ac', '1',
-      outputName,
-    ])
+    // exec() resolves with the exit code and does not throw on failure.
+    const code = await ffmpeg.exec(captionExtractFfmpegArgs(inputName, outputName))
+    if (code !== 0) {
+      const tail = logs.filter(Boolean).slice(-6).join(' | ')
+      throw new Error(
+        tail
+          ? `ffmpeg extract failed (exit ${code}): ${tail}`
+          : `ffmpeg extract failed (exit ${code})`,
+      )
+    }
     const raw = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
-    return pcmFromWavBytes(raw)
+    try {
+      return await decodeAudioViaWebAudio(new File([raw], outputName, { type: 'audio/wav' }))
+    } catch {
+      return pcmFromWavBytes(raw)
+    }
   } finally {
+    ffmpeg.off('log', onLog)
     await ffmpeg.deleteFile(inputName).catch(() => {})
     await ffmpeg.deleteFile(outputName).catch(() => {})
   }

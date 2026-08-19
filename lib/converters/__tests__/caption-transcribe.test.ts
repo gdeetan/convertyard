@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { pcmFromWavBytes } from '../caption-transcribe'
+import {
+  captionExtractFfmpegArgs,
+  captionFfmpegInputName,
+  pcmFromWavBytes,
+} from '../caption-transcribe'
 import { effectiveWhisperTimestamps } from '../whisper-postprocess'
 
 function writeAscii(bytes: Uint8Array, offset: number, text: string) {
@@ -90,6 +94,28 @@ describe('pcmFromWavBytes', () => {
     expect(pcm).toHaveLength(2)
     expect(pcm[0]).toBeCloseTo(1234 / 32768, 4)
     expect(pcm[1]).toBeCloseTo(-2345 / 32768, 4)
+  })
+})
+
+describe('captionFfmpegInputName', () => {
+  it('keeps a safe container extension so ffmpeg can probe the file', () => {
+    expect(captionFfmpegInputName('Holiday.MOV', 1)).toBe('cap_in_1.mov')
+    expect(captionFfmpegInputName('clip.webm', 2)).toBe('cap_in_2.webm')
+    expect(captionFfmpegInputName('noext', 3)).toBe('cap_in_3.mp4')
+  })
+})
+
+describe('captionExtractFfmpegArgs', () => {
+  it('maps only the first audio stream and does not re-encode video', () => {
+    expect(captionExtractFfmpegArgs('cap_in_1.mov', 'out.wav')).toEqual([
+      '-i', 'cap_in_1.mov',
+      '-map', '0:a:0',
+      '-vn',
+      '-acodec', 'pcm_s16le',
+      '-ar', '16000',
+      '-ac', '1',
+      'out.wav',
+    ])
   })
 })
 
