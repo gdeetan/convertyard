@@ -72,6 +72,11 @@ describe('caption iOS memory policy', () => {
     expect(preferWebAudioExtract('desktop', 80 * 1024 * 1024)).toBe(true)
   })
 
+  it('skips WebAudio extract on Android so camera videos are not copied twice before ffmpeg', () => {
+    expect(preferWebAudioExtract('android', 2 * 1024 * 1024)).toBe(false)
+    expect(preferWebAudioExtract('android', 40 * 1024 * 1024)).toBe(false)
+  })
+
   it('uses Safari-safe ONNX WASM on every iOS browser, including Chrome', () => {
     expect(needsSafariOnnxWasm(
       'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
