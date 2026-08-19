@@ -55,10 +55,79 @@ describe('looksLikeMp4', () => {
   })
 })
 
+function ascii(s: string): Uint8Array {
+  return new TextEncoder().encode(s)
+}
+
+function buildMovWithWaveEsds(): Uint8Array {
+  const sample = new Uint8Array([0x21, 0x10, 0x04, 0x60, 0x8c])
+  const ftyp = box('ftyp', concat(ascii('qt  '), u32(0), ascii('qt  ')))
+  const mdat = box('mdat', sample)
+  const sampleOffset = ftyp.length + 8
+  const esds = box('esds', concat(
+    u32(0),
+    new Uint8Array([
+      3, 0x80, 0x80, 0x80, 0x16,
+      0, 2, 0,
+      4, 0x80, 0x80, 0x80, 0x0e,
+      0x40, 0x15, 0, 0, 0, 0, 0, 0, 0, 0,
+      5, 0x80, 0x80, 0x80, 2,
+      0x11, 0x90,
+    ]),
+  ))
+  const wave = box('wave', concat(box('frma', ascii('mp4a')), esds))
+  const mp4a = box('mp4a', concat(
+    new Uint8Array(6),
+    u16(1),
+    new Uint8Array(8),
+    u16(2),
+    u16(16),
+    u16(0),
+    u16(0),
+    u32(0xbb800000),
+    wave,
+  ))
+  const stsd = box('stsd', concat(u32(0), u32(1), mp4a))
+  const stbl = box('stbl', concat(
+    stsd,
+    box('stts', concat(u32(0), u32(1), u32(1), u32(1024))),
+    box('stsc', concat(u32(0), u32(1), u32(1), u32(1), u32(1))),
+    box('stsz', concat(u32(0), u32(0), u32(1), u32(sample.length))),
+    box('stco', concat(u32(0), u32(1), u32(sampleOffset))),
+  ))
+  const minf = box('minf', concat(
+    box('smhd', concat(u32(0), u16(0), u16(0))),
+    box('dinf', box('dref', concat(u32(0), u32(1), box('url ', u32(1))))),
+    stbl,
+  ))
+  const mdia = box('mdia', concat(
+    box('mdhd', concat(u32(0), u32(0), u32(0), u32(48000), u32(1024), u32(0x55c40000))),
+    box('hdlr', concat(u32(0), u32(0), ascii('soun'), u32(0), u32(0), u32(0), ascii('SoundHandler'), new Uint8Array([0]))),
+    minf,
+  ))
+  const trak = box('trak', concat(
+    box('tkhd', concat(u32(0), u32(0), u32(0), u32(1), u32(0), u32(1024), new Uint8Array(44))),
+    mdia,
+  ))
+  const moov = box('moov', concat(
+    box('mvhd', concat(u32(0), u32(0), u32(0), u32(1000), u32(21), new Uint8Array(76))),
+    trak,
+  ))
+  return concat(ftyp, mdat, moov)
+}
+
 describe('extractMp4AacAdts', () => {
   it('returns null when there is no audio track', () => {
     const ftyp = box('ftyp', concat(new TextEncoder().encode('isom'), u32(0)))
     expect(extractMp4AacAdts(concat(ftyp, box('moov', new Uint8Array(8))))).toBeNull()
+  })
+
+  it('finds AAC inside a QuickTime wave atom (iPhone MOV)', () => {
+    const adts = extractMp4AacAdts(buildMovWithWaveEsds())
+    expect(adts).not.toBeNull()
+    expect(adts![0]).toBe(0xff)
+    expect(adts![1] & 0xf0).toBe(0xf0)
+    expect(adts!.length).toBeGreaterThan(7)
   })
 
   it('extracts ADTS from a real MP4 with an AAC track when the fixture exists', () => {
