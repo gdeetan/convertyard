@@ -51,4 +51,12 @@ describe('transcription error classification', () => {
     expect(error.code).toBe('VIDEO_AUDIO_EXTRACT_FAILED')
     expect(toTranscriptionUserMessage(error)).toContain('audio track could not be extracted')
   })
+
+  it('maps Android Chrome stale picker File reads to a choose-again message', () => {
+    const error = classifyTranscriptionError(
+      'The requested file could not be read, typically due to permission problems that have occurred after a reference to a file was acquired. File could not be read! Code=-1',
+    )
+    expect(error.code).toBe('FILE_READ_FAILED')
+    expect(toTranscriptionUserMessage(error)).toMatch(/Choose the file again/i)
+  })
 })

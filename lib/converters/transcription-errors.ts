@@ -4,6 +4,7 @@ export type TranscriptionErrorCode =
   | 'MODEL_DOWNLOAD_FAILED'
   | 'WORKER_INIT_FAILED'
   | 'VIDEO_AUDIO_EXTRACT_FAILED'
+  | 'FILE_READ_FAILED'
   | 'AUDIO_DECODE_FAILED'
   | 'TRANSCRIBE_FAILED'
   | 'UNKNOWN'
@@ -56,6 +57,9 @@ export function classifyTranscriptionError(
   } else if (/fetch|network|download|Failed to fetch|Load failed|HTTP/i.test(rawMessage)) {
     code = 'MODEL_DOWNLOAD_FAILED'
     phase = 'load'
+  } else if (/requested file could not be read|permission problems that have occurr|File could not be read/i.test(rawMessage)) {
+    code = 'FILE_READ_FAILED'
+    phase = 'extract'
   } else if (/decodeAudioData|EncodingError|Unable to decode|decode/i.test(rawMessage)) {
     code = 'AUDIO_DECODE_FAILED'
     phase = 'decode'
@@ -118,6 +122,8 @@ export function formatTranscriptionError(error: TranscriptionErrorShape): string
       return 'The selected Whisper model failed to initialize in this browser. The tool tried fallback variants but none loaded successfully.'
     case 'MODEL_DOWNLOAD_FAILED':
       return 'The Whisper model could not be downloaded. Check your connection and try again.'
+    case 'FILE_READ_FAILED':
+      return 'The phone stopped allowing access to that video. Choose the file again and tap Transcribe right away.'
     case 'VIDEO_AUDIO_EXTRACT_FAILED':
       return 'The video audio track could not be extracted. Try a different file or convert the audio track first.'
     case 'AUDIO_DECODE_FAILED':

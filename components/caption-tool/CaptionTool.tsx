@@ -5,6 +5,7 @@ import { Download, RefreshCcw, FileDown, FileUp, Play, Pause, Maximize2 } from '
 import type { WordChunk, CaptionOptions, CaptionStyleId } from '@/lib/converters/caption-types'
 import { DEFAULT_CAPTION_OPTIONS, STYLE_PRESETS } from '@/lib/converters/caption-types'
 import type { CaptionQuality } from '@/lib/converters/caption-transcribe'
+import { captionFileFromBytes } from '@/lib/converters/caption-file'
 import { Dropzone } from '@/components/tool-shell/dropzone'
 import { CaptionStylePicker } from './CaptionStylePicker'
 import { CaptionFontPanel } from './CaptionFontPanel'
@@ -240,6 +241,7 @@ export function CaptionTool() {
   const [seekNonce, setSeekNonce] = useState(0)
   const importRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const [fileReady, setFileReady] = useState(false)
 
   const workloadWarning = videoFile && videoDims
     ? captionWorkloadWarning({
@@ -251,30 +253,45 @@ export function CaptionTool() {
     : null
 
   const applyVideoFile = useCallback((file: File) => {
+    // Start the byte copy BEFORE any other await. Android Chrome revokes
+    // gallery File access after the picker callback yields.
+    const bytesPromise = file.arrayBuffer()
     setVideoFile(file)
     setWords([])
     setResultFile(null)
     setTimestampsEstimated(false)
     setError(null)
     setDurationSec(0)
+    setFileReady(false)
     setPhase('ready')
-    getVideoDimensions(file).then((dims) => {
-      setVideoDims(dims)
-      setOptions((prev) => ({ ...prev, maxCharsPerLine: smartMaxChars(dims.width, prev.fontSize) }))
-    })
-    probeVideoDuration(file).then(setDurationSec)
-    if (typeof navigator !== 'undefined') {
-      const profile = detectCaptionClientProfile(
-        navigator.userAgent,
-        navigator.maxTouchPoints,
-        navigator.platform,
-      )
-      if (shouldPreloadCaptionFfmpeg(profile)) {
-        import('@/lib/converters/ffmpeg-client').then(({ getSingleThreadFFmpeg }) => {
-          getSingleThreadFFmpeg().catch(() => { /* burn click will surface errors */ })
-        })
+    void bytesPromise.then((buf) => {
+      const copy = captionFileFromBytes(buf, file)
+      setVideoFile(copy)
+      setFileReady(true)
+      getVideoDimensions(copy).then((dims) => {
+        setVideoDims(dims)
+        setOptions((prev) => ({ ...prev, maxCharsPerLine: smartMaxChars(dims.width, prev.fontSize) }))
+      })
+      probeVideoDuration(copy).then(setDurationSec)
+      if (typeof navigator !== 'undefined') {
+        const profile = detectCaptionClientProfile(
+          navigator.userAgent,
+          navigator.maxTouchPoints,
+          navigator.platform,
+        )
+        if (shouldPreloadCaptionFfmpeg(profile)) {
+          import('@/lib/converters/ffmpeg-client').then(({ getSingleThreadFFmpeg }) => {
+            getSingleThreadFFmpeg().catch(() => { /* burn click will surface errors */ })
+          })
+        }
       }
-    }
+    }).catch((err) => {
+      const shaped = classifyTranscriptionError(err, { code: 'FILE_READ_FAILED', phase: 'extract' })
+      setError(toTranscriptionUserMessage(shaped))
+      setVideoFile(null)
+      setFileReady(false)
+      setPhase('idle')
+    })
   }, [])
 
   const handleDrop = useCallback((files: File[]) => {
@@ -283,7 +300,7 @@ export function CaptionTool() {
   }, [applyVideoFile])
 
   const handleTranscribe = useCallback(async () => {
-    if (!videoFile) return
+    if (!videoFile || !fileReady) return
     abortRef.current?.abort()
     const ac = new AbortController()
     abortRef.current = ac
@@ -355,7 +372,7 @@ export function CaptionTool() {
     } finally {
       wakeLock.release()
     }
-  }, [videoFile, quality, language])
+  }, [videoFile, fileReady, quality, language])
 
   const handleImportFile = useCallback(async (file: File) => {
     try {
@@ -478,6 +495,7 @@ export function CaptionTool() {
     setError(null)
     setTimestampsEstimated(false)
     setDurationSec(0)
+    setFileReady(false)
   }
 
   function handleSeek(time: number) {
@@ -609,9 +627,10 @@ export function CaptionTool() {
             <button
               type="button"
               onClick={() => void handleTranscribe()}
-              className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/90"
+              disabled={!fileReady}
+              className="rounded-xl bg-primary px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
             >
-              Transcribe
+              {fileReady ? 'Transcribe' : 'Reading video…'}
             </button>
           </div>
         </div>
