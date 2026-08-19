@@ -6,7 +6,12 @@ import {
   detectCaptionClientProfile,
   needsSafariOnnxWasm,
   preferWebAudioExtract,
+  shouldMaterializePickerFile,
   shouldPreloadCaptionFfmpeg,
+  shouldSliceWhisperAudio,
+  shouldSnapWordOnsets,
+  shouldUseFfmpegExtract,
+  whisperAudioWindows,
 } from '../caption-workload'
 
 describe('captionWorkloadWarning', () => {
@@ -75,6 +80,32 @@ describe('caption iOS memory policy', () => {
   it('skips WebAudio extract on Android so camera videos are not copied twice before ffmpeg', () => {
     expect(preferWebAudioExtract('android', 2 * 1024 * 1024)).toBe(false)
     expect(preferWebAudioExtract('android', 40 * 1024 * 1024)).toBe(false)
+  })
+
+  it('copies picker files only on Android — iOS keeps the original handle', () => {
+    expect(shouldMaterializePickerFile('android')).toBe(true)
+    expect(shouldMaterializePickerFile('ios')).toBe(false)
+    expect(shouldMaterializePickerFile('desktop')).toBe(false)
+  })
+
+  it('slices Whisper audio and skips onset-snap on iPhone to stay under Safari’s memory cap', () => {
+    expect(shouldSliceWhisperAudio('ios')).toBe(true)
+    expect(shouldSliceWhisperAudio('desktop')).toBe(false)
+    expect(shouldSnapWordOnsets('ios')).toBe(false)
+    expect(shouldSnapWordOnsets('desktop')).toBe(true)
+    expect(shouldUseFfmpegExtract('ios', 20 * 1024 * 1024)).toBe(false)
+    expect(shouldUseFfmpegExtract('ios', 4 * 1024 * 1024)).toBe(true)
+    expect(shouldUseFfmpegExtract('desktop', 80 * 1024 * 1024)).toBe(true)
+  })
+
+  it('windows iPhone audio into overlapping 20s slices', () => {
+    const windows = whisperAudioWindows(16000 * 45, 16000, 'ios')
+    expect(windows.length).toBeGreaterThan(1)
+    expect(windows[0]).toEqual({ start: 0, end: 16000 * 20, offsetSec: 0 })
+    expect(windows[1].offsetSec).toBe(17)
+    expect(whisperAudioWindows(16000 * 45, 16000, 'desktop')).toEqual([
+      { start: 0, end: 16000 * 45, offsetSec: 0 },
+    ])
   })
 
   it('uses Safari-safe ONNX WASM on every iOS browser, including Chrome', () => {
