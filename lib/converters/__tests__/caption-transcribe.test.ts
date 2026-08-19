@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   captionExtractFfmpegArgs,
   captionExtractFfmpegArgSets,
+  captionFileFromBytes,
   captionFfmpegInputName,
   materializeCaptionFile,
   pcmFromWavBytes,
@@ -119,6 +120,14 @@ describe('materializeCaptionFile', () => {
     const file = await materializeCaptionFile(raw)
     expect(file.name).toBe('video.mov')
     expect(file.size).toBe(64)
+  })
+
+  it('builds an in-memory File from bytes so later reads do not hit the picker grant', () => {
+    const buf = new Uint8Array(64).fill(9).buffer
+    const file = captionFileFromBytes(buf, { name: 'VID_001.mp4', type: 'video/mp4' })
+    expect(file.name).toBe('VID_001.mp4')
+    expect(file.size).toBe(64)
+    expect(file.type).toBe('video/mp4')
   })
 })
 
