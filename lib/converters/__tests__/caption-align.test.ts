@@ -1,0 +1,48 @@
+import { describe, expect, it } from 'vitest'
+import { snapWordsToOnsets } from '../caption-align'
+import type { WordChunk } from '../caption-types'
+
+function toneBurst(sampleRate: number, startSec: number, durSec: number, totalSec: number): Float32Array {
+  const audio = new Float32Array(Math.round(totalSec * sampleRate))
+  const start = Math.round(startSec * sampleRate)
+  const end = Math.min(audio.length, start + Math.round(durSec * sampleRate))
+  for (let i = start; i < end; i++) {
+    audio[i] = Math.sin((2 * Math.PI * 220 * i) / sampleRate) * 0.8
+  }
+  return audio
+}
+
+describe('snapWordsToOnsets', () => {
+  it('moves evenly-split words onto speech bursts', () => {
+    const sampleRate = 16000
+    const audio = toneBurst(sampleRate, 0.5, 0.2, 3)
+    // second and third bursts
+    const b2 = toneBurst(sampleRate, 1.2, 0.2, 3)
+    const b3 = toneBurst(sampleRate, 2.0, 0.2, 3)
+    for (let i = 0; i < audio.length; i++) audio[i] += b2[i] + b3[i]
+
+    const words: WordChunk[] = [
+      { text: 'one', start: 0, end: 1 },
+      { text: 'two', start: 1, end: 2 },
+      { text: 'three', start: 2, end: 3 },
+    ]
+    const snapped = snapWordsToOnsets(words, audio, sampleRate)
+    expect(snapped[0].start).toBeGreaterThanOrEqual(0.4)
+    expect(snapped[0].start).toBeLessThan(0.65)
+    expect(snapped[1].start).toBeGreaterThanOrEqual(1.1)
+    expect(snapped[1].start).toBeLessThan(1.35)
+    expect(snapped[2].start).toBeGreaterThanOrEqual(1.9)
+    expect(snapped[2].start).toBeLessThan(2.15)
+    expect(snapped[0].end).toBe(snapped[1].start)
+    expect(snapped[1].end).toBe(snapped[2].start)
+  })
+
+  it('leaves timings alone when the audio is silent', () => {
+    const words: WordChunk[] = [
+      { text: 'one', start: 0.2, end: 0.5 },
+      { text: 'two', start: 0.5, end: 0.9 },
+    ]
+    const out = snapWordsToOnsets(words, new Float32Array(16000), 16000)
+    expect(out).toEqual(words)
+  })
+})

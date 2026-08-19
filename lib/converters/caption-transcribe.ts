@@ -1,6 +1,7 @@
 import { getSingleThreadFFmpeg, resetFFmpeg, resetSingleThreadFFmpeg } from './ffmpeg-client'
 import { loadTranscriptionModel, transcribeAudio } from './transcription-client'
 import { applyWhisperWordLead, wordsFromTranscription, type CaptionTranscript } from './caption-words'
+import { snapWordsToOnsets } from './caption-align'
 import { decodeAudioViaWebAudio, throwIfAborted, isCancelError } from './audio-decode'
 import {
   detectCaptionClientProfile,
@@ -219,43 +220,36 @@ export async function transcribeToWords(
   throwIfAborted(signal)
   onProgress('model', 100)
 
-  // Whisper's pipeline only reports 10% then 95%. Split into 30s slices so the
-  // bar actually moves — otherwise the UI sits at 55% for the whole inference.
+  // One Whisper pass. The pipeline already windows at 30s with a 3s stride.
+  // Hard-cutting here mid-word made captions drift from the voice.
   const sampleRate = 16000
-  const chunkSamples = 30 * sampleRate
-  const totalChunks = Math.max(1, Math.ceil(audioData.length / chunkSamples))
-  const merged: { text: string; timestamp?: [number, number] }[] = []
-  const textParts: string[] = []
+  const durationSec = audioData.length / sampleRate
+  const started = Date.now()
+  const tick = setInterval(() => {
+    const elapsed = (Date.now() - started) / 1000
+    onProgress('transcribe', Math.min(95, Math.round((elapsed / Math.max(1, durationSec * 2)) * 100)))
+  }, 250)
 
-  for (let i = 0; i < totalChunks; i++) {
-    throwIfAborted(signal)
-    const start = i * chunkSamples
-    const end = Math.min(audioData.length, start + chunkSamples)
-    const offsetSec = start / sampleRate
-    const slice = audioData.slice(start, end)
-    onProgress('transcribe', Math.round((i / totalChunks) * 100))
-
-    const result = await transcribeAudio(
-      slice,
+  let result
+  try {
+    result = await transcribeAudio(
+      audioData.slice(),
       sampleRate,
       language,
       'word',
-      (p) => onProgress('transcribe', Math.round(((i + p / 100) / totalChunks) * 100)),
+      (p) => onProgress('transcribe', Math.min(95, Math.round(p))),
       signal,
     )
-
-    if (result.chunks) {
-      for (const c of result.chunks) {
-        const t0 = (c.timestamp?.[0] ?? 0) + offsetSec
-        const t1 = (c.timestamp?.[1] ?? t0) + offsetSec
-        merged.push({ text: c.text, timestamp: [t0, t1] })
-      }
-    }
-    if (result.text) textParts.push(result.text)
-    await new Promise<void>((r) => setTimeout(r, 0))
+  } finally {
+    clearInterval(tick)
   }
 
   onProgress('transcribe', 100)
   throwIfAborted(signal)
-  return applyWhisperWordLead(wordsFromTranscription({ text: textParts.join(' '), chunks: merged }))
+  const transcript = wordsFromTranscription(result)
+  if (transcript.timestampsEstimated) return transcript
+  const snapped = snapWordsToOnsets(transcript.words, audioData, sampleRate)
+  const moved = snapped.some((w, i) => Math.abs(w.start - transcript.words[i].start) > 0.03)
+  if (moved) return { ...transcript, words: snapped }
+  return applyWhisperWordLead(transcript)
 }
