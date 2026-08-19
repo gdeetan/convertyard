@@ -16,13 +16,31 @@ export function mixToMono(buffer: {
   return mono
 }
 
+/** Linear resample. Android Chrome often ignores AudioContext({ sampleRate }). */
+export function resampleMono(input: Float32Array, fromRate: number, toRate: number): Float32Array {
+  if (fromRate === toRate || input.length === 0) return input
+  if (!(fromRate > 0) || !(toRate > 0)) return input
+  const outLen = Math.max(1, Math.round(input.length * toRate / fromRate))
+  const out = new Float32Array(outLen)
+  const ratio = fromRate / toRate
+  for (let i = 0; i < outLen; i++) {
+    const x = i * ratio
+    const i0 = Math.min(input.length - 1, Math.floor(x))
+    const i1 = Math.min(input.length - 1, i0 + 1)
+    const t = x - i0
+    out[i] = input[i0] * (1 - t) + input[i1] * t
+  }
+  return out
+}
+
 /** Decode any browser-supported media file to 16 kHz mono PCM. */
 export async function decodeAudioViaWebAudio(file: File, sampleRate = 16000): Promise<Float32Array> {
   const audioCtx = new AudioContext({ sampleRate })
   try {
     const buffer = await audioCtx.decodeAudioData(await file.arrayBuffer())
     if (!buffer.length) throw new Error('Decoded audio is empty')
-    return mixToMono(buffer)
+    const mono = mixToMono(buffer)
+    return resampleMono(mono, buffer.sampleRate || sampleRate, sampleRate)
   } finally {
     await audioCtx.close()
   }

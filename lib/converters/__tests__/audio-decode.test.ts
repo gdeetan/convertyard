@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mixToMono, isCancelError, CaptionCancelledError, throwIfAborted } from '../audio-decode'
+import { mixToMono, resampleMono, isCancelError, CaptionCancelledError, throwIfAborted } from '../audio-decode'
 
 function fakeBuffer(channels: Float32Array[]): {
   numberOfChannels: number
@@ -27,6 +27,16 @@ describe('mixToMono', () => {
       new Float32Array([-1, 0.5, 1]),
     ]))
     expect(Array.from(out)).toEqual([0, 0.5, 0.5])
+  })
+})
+
+describe('resampleMono', () => {
+  it('downsamples 48 kHz to 16 kHz', () => {
+    const input = new Float32Array(480)
+    input[0] = 1
+    const out = resampleMono(input, 48000, 16000)
+    expect(out).toHaveLength(160)
+    expect(out[0]).toBeCloseTo(1)
   })
 })
 

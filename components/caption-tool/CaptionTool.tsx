@@ -19,7 +19,11 @@ import {
 } from '@/lib/converters/caption-workload'
 import { acquireWakeLock } from '@/lib/utils/wake-lock'
 import { isCancelError } from '@/lib/converters/audio-decode'
-import { toTranscriptionUserMessage } from '@/lib/converters/transcription-errors'
+import {
+  classifyTranscriptionError,
+  isTranscriptionErrorShape,
+  toTranscriptionUserMessage,
+} from '@/lib/converters/transcription-errors'
 import { probeVideoDuration } from '@/lib/converters/media-probe'
 
 type Phase = 'idle' | 'ready' | 'transcribing' | 'edit' | 'burning' | 'done'
@@ -340,7 +344,13 @@ export function CaptionTool() {
         return
       }
       console.error('[captions] transcription failed:', err)
-      setError(toTranscriptionUserMessage(err))
+      const user = toTranscriptionUserMessage(err)
+      const shaped = isTranscriptionErrorShape(err) ? err : classifyTranscriptionError(err)
+      setError(
+        shaped.rawMessage && shaped.rawMessage !== user
+          ? `${user}\n${shaped.rawMessage}`
+          : user,
+      )
       setPhase('ready')
     } finally {
       wakeLock.release()
@@ -579,7 +589,7 @@ export function CaptionTool() {
         </p>
 
         {error && (
-          <p className="rounded bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>
+          <p className="whitespace-pre-wrap rounded bg-red-50 px-3 py-2 text-sm text-red-700 dark:bg-red-950 dark:text-red-300">{error}</p>
         )}
 
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
