@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   captionExtractFfmpegArgs,
+  captionExtractFfmpegArgSets,
   captionFfmpegInputName,
+  materializeCaptionFile,
   pcmFromWavBytes,
 } from '../caption-transcribe'
 import { effectiveWhisperTimestamps } from '../whisper-postprocess'
@@ -103,13 +105,41 @@ describe('captionFfmpegInputName', () => {
     expect(captionFfmpegInputName('clip.webm', 2)).toBe('cap_in_2.webm')
     expect(captionFfmpegInputName('noext', 3)).toBe('cap_in_3.mp4')
   })
+
+  it('uses the Android gallery MIME type when the picker file has no extension', () => {
+    expect(captionFfmpegInputName('video', 4, 'video/mp4')).toBe('cap_in_4.mp4')
+    expect(captionFfmpegInputName('', 5, 'video/quicktime')).toBe('cap_in_5.mov')
+    expect(captionFfmpegInputName('clip', 6, 'video/3gpp')).toBe('cap_in_6.3gp')
+  })
 })
 
-describe('captionExtractFfmpegArgs', () => {
+describe('materializeCaptionFile', () => {
+  it('gives Android picker blobs a real name and copies the bytes', async () => {
+    const raw = new File([new Uint8Array(64).fill(1)], '', { type: 'video/quicktime' })
+    const file = await materializeCaptionFile(raw)
+    expect(file.name).toBe('video.mov')
+    expect(file.size).toBe(64)
+  })
+})
+
+describe('captionExtractFfmpegArgSets', () => {
   it('maps only the first audio stream and does not re-encode video', () => {
     expect(captionExtractFfmpegArgs('cap_in_1.mov', 'out.wav')).toEqual([
       '-i', 'cap_in_1.mov',
       '-map', '0:a:0',
+      '-vn',
+      '-acodec', 'pcm_s16le',
+      '-ar', '16000',
+      '-ac', '1',
+      'out.wav',
+    ])
+  })
+
+  it('falls back to a no-map extract when stream 0:a:0 is missing', () => {
+    const sets = captionExtractFfmpegArgSets('in.mp4', 'out.wav')
+    expect(sets.length).toBeGreaterThan(1)
+    expect(sets.at(-1)).toEqual([
+      '-i', 'in.mp4',
       '-vn',
       '-acodec', 'pcm_s16le',
       '-ar', '16000',

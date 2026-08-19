@@ -22,24 +22,53 @@ function currentProfile(): CaptionClientProfile {
   )
 }
 
+const MIME_EXT: Record<string, string> = {
+  'video/mp4': '.mp4',
+  'video/quicktime': '.mov',
+  'video/webm': '.webm',
+  'video/x-matroska': '.mkv',
+  'video/x-msvideo': '.avi',
+  'video/3gpp': '.3gp',
+  'video/3gpp2': '.3g2',
+  'audio/mp4': '.m4a',
+  'audio/mpeg': '.mp3',
+  'audio/wav': '.wav',
+  'audio/webm': '.webm',
+}
+
+function safeCaptionExt(ext: string, mime = ''): string {
+  const lower = ext.toLowerCase()
+  if (/^\.[a-z0-9]{1,8}$/.test(lower)) return lower
+  return MIME_EXT[mime] ?? '.mp4'
+}
+
 /** MEMFS name with a safe extension. Extension-less names fail ffmpeg probe. */
-export function captionFfmpegInputName(fileName: string, now = Date.now()): string {
+export function captionFfmpegInputName(fileName: string, now = Date.now(), mime = ''): string {
   const m = fileName.match(/\.[^.]+$/)
-  const ext = (m ? m[0] : '.mp4').toLowerCase()
-  const safe = /^\.[a-z0-9]{1,8}$/.test(ext) ? ext : '.mp4'
-  return `cap_in_${now}${safe}`
+  return `cap_in_${now}${safeCaptionExt(m ? m[0] : '', mime)}`
+}
+
+export function captionExtractFfmpegArgSets(inputName: string, outputName: string): string[][] {
+  const encode = ['-vn', '-acodec', 'pcm_s16le', '-ar', '16000', '-ac', '1', outputName]
+  return [
+    ['-i', inputName, '-map', '0:a:0', ...encode],
+    ['-i', inputName, '-map', 'a:0', ...encode],
+    ['-i', inputName, ...encode],
+  ]
 }
 
 export function captionExtractFfmpegArgs(inputName: string, outputName: string): string[] {
-  return [
-    '-i', inputName,
-    '-map', '0:a:0',
-    '-vn',
-    '-acodec', 'pcm_s16le',
-    '-ar', '16000',
-    '-ac', '1',
-    outputName,
-  ]
+  return captionExtractFfmpegArgSets(inputName, outputName)[0]
+}
+
+/** Android gallery pickers often hand back a lazy blob. Copy it first. */
+export async function materializeCaptionFile(file: File): Promise<File> {
+  const buf = await file.arrayBuffer()
+  if (buf.byteLength < 32) throw new Error('Could not read the video file')
+  const name = file.name && /\.[^.]+$/.test(file.name)
+    ? file.name
+    : `video${safeCaptionExt('', file.type)}`
+  return new File([buf], name, { type: file.type || 'video/mp4' })
 }
 
 /** Copy ffmpeg MEMFS bytes out of the WASM heap and decode PCM s16le. */
@@ -90,10 +119,18 @@ export function pcmFromWavBytes(raw: Uint8Array): Float32Array {
   return float32
 }
 
+async function wavToPcm(raw: Uint8Array<ArrayBuffer>, outputName: string): Promise<Float32Array> {
+  try {
+    return await decodeAudioViaWebAudio(new File([raw], outputName, { type: 'audio/wav' }))
+  } catch {
+    return pcmFromWavBytes(raw)
+  }
+}
+
 async function extractAudioViaFfmpeg(videoFile: File): Promise<Float32Array> {
   const { fetchFile } = await import('@ffmpeg/util')
   const ffmpeg = await getSingleThreadFFmpeg()
-  const inputName = captionFfmpegInputName(videoFile.name)
+  const inputName = captionFfmpegInputName(videoFile.name, Date.now(), videoFile.type)
   const outputName = `cap_out_${Date.now()}.wav`
 
   await ffmpeg.writeFile(inputName, await fetchFile(videoFile))
@@ -102,23 +139,26 @@ async function extractAudioViaFfmpeg(videoFile: File): Promise<Float32Array> {
     if (message) logs.push(message)
   }
   ffmpeg.on('log', onLog)
+  let lastError: Error | null = null
   try {
-    // exec() resolves with the exit code and does not throw on failure.
-    const code = await ffmpeg.exec(captionExtractFfmpegArgs(inputName, outputName))
-    if (code !== 0) {
-      const tail = logs.filter(Boolean).slice(-6).join(' | ')
-      throw new Error(
-        tail
-          ? `ffmpeg extract failed (exit ${code}): ${tail}`
-          : `ffmpeg extract failed (exit ${code})`,
-      )
+    for (const args of captionExtractFfmpegArgSets(inputName, outputName)) {
+      logs.length = 0
+      await ffmpeg.deleteFile(outputName).catch(() => {})
+      // exec() resolves with the exit code and does not throw on failure.
+      const code = await ffmpeg.exec(args)
+      if (code !== 0) {
+        const tail = logs.filter(Boolean).slice(-6).join(' | ')
+        lastError = new Error(
+          tail
+            ? `ffmpeg extract failed (exit ${code}): ${tail}`
+            : `ffmpeg extract failed (exit ${code})`,
+        )
+        continue
+      }
+      const raw = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      return wavToPcm(raw, outputName)
     }
-    const raw = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
-    try {
-      return await decodeAudioViaWebAudio(new File([raw], outputName, { type: 'audio/wav' }))
-    } catch {
-      return pcmFromWavBytes(raw)
-    }
+    throw lastError ?? new Error('ffmpeg extract failed')
   } finally {
     ffmpeg.off('log', onLog)
     await ffmpeg.deleteFile(inputName).catch(() => {})
@@ -137,15 +177,17 @@ export async function extractAudio(
 ): Promise<Float32Array> {
   try {
     throwIfAborted(signal)
-    if (preferWebAudioExtract(profile, videoFile.size)) {
+    const file = await materializeCaptionFile(videoFile)
+    throwIfAborted(signal)
+    if (preferWebAudioExtract(profile, file.size)) {
       try {
-        return await decodeAudioViaWebAudio(videoFile)
+        return await decodeAudioViaWebAudio(file)
       } catch (err) {
         throwIfAborted(signal)
         if (isCancelError(err)) throw err
       }
     }
-    return await extractAudioViaFfmpeg(videoFile)
+    return await extractAudioViaFfmpeg(file)
   } catch (err) {
     throwIfAborted(signal)
     if (isCancelError(err)) throw err

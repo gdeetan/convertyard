@@ -53,8 +53,14 @@ export function captionJobSteps(_profile: CaptionClientProfile): CaptionJobStep[
   return ['extract', 'release-ffmpeg', 'load-model', 'transcribe']
 }
 
-/** Large iPhone camera files OOM if WebAudio copies the whole MOV into RAM. */
+/**
+ * Android Chrome file-picker videos (especially HEVC camera clips) often fail
+ * decodeAudioData, and the failed decode still copies the whole file into RAM
+ * before ffmpeg runs. Always take the ffmpeg path on Android.
+ * Large iPhone camera files OOM if WebAudio copies the whole MOV into RAM.
+ */
 export function preferWebAudioExtract(profile: CaptionClientProfile, fileBytes: number): boolean {
+  if (profile === 'android') return false
   if (profile === 'ios') return fileBytes < IOS_WEBAUDIO_MAX_BYTES
   return true
 }
