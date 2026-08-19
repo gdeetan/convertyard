@@ -98,11 +98,11 @@ describe('caption iOS memory policy', () => {
     expect(shouldUseFfmpegExtract('desktop', 80 * 1024 * 1024)).toBe(true)
   })
 
-  it('windows iPhone audio into overlapping 20s slices', () => {
+  it('windows iPhone audio into overlapping 15s slices', () => {
     const windows = whisperAudioWindows(16000 * 45, 16000, 'ios')
     expect(windows.length).toBeGreaterThan(1)
-    expect(windows[0]).toEqual({ start: 0, end: 16000 * 20, offsetSec: 0 })
-    expect(windows[1].offsetSec).toBe(17)
+    expect(windows[0]).toEqual({ start: 0, end: 16000 * 15, offsetSec: 0 })
+    expect(windows[1].offsetSec).toBe(12)
     expect(whisperAudioWindows(16000 * 45, 16000, 'desktop')).toEqual([
       { start: 0, end: 16000 * 45, offsetSec: 0 },
     ])

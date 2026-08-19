@@ -87,8 +87,8 @@ export function shouldUseFfmpegExtract(profile: CaptionClientProfile, fileBytes:
   return true
 }
 
-const IOS_SLICE_SEC = 20
-const IOS_SLICE_HOP_SEC = 17
+const IOS_SLICE_SEC = 15
+const IOS_SLICE_HOP_SEC = 12
 
 export function whisperAudioWindows(
   sampleCount: number,

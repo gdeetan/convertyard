@@ -253,9 +253,21 @@ export function CaptionTool() {
     try {
       if (sessionStorage.getItem(IOS_RELOAD_KEY) === '1') {
         sessionStorage.removeItem(IOS_RELOAD_KEY)
-        setError('Safari reloaded this tab, usually because it ran out of memory. Stay on Fast, keep the tab open, use a shorter clip, or import an SRT/VTT.')
+        // Only surface the OOM hint when the browser actually reloaded the tab —
+        // otherwise the flag is just a leftover from a prior session the user closed.
+        const nav = typeof performance !== 'undefined'
+          ? (performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined)
+          : undefined
+        if (nav?.type === 'reload') {
+          setError('Safari reloaded this tab, usually because it ran out of memory. Stay on Fast, keep the tab open, use a shorter clip, or import an SRT/VTT.')
+        }
       }
     } catch { /* private mode */ }
+    const clearFlag = () => {
+      try { sessionStorage.removeItem(IOS_RELOAD_KEY) } catch { /* private mode */ }
+    }
+    window.addEventListener('pagehide', clearFlag)
+    return () => window.removeEventListener('pagehide', clearFlag)
   }, [])
 
   const workloadWarning = videoFile && videoDims
@@ -343,7 +355,7 @@ export function CaptionTool() {
         videoFile,
         quality,
         language || null,
-        (phase, pct) => {
+        (phase, pct, detail) => {
           if (phase === 'extract') {
             setProgress(Math.round(pct * 0.15))
             setStatusText(pct < 100 ? `Extracting audio… ${Math.round(pct)}%` : 'Extracting audio…')
@@ -356,7 +368,10 @@ export function CaptionTool() {
             )
           } else {
             setProgress(50 + Math.round(pct * 0.5))
-            setStatusText(`Transcribing audio… ${Math.round(pct)}% (keep this tab open)`)
+            const sliceLabel = detail && detail.total > 1
+              ? ` · chunk ${detail.slice}/${detail.total}`
+              : ''
+            setStatusText(`Transcribing audio… ${Math.round(pct)}%${sliceLabel} (keep this tab open)`)
           }
         },
         ac.signal,
