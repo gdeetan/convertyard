@@ -22,6 +22,15 @@ export { captionFfmpegInputName, captionFileFromBytes, materializeCaptionFile } 
 
 export type CaptionQuality = 'fast' | 'balanced' | 'accurate'
 export type CaptionTranscribePhase = 'extract' | 'model' | 'transcribe'
+export interface CaptionTranscribeDetail {
+  slice: number
+  total: number
+}
+export type CaptionTranscribeProgress = (
+  phase: CaptionTranscribePhase,
+  pct: number,
+  detail?: CaptionTranscribeDetail,
+) => void
 export type { CaptionTranscript }
 
 function currentProfile(): CaptionClientProfile {
@@ -213,7 +222,7 @@ export async function transcribeToWords(
   videoFile: File,
   quality: CaptionQuality,
   language: string | null,
-  onProgress: (phase: CaptionTranscribePhase, pct: number) => void,
+  onProgress: CaptionTranscribeProgress,
   signal?: AbortSignal,
 ): Promise<CaptionTranscript> {
   const profile = currentProfile()
@@ -242,13 +251,14 @@ export async function transcribeToWords(
     throwIfAborted(signal)
     const { start, end, offsetSec } = windows[i]
     const slice = audioData.subarray(start, end)
-    onProgress('transcribe', Math.round((i / windows.length) * 100))
+    const detail: CaptionTranscribeDetail = { slice: i + 1, total: windows.length }
+    onProgress('transcribe', Math.round((i / windows.length) * 100), detail)
     const result = await transcribeAudio(
       slice,
       sampleRate,
       language,
       'word',
-      (p) => onProgress('transcribe', Math.round(((i + p / 100) / windows.length) * 100)),
+      (p) => onProgress('transcribe', Math.round(((i + p / 100) / windows.length) * 100), detail),
       signal,
     )
     if (result.chunks) {
