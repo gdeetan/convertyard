@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { microSnapToAttacks, snapWordsToOnsets } from '../caption-align'
+import { microSnapToAttacks, snapWordsToOnsets, trimWordEndsToSpeech } from '../caption-align'
 import type { WordChunk } from '../caption-types'
 
 function toneBurst(sampleRate: number, startSec: number, durSec: number, totalSec: number): Float32Array {
@@ -143,5 +143,36 @@ describe('microSnapToAttacks', () => {
     const words: WordChunk[] = [{ text: 'stray', start: 0.5, end: 1.0 }]
     const out = microSnapToAttacks(words, audio, sampleRate)
     expect(out[0].start).toBe(0.5)
+  })
+})
+
+describe('trimWordEndsToSpeech', () => {
+  it('clips word ends to the last speech-energy frame so captions do not linger', () => {
+    const sampleRate = 16000
+    // Speech burst 0.6–0.8 s; Whisper reported the word ending at 2.0 s.
+    // Without trimming, the caption would sit on screen for a full extra
+    // second after the speaker stopped.
+    const audio = toneBurst(sampleRate, 0.6, 0.2, 3)
+    const words: WordChunk[] = [{ text: 'hello', start: 0.55, end: 2.0 }]
+    const out = trimWordEndsToSpeech(words, audio, sampleRate)
+    expect(out[0].start).toBe(0.55)
+    expect(out[0].end).toBeGreaterThanOrEqual(0.78)
+    expect(out[0].end).toBeLessThan(1.0)
+  })
+
+  it('leaves the word untouched when speech extends to the reported end', () => {
+    const sampleRate = 16000
+    const audio = toneBurst(sampleRate, 0.3, 1.4, 2)
+    const words: WordChunk[] = [{ text: 'held', start: 0.3, end: 1.6 }]
+    const out = trimWordEndsToSpeech(words, audio, sampleRate)
+    expect(out[0].end).toBeGreaterThanOrEqual(1.5)
+  })
+
+  it('leaves the word untouched when the whole span is silent — no false trim', () => {
+    const sampleRate = 16000
+    const audio = new Float32Array(sampleRate * 2)
+    const words: WordChunk[] = [{ text: 'a', start: 0.3, end: 0.9 }]
+    const out = trimWordEndsToSpeech(words, audio, sampleRate)
+    expect(out[0]).toEqual(words[0])
   })
 })

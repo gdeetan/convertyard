@@ -275,6 +275,38 @@ function findAttackPeakNear(
  * Words with no clear attack peak in range are left at their DTW estimate.
  * Monotonic order is preserved.
  */
+/**
+ * Trim each word's `end` to the last frame with actual speech energy inside
+ * its Whisper-reported span. Whisper includes trailing silence in every
+ * word's end stamp, so captions linger after the phrase finishes. Walking
+ * back from the reported end to the last frame above the silence floor
+ * removes that lingering without moving the start of any word.
+ */
+export function trimWordEndsToSpeech(
+  words: WordChunk[],
+  audio: Float32Array,
+  sampleRate: number,
+): WordChunk[] {
+  if (words.length === 0 || audio.length === 0) return words
+  const rms = rmsFrames(audio, sampleRate)
+  const silenceCap = silenceThreshold(rms)
+  const CUSHION_FRAMES = 3 // 30 ms so the caption doesn't cut mid-vowel
+  return words.map((w) => {
+    const startFrame = Math.max(0, Math.floor(w.start / FRAME_SEC))
+    const endFrame = Math.min(rms.length - 1, Math.round(w.end / FRAME_SEC))
+    if (endFrame <= startFrame) return w
+    let lastSpeech = -1
+    for (let f = endFrame; f >= startFrame; f--) {
+      if ((rms[f] ?? 0) > silenceCap) { lastSpeech = f; break }
+    }
+    if (lastSpeech < 0) return w
+    const trimmedEnd = (lastSpeech + CUSHION_FRAMES) * FRAME_SEC
+    const newEnd = Math.max(w.start + MIN_SPAN, Math.min(w.end, trimmedEnd))
+    if (newEnd >= w.end - 1e-4) return w
+    return { ...w, end: newEnd }
+  })
+}
+
 export function microSnapToAttacks(
   words: WordChunk[],
   audio: Float32Array,
