@@ -56,6 +56,8 @@ function applyOnnxRuntimeHints() {
     } else {
       onnx.wasm.numThreads = 1
     }
+    // eslint-disable-next-line no-console
+    console.info(`[captions] Whisper profile=${profile} ONNX threads=${onnx.wasm.numThreads}`)
 
     if (profile !== 'ios') return
     const version = onnx.versions?.web

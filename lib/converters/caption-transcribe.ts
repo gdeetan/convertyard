@@ -1,7 +1,7 @@
 import { getSingleThreadFFmpeg, resetFFmpeg, resetSingleThreadFFmpeg } from './ffmpeg-client'
 import { loadTranscriptionModel, transcribeAudio } from './transcription-client'
 import { applyWhisperWordLead, wordsFromTranscription, type CaptionTranscript } from './caption-words'
-import { microSnapToAttacks, snapWordsToOnsets } from './caption-align'
+import { microSnapToAttacks, snapWordsToOnsets, trimWordEndsToSpeech } from './caption-align'
 import { decodeAudioViaWebAudio, throwIfAborted, isCancelError } from './audio-decode'
 import {
   detectCaptionClientProfile,
@@ -252,10 +252,10 @@ export async function transcribeToWords(
     await loadTranscriptionModel(quality, reportModel)
   } else {
     await modelLoadPromise
-    // Keep the single-thread ffmpeg core alive on desktop — the caption burn
-    // reuses it and would otherwise re-download ~25 MB. Only free the MT core
-    // (which was never used for extract but may have been preloaded elsewhere).
-    await resetFFmpeg()
+    // Free BOTH ffmpeg cores before Whisper transcribes so nothing competes
+    // for WASM memory during inference. The caption burn preloads a fresh
+    // core in the background while the user picks a style (see caption-tool).
+    await releaseCaptionExtractRuntime()
   }
   throwIfAborted(signal)
   if (modelReport < 100) onProgress('model', 100)
@@ -301,12 +301,17 @@ export async function transcribeToWords(
   // word to the nearest phoneme attack within a tight window — no fixed
   // offset, no full re-alignment.
   if (!transcript.wordsInterpolated) {
-    return { ...transcript, words: microSnapToAttacks(transcript.words, audioData, sampleRate) }
+    const snapped = microSnapToAttacks(transcript.words, audioData, sampleRate)
+    return { ...transcript, words: trimWordEndsToSpeech(snapped, audioData, sampleRate) }
   }
+  let interpolated = transcript
   if (shouldSnapWordOnsets(profile)) {
-    const snapped = snapWordsToOnsets(transcript.words, audioData, sampleRate)
-    const moved = snapped.some((w, i) => Math.abs(w.start - transcript.words[i].start) > 0.03)
-    if (moved) return { ...transcript, words: snapped }
+    const snapped = snapWordsToOnsets(interpolated.words, audioData, sampleRate)
+    const moved = snapped.some((w, i) => Math.abs(w.start - interpolated.words[i].start) > 0.03)
+    if (moved) interpolated = { ...interpolated, words: snapped }
   }
-  return applyWhisperWordLead(transcript)
+  interpolated = applyWhisperWordLead(interpolated)
+  // Same trailing-silence trim applies to the interpolated path — captions
+  // should never linger past the actual speech in either mode.
+  return { ...interpolated, words: trimWordEndsToSpeech(interpolated.words, audioData, sampleRate) }
 }
