@@ -174,27 +174,24 @@ function karaokeEvents(words: WordChunk[], opts: CaptionOptions): string[] {
   const highlight = hexToASS(opts.highlightColor)
   const getText = (w: WordChunk) => opts.uppercase ? w.text.toUpperCase() : w.text
 
-  // Preview highlights only the currently-spoken word (discrete per-word flip),
-  // not the ASS \kf left-to-right wipe. Match it with layered events:
-  //   layer 0 = full line in primary for the whole group duration
-  //   layer 1 = per-word overlay with just that word wrapped in highlight color
-  // libass renders higher layers on top, so the overlay swaps one word's color
-  // at exactly its start/end without touching the rest of the line.
+  // One event per active-word transition. A previous layered version painted a
+  // base line plus a scaled overlay for the active word — libass rendered the
+  // base word's outline behind the scaled glyph, leaking around it as a halo.
+  // Single-layer events keep one text (and one outline) on screen at a time.
+  const pct = followActiveWordScalePercent()
   const events: string[] = []
   for (const group of groups) {
-    const groupStart = group[0].start
-    const groupEnd   = group[group.length - 1].end
-    const baseText   = group.map(getText).join(' ')
-    events.push(dialogue(groupStart, groupEnd, baseText, 0))
+    const groupEnd = group[group.length - 1].end
     group.forEach((w, i) => {
-      const pct = followActiveWordScalePercent()
-      const overlay = group.map((word, j) => {
+      const start = w.start
+      const end = group[i + 1]?.start ?? groupEnd
+      const line = group.map((word, j) => {
         const t = getText(word)
         return j === i
           ? `{\\c${highlight}\\fscx${pct}\\fscy${pct}}${t}{\\c${primary}\\fscx100\\fscy100}`
           : t
       }).join(' ')
-      events.push(dialogue(w.start, w.end, overlay, 1))
+      events.push(dialogue(start, end, line))
     })
   }
   return events

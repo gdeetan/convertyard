@@ -3,10 +3,22 @@ export type WhisperQuality = 'fast' | 'balanced' | 'accurate'
 export interface ModelVariant {
   modelId: string
   dtype: 'fp32' | 'fp16' | 'int8' | 'q4' | 'q8'
+  /**
+   * True when the ONNX export includes cross-attention tensors so
+   * transformers.js can return real DTW word-level timestamps.
+   * The `onnx-community/whisper-*_timestamped` builds do; the older
+   * `Xenova/whisper-*` builds do not.
+   */
+  supportsWord?: boolean
 }
 
 /**
  * Accurate uses Small, not Turbo — Turbo often OOMs and poisons the WASM heap.
+ *
+ * The `_timestamped` variants are the modern onnx-community exports with
+ * cross-attentions, so `return_timestamps: 'word'` returns real per-word
+ * timings. Xenova/* is kept as a fallback for clients that can't fetch the
+ * newer files.
  *
  * Constrained (phones) never use q8/q4. Xenova quantized Whisper files use
  * MatMulNBits without the required scale tensors, so session create fails with
@@ -18,19 +30,30 @@ export function modelVariantsForQuality(
   opts?: { constrained?: boolean },
 ): ModelVariant[] {
   if (opts?.constrained) {
-    return [{ modelId: 'Xenova/whisper-tiny', dtype: 'fp32' }]
+    return [
+      { modelId: 'onnx-community/whisper-tiny_timestamped', dtype: 'fp32', supportsWord: true },
+      { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
+    ]
   }
 
   switch (quality) {
     case 'fast':
-      return [{ modelId: 'Xenova/whisper-tiny', dtype: 'fp32' }]
+      return [
+        { modelId: 'onnx-community/whisper-tiny_timestamped', dtype: 'fp32', supportsWord: true },
+        { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
+      ]
     case 'balanced':
       return [
+        { modelId: 'onnx-community/whisper-base_timestamped', dtype: 'fp32', supportsWord: true },
+        { modelId: 'onnx-community/whisper-tiny_timestamped', dtype: 'fp32', supportsWord: true },
         { modelId: 'Xenova/whisper-base', dtype: 'fp32' },
         { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
       ]
     case 'accurate':
       return [
+        { modelId: 'onnx-community/whisper-small_timestamped', dtype: 'fp32', supportsWord: true },
+        { modelId: 'onnx-community/whisper-base_timestamped', dtype: 'fp32', supportsWord: true },
+        { modelId: 'onnx-community/whisper-tiny_timestamped', dtype: 'fp32', supportsWord: true },
         { modelId: 'Xenova/whisper-small', dtype: 'fp32' },
         { modelId: 'Xenova/whisper-base', dtype: 'fp32' },
         { modelId: 'Xenova/whisper-tiny', dtype: 'fp32' },
@@ -49,12 +72,17 @@ export interface WhisperResultLike {
 }
 
 /**
- * Xenova/whisper-* ONNX graphs are not exported with cross-attentions.
- * transformers.js 4 needs those for `return_timestamps: 'word'` and throws
- * mid-generation. Segment timestamps still drive caption layout.
+ * `onnx-community/whisper-*_timestamped` variants expose cross-attentions and
+ * accept `return_timestamps: 'word'`. Legacy `Xenova/whisper-*` variants throw
+ * mid-generation on that value, so downgrade to segment-level timestamps for
+ * them.
  */
-export function effectiveWhisperTimestamps(requested: boolean | 'word'): boolean {
-  return requested === 'word' ? true : requested
+export function effectiveWhisperTimestamps(
+  requested: boolean | 'word',
+  supportsWord = false,
+): boolean | 'word' {
+  if (requested === 'word') return supportsWord ? 'word' : true
+  return requested
 }
 
 /** Greedy decode for Fast/Balanced. Accurate keeps a small beam for harder audio. */

@@ -133,7 +133,7 @@ export function drawCaptionOverlay(
       ctx.roundRect(x - metrics.width / 2 - pad, lineYs[i] - fs - pad / 2, metrics.width + pad * 2, fs + pad, Math.max(2, Math.round(outlinePx * 0.6)))
       ctx.fill()
     }
-  } else if (outlinePx > 0) {
+  } else if (outlinePx > 0 && options.styleId !== 'karaoke') {
     ctx.strokeStyle = options.outlineColor
     ctx.lineWidth = outlinePx * 2
     ctx.lineJoin = 'round'
@@ -146,17 +146,26 @@ export function drawCaptionOverlay(
     const lineChunks = wrapWordChunks(activeWords, options.maxCharsPerLine, options.uppercase ?? false)
     const activeWord = words.find((w) => currentTime >= w.start && currentTime < w.end)
     ctx.textAlign = 'left'
+    ctx.lineJoin = 'round'
     for (let i = 0; i < lineChunks.length; i++) {
       const { text: lineText, chunks: lineWords } = lineChunks[i]
       let offsetX = x - ctx.measureText(lineText).width / 2
       const baseFont = ctx.font
       const scaledFs = Math.max(1, Math.round(fs * FOLLOW_ACTIVE_WORD_SCALE))
       const weight = isWordByWord ? 'bold ' : ''
+      // Stroke then fill per word so each glyph gets an outline that matches
+      // its own scale — a pre-stroked full line drawn at 100 % leaves a halo
+      // around the 112 %-scaled active word.
       for (const word of lineWords) {
         const t = (options.uppercase ? word.text.toUpperCase() : word.text) + ' '
         const active = word === activeWord
-        ctx.fillStyle = active ? options.highlightColor : options.primaryColor
         ctx.font = active ? `${weight}${scaledFs}px "${fontName}", Arial` : baseFont
+        if (outlinePx > 0) {
+          ctx.strokeStyle = options.outlineColor
+          ctx.lineWidth = outlinePx * 2 * (active ? FOLLOW_ACTIVE_WORD_SCALE : 1)
+          ctx.strokeText(t, offsetX, lineYs[i])
+        }
+        ctx.fillStyle = active ? options.highlightColor : options.primaryColor
         ctx.fillText(t, offsetX, lineYs[i])
         offsetX += ctx.measureText(t).width
       }

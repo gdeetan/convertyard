@@ -122,15 +122,25 @@ describe('buildASS - outline and position match options', () => {
 })
 
 describe('buildASS - karaoke active word scale', () => {
-  it('scales only the overlay word to 112 percent', () => {
+  it('scales only the active word to 112 percent inside a single-layer event', () => {
     const ass = buildASS(words, { ...DEFAULT_CAPTION_OPTIONS, styleId: 'karaoke' })
     expect(ass).toContain('\\fscx112')
     expect(ass).toContain('\\fscy112')
     expect(ass).toContain('\\fscx100')
     expect(ass).toContain('\\fscy100')
-    const overlay = ass.split('\n').find((l) => l.startsWith('Dialogue: 1,') && l.includes('\\fscx112'))
-    expect(overlay).toBeTruthy()
-    expect(overlay).toMatch(/\\c&H0000FFFF\\fscx112\\fscy112\}Hello\{\\c&H00FFFFFF\\fscx100\\fscy100/)
+    const activeEvent = ass.split('\n').find((l) => l.startsWith('Dialogue: 0,') && l.includes('\\fscx112'))
+    expect(activeEvent).toBeTruthy()
+    expect(activeEvent).toMatch(/\\c&H0000FFFF\\fscx112\\fscy112\}Hello\{\\c&H00FFFFFF\\fscx100\\fscy100/)
+  })
+
+  it('emits one karaoke event per word and no layer-1 overlay so outlines do not double-print', () => {
+    const ass = buildASS(words, { ...DEFAULT_CAPTION_OPTIONS, styleId: 'karaoke' })
+    const dialogueLines = ass.split('\n').filter((l) => l.startsWith('Dialogue:'))
+    // No layered events — the old base+overlay approach caused an outline halo.
+    expect(dialogueLines.every((l) => l.startsWith('Dialogue: 0,'))).toBe(true)
+    // One highlighted event per word, all on the same layer.
+    const highlighted = dialogueLines.filter((l) => l.includes('\\fscx112'))
+    expect(highlighted).toHaveLength(words.length)
   })
 
   it('does not scale One Word dialogue', () => {

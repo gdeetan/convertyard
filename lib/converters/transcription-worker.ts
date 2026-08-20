@@ -212,7 +212,7 @@ async function runTranscribe(
   const raw = await (whisperPipeline as any)(audioData, {
     language: language ?? undefined,
     task: 'transcribe',
-    return_timestamps: effectiveWhisperTimestamps(timestamps),
+    return_timestamps: effectiveWhisperTimestamps(timestamps, loadedVariant?.supportsWord),
     chunk_length_s: 30,
     stride_length_s: 3,
     sampling_rate: sampleRate,
