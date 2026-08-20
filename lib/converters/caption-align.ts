@@ -262,7 +262,17 @@ function findAttackPeakNear(
   if (bestFrame < 0) return -1
   const mean = localMean(flux, bestFrame, windowFrames * 2)
   if (mean > 0 && bestValue < mean * MICRO_MIN_PROMINENCE) return -1
-  return bestFrame
+  // Walk back from the peak to where the rise started (flux crossed 30 % of
+  // the peak). Attack peaks land 20–50 ms after the true phoneme boundary,
+  // and Klapuri-style onset detection uses the rise start instead.
+  const riseFloor = bestValue * 0.3
+  let onsetFrame = bestFrame
+  const walkFloor = Math.max(lo, bestFrame - windowFrames)
+  for (let i = bestFrame - 1; i >= walkFloor; i--) {
+    if (flux[i] < riseFloor) break
+    onsetFrame = i
+  }
+  return onsetFrame
 }
 
 /**

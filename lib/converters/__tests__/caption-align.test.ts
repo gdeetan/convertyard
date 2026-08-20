@@ -144,6 +144,20 @@ describe('microSnapToAttacks', () => {
     const out = microSnapToAttacks(words, audio, sampleRate)
     expect(out[0].start).toBe(0.5)
   })
+
+  it('snaps to the rise start of the attack, not the flux peak', () => {
+    const sampleRate = 16000
+    // A sine burst rising from 0.60 s reaches flux peak ~30 ms later
+    // (energy takes a few frames to fully develop). Klapuri-style onset
+    // detection walks back to where the rise began — that is what the
+    // caption should snap to, not the later peak.
+    const audio = toneBurst(sampleRate, 0.60, 0.20, 2)
+    const words: WordChunk[] = [{ text: 'go', start: 0.55, end: 0.80 }]
+    const out = microSnapToAttacks(words, audio, sampleRate)
+    // Peak lands ~0.62–0.65 s; rise-start onset lands closer to 0.60 s.
+    expect(out[0].start).toBeGreaterThanOrEqual(0.58)
+    expect(out[0].start).toBeLessThanOrEqual(0.63)
+  })
 })
 
 describe('trimWordEndsToSpeech', () => {
