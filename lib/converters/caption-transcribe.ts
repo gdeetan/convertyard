@@ -252,8 +252,10 @@ export async function transcribeToWords(
     await loadTranscriptionModel(quality, reportModel)
   } else {
     await modelLoadPromise
-    // Free ffmpeg after the model is warm so we don't stall model loading.
-    await releaseCaptionExtractRuntime()
+    // Keep the single-thread ffmpeg core alive on desktop — the caption burn
+    // reuses it and would otherwise re-download ~25 MB. Only free the MT core
+    // (which was never used for extract but may have been preloaded elsewhere).
+    await resetFFmpeg()
   }
   throwIfAborted(signal)
   if (modelReport < 100) onProgress('model', 100)

@@ -38,12 +38,14 @@ export async function burnCaptions(
   try {
     const { canUseWebCodecs, burnCaptionsWebCodecs } = await import('./caption-webcodecs')
     if (canUseWebCodecs()) {
+      console.info('[captions] burn path: WebCodecs (hardware)')
       onProgress(4)
       return await burnCaptionsWebCodecs(videoFile, words, opts, onProgress, signal)
     }
+    console.info('[captions] burn path: ffmpeg.wasm (WebCodecs unavailable in this browser)')
   } catch (err) {
     if (isCancelError(err)) throw err
-    // Hardware path unavailable or failed — fall through to ffmpeg.wasm.
+    console.warn('[captions] WebCodecs burn failed, falling back to ffmpeg.wasm:', err)
   }
 
   const { fetchFile } = await import('@ffmpeg/util')
@@ -160,23 +162,33 @@ export async function burnCaptions(
       await ffmpeg.deleteFile(outputName).catch(() => {})
       logs.length = 0
 
-      // Pass 1 — transcode to MJPEG + AAC in Matroska (.mkv).
+      // Pass 1 — transcode video to MJPEG in Matroska (.mkv).
       // MJPEG is all-intra so its decoder carries no sequence state and
       // cannot emit AVERROR_INPUT_CHANGED during Pass 2.
       // qscale:v=18 keeps each JPEG ~3–5× smaller so both MJPEG and the
       // H.264 output can coexist within WASM's 2 GB MEMFS heap.
+      // Try -c:a copy first: most inputs are already AAC and Matroska
+      // accepts AAC directly, saving the audio re-encode pass.
       setPhase(10, 45)
       startFallbackTimer()
 
-      exitCode = await ffmpeg.exec([
+      const pass1Args = (audioCodec: string, audioBitrate?: string) => [
         '-i', inputName,
         '-vf', 'fps=30,format=yuvj420p',
         '-c:v', 'mjpeg',
         '-qscale:v', '18',
-        '-c:a', 'aac',
-        '-b:a', '128k',
+        '-c:a', audioCodec,
+        ...(audioBitrate ? ['-b:a', audioBitrate] : []),
         midName,
-      ])
+      ]
+
+      exitCode = await ffmpeg.exec(pass1Args('copy'))
+      if (exitCode !== 0) {
+        // Copy rejected (non-AAC source, or Matroska mux mismatch) — re-encode.
+        await ffmpeg.deleteFile(midName).catch(() => {})
+        logs.length = 0
+        exitCode = await ffmpeg.exec(pass1Args('aac', '128k'))
+      }
 
       stopFallbackTimer()
 

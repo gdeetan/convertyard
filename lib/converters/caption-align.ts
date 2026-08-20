@@ -9,6 +9,8 @@ const ANCHOR_SLACK_SEC = 0.15
 const MICRO_SNAP_WINDOW_SEC = 0.18
 const MICRO_ATTACK_FRAMES = 3     // 30 ms attack window
 const MICRO_MIN_PROMINENCE = 1.8  // peak must exceed 1.8× local mean flux
+const MICRO_PREEMPH = 0.97        // pre-emphasis coefficient boosts consonant attack energy
+const MICRO_SILENCE_QUANTILE = 0.15  // ignore frames below the 15th-percentile RMS (silence)
 
 function rmsFrames(audio: Float32Array, sampleRate: number): Float32Array {
   const n = Math.max(1, Math.round(sampleRate * FRAME_SEC))
@@ -206,17 +208,31 @@ export function snapWordsToOnsets(
 }
 
 /**
- * Half-wave-rectified RMS difference over a 30 ms attack window. Captures
- * phoneme onsets (energy attack) without triggering on sustained loudness.
- * Cheap proxy for spectral flux — no FFT needed at 16 kHz mono.
+ * Half-wave-rectified RMS difference over a 30 ms attack window, computed on
+ * pre-emphasized audio (y[n] = x[n] − 0.97·x[n−1]). Pre-emphasis is what
+ * MFCC pipelines use to flatten the ~-6 dB/oct speech spectrum — it boosts
+ * consonant transients and vowel-onset formants so their attacks stand out.
+ * No FFT; still cheap at 16 kHz mono.
  */
 function attackFlux(audio: Float32Array, sampleRate: number): Float32Array {
-  const rms = rmsFrames(audio, sampleRate)
+  const emphasized = new Float32Array(audio.length)
+  emphasized[0] = audio[0]
+  for (let i = 1; i < audio.length; i++) {
+    emphasized[i] = audio[i] - MICRO_PREEMPH * audio[i - 1]
+  }
+  const rms = rmsFrames(emphasized, sampleRate)
   const flux = new Float32Array(rms.length)
   for (let i = MICRO_ATTACK_FRAMES; i < rms.length; i++) {
     flux[i] = Math.max(0, rms[i] - rms[i - MICRO_ATTACK_FRAMES])
   }
   return flux
+}
+
+/** RMS floor at the given percentile — treats anything quieter as silence. */
+function silenceThreshold(rms: Float32Array): number {
+  if (rms.length === 0) return 0
+  const sorted = Array.from(rms).sort((a, b) => a - b)
+  return sorted[Math.floor(sorted.length * MICRO_SILENCE_QUANTILE)] ?? 0
 }
 
 function localMean(flux: Float32Array, center: number, radius: number): number {
@@ -267,6 +283,10 @@ export function microSnapToAttacks(
   if (words.length === 0 || audio.length === 0) return words
   const flux = attackFlux(audio, sampleRate)
   if (flux.length === 0) return words
+  // Reference RMS on the raw signal — the pre-emphasized version's noise floor
+  // is skewed by transient boosting, so we gate against untreated audio.
+  const rmsRef = rmsFrames(audio, sampleRate)
+  const silenceCap = silenceThreshold(rmsRef)
   const windowFrames = Math.max(1, Math.round(MICRO_SNAP_WINDOW_SEC / FRAME_SEC))
   const out: WordChunk[] = []
   let prevStart = -Infinity
@@ -276,7 +296,10 @@ export function microSnapToAttacks(
     let newStart = w.start
     if (peakFrame >= 0) {
       const candidate = peakFrame * FRAME_SEC
-      if (candidate > prevStart + MIN_SPAN) newStart = candidate
+      // Reject candidates that land in a silent frame — the peak was noise or
+      // a fricative tail, not a speech onset.
+      const inSpeech = (rmsRef[peakFrame] ?? 0) > silenceCap
+      if (inSpeech && candidate > prevStart + MIN_SPAN) newStart = candidate
     }
     prevStart = newStart
     const delta = newStart - w.start
