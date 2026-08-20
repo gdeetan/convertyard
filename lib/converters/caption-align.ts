@@ -5,6 +5,11 @@ const MAX_SNAP_SEC = 0.75
 const MIN_SPAN = 0.05
 const ANCHOR_SLACK_SEC = 0.15
 
+// Micro-snap tuning for real DTW word timings.
+const MICRO_SNAP_WINDOW_SEC = 0.18
+const MICRO_ATTACK_FRAMES = 3     // 30 ms attack window
+const MICRO_MIN_PROMINENCE = 1.8  // peak must exceed 1.8× local mean flux
+
 function rmsFrames(audio: Float32Array, sampleRate: number): Float32Array {
   const n = Math.max(1, Math.round(sampleRate * FRAME_SEC))
   const frames = new Float32Array(Math.ceil(audio.length / n))
@@ -198,4 +203,88 @@ export function snapWordsToOnsets(
     const end = next != null ? next : Math.max(start + MIN_SPAN, w.end)
     return { ...w, start, end: Math.max(start + MIN_SPAN, end) }
   })
+}
+
+/**
+ * Half-wave-rectified RMS difference over a 30 ms attack window. Captures
+ * phoneme onsets (energy attack) without triggering on sustained loudness.
+ * Cheap proxy for spectral flux — no FFT needed at 16 kHz mono.
+ */
+function attackFlux(audio: Float32Array, sampleRate: number): Float32Array {
+  const rms = rmsFrames(audio, sampleRate)
+  const flux = new Float32Array(rms.length)
+  for (let i = MICRO_ATTACK_FRAMES; i < rms.length; i++) {
+    flux[i] = Math.max(0, rms[i] - rms[i - MICRO_ATTACK_FRAMES])
+  }
+  return flux
+}
+
+function localMean(flux: Float32Array, center: number, radius: number): number {
+  let sum = 0
+  let count = 0
+  const lo = Math.max(0, center - radius)
+  const hi = Math.min(flux.length, center + radius + 1)
+  for (let i = lo; i < hi; i++) { sum += flux[i]; count++ }
+  return count > 0 ? sum / count : 0
+}
+
+function findAttackPeakNear(
+  flux: Float32Array,
+  centerFrame: number,
+  windowFrames: number,
+): number {
+  const lo = Math.max(1, centerFrame - windowFrames)
+  const hi = Math.min(flux.length - 2, centerFrame + windowFrames)
+  let bestFrame = -1
+  let bestValue = 0
+  for (let i = lo; i <= hi; i++) {
+    if (flux[i] > flux[i - 1] && flux[i] >= flux[i + 1] && flux[i] > bestValue) {
+      bestValue = flux[i]
+      bestFrame = i
+    }
+  }
+  if (bestFrame < 0) return -1
+  const mean = localMean(flux, bestFrame, windowFrames * 2)
+  if (mean > 0 && bestValue < mean * MICRO_MIN_PROMINENCE) return -1
+  return bestFrame
+}
+
+/**
+ * Fine-tune real DTW word timings to the nearest phoneme attack. Whisper's
+ * cross-attention word stamps land ~50–150 ms before speech onset; browser
+ * video decode + canvas repaint add ~100 ms more. Snapping each word to a
+ * prominent attack peak within ±180 ms erases both biases per-word, without
+ * dragging words to noise the way a wide RMS-onset search would.
+ *
+ * Words with no clear attack peak in range are left at their DTW estimate.
+ * Monotonic order is preserved.
+ */
+export function microSnapToAttacks(
+  words: WordChunk[],
+  audio: Float32Array,
+  sampleRate: number,
+): WordChunk[] {
+  if (words.length === 0 || audio.length === 0) return words
+  const flux = attackFlux(audio, sampleRate)
+  if (flux.length === 0) return words
+  const windowFrames = Math.max(1, Math.round(MICRO_SNAP_WINDOW_SEC / FRAME_SEC))
+  const out: WordChunk[] = []
+  let prevStart = -Infinity
+  for (const w of words) {
+    const targetFrame = Math.round(w.start / FRAME_SEC)
+    const peakFrame = findAttackPeakNear(flux, targetFrame, windowFrames)
+    let newStart = w.start
+    if (peakFrame >= 0) {
+      const candidate = peakFrame * FRAME_SEC
+      if (candidate > prevStart + MIN_SPAN) newStart = candidate
+    }
+    prevStart = newStart
+    const delta = newStart - w.start
+    out.push({
+      ...w,
+      start: newStart,
+      end: Math.max(newStart + MIN_SPAN, w.end + delta),
+    })
+  }
+  return out
 }

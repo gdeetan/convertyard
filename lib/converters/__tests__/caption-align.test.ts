@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { snapWordsToOnsets } from '../caption-align'
+import { microSnapToAttacks, snapWordsToOnsets } from '../caption-align'
 import type { WordChunk } from '../caption-types'
 
 function toneBurst(sampleRate: number, startSec: number, durSec: number, totalSec: number): Float32Array {
@@ -98,5 +98,50 @@ describe('snapWordsToOnsets', () => {
     ]
     const out = snapWordsToOnsets(words, new Float32Array(16000), 16000)
     expect(out).toEqual(words)
+  })
+})
+
+describe('microSnapToAttacks', () => {
+  it('pulls each real-DTW word onto the nearest phoneme attack', () => {
+    const sampleRate = 16000
+    // Real speech attacks at 0.60 / 1.40 / 2.30 s. Whisper reported the words
+    // ~150 ms early (0.45 / 1.25 / 2.15). Micro-snap should recover them.
+    const audio = toneBurst(sampleRate, 0.60, 0.15, 3)
+    const b2 = toneBurst(sampleRate, 1.40, 0.15, 3)
+    const b3 = toneBurst(sampleRate, 2.30, 0.15, 3)
+    for (let i = 0; i < audio.length; i++) audio[i] += b2[i] + b3[i]
+
+    const words: WordChunk[] = [
+      { text: 'one',   start: 0.45, end: 1.15 },
+      { text: 'two',   start: 1.25, end: 2.05 },
+      { text: 'three', start: 2.15, end: 2.95 },
+    ]
+    const out = microSnapToAttacks(words, audio, sampleRate)
+    expect(out[0].start).toBeGreaterThanOrEqual(0.55)
+    expect(out[0].start).toBeLessThan(0.66)
+    expect(out[1].start).toBeGreaterThanOrEqual(1.35)
+    expect(out[1].start).toBeLessThan(1.46)
+    expect(out[2].start).toBeGreaterThanOrEqual(2.25)
+    expect(out[2].start).toBeLessThan(2.36)
+    // Preserves per-word span (offset applied to end too).
+    expect(out[0].end - out[0].start).toBeCloseTo(0.70, 1)
+  })
+
+  it('leaves a word unchanged when no clear attack peak is nearby', () => {
+    const sampleRate = 16000
+    const audio = new Float32Array(sampleRate) // 1 s of silence
+    const words: WordChunk[] = [{ text: 'hi', start: 0.4, end: 0.7 }]
+    const out = microSnapToAttacks(words, audio, sampleRate)
+    expect(out[0].start).toBe(0.4)
+    expect(out[0].end).toBe(0.7)
+  })
+
+  it('does not drag words far — search window is bounded (±180 ms)', () => {
+    const sampleRate = 16000
+    // Attack at 2.0 s but the word claims it started at 0.5 s — too far, ignore.
+    const audio = toneBurst(sampleRate, 2.0, 0.2, 3)
+    const words: WordChunk[] = [{ text: 'stray', start: 0.5, end: 1.0 }]
+    const out = microSnapToAttacks(words, audio, sampleRate)
+    expect(out[0].start).toBe(0.5)
   })
 })

@@ -1,7 +1,7 @@
 import { getSingleThreadFFmpeg, resetFFmpeg, resetSingleThreadFFmpeg } from './ffmpeg-client'
 import { loadTranscriptionModel, transcribeAudio } from './transcription-client'
 import { applyWhisperWordLead, wordsFromTranscription, type CaptionTranscript } from './caption-words'
-import { snapWordsToOnsets } from './caption-align'
+import { microSnapToAttacks, snapWordsToOnsets } from './caption-align'
 import { decodeAudioViaWebAudio, throwIfAborted, isCancelError } from './audio-decode'
 import {
   detectCaptionClientProfile,
@@ -294,11 +294,13 @@ export async function transcribeToWords(
   throwIfAborted(signal)
   const transcript = wordsFromTranscription({ text: textParts.join(' '), chunks: merged })
   if (transcript.timestampsEstimated) return transcript
-  // Real DTW word timings from the `_timestamped` models are already
-  // sub-100 ms accurate. Only the interpolated fallback path benefits from
-  // energy-onset snap + the segment-lead compensation — running them on real
-  // timings drags words to nearby noise peaks and paints the highlight early.
-  if (!transcript.wordsInterpolated) return transcript
+  // Real DTW word timings from the `_timestamped` models are already close but
+  // land ~150–200 ms early once video-decode latency is added. Fine-tune each
+  // word to the nearest phoneme attack within a tight window — no fixed
+  // offset, no full re-alignment.
+  if (!transcript.wordsInterpolated) {
+    return { ...transcript, words: microSnapToAttacks(transcript.words, audioData, sampleRate) }
+  }
   if (shouldSnapWordOnsets(profile)) {
     const snapped = snapWordsToOnsets(transcript.words, audioData, sampleRate)
     const moved = snapped.some((w, i) => Math.abs(w.start - transcript.words[i].start) > 0.03)
