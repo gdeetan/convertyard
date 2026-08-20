@@ -88,9 +88,9 @@ describe('caption iOS memory policy', () => {
     expect(shouldMaterializePickerFile('desktop')).toBe(false)
   })
 
-  it('slices Whisper audio on iPhone but still snaps to speech onsets so captions stay in sync', () => {
+  it('slices Whisper audio on every profile and snaps to onsets so progress and sync stay accurate', () => {
     expect(shouldSliceWhisperAudio('ios')).toBe(true)
-    expect(shouldSliceWhisperAudio('desktop')).toBe(false)
+    expect(shouldSliceWhisperAudio('desktop')).toBe(true)
     expect(shouldSnapWordOnsets('ios')).toBe(true)
     expect(shouldSnapWordOnsets('desktop')).toBe(true)
     expect(shouldUseFfmpegExtract('ios', 20 * 1024 * 1024)).toBe(false)
@@ -103,6 +103,13 @@ describe('caption iOS memory policy', () => {
     expect(windows.length).toBeGreaterThan(1)
     expect(windows[0]).toEqual({ start: 0, end: 16000 * 15, offsetSec: 0 })
     expect(windows[1].offsetSec).toBe(12)
+  })
+
+  it('windows desktop audio into 60s slices so long clips report per-slice progress', () => {
+    const windows = whisperAudioWindows(16000 * 300, 16000, 'desktop')
+    expect(windows.length).toBeGreaterThan(1)
+    expect(windows[0]).toEqual({ start: 0, end: 16000 * 60, offsetSec: 0 })
+    expect(windows[1].offsetSec).toBe(57)
     expect(whisperAudioWindows(16000 * 45, 16000, 'desktop')).toEqual([
       { start: 0, end: 16000 * 45, offsetSec: 0 },
     ])

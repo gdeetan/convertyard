@@ -70,9 +70,13 @@ export function shouldMaterializePickerFile(profile: CaptionClientProfile): bool
   return profile === 'android'
 }
 
-/** One full-audio Whisper pass plus the model exceeds iPhone Safari’s tab budget. */
-export function shouldSliceWhisperAudio(profile: CaptionClientProfile): boolean {
-  return profile === 'ios'
+/**
+ * Whisper's pipeline emits no per-chunk progress, so a single-window pass on a
+ * long clip freezes the progress bar for the full inference. Slicing on every
+ * profile keeps progress moving and caps peak memory.
+ */
+export function shouldSliceWhisperAudio(_profile: CaptionClientProfile): boolean {
+  return true
 }
 
 export function shouldSnapWordOnsets(_profile: CaptionClientProfile): boolean {
@@ -91,6 +95,8 @@ export function shouldUseFfmpegExtract(profile: CaptionClientProfile, fileBytes:
 
 const IOS_SLICE_SEC = 15
 const IOS_SLICE_HOP_SEC = 12
+const DESKTOP_SLICE_SEC = 60
+const DESKTOP_SLICE_HOP_SEC = 57
 
 export function whisperAudioWindows(
   sampleCount: number,
@@ -100,8 +106,10 @@ export function whisperAudioWindows(
   if (!shouldSliceWhisperAudio(profile) || sampleCount <= 0) {
     return [{ start: 0, end: sampleCount, offsetSec: 0 }]
   }
-  const win = Math.round(IOS_SLICE_SEC * sampleRate)
-  const hop = Math.round(IOS_SLICE_HOP_SEC * sampleRate)
+  const sliceSec = profile === 'ios' ? IOS_SLICE_SEC : DESKTOP_SLICE_SEC
+  const hopSec = profile === 'ios' ? IOS_SLICE_HOP_SEC : DESKTOP_SLICE_HOP_SEC
+  const win = Math.round(sliceSec * sampleRate)
+  const hop = Math.round(hopSec * sampleRate)
   const out: { start: number; end: number; offsetSec: number }[] = []
   for (let start = 0; start < sampleCount; start += hop) {
     const end = Math.min(sampleCount, start + win)

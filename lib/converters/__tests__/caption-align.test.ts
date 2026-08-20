@@ -62,6 +62,35 @@ describe('snapWordsToOnsets', () => {
     expect(snapped[2].start).toBeLessThan(4.65)
   })
 
+  it('spreads words across the segment when fewer onsets than words are detected', () => {
+    const sampleRate = 16000
+    // Segment 0..6s with 5 words but only 2 detected onsets (0.4s and 3.5s).
+    // Old greedy snap piled words at the onsets and MIN_SPAN-cascaded the rest.
+    const audio = toneBurst(sampleRate, 0.4, 0.2, 6)
+    const b2 = toneBurst(sampleRate, 3.5, 0.2, 6)
+    for (let i = 0; i < audio.length; i++) audio[i] += b2[i]
+
+    const anchor = { anchorStart: 0, anchorEnd: 6 }
+    const words: WordChunk[] = [
+      { text: 'one',   start: 0.0, end: 1.2, ...anchor },
+      { text: 'two',   start: 1.2, end: 2.4, ...anchor },
+      { text: 'three', start: 2.4, end: 3.6, ...anchor },
+      { text: 'four',  start: 3.6, end: 4.8, ...anchor },
+      { text: 'five',  start: 4.8, end: 6.0, ...anchor },
+    ]
+    const snapped = snapWordsToOnsets(words, audio, sampleRate)
+    // First half pins to onset 0.4, second half pins to onset 3.5.
+    // Neither group bunches at MIN_SPAN — words spread across their group span.
+    expect(snapped[0].start).toBeGreaterThanOrEqual(0.3)
+    expect(snapped[0].start).toBeLessThan(0.5)
+    expect(snapped[2].start).toBeGreaterThanOrEqual(3.3)
+    expect(snapped[2].start).toBeLessThan(3.7)
+    // Words within each group have real spacing, not the 50 ms MIN_SPAN.
+    expect(snapped[1].start - snapped[0].start).toBeGreaterThan(0.5)
+    expect(snapped[3].start - snapped[2].start).toBeGreaterThan(0.5)
+    expect(snapped[4].start - snapped[3].start).toBeGreaterThan(0.5)
+  })
+
   it('leaves timings alone when the audio is silent', () => {
     const words: WordChunk[] = [
       { text: 'one', start: 0.2, end: 0.5 },

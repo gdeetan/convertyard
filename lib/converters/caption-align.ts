@@ -43,9 +43,132 @@ function detectOnsets(rms: Float32Array): number[] {
   return onsets
 }
 
+interface Segment {
+  from: number      // inclusive index into words
+  to: number        // exclusive
+  anchorStart: number
+  anchorEnd: number
+}
+
+function groupSegments(words: WordChunk[]): Segment[] {
+  const groups: Segment[] = []
+  let i = 0
+  while (i < words.length) {
+    const w = words[i]
+    if (w.anchorStart == null || w.anchorEnd == null) {
+      groups.push({ from: i, to: i + 1, anchorStart: w.start, anchorEnd: w.end })
+      i++
+      continue
+    }
+    const aStart = w.anchorStart
+    const aEnd = w.anchorEnd
+    let j = i + 1
+    while (
+      j < words.length &&
+      words[j].anchorStart === aStart &&
+      words[j].anchorEnd === aEnd
+    ) j++
+    groups.push({ from: i, to: j, anchorStart: aStart, anchorEnd: aEnd })
+    i = j
+  }
+  return groups
+}
+
 /**
- * Snap evenly-split Whisper words onto energy onsets in the 16 kHz PCM.
- * Returns the original list when no usable onsets exist.
+ * Pick W onsets (in order) whose positions best match interpolated word starts.
+ * Used when a segment has more onsets than words — avoids bunching on the first.
+ */
+function pickBestOnsets(onsets: number[], targets: number[]): number[] {
+  const W = targets.length
+  const K = onsets.length
+  if (K <= W) return onsets
+  const picked: number[] = []
+  let idx = 0
+  for (let w = 0; w < W; w++) {
+    const target = targets[w]
+    // Leave enough onsets for remaining words.
+    const upper = K - (W - w - 1)
+    let best = idx
+    let bestDist = Math.abs(onsets[idx] - target)
+    for (let o = idx + 1; o < upper; o++) {
+      const d = Math.abs(onsets[o] - target)
+      if (d < bestDist) { bestDist = d; best = o }
+    }
+    picked.push(onsets[best])
+    idx = best + 1
+  }
+  return picked
+}
+
+/** Place W words across effectiveK onset waypoints, distributing evenly between. */
+function distributeAcrossOnsets(
+  count: number,
+  waypoints: number[],
+  segEnd: number,
+): number[] {
+  const K = waypoints.length
+  const starts = new Array<number>(count)
+  for (let g = 0; g < K; g++) {
+    const gStart = Math.floor((g * count) / K)
+    const gEnd = Math.floor(((g + 1) * count) / K) // exclusive
+    const anchor = waypoints[g]
+    const nextAnchor = g + 1 < K ? waypoints[g + 1] : segEnd
+    const groupCount = Math.max(1, gEnd - gStart)
+    const span = Math.max(MIN_SPAN, nextAnchor - anchor)
+    for (let j = 0; j < gEnd - gStart; j++) {
+      starts[gStart + j] = anchor + (span * j) / groupCount
+    }
+  }
+  return starts
+}
+
+function snapSegment(
+  words: WordChunk[],
+  seg: Segment,
+  allOnsets: number[],
+): number[] {
+  const W = seg.to - seg.from
+  const interpStarts: number[] = []
+  for (let i = seg.from; i < seg.to; i++) interpStarts.push(words[i].start)
+
+  const lo = seg.anchorStart - ANCHOR_SLACK_SEC
+  const hi = seg.anchorEnd + ANCHOR_SLACK_SEC
+  const inSeg: number[] = []
+  for (const o of allOnsets) {
+    if (o < lo) continue
+    if (o > hi) break
+    inSeg.push(o)
+  }
+
+  if (inSeg.length === 0) return interpStarts
+
+  // Real-timestamp words (no anchors) — keep the older ±0.75s greedy behavior
+  // by returning interpolated positions; caller enforces monotonic ordering.
+  const hasAnchor = words[seg.from].anchorStart != null
+
+  if (!hasAnchor) {
+    // Single-word "real" segment: snap to nearest onset within MAX_SNAP_SEC.
+    const target = interpStarts[0]
+    let best = -1
+    let bestDist = MAX_SNAP_SEC
+    for (const o of inSeg) {
+      const d = Math.abs(o - target)
+      if (d < bestDist) { bestDist = d; best = o }
+    }
+    return [best >= 0 ? best : target]
+  }
+
+  const chosen = pickBestOnsets(inSeg, interpStarts)
+  const effectiveK = Math.min(chosen.length, W)
+  if (effectiveK === 0) return interpStarts
+  return distributeAcrossOnsets(W, chosen.slice(0, effectiveK), seg.anchorEnd)
+}
+
+/**
+ * Snap interpolated Whisper words onto energy onsets in the 16 kHz PCM.
+ * Words carrying anchor bounds are grouped by segment and mapped to onsets
+ * that fall within that segment, then interpolated between waypoints. Words
+ * without anchors keep the older single-word snap.
  */
 export function snapWordsToOnsets(
   words: WordChunk[],
@@ -54,37 +177,16 @@ export function snapWordsToOnsets(
 ): WordChunk[] {
   if (words.length === 0 || audio.length === 0) return words
   const onsets = detectOnsets(rmsFrames(audio, sampleRate))
-  if (onsets.length === 0) return words // no speech energy to snap to
+  if (onsets.length === 0) return words
 
-  const used = new Set<number>()
-  const starts = words.map((w) => {
-    // Interpolated words carry their segment bounds. Onsets may lie anywhere
-    // in that range, so widen the search to the anchor width. Real-timestamp
-    // words fall back to the ±0.75 s window.
-    const hasAnchor = w.anchorStart != null && w.anchorEnd != null
-    const lo = hasAnchor ? (w.anchorStart as number) - ANCHOR_SLACK_SEC : -Infinity
-    const hi = hasAnchor ? (w.anchorEnd as number) + ANCHOR_SLACK_SEC : Infinity
-    const maxCost = hasAnchor
-      ? Math.max(MAX_SNAP_SEC, (w.anchorEnd as number) - (w.anchorStart as number))
-      : MAX_SNAP_SEC
-    let best = -1
-    let bestCost = maxCost
-    for (let oi = 0; oi < onsets.length; oi++) {
-      if (used.has(oi)) continue
-      const onset = onsets[oi]
-      if (onset < lo || onset > hi) continue
-      const late = onset > w.start
-      const dist = Math.abs(onset - w.start)
-      const cost = late ? dist * 1.15 : dist
-      if (cost <= maxCost && cost < bestCost) {
-        bestCost = cost
-        best = oi
-      }
+  const segments = groupSegments(words)
+  const starts = new Array<number>(words.length)
+  for (const seg of segments) {
+    const segStarts = snapSegment(words, seg, onsets)
+    for (let i = 0; i < segStarts.length; i++) {
+      starts[seg.from + i] = segStarts[i]
     }
-    if (best < 0) return w.start
-    used.add(best)
-    return onsets[best]
-  })
+  }
 
   for (let i = 1; i < starts.length; i++) {
     if (starts[i] < starts[i - 1] + MIN_SPAN) starts[i] = starts[i - 1] + MIN_SPAN
