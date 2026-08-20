@@ -3,6 +3,7 @@ import type { WordChunk } from './caption-types'
 const FRAME_SEC = 0.01
 const MAX_SNAP_SEC = 0.75
 const MIN_SPAN = 0.05
+const ANCHOR_SLACK_SEC = 0.15
 
 function rmsFrames(audio: Float32Array, sampleRate: number): Float32Array {
   const n = Math.max(1, Math.round(sampleRate * FRAME_SEC))
@@ -57,15 +58,25 @@ export function snapWordsToOnsets(
 
   const used = new Set<number>()
   const starts = words.map((w) => {
+    // Interpolated words carry their segment bounds. Onsets may lie anywhere
+    // in that range, so widen the search to the anchor width. Real-timestamp
+    // words fall back to the ±0.75 s window.
+    const hasAnchor = w.anchorStart != null && w.anchorEnd != null
+    const lo = hasAnchor ? (w.anchorStart as number) - ANCHOR_SLACK_SEC : -Infinity
+    const hi = hasAnchor ? (w.anchorEnd as number) + ANCHOR_SLACK_SEC : Infinity
+    const maxCost = hasAnchor
+      ? Math.max(MAX_SNAP_SEC, (w.anchorEnd as number) - (w.anchorStart as number))
+      : MAX_SNAP_SEC
     let best = -1
-    let bestCost = MAX_SNAP_SEC
+    let bestCost = maxCost
     for (let oi = 0; oi < onsets.length; oi++) {
       if (used.has(oi)) continue
       const onset = onsets[oi]
+      if (onset < lo || onset > hi) continue
       const late = onset > w.start
       const dist = Math.abs(onset - w.start)
       const cost = late ? dist * 1.15 : dist
-      if (cost <= MAX_SNAP_SEC && cost < bestCost) {
+      if (cost <= maxCost && cost < bestCost) {
         bestCost = cost
         best = oi
       }

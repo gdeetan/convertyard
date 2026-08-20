@@ -88,10 +88,10 @@ describe('caption iOS memory policy', () => {
     expect(shouldMaterializePickerFile('desktop')).toBe(false)
   })
 
-  it('slices Whisper audio and skips onset-snap on iPhone to stay under Safari’s memory cap', () => {
+  it('slices Whisper audio on iPhone but still snaps to speech onsets so captions stay in sync', () => {
     expect(shouldSliceWhisperAudio('ios')).toBe(true)
     expect(shouldSliceWhisperAudio('desktop')).toBe(false)
-    expect(shouldSnapWordOnsets('ios')).toBe(false)
+    expect(shouldSnapWordOnsets('ios')).toBe(true)
     expect(shouldSnapWordOnsets('desktop')).toBe(true)
     expect(shouldUseFfmpegExtract('ios', 20 * 1024 * 1024)).toBe(false)
     expect(shouldUseFfmpegExtract('ios', 4 * 1024 * 1024)).toBe(true)

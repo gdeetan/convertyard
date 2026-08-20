@@ -38,6 +38,8 @@ function distributeWords(tokens: string[], start: number, end: number): WordChun
     text,
     start: start + i * step,
     end: start + (i + 1) * step,
+    anchorStart: start,
+    anchorEnd: start + span,
   }))
 }
 

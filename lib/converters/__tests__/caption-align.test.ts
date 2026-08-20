@@ -37,6 +37,31 @@ describe('snapWordsToOnsets', () => {
     expect(snapped[1].end).toBe(snapped[2].start)
   })
 
+  it('snaps segment-distributed words to real onsets across the full segment', () => {
+    const sampleRate = 16000
+    // One Whisper segment spans 0..5s. Three words were evenly split to
+    // starts 0.0 / 1.67 / 3.33, but the real speech bursts are at
+    // 0.3 / 2.4 / 4.5 — far beyond the ±0.75 s window used for real
+    // word timestamps.
+    const audio = toneBurst(sampleRate, 0.3, 0.2, 5)
+    const b2 = toneBurst(sampleRate, 2.4, 0.2, 5)
+    const b3 = toneBurst(sampleRate, 4.5, 0.2, 5)
+    for (let i = 0; i < audio.length; i++) audio[i] += b2[i] + b3[i]
+
+    const words: WordChunk[] = [
+      { text: 'one',   start: 0.00, end: 1.67, anchorStart: 0, anchorEnd: 5 },
+      { text: 'two',   start: 1.67, end: 3.33, anchorStart: 0, anchorEnd: 5 },
+      { text: 'three', start: 3.33, end: 5.00, anchorStart: 0, anchorEnd: 5 },
+    ]
+    const snapped = snapWordsToOnsets(words, audio, sampleRate)
+    expect(snapped[0].start).toBeGreaterThanOrEqual(0.25)
+    expect(snapped[0].start).toBeLessThan(0.45)
+    expect(snapped[1].start).toBeGreaterThanOrEqual(2.3)
+    expect(snapped[1].start).toBeLessThan(2.55)
+    expect(snapped[2].start).toBeGreaterThanOrEqual(4.4)
+    expect(snapped[2].start).toBeLessThan(4.65)
+  })
+
   it('leaves timings alone when the audio is silent', () => {
     const words: WordChunk[] = [
       { text: 'one', start: 0.2, end: 0.5 },
