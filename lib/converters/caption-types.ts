@@ -2,6 +2,10 @@ export interface WordChunk {
   text: string
   start: number  // seconds
   end: number    // seconds
+  // Segment bounds when start/end were interpolated across a Whisper phrase.
+  // Onset-snapping is allowed to move the word anywhere within this range.
+  anchorStart?: number
+  anchorEnd?: number
 }
 
 export type CaptionStyleId = 'mrbeast' | 'tiktok' | 'netflix' | 'classic' | 'karaoke'

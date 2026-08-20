@@ -75,8 +75,10 @@ export function shouldSliceWhisperAudio(profile: CaptionClientProfile): boolean 
   return profile === 'ios'
 }
 
-export function shouldSnapWordOnsets(profile: CaptionClientProfile): boolean {
-  return profile !== 'ios'
+export function shouldSnapWordOnsets(_profile: CaptionClientProfile): boolean {
+  // Snap on all platforms. Whisper rarely emits real word timestamps, so the
+  // onset pass is what actually syncs captions to speech (YouTube-CC style).
+  return true
 }
 
 const IOS_FFMPEG_MAX_BYTES = 12 * 1024 * 1024
