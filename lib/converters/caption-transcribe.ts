@@ -228,17 +228,35 @@ export async function transcribeToWords(
   const profile = currentProfile()
   throwIfAborted(signal)
 
+  // Desktop can hold ffmpeg + Whisper in memory at once, so kick off the model
+  // download in parallel with audio extraction. Phones OOM if both are
+  // resident, so keep them sequential there.
+  const desktopParallelLoad = profile === 'desktop'
+  let modelReport = 0
+  const reportModel = (pct: number) => {
+    modelReport = pct
+    onProgress('model', pct)
+  }
+  const modelLoadPromise = desktopParallelLoad
+    ? loadTranscriptionModel(quality, reportModel).catch((err) => { throw err })
+    : null
+
   onProgress('extract', 5)
   const audioData = await extractAudio(videoFile, signal, profile)
   throwIfAborted(signal)
   onProgress('extract', 100)
 
-  await releaseCaptionExtractRuntime()
+  if (!desktopParallelLoad) {
+    await releaseCaptionExtractRuntime()
+    throwIfAborted(signal)
+    await loadTranscriptionModel(quality, reportModel)
+  } else {
+    await modelLoadPromise
+    // Free ffmpeg after the model is warm so we don't stall model loading.
+    await releaseCaptionExtractRuntime()
+  }
   throwIfAborted(signal)
-
-  await loadTranscriptionModel(quality, (pct) => onProgress('model', pct))
-  throwIfAborted(signal)
-  onProgress('model', 100)
+  if (modelReport < 100) onProgress('model', 100)
 
   // Desktop: one Whisper pass (pipeline windows at 30s / 3s stride).
   // iPhone: 20s slices so Safari is not holding the full PCM + model at once.
@@ -276,6 +294,11 @@ export async function transcribeToWords(
   throwIfAborted(signal)
   const transcript = wordsFromTranscription({ text: textParts.join(' '), chunks: merged })
   if (transcript.timestampsEstimated) return transcript
+  // Real DTW word timings from the `_timestamped` models are already
+  // sub-100 ms accurate. Only the interpolated fallback path benefits from
+  // energy-onset snap + the segment-lead compensation — running them on real
+  // timings drags words to nearby noise peaks and paints the highlight early.
+  if (!transcript.wordsInterpolated) return transcript
   if (shouldSnapWordOnsets(profile)) {
     const snapped = snapWordsToOnsets(transcript.words, audioData, sampleRate)
     const moved = snapped.some((w, i) => Math.abs(w.start - transcript.words[i].start) > 0.03)

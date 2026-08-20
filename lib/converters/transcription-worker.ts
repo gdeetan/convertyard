@@ -39,13 +39,25 @@ function applyOnnxRuntimeHints() {
     const onnx = (env.backends as any).onnx
     if (!onnx?.wasm) return
     onnx.wasm.proxy = false
-    onnx.wasm.numThreads = 1
 
     const nav = self.navigator
-    const ios = Boolean(
-      nav && needsSafariOnnxWasm(nav.userAgent ?? '', nav.maxTouchPoints ?? 0, nav.platform ?? ''),
-    )
-    if (!ios) return
+    const profile = nav
+      ? detectCaptionClientProfile(nav.userAgent ?? '', nav.maxTouchPoints ?? 0, nav.platform ?? '')
+      : 'desktop'
+
+    // COOP/COEP is set site-wide in next.config, so SharedArrayBuffer is
+    // available on desktop. iOS Safari's WASM threading is broken (session
+    // create hangs), and phones don't benefit enough to justify the memory
+    // cost. Keep single-thread on mobile, spin up hardware concurrency on
+    // desktop for a 2–4× Whisper speedup.
+    if (profile === 'desktop' && typeof SharedArrayBuffer !== 'undefined') {
+      const cores = nav?.hardwareConcurrency ?? 4
+      onnx.wasm.numThreads = Math.max(1, Math.min(8, Math.floor(cores / 2)))
+    } else {
+      onnx.wasm.numThreads = 1
+    }
+
+    if (profile !== 'ios') return
     const version = onnx.versions?.web
     if (!version) return
     const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${version}/dist/`

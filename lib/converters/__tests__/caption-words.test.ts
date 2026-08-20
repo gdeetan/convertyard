@@ -7,8 +7,8 @@ import {
 } from '../caption-words'
 
 describe('wordsFromTranscription', () => {
-  it('keeps real word timestamps', () => {
-    const { words, timestampsEstimated } = wordsFromTranscription({
+  it('keeps real word timestamps and marks them non-interpolated', () => {
+    const { words, timestampsEstimated, wordsInterpolated } = wordsFromTranscription({
       text: 'Hello world',
       chunks: [
         { text: ' Hello', timestamp: [0.1, 0.4] },
@@ -16,20 +16,22 @@ describe('wordsFromTranscription', () => {
       ],
     })
     expect(timestampsEstimated).toBe(false)
+    expect(wordsInterpolated).toBe(false)
     expect(words).toEqual([
       { text: 'Hello', start: 0.1, end: 0.4 },
       { text: 'world', start: 0.4, end: 0.9 },
     ])
   })
 
-  it('splits segment chunks across their real time range', () => {
-    const { words, timestampsEstimated } = wordsFromTranscription({
+  it('splits segment chunks across their real time range and flags interpolation', () => {
+    const { words, timestampsEstimated, wordsInterpolated } = wordsFromTranscription({
       text: 'Hello there world',
       chunks: [
         { text: 'Hello there world', timestamp: [1, 4] },
       ],
     })
     expect(timestampsEstimated).toBe(false)
+    expect(wordsInterpolated).toBe(true)
     expect(words).toHaveLength(3)
     expect(words[0].start).toBe(1)
     expect(words[2].end).toBe(4)
@@ -37,10 +39,11 @@ describe('wordsFromTranscription', () => {
   })
 
   it('does not invent a 2-second grid when timestamps are missing', () => {
-    const { words, timestampsEstimated } = wordsFromTranscription({
+    const { words, timestampsEstimated, wordsInterpolated } = wordsFromTranscription({
       text: 'Hello there world today',
     })
     expect(timestampsEstimated).toBe(true)
+    expect(wordsInterpolated).toBe(false)
     expect(words).toHaveLength(4)
     expect(words.every((w) => w.start === 0 && w.end === 0)).toBe(true)
   })
@@ -58,9 +61,10 @@ describe('applyWhisperWordLead', () => {
     expect(WHISPER_WORD_LEAD_SEC).toBe(0.12)
   })
 
-  it('shifts real timings earlier by 120 ms', () => {
+  it('shifts interpolated timings earlier by 120 ms', () => {
     const out = applyWhisperWordLead({
       timestampsEstimated: false,
+      wordsInterpolated: true,
       words: [
         { text: 'Hello', start: 0.5, end: 0.8 },
         { text: 'world', start: 0.8, end: 1.2 },
@@ -72,9 +76,22 @@ describe('applyWhisperWordLead', () => {
     ])
   })
 
+  it('leaves real (non-interpolated) word timings alone so highlights do not fire early', () => {
+    const transcript = {
+      timestampsEstimated: false,
+      wordsInterpolated: false,
+      words: [
+        { text: 'Hello', start: 0.5, end: 0.8 },
+        { text: 'world', start: 0.8, end: 1.2 },
+      ],
+    }
+    expect(applyWhisperWordLead(transcript)).toEqual(transcript)
+  })
+
   it('clamps start to 0 and keeps a 0.05 s minimum span', () => {
     const out = applyWhisperWordLead({
       timestampsEstimated: false,
+      wordsInterpolated: true,
       words: [{ text: 'Hi', start: 0.05, end: 0.2 }],
     })
     expect(out.words[0].start).toBe(0)
@@ -84,6 +101,7 @@ describe('applyWhisperWordLead', () => {
   it('does not change estimated or zero-span transcripts', () => {
     const estimated = {
       timestampsEstimated: true,
+      wordsInterpolated: false,
       words: [
         { text: 'Hello', start: 0, end: 0 },
         { text: 'world', start: 0, end: 0 },
@@ -93,6 +111,7 @@ describe('applyWhisperWordLead', () => {
 
     const zeros = {
       timestampsEstimated: false,
+      wordsInterpolated: true,
       words: [{ text: 'Hello', start: 0, end: 0 }],
     }
     expect(applyWhisperWordLead(zeros)).toEqual(zeros)
