@@ -19,6 +19,14 @@ export default function BlogPage() {
           Guides on file conversion, image formats, PDF tools, and web
           accessibility.
         </p>
+        <p className="mt-3 text-sm text-fg-subtle">
+          <a
+            href="/feed.xml"
+            className="text-primary hover:underline"
+          >
+            Subscribe via RSS
+          </a>
+        </p>
       </header>
 
       <ul className="space-y-4">

@@ -35,6 +35,13 @@ export const metadata: Metadata = {
     ],
   },
   manifest: '/site.webmanifest',
+  alternates: {
+    types: {
+      'application/rss+xml': [
+        { url: '/feed.xml', title: 'ConvertYard Blog' },
+      ],
+    },
+  },
 }
 
 export default function RootLayout({
