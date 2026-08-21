@@ -1,6 +1,6 @@
 import { fetchFile } from '@ffmpeg/util'
-import { getFFmpeg, getCompressVideoFFmpeg } from './ffmpeg-client'
-import { tryCompressVideoHevcHardware } from './compress-video-webcodecs'
+import { getFFmpeg, getCompressVideoFFmpeg, withFfmpegLock } from './ffmpeg-client'
+import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware } from './compress-video-webcodecs'
 import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from './media-probe'
 import type { ToolOptions, ConversionResult } from '@/lib/types'
 
@@ -969,33 +969,87 @@ async function tryHardwareHevcCompress(
   })
 }
 
+async function tryHardwareAvcCompress(
+  file: File,
+  opts: {
+    resolution: string
+    resHeight: number | undefined
+    targetSizeMode: boolean
+    targetKB: number
+    stripAudio: boolean
+    level: string
+    onProgress: (pct: number) => void
+  },
+): Promise<File | null> {
+  let maxHeight = opts.resHeight ?? null
+  if (maxHeight == null && opts.resolution === 'original') {
+    const dims = await probeVideoDimensions(file)
+    if (dims) {
+      if (!opts.targetSizeMode && isMobileBrowser() && file.size > 50 * 1024 * 1024) {
+        const mobileCapHeight = file.size > 100 * 1024 * 1024 ? 480 : 720
+        if (dims.height > mobileCapHeight) maxHeight = mobileCapHeight
+      } else if (opts.targetSizeMode) {
+        const autoHeight = isMobileBrowser()
+          ? (opts.targetKB <= 50 * 1024 ? 720 : 1080)
+          : (opts.targetKB <= 10 * 1024 ? 720 : opts.targetKB <= 50 * 1024 ? 1080 : null)
+        if (autoHeight !== null && dims.height > autoHeight) maxHeight = autoHeight
+      }
+    }
+  }
+
+  let bitrate: number | null = null
+  if (opts.targetSizeMode) {
+    const durationSeconds = await probeVideoDuration(file)
+    if (durationSeconds > 0) {
+      const adaptiveAudioKbps = opts.targetKB <= 10 * 1024 ? 64 : opts.targetKB <= 50 * 1024 ? 96 : 128
+      const audioBitsPerSec = opts.stripAudio ? 0 : adaptiveAudioKbps * 1000
+      bitrate = Math.max(
+        100_000,
+        Math.floor((opts.targetKB * 1024 * 8 - audioBitsPerSec * durationSeconds) / durationSeconds),
+      )
+    }
+  }
+
+  return tryCompressVideoAvcHardware(file, {
+    maxHeight,
+    bitrate,
+    level: opts.level,
+    stripAudio: opts.stripAudio,
+    onProgress: opts.onProgress,
+  })
+}
+
 async function remuxToMp4(
   file: File,
   onProgress?: (pct: number) => void,
 ): Promise<File | null> {
-  const ffmpeg = await getCompressVideoFFmpeg()
-  const ext = file.name.split('.').pop() ?? 'mp4'
-  const inputName = `cv_remux_in.${ext}`
-  const outputName = 'cv_remux_out.mp4'
-  await ffmpeg.writeFile(inputName, await fetchFile(file))
-  onProgress?.(90)
-  const progressHandler = ({ progress }: { progress: number }) => {
-    onProgress?.(Math.round(90 + progress * 8))
-  }
-  ffmpeg.on('progress', progressHandler)
-  try {
-    await ffmpeg.exec(['-i', inputName, '-c', 'copy', '-movflags', '+faststart', outputName])
-    const data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
-    if (!data?.byteLength) return null
-    const baseName = file.name.replace(/\.[^.]+$/, '')
-    return new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
-  } catch {
-    return null
-  } finally {
-    ffmpeg.off('progress', progressHandler)
-    await ffmpeg.deleteFile(inputName).catch(() => {})
-    await ffmpeg.deleteFile(outputName).catch(() => {})
-  }
+  return withFfmpegLock(async () => {
+    const ffmpeg = await getCompressVideoFFmpeg()
+    const ext = file.name.split('.').pop() ?? 'mp4'
+    // Timestamp keeps names unique across sequential calls under the same lock.
+    const ts = Date.now()
+    const inputName = `cv_remux_in_${ts}.${ext}`
+    const outputName = `cv_remux_out_${ts}.mp4`
+    await ffmpeg.writeFile(inputName, await fetchFile(file))
+    onProgress?.(90)
+    const progressHandler = ({ progress }: { progress: number }) => {
+      onProgress?.(Math.round(90 + progress * 8))
+    }
+    ffmpeg.on('progress', progressHandler)
+    try {
+      await ffmpeg.exec(['-i', inputName, '-c', 'copy', '-movflags', '+faststart', outputName])
+      const data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      if (!data?.byteLength) return null
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      return new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
+    } catch {
+      return null
+    } finally {
+      ffmpeg.off('progress', progressHandler)
+      await ffmpeg.deleteFile(inputName).catch(() => {})
+      await ffmpeg.deleteFile(outputName).catch(() => {})
+    }
+  })
 }
 
 export async function compressVideo(
@@ -1030,16 +1084,13 @@ export async function compressVideo(
     ? ['-pix_fmt', 'yuv420p', '-tag:v', 'hvc1', '-movflags', '+faststart']
     : ['-pix_fmt', 'yuv420p', '-movflags', '+faststart']
 
-  for (let i = 0; i < files.length; i++) {
+  const processOne = async (i: number): Promise<ConversionResult> => {
     onProgress?.(i, 5)
     try {
       const file   = files[i]
       const hasVideoTrack = await probeVideoTrack(file)
       if (hasVideoTrack === false) {
-        const noTrackErr = new Error('This file has no video track. Video Compressor only works on video files, not audio-only files.')
-        results.push(noTrackErr)
-        onResult?.(i, noTrackErr)
-        continue
+        return new Error('This file has no video track. Video Compressor only works on video files, not audio-only files.')
       }
 
       const alreadyFitsTarget = targetSizeMode && file.size <= targetKB * 1024
@@ -1056,22 +1107,38 @@ export async function compressVideo(
         if (hwFile) {
           if (hwFile.size < file.size) {
             console.info('[compress-video] hardware HEVC encoder')
-            results.push(hwFile)
-            onResult?.(i, hwFile)
-            onProgress?.(i, 100)
-            continue
+            return hwFile
           }
           // Hardware ran but did not shrink. Do not fall through to libx265
           // (orders of magnitude slower in WASM). Remux the source instead.
           const remuxed = await remuxToMp4(file, (pct) => onProgress?.(i, pct))
-          const outFile = remuxed ?? file
-          results.push(outFile)
-          onResult?.(i, outFile)
-          onProgress?.(i, 100)
-          continue
+          return remuxed ?? file
         }
       }
 
+      if (!h265 && !alreadyFitsTarget) {
+        const hwFile = await tryHardwareAvcCompress(file, {
+          resolution,
+          resHeight,
+          targetSizeMode,
+          targetKB,
+          stripAudio,
+          level,
+          onProgress: (pct) => onProgress?.(i, pct),
+        })
+        if (hwFile) {
+          if (hwFile.size < file.size) {
+            console.info('[compress-video] hardware AVC encoder')
+            return hwFile
+          }
+          const remuxed = await remuxToMp4(file, (pct) => onProgress?.(i, pct))
+          return remuxed ?? file
+        }
+      }
+
+      // wasm fallback: serialize on the shared ffmpeg instance so parallel workers
+      // don't collide on progress/log listeners or overlapping tempfile writes.
+      return await withFfmpegLock(async () => {
       const ffmpeg = await getCompressVideoFFmpeg()
       const ext    = file.name.split('.').pop() ?? 'mp4'
       const inputName  = `cv_in_${i}.${ext}`
@@ -1265,16 +1332,34 @@ export async function compressVideo(
 
       if (!data || data.byteLength === 0) throw new Error('Compression produced no output')
       const baseName = file.name.replace(/\.[^.]+$/, '')
-      const outFile = new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
-      results.push(outFile)
-      onResult?.(i, outFile)
-      onProgress?.(i, 100)
+      return new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
+      })
     } catch (err) {
-      const errResult = toError(err)
-      results.push(errResult)
-      onResult?.(i, errResult)
+      return toError(err)
     }
   }
+
+  // Concurrency: pair up files on desktop with ≥4 cores. Mobile stays serial
+  // to avoid VideoEncoder / memory pressure (already the OOM risk vector).
+  const concurrency = typeof navigator !== 'undefined'
+    && !isMobileBrowser()
+    && navigator.hardwareConcurrency >= 4
+    ? 2
+    : 1
+  const indexed: ConversionResult[] = new Array(files.length)
+  let cursor = 0
+  const workers = Array.from({ length: Math.min(concurrency, files.length) }, async () => {
+    while (true) {
+      const i = cursor++
+      if (i >= files.length) return
+      const result = await processOne(i)
+      indexed[i] = result
+      onResult?.(i, result)
+      onProgress?.(i, 100)
+    }
+  })
+  await Promise.all(workers)
+  for (const r of indexed) results.push(r)
   return results
 }
 

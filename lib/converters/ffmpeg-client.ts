@@ -6,6 +6,32 @@
 const CDN_MT = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core-mt@0.12.10/dist/umd'
 const CDN_ST = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/umd'
 
+// Cache the ~25 MB ffmpeg-core assets in Cache Storage so mobile Safari
+// (which evicts HTTP cache aggressively) hits an instant second load.
+// Cache name embeds the core version — bumping the CDN URL naturally invalidates.
+const FFMPEG_CACHE = 'convertyard-ffmpeg-core-v1'
+
+async function fetchCachedBlobURL(url: string, mime: string): Promise<string> {
+  const { toBlobURL } = await import('@ffmpeg/util')
+  if (typeof caches === 'undefined') return toBlobURL(url, mime)
+  try {
+    const cache = await caches.open(FFMPEG_CACHE)
+    const hit = await cache.match(url)
+    if (hit) {
+      const blob = new Blob([await hit.arrayBuffer()], { type: mime })
+      return URL.createObjectURL(blob)
+    }
+    const res = await fetch(url, { cache: 'force-cache' })
+    if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
+    // Clone before consuming: cache.put needs an unread body, blob() reads it.
+    cache.put(url, res.clone()).catch(() => { /* quota / opaque — ignore */ })
+    const blob = new Blob([await res.arrayBuffer()], { type: mime })
+    return URL.createObjectURL(blob)
+  } catch {
+    return toBlobURL(url, mime)
+  }
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let loadPromise: Promise<any> | null = null
 // Separate ST-only instance for filter-heavy operations (drawtext etc.).
@@ -22,15 +48,14 @@ export function getFFmpeg(): Promise<any> {
   if (!loadPromise) {
     loadPromise = (async () => {
       const { FFmpeg } = await import('@ffmpeg/ffmpeg')
-      const { toBlobURL } = await import('@ffmpeg/util')
 
       if (typeof SharedArrayBuffer !== 'undefined') {
         try {
           const ffmpeg = new FFmpeg()
           await ffmpeg.load({
-            coreURL: await toBlobURL(`${CDN_MT}/ffmpeg-core.js`, 'text/javascript'),
-            wasmURL: await toBlobURL(`${CDN_MT}/ffmpeg-core.wasm`, 'application/wasm'),
-            workerURL: await toBlobURL(`${CDN_MT}/ffmpeg-core.worker.js`, 'text/javascript'),
+            coreURL: await fetchCachedBlobURL(`${CDN_MT}/ffmpeg-core.js`, 'text/javascript'),
+            wasmURL: await fetchCachedBlobURL(`${CDN_MT}/ffmpeg-core.wasm`, 'application/wasm'),
+            workerURL: await fetchCachedBlobURL(`${CDN_MT}/ffmpeg-core.worker.js`, 'text/javascript'),
           })
           return ffmpeg
         } catch (err) {
@@ -41,8 +66,8 @@ export function getFFmpeg(): Promise<any> {
       // Single-thread fallback (SAB unavailable or MT load failed)
       const ffmpeg = new FFmpeg()
       await ffmpeg.load({
-        coreURL: await toBlobURL(`${CDN_ST}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${CDN_ST}/ffmpeg-core.wasm`, 'application/wasm'),
+        coreURL: await fetchCachedBlobURL(`${CDN_ST}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await fetchCachedBlobURL(`${CDN_ST}/ffmpeg-core.wasm`, 'application/wasm'),
       })
       return ffmpeg
     })().catch((err) => {
@@ -60,11 +85,10 @@ export function getSingleThreadFFmpeg(): Promise<any> {
   if (!stLoadPromise) {
     stLoadPromise = (async () => {
       const { FFmpeg } = await import('@ffmpeg/ffmpeg')
-      const { toBlobURL } = await import('@ffmpeg/util')
       const ffmpeg = new FFmpeg()
       await ffmpeg.load({
-        coreURL: await toBlobURL(`${CDN_ST}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${CDN_ST}/ffmpeg-core.wasm`, 'application/wasm'),
+        coreURL: await fetchCachedBlobURL(`${CDN_ST}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await fetchCachedBlobURL(`${CDN_ST}/ffmpeg-core.wasm`, 'application/wasm'),
       })
       return ffmpeg
     })().catch((err) => {
@@ -98,11 +122,10 @@ export function getMobileFFmpeg(): Promise<any> {
   if (!mobileLoadPromise) {
     mobileLoadPromise = (async () => {
       const { FFmpeg } = await import('@ffmpeg/ffmpeg')
-      const { toBlobURL } = await import('@ffmpeg/util')
       const ffmpeg = new FFmpeg()
       await ffmpeg.load({
-        coreURL: await toBlobURL(`${CDN_ST}/ffmpeg-core.js`, 'text/javascript'),
-        wasmURL: await toBlobURL(`${CDN_ST}/ffmpeg-core.wasm`, 'application/wasm'),
+        coreURL: await fetchCachedBlobURL(`${CDN_ST}/ffmpeg-core.js`, 'text/javascript'),
+        wasmURL: await fetchCachedBlobURL(`${CDN_ST}/ffmpeg-core.wasm`, 'application/wasm'),
       })
       return ffmpeg
     })().catch((err) => {
@@ -126,6 +149,22 @@ async function resetLoaded(
     ffmpeg.terminate()
   } catch {
     /* load failed or already dead */
+  }
+}
+
+// Serializes access to the shared ffmpeg-wasm instance. Needed once compressVideo
+// runs files concurrently: ffmpeg.on('progress', ...) is a single-listener API
+// and cv_in_N/cv_out_N tempfile names collide if two encodes overlap.
+let ffmpegLock: Promise<void> = Promise.resolve()
+export async function withFfmpegLock<T>(fn: () => Promise<T>): Promise<T> {
+  const prev = ffmpegLock
+  let release: () => void = () => {}
+  ffmpegLock = new Promise<void>((resolve) => { release = resolve })
+  await prev
+  try {
+    return await fn()
+  } finally {
+    release()
   }
 }
 
