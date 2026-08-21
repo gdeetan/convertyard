@@ -574,29 +574,60 @@ function ViewerShell({ config }: { config: ViewerToolConfig }) {
   }, [phase, handleAdd])
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
-      <header className="mb-6">
-        <h1 className="text-3xl font-semibold">{config.title}</h1>
-        <p className="mt-2 text-fg-muted">{config.subtitle}</p>
-      </header>
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
+      <div className="mb-8">
+        <Breadcrumb items={[
+          { label: 'Home', href: '/' },
+          { label: 'Tools', href: '/tools' },
+          { label: CATEGORY_META[config.category].label, href: CATEGORY_META[config.category].href },
+          { label: config.title },
+        ]} />
+        <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">
+          {config.title}
+        </h1>
+        <p className="mt-2 text-base text-fg-muted">{config.subtitle}</p>
+        {config.bestFor && (
+          <p className="mt-1 text-sm text-fg-subtle">{config.bestFor}</p>
+        )}
+        <div className="mt-3 flex items-center gap-1.5 text-xs text-fg-subtle">
+          <Lock className="h-3 w-3 text-primary" aria-hidden="true" />
+          Files never leave your browser. No uploads. No accounts.
+        </div>
+      </div>
 
-      <Dropzone
-        accepts={config.accepts}
-        acceptsExt={config.acceptsExt}
-        onAdd={runAnalyze}
-        disabled={phase === 'analyzing'}
-      />
+      <div className="rounded-2xl border border-border bg-bg-elevated p-6 shadow-sm">
+        <Dropzone
+          accepts={config.accepts}
+          acceptsExt={config.acceptsExt}
+          onAdd={runAnalyze}
+          disabled={phase === 'analyzing'}
+          compact={phase !== 'idle'}
+          fileCount={phase !== 'idle' ? files.length : undefined}
+          totalBytes={phase !== 'idle' ? files.reduce((s, f) => s + f.size, 0) : undefined}
+        />
 
-      {Extra && <Extra onFiles={handleAdd} disabled={phase === 'analyzing'} />}
+        {Extra && <div className="mt-4"><Extra onFiles={handleAdd} disabled={phase === 'analyzing'} /></div>}
 
-      {phase !== 'idle' && (
-        <section className="mt-8">
-          <Results files={files} results={results} exportActions={config.exportActions ?? []} />
-        </section>
-      )}
+        {phase !== 'idle' && (
+          <section className="mt-6">
+            <Results files={files} results={results} exportActions={config.exportActions ?? []} />
+          </section>
+        )}
+      </div>
 
       {Explainer && (
-        <section className="mt-12 prose max-w-none">
+        <section className={cn(
+          'mt-12 max-w-none',
+          '[&_h2]:mt-8 [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-fg',
+          '[&_h2:first-child]:mt-0',
+          '[&_p]:mt-3 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-fg-muted',
+          '[&_ul]:mt-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:space-y-1.5 [&_ul]:text-sm [&_ul]:text-fg-muted',
+          '[&_ol]:mt-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:space-y-1.5 [&_ol]:text-sm [&_ol]:text-fg-muted',
+          '[&_li]:leading-relaxed',
+          '[&_strong]:font-semibold [&_strong]:text-fg',
+          '[&_code]:rounded [&_code]:bg-bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.85em] [&_code]:font-mono',
+          '[&_a]:text-primary [&_a]:underline hover:[&_a]:text-primary-hover',
+        )}>
           <Explainer />
         </section>
       )}
@@ -612,7 +643,7 @@ function ViewerShell({ config }: { config: ViewerToolConfig }) {
           <RelatedToolsStrip slugs={config.relatedTools} />
         </section>
       )}
-    </main>
+    </div>
   )
 }
 

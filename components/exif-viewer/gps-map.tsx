@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef } from 'react'
+import 'leaflet/dist/leaflet.css'
 import type { GpsFix } from '@/lib/converters/exif-viewer.types'
 
 export function GpsMap({ gps }: { gps: GpsFix }) {
@@ -9,14 +10,26 @@ export function GpsMap({ gps }: { gps: GpsFix }) {
     let map: import('leaflet').Map | undefined
     ;(async () => {
       const L = (await import('leaflet')).default
-      await import('leaflet/dist/leaflet.css')
       if (!ref.current) return
+      const iconUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png'
+      const iconRetinaUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png'
+      const shadowUrl = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png'
+      const DefaultIcon = L.icon({
+        iconUrl,
+        iconRetinaUrl,
+        shadowUrl,
+        iconSize: [25, 41],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41],
+      })
       map = L.map(ref.current, { scrollWheelZoom: false }).setView([gps.lat, gps.lon], 13)
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap',
         maxZoom: 19,
       }).addTo(map)
-      L.marker([gps.lat, gps.lon]).addTo(map)
+      L.marker([gps.lat, gps.lon], { icon: DefaultIcon }).addTo(map)
+      setTimeout(() => map?.invalidateSize(), 0)
     })()
     return () => { map?.remove() }
   }, [gps.lat, gps.lon])
