@@ -1,3 +1,7 @@
+'use client'
+import { ToolShell } from '@/components/tool-shell/tool-shell'
+import { config } from '@/content/tools/exif-viewer'
+
 export default function Page() {
-  return <main className="p-8"><h1 className="text-2xl">EXIF Viewer (WIP)</h1></main>
+  return <ToolShell config={config} />
 }
