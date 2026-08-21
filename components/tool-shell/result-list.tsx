@@ -322,6 +322,82 @@ function isImageFile(file: File) {
   return file.type.startsWith('image/')
 }
 
+function isVideoFile(file: File) {
+  if (file.type.startsWith('video/')) return true
+  return /\.(mp4|mov|webm|mkv|avi|flv|m4v|3gp)$/i.test(file.name)
+}
+
+// Extract a single frame from the source video for a Finder-style thumbnail.
+// Returns null on any failure so the caller falls back to the generic FileIcon.
+function useVideoThumbnail(file?: File) {
+  const [url, setUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!file || !isVideoFile(file)) {
+      setUrl(null)
+      return
+    }
+    let cancelled = false
+    let generatedUrl: string | null = null
+    const objectUrl = URL.createObjectURL(file)
+    const video = document.createElement('video')
+    video.muted = true
+    video.playsInline = true
+    video.preload = 'metadata'
+    video.crossOrigin = 'anonymous'
+    video.src = objectUrl
+
+    const cleanup = () => {
+      video.removeAttribute('src')
+      video.load()
+      URL.revokeObjectURL(objectUrl)
+    }
+
+    const capture = () => {
+      if (cancelled) return
+      const w = video.videoWidth
+      const h = video.videoHeight
+      if (!w || !h) { cleanup(); return }
+      // Cap the thumbnail at 128px on the long edge — plenty for the 64px slot.
+      const scale = Math.min(1, 128 / Math.max(w, h))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.max(1, Math.round(w * scale))
+      canvas.height = Math.max(1, Math.round(h * scale))
+      const ctx = canvas.getContext('2d')
+      if (!ctx) { cleanup(); return }
+      try {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        canvas.toBlob((blob) => {
+          if (cancelled) { cleanup(); return }
+          if (!blob) { cleanup(); return }
+          generatedUrl = URL.createObjectURL(blob)
+          setUrl(generatedUrl)
+          cleanup()
+        }, 'image/jpeg', 0.8)
+      } catch {
+        cleanup()
+      }
+    }
+
+    video.onloadedmetadata = () => {
+      if (cancelled) return
+      // Seek slightly past the start to skip common all-black intro frames.
+      const seekTo = Math.min(0.5, Math.max(0, (video.duration || 0) * 0.1))
+      video.currentTime = seekTo
+    }
+    video.onseeked = capture
+    video.onerror = cleanup
+
+    return () => {
+      cancelled = true
+      cleanup()
+      if (generatedUrl) URL.revokeObjectURL(generatedUrl)
+    }
+  }, [file])
+
+  return url
+}
+
 function ResultRow({
   entry,
   onOpenLightbox,
@@ -337,8 +413,12 @@ function ResultRow({
   const saved = doneResult ? file.size - doneResult.size : 0
   const savedPct = isDone && file.size > 0 ? Math.round((saved / file.size) * 100) : 0
 
-  const thumbnailUrl = useObjectUrl(doneResult && isImageFile(doneResult) ? doneResult : undefined)
-  const canPreview = Boolean(thumbnailUrl)
+  const imageThumbnailUrl = useObjectUrl(doneResult && isImageFile(doneResult) ? doneResult : undefined)
+  // Video thumbnails come from the source file so the preview shows the moment
+  // upload finishes — even while compression is still running.
+  const videoThumbnailUrl = useVideoThumbnail(isVideoFile(file) ? file : undefined)
+  const thumbnailUrl = imageThumbnailUrl ?? videoThumbnailUrl
+  const canPreview = Boolean(imageThumbnailUrl)
 
   return (
     <div
@@ -364,6 +444,14 @@ function ResultRow({
               className="h-full w-full object-cover"
             />
           </button>
+        ) : thumbnailUrl ? (
+          <div className="h-16 w-16 overflow-hidden rounded-md border border-border bg-bg-muted">
+            <img
+              src={thumbnailUrl}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          </div>
         ) : (
           <div className="flex h-16 w-16 items-center justify-center rounded-md border border-border bg-bg-muted">
             <FileIcon className="h-6 w-6 text-fg-subtle" aria-hidden="true" />
