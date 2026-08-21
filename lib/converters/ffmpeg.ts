@@ -1128,12 +1128,14 @@ export async function compressVideo(
         })
         if (hwFile) {
           if (hwFile.size < file.size) {
-            console.info('[compress-video] hardware AVC encoder')
+            console.info(`[compress-video] hardware AVC encoder — ${file.size} → ${hwFile.size} bytes`)
             return hwFile
           }
+          console.info(`[compress-video] AVC hardware output larger than source (${hwFile.size} vs ${file.size}) — remuxing source instead`)
           const remuxed = await remuxToMp4(file, (pct) => onProgress?.(i, pct))
           return remuxed ?? file
         }
+        console.info('[compress-video] AVC hardware path returned null — using ffmpeg-wasm libx264')
       }
 
       // wasm fallback: serialize on the shared ffmpeg instance so parallel workers

@@ -612,13 +612,20 @@ export async function tryCompressVideoAvcHardware(
   file: File,
   opts: AvcHardwareOpts = {},
 ): Promise<File | null> {
-  if (!canAttemptAvcWebCodecs()) return null
+  if (!canAttemptAvcWebCodecs()) {
+    console.info('[compress-video] AVC WebCodecs unavailable — falling back to wasm')
+    return null
+  }
 
   try {
     const decoded = await tryEncodeAvcViaVideoDecoder(file, opts)
-    if (decoded) return decoded
-  } catch {
-    /* fall through to the playback path */
+    if (decoded) {
+      console.info('[compress-video] AVC via VideoDecoder fast path')
+      return decoded
+    }
+    console.info('[compress-video] AVC VideoDecoder path returned null — trying playback path')
+  } catch (err) {
+    console.warn('[compress-video] AVC VideoDecoder path threw — trying playback path', err)
   }
 
   const url = URL.createObjectURL(file)
@@ -758,8 +765,10 @@ export async function tryCompressVideoAvcHardware(
 
     opts.onProgress?.(84)
     const annexB = concatBytes(chunks)
+    console.info('[compress-video] AVC via playback path succeeded')
     return await muxAvcAnnexB(file, annexB, opts.stripAudio === true, opts.onProgress)
-  } catch {
+  } catch (err) {
+    console.warn('[compress-video] AVC playback path failed — falling back to wasm', err)
     return null
   } finally {
     URL.revokeObjectURL(url)
