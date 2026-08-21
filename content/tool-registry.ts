@@ -66,9 +66,10 @@ import { config as mp4ToWebm } from './tools/mp4-to-webm'
 import { config as mp3ToAac } from './tools/mp3-to-aac'
 import { config as mp4ToMov } from './tools/mp4-to-mov'
 import { config as imageToWord } from './tools/image-to-word'
-import type { ToolConfig } from '@/lib/types'
+import { config as exifViewer } from './tools/exif-viewer'
+import type { AnyToolConfig } from '@/lib/types'
 
-export const tools: ToolConfig[] = [
+export const tools: AnyToolConfig[] = [
   mergePdf,
   compressPdf,
   pdfToJpg,
@@ -137,8 +138,9 @@ export const tools: ToolConfig[] = [
   mp3ToAac,
   mp4ToMov,
   imageToWord,
+  exifViewer,
 ]
 
 export const toolBySlug = Object.fromEntries(
   tools.map((t) => [t.slug, t])
-) as Record<string, ToolConfig>
+) as Record<string, AnyToolConfig>

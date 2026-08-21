@@ -59,6 +59,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'compress-image',     title: 'Image Compressor',   description: 'Batch compress any image format.', category: 'image-editing', status: 'live' },
   { slug: 'image-resizer',      title: 'Image Resizer',      description: 'Resize to exact pixels or percent — batch.', category: 'image-editing', status: 'live' },
   { slug: 'image-cropper',      title: 'Image Cropper',      description: 'Crop to exact ratios — 1:1, passport, and more.', category: 'image-editing', status: 'live' },
+  { slug: 'exif-viewer',        title: 'EXIF Viewer',        description: 'View EXIF, GPS, IPTC, XMP, and AI-provenance metadata from any image. Batch up to 1000.', category: 'image-editing', status: 'live' },
 
   // PDF — 26 live
   { slug: 'merge-pdf',    title: 'Merge PDF',    description: 'Combine multiple PDFs into one.', category: 'pdf', status: 'live' },

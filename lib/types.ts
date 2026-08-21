@@ -1,4 +1,5 @@
 import type React from 'react'
+import type { AnalyzeResult } from './converters/exif-viewer.types'
 
 export type ToolCategory = 'images' | 'pdf' | 'video-audio' | 'dev' | 'web' | 'ai' | 'image-editing' | 'image-to-text'
 
@@ -270,4 +271,50 @@ export interface VerticalHubConfig {
   specificFaq: FAQItem[]
   relatedVerticals: string[]
   lastUpdated: string
+}
+
+// ── Viewer-mode tool config (read-only tools) ────────────────────────────────
+
+export interface ViewerExportAction {
+  id: string
+  label: string
+  /** Returns a Blob to trigger a download. */
+  build: (results: AnalyzeResult[]) => Promise<{ blob: Blob; filename: string }>
+}
+
+export interface ViewerToolConfig {
+  mode: 'viewer'
+  slug: string
+  title: string
+  subtitle: string
+  bestFor?: string
+  category: ToolCategory
+  accepts: string[]
+  acceptsExt: string[]
+  analyzeFn: (
+    files: File[],
+    onProgress?: (fileIndex: number, pct: number) => void,
+    onResult?: (fileIndex: number, result: AnalyzeResult) => void,
+  ) => Promise<AnalyzeResult[]>
+  renderResults: React.ComponentType<{
+    files: File[]
+    results: AnalyzeResult[]
+    exportActions: ViewerExportAction[]
+  }>
+  extraInput?: React.ComponentType<{
+    onFiles: (files: File[]) => void
+    disabled: boolean
+  }>
+  exportActions?: ViewerExportAction[]
+  faq: FAQItem[]
+  relatedTools: string[]
+  relatedArticles: string[]
+  meta: { title: string; description: string; ogImage?: string }
+  explainer?: React.ComponentType
+}
+
+export type AnyToolConfig = ToolConfig | ViewerToolConfig
+
+export function isViewerConfig(c: AnyToolConfig): c is ViewerToolConfig {
+  return (c as ViewerToolConfig).mode === 'viewer'
 }
