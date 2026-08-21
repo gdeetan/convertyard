@@ -13,7 +13,9 @@ import { ResultList } from './result-list'
 import { FAQAccordion } from './faq-accordion'
 import { RelatedToolsStrip } from './related-tools-strip'
 import { RelatedArticlesStrip } from './related-articles-strip'
-import type { ToolConfig, FileEntry, ToolPhase, ToolOptions, ToolCategory, CompressionMeta, OcrResultMeta, ConversionResult } from '@/lib/types'
+import type { ToolConfig, FileEntry, ToolPhase, ToolOptions, ToolCategory, CompressionMeta, OcrResultMeta, ConversionResult, ViewerToolConfig, AnyToolConfig } from '@/lib/types'
+import { isViewerConfig } from '@/lib/types'
+import type { AnalyzeResult } from '@/lib/converters/exif-viewer.types'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { sizeTargets } from '@/content/size-target-registry'
 import { useRecentTools } from '@/lib/hooks/use-recent-tools'
@@ -163,7 +165,12 @@ function buildDefaultOptions(config: ToolConfig): ToolOptions {
 
 // ── Component ──────────────────────────────────────────────────────────────
 
-export function ToolShell({ config, embedded = false, onResults, initialOptions, notice }: ToolShellProps) {
+export function ToolShell(props: { config: AnyToolConfig } & Omit<ToolShellProps, 'config'>) {
+  if (isViewerConfig(props.config)) return <ViewerShell config={props.config} />
+  return <ConverterShell {...(props as ToolShellProps)} />
+}
+
+function ConverterShell({ config, embedded = false, onResults, initialOptions, notice }: ToolShellProps) {
   const [state, dispatch] = useReducer(reducer, {
     entries: [],
     phase: 'idle',
@@ -516,6 +523,97 @@ export function ToolShell({ config, embedded = false, onResults, initialOptions,
   )
 
   return inner
+}
+
+// ── Viewer shell (read-only tools) ─────────────────────────────────────────
+
+function ViewerShell({ config }: { config: ViewerToolConfig }) {
+  const [files, setFiles] = useState<File[]>([])
+  const [results, setResults] = useState<AnalyzeResult[]>([])
+  const [phase, setPhase] = useState<'idle' | 'analyzing' | 'done'>('idle')
+  const Extra = config.extraInput
+  const Results = config.renderResults
+  const Explainer = config.explainer
+
+  const runAnalyze = useCallback(async (fs: File[]) => {
+    setFiles(fs)
+    setPhase('analyzing')
+    setResults([])
+    const partial: AnalyzeResult[] = new Array(fs.length)
+    const out = await config.analyzeFn(fs, undefined, (i, r) => {
+      partial[i] = r
+      setResults([...(partial.filter(Boolean) as AnalyzeResult[])])
+    })
+    setResults(out)
+    setPhase('done')
+  }, [config])
+
+  const handleAdd = useCallback((newFiles: File[]) => {
+    runAnalyze([...files, ...newFiles])
+  }, [files, runAnalyze])
+
+  useEffect(() => {
+    if (phase === 'analyzing') return
+    const handler = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items
+      if (!items) return
+      const pasted: File[] = []
+      for (const item of Array.from(items)) {
+        if (item.kind === 'file' && item.type.startsWith('image/')) {
+          const f = item.getAsFile()
+          if (f) pasted.push(f)
+        }
+      }
+      if (pasted.length > 0) {
+        e.preventDefault()
+        handleAdd(pasted)
+      }
+    }
+    window.addEventListener('paste', handler)
+    return () => window.removeEventListener('paste', handler)
+  }, [phase, handleAdd])
+
+  return (
+    <main className="mx-auto max-w-5xl px-4 py-8">
+      <header className="mb-6">
+        <h1 className="text-3xl font-semibold">{config.title}</h1>
+        <p className="mt-2 text-fg-muted">{config.subtitle}</p>
+      </header>
+
+      <Dropzone
+        accepts={config.accepts}
+        acceptsExt={config.acceptsExt}
+        onAdd={runAnalyze}
+        disabled={phase === 'analyzing'}
+      />
+
+      {Extra && <Extra onFiles={handleAdd} disabled={phase === 'analyzing'} />}
+
+      {phase !== 'idle' && (
+        <section className="mt-8">
+          <Results files={files} results={results} exportActions={config.exportActions ?? []} />
+        </section>
+      )}
+
+      {Explainer && (
+        <section className="mt-12 prose max-w-none">
+          <Explainer />
+        </section>
+      )}
+
+      {config.faq.length > 0 && (
+        <section className="mt-12">
+          <FAQAccordion items={config.faq} />
+        </section>
+      )}
+
+      {config.relatedTools.length > 0 && (
+        <section className="mt-12">
+          <RelatedToolsStrip slugs={config.relatedTools} />
+        </section>
+      )}
+    </main>
+  )
 }
 
 // ── Common target sizes grid ───────────────────────────────────────────────
