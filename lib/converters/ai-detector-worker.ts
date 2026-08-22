@@ -3,7 +3,11 @@
 // Runs the Organika/sdxl-detector SwinV2 classifier off the main thread.
 // Loaded lazily by ai-detector.ts via new Worker(new URL(...)).
 
-const MODEL_ID = 'Organika/sdxl-detector'
+// Swap to the R2-hosted quantized copy by setting these two constants once
+// scripts/quantize-sdxl-detector.sh has been run and the files are uploaded.
+// Leaving MODEL_HOST empty falls back to HuggingFace hub (slower, fp32 only).
+const MODEL_HOST = '' // e.g. 'https://pub-xxxx.r2.dev/'
+const MODEL_ID = MODEL_HOST ? 'models/sdxl-detector' : 'Organika/sdxl-detector'
 
 type Classifier = (input: string, opts?: { top_k?: number }) => Promise<Array<{ label: string; score: number }>>
 
@@ -19,6 +23,18 @@ async function getClassifier(): Promise<Classifier> {
     classifierPromise = (async () => {
       const { pipeline, env } = await import('@huggingface/transformers')
       env.allowLocalModels = false
+      if (MODEL_HOST) env.remoteHost = MODEL_HOST
+      // Multi-thread WASM. Requires COOP/COEP (site sets both in next.config.ts).
+      // No effect on the WebGPU path but ~3-4x speedup for the WASM fallback on
+      // Safari and older Chromes.
+      try {
+        const cores = (self.navigator?.hardwareConcurrency ?? 4) as number
+        const wasm = (env.backends as unknown as { onnx?: { wasm?: { numThreads?: number; simd?: boolean; proxy?: boolean } } }).onnx?.wasm
+        if (wasm) {
+          wasm.numThreads = Math.max(1, Math.min(cores, 8))
+          wasm.simd = true
+        }
+      } catch { /* backends config best-effort */ }
       // Organika/sdxl-detector only publishes fp32 onnx/model.onnx.
       // Try q8 first for future model swaps; fall back to fp32.
       // Try WebGPU on each variant, fall back to WASM.
