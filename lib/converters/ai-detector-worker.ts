@@ -3,13 +3,13 @@
 // Runs the Organika/sdxl-detector SwinV2 classifier off the main thread.
 // Loaded lazily by ai-detector.ts via new Worker(new URL(...)).
 
-import { CLASSIFIER_SIZE, classifierLoadAttempts } from './ai-detector-logic'
+import { classifierLoadAttempts } from './ai-detector-logic'
 
 const MODEL_HOST = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
 const MODEL_ID = MODEL_HOST ? 'models/sdxl-detector' : 'Organika/sdxl-detector'
 
 type Classifier = (
-  input: unknown,
+  input: Blob,
   opts?: { top_k?: number },
 ) => Promise<Array<{ label: string; score: number }>>
 
@@ -20,9 +20,7 @@ interface LoadMsg { type: 'load' }
 interface ClassifyMsg {
   type: 'classify'
   id: string
-  width: number
-  height: number
-  channels: 3 | 4
+  mimeType: string
   buffer: ArrayBuffer
 }
 type IncomingMsg = LoadMsg | ClassifyMsg
@@ -90,28 +88,18 @@ async function getClassifier(): Promise<Classifier> {
   return classifierPromise
 }
 
-async function warmup(classifier: Classifier): Promise<void> {
-  const { RawImage } = await import('@huggingface/transformers')
-  const gray = new Uint8Array(CLASSIFIER_SIZE * CLASSIFIER_SIZE * 3).fill(128)
-  const img = new RawImage(gray, CLASSIFIER_SIZE, CLASSIFIER_SIZE, 3)
-  try { await classifier(img, { top_k: 1 }) } catch { /* warmup is best-effort */ }
-}
-
 self.onmessage = async (e: MessageEvent<IncomingMsg>) => {
   const msg = e.data
   try {
     if (msg.type === 'load') {
-      const c = await getClassifier()
-      await warmup(c)
+      await getClassifier()
       self.postMessage({ type: 'ready', device: loadedDevice ?? 'wasm' })
       return
     }
     if (msg.type === 'classify') {
       const c = await getClassifier()
-      const { RawImage } = await import('@huggingface/transformers')
-      const data = new Uint8Array(msg.buffer)
-      const img = new RawImage(data, msg.width, msg.height, msg.channels)
-      const preds = await c(img, { top_k: 5 })
+      const blob = new Blob([msg.buffer], { type: msg.mimeType || 'image/png' })
+      const preds = await c(blob, { top_k: 5 })
       self.postMessage({ type: 'result', id: msg.id, preds })
       return
     }

@@ -1,6 +1,8 @@
 'use client'
+import { useEffect, useState } from 'react'
 import type { AiDetectionResult, Verdict } from '@/lib/converters/ai-detector.types'
 import { metadataImpliesAi } from '@/lib/converters/ai-detector-logic'
+import { getClassifierStatus, subscribeClassifierStatus } from '@/lib/converters/ai-detector'
 import { Sparkles, Camera, HelpCircle, AlertTriangle, Loader2 } from 'lucide-react'
 
 const VERDICT_META: Record<Verdict, { label: string; tone: string; icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }> }> = {
@@ -11,9 +13,18 @@ const VERDICT_META: Record<Verdict, { label: string; tone: string; icon: React.C
 }
 
 export function VerdictCard({ result }: { result: AiDetectionResult }) {
+  const [load, setLoad] = useState(getClassifierStatus)
+  useEffect(() => subscribeClassifierStatus(setLoad), [])
+
   const analyzingPixels = !!result.classifierPending && !metadataImpliesAi(result.metadataSignatures)
+  const pendingLabel =
+    load.phase === 'downloading'
+      ? (load.downloadPct > 0 ? `Downloading classifier… ${load.downloadPct}%` : 'Downloading classifier…')
+      : load.phase === 'compiling'
+        ? (load.device === 'webgpu' ? 'Compiling classifier (GPU)…' : 'Compiling classifier…')
+        : 'Analyzing pixels…'
   const meta = analyzingPixels
-    ? { label: 'Analyzing pixels…', tone: 'text-fg bg-bg-muted border-border', icon: Loader2 }
+    ? { label: pendingLabel, tone: 'text-fg bg-bg-muted border-border', icon: Loader2 }
     : VERDICT_META[result.verdict]
   const Icon = meta.icon
   const aiPct = result.aiProbability != null ? Math.round(result.aiProbability * 100) : null

@@ -53,3 +53,21 @@ export function rgbaToRgb(rgba: ArrayLike<number>, width: number, height: number
   }
   return rgb
 }
+
+/** ISO-BMFF HEIC/HEIF brands in the first 12 bytes (`ftyp` + brand). */
+export function looksLikeHeicHeader(header: ArrayBuffer | Uint8Array): boolean {
+  const u8 = header instanceof Uint8Array ? header : new Uint8Array(header)
+  if (u8.byteLength < 12) return false
+  const tag = String.fromCharCode(u8[4], u8[5], u8[6], u8[7])
+  if (tag !== 'ftyp') return false
+  const brand = String.fromCharCode(u8[8], u8[9], u8[10], u8[11]).toLowerCase()
+  return brand === 'heic' || brand === 'heix' || brand === 'heif' || brand === 'mif1' || brand === 'msf1'
+}
+
+export function friendlyImageError(err: unknown): string {
+  const m = err instanceof Error ? err.message : String(err)
+  if (/decode|could not read|not a valid|unsupported input|source image/i.test(m)) {
+    return 'Could not read this image. Try JPEG, PNG, or WebP.'
+  }
+  return m || 'Could not read this image'
+}
