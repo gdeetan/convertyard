@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
 //
-// CommunityForensics ViT-S (single fake-logit). Loaded lazily via Worker.
+// Community Forensics ViT-S @384 with the 2026 re-fit head (single fake-logit).
+// Loaded as a standalone fp32 ONNX via ORT WASM — not AutoModel (I/O names differ).
 
 import {
   CLASSIFIER_CROP,
@@ -8,26 +9,39 @@ import {
   aiScoreFromLogitList,
   centerCropOrigin,
   cropHwc,
-  detectorLoadSources,
+  detectorOnnxUrls,
   detectorWasmThreads,
   fiveCropOrigins,
   rgbToNchwFloat32,
 } from './ai-detector-logic'
 import { detectCaptionClientProfile } from './caption-workload'
 
-declare const __HF_TOKEN__: string
-
-const MODEL_HOST = DETECTOR_R2_HOST
-const HF_HOST = 'https://huggingface.co/'
-const HF_TEMPLATE = '{model}/resolve/{revision}/'
-
-type Session = {
-  model: (inputs: unknown) => Promise<{ logits: { data: ArrayLike<number> } }>
+type OrtModule = {
+  env: {
+    wasm?: {
+      proxy?: boolean
+      simd?: boolean
+      numThreads?: number
+      wasmPaths?: string | Record<string, string>
+    }
+  }
+  Tensor: new (type: 'float32', data: Float32Array, dims: number[]) => unknown
+  InferenceSession: {
+    create: (
+      data: Uint8Array,
+      opts: { executionProviders: string[] },
+    ) => Promise<{
+      inputNames: string[]
+      outputNames: string[]
+      run: (feeds: Record<string, unknown>) => Promise<Record<string, { data: ArrayLike<number> }>>
+    }>
+  }
 }
 
-let sessionPromise: Promise<Session> | null = null
+let sessionPromise: Promise<Awaited<ReturnType<OrtModule['InferenceSession']['create']>>> | null = null
 let loadedDevice: 'webgpu' | 'wasm' | null = null
 let taskChain: Promise<void> = Promise.resolve()
+let ortApi: OrtModule | null = null
 
 interface LoadMsg { type: 'load' }
 interface ClassifyMsg {
@@ -39,95 +53,96 @@ interface ClassifyMsg {
 }
 type IncomingMsg = LoadMsg | ClassifyMsg
 
-function makeProgressCallback() {
-  const downloaded: Record<string, number> = {}
-  const totals: Record<string, number> = {}
-  return (info: { status: string; file?: string; loaded?: number; total?: number }) => {
-    if (info.status === 'progress' && info.file && info.loaded != null && info.total != null) {
-      downloaded[info.file] = info.loaded
-      totals[info.file] = info.total
-      const totalDown = Object.values(downloaded).reduce((a, b) => a + b, 0)
-      const totalExpected = Object.values(totals).reduce((a, b) => a + b, 0)
-      const pct = totalExpected > 0 ? Math.round((totalDown / totalExpected) * 100) : 0
-      if (pct >= 100) self.postMessage({ type: 'compiling', device: 'wasm' })
-      else self.postMessage({ type: 'load-progress', pct })
-    }
-  }
-}
-
-async function ensureHfAuth(env: { fetch: typeof fetch }): Promise<void> {
-  if (typeof __HF_TOKEN__ === 'undefined' || !__HF_TOKEN__) return
-  const inner = env.fetch
-  env.fetch = ((url: RequestInfo | URL, init?: RequestInit) => {
-    const u = url instanceof Request ? url.url : url instanceof URL ? url.href : String(url)
-    if (u.includes('huggingface.co') || u.includes('hf.co')) {
-      const headers = new Headers((init?.headers ?? {}) as HeadersInit)
-      headers.set('Authorization', `Bearer ${__HF_TOKEN__}`)
-      return inner(url as Parameters<typeof inner>[0], { ...init, headers })
-    }
-    return inner(url as Parameters<typeof inner>[0], init)
-  }) as typeof env.fetch
-}
-
-function applyOnnxHints(env: { backends: unknown }): void {
+function applyOnnxHints(ort: OrtModule, transformersEnv?: { backends?: { onnx?: { versions?: { web?: string }; wasm?: OrtModule['env']['wasm'] } } }): void {
   const nav = self.navigator
   const profile = detectCaptionClientProfile(
     nav?.userAgent ?? '',
     nav?.maxTouchPoints ?? 0,
     nav?.platform ?? '',
   )
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const onnx = (env.backends as any).onnx
-  if (onnx?.wasm) {
-    onnx.wasm.proxy = false
-    onnx.wasm.simd = true
-    onnx.wasm.numThreads = detectorWasmThreads(
+  const wasm = ort.env?.wasm
+  if (wasm) {
+    wasm.proxy = false
+    wasm.simd = true
+    wasm.numThreads = detectorWasmThreads(
       profile,
       typeof SharedArrayBuffer !== 'undefined',
       nav?.hardwareConcurrency ?? 4,
     )
   }
-  if (profile === 'ios' && onnx?.versions?.web && onnx.wasm) {
-    const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${onnx.versions.web}/dist/`
-    onnx.wasm.wasmPaths = {
-      mjs: `${prefix}ort-wasm-simd-threaded.mjs`,
-      wasm: `${prefix}ort-wasm-simd-threaded.wasm`,
+  if (profile === 'ios' && wasm) {
+    const version = transformersEnv?.backends?.onnx?.versions?.web
+    if (version) {
+      const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${version}/dist/`
+      const paths = {
+        mjs: `${prefix}ort-wasm-simd-threaded.mjs`,
+        wasm: `${prefix}ort-wasm-simd-threaded.wasm`,
+      }
+      wasm.wasmPaths = paths
+      if (transformersEnv?.backends?.onnx?.wasm) transformersEnv.backends.onnx.wasm.wasmPaths = paths
     }
   }
 }
 
-async function getSession(): Promise<Session> {
+async function getOrt(): Promise<OrtModule> {
+  if (ortApi) return ortApi
+  const { env } = await import('@huggingface/transformers')
+  const mod = await import('onnxruntime-web/wasm')
+  const api = ((mod as { default?: OrtModule }).default ?? mod) as OrtModule
+  if (!api.Tensor || !api.InferenceSession) {
+    throw new Error('onnxruntime-web is missing Tensor or InferenceSession')
+  }
+  try { applyOnnxHints(api, env as { backends?: { onnx?: { versions?: { web?: string }; wasm?: OrtModule['env']['wasm'] } } }) } catch { /* best-effort */ }
+  ortApi = api
+  return api
+}
+
+async function fetchOnnx(url: string): Promise<Uint8Array> {
+  const res = await fetch(url, { mode: 'cors', credentials: 'omit' })
+  if (!res.ok) throw new Error(`Classifier download failed (${res.status})`)
+  const total = Number(res.headers.get('content-length') || 0)
+  if (!res.body) return new Uint8Array(await res.arrayBuffer())
+
+  const reader = res.body.getReader()
+  const chunks: Uint8Array[] = []
+  let loaded = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    chunks.push(value)
+    loaded += value.byteLength
+    const pct = total > 0 ? Math.min(99, Math.round((loaded / total) * 100)) : 0
+    self.postMessage({ type: 'load-progress', pct })
+  }
+  const out = new Uint8Array(loaded)
+  let offset = 0
+  for (const c of chunks) {
+    out.set(c, offset)
+    offset += c.byteLength
+  }
+  return out
+}
+
+async function getSession() {
   if (!sessionPromise) {
     sessionPromise = (async () => {
-      const { AutoModelForImageClassification, env } = await import('@huggingface/transformers')
-      env.allowLocalModels = false
-      await ensureHfAuth(env)
-      try { applyOnnxHints(env) } catch { /* best-effort */ }
-
       self.postMessage({ type: 'load-progress', pct: 0 })
-      const cb = makeProgressCallback()
+      const ort = await getOrt()
       let lastErr: unknown
-      for (const src of detectorLoadSources(MODEL_HOST)) {
-        const prevHost = env.remoteHost
-        const prevTemplate = env.remotePathTemplate
+      let bytes: Uint8Array | null = null
+      for (const url of detectorOnnxUrls(DETECTOR_R2_HOST)) {
         try {
-          env.remoteHost = src.host ?? HF_HOST
-          env.remotePathTemplate = src.template
-          const model = await AutoModelForImageClassification.from_pretrained(src.modelId, {
-            dtype: src.dtype,
-            device: 'wasm',
-            progress_callback: cb,
-          })
-          loadedDevice = 'wasm'
-          return { model } as unknown as Session
+          bytes = await fetchOnnx(url)
+          break
         } catch (err) {
           lastErr = err
-        } finally {
-          env.remoteHost = prevHost
-          env.remotePathTemplate = prevTemplate ?? HF_TEMPLATE
         }
       }
-      throw lastErr instanceof Error ? lastErr : new Error('Classifier failed to load')
+      if (!bytes) throw lastErr instanceof Error ? lastErr : new Error('Classifier failed to load')
+      self.postMessage({ type: 'compiling', device: 'wasm' })
+      const session = await ort.InferenceSession.create(bytes, { executionProviders: ['wasm'] })
+      loadedDevice = 'wasm'
+      return session
     })()
   }
   return sessionPromise
@@ -140,8 +155,9 @@ async function handleMessage(msg: IncomingMsg): Promise<void> {
     return
   }
   if (msg.type === 'classify') {
-    const { model } = await getSession()
-    const { RawImage, Tensor } = await import('@huggingface/transformers')
+    const session = await getSession()
+    const ort = await getOrt()
+    const { RawImage } = await import('@huggingface/transformers')
     const blob = new Blob([msg.buffer], { type: msg.mimeType || 'image/png' })
     let image = await RawImage.fromBlob(blob)
     if (image.channels === 4) image = image.rgb()
@@ -149,12 +165,14 @@ async function handleMessage(msg: IncomingMsg): Promise<void> {
       ? fiveCropOrigins(image.width, image.height, CLASSIFIER_CROP)
       : [centerCropOrigin(image.width, image.height, CLASSIFIER_CROP)]
     const logits: number[] = []
+    const inputName = session.inputNames[0]
+    const outputName = session.outputNames[0]
     for (const origin of origins) {
       const cropped = cropHwc(image.data, image.width, image.height, image.channels, origin)
       const nchw = rgbToNchwFloat32(cropped, origin.side, origin.side, image.channels)
-      const pixel_values = new Tensor('float32', nchw, [1, 3, origin.side, origin.side])
-      const out = await model({ pixel_values })
-      logits.push(Number(out.logits.data[0] ?? 0))
+      const tensor = new ort.Tensor('float32', nchw, [1, 3, origin.side, origin.side])
+      const out = await session.run({ [inputName]: tensor })
+      logits.push(Number(out[outputName].data[0] ?? 0))
     }
     const p = aiScoreFromLogitList(logits)
     self.postMessage({

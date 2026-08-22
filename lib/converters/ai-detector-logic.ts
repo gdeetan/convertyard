@@ -2,38 +2,27 @@ import type { AiSignature } from './exif-viewer.types'
 import type { Verdict } from './ai-detector.types'
 import { verdictFromProbability } from './ai-detector.types'
 
-/** CommunityForensics ViT-S: resize shortest edge to 440, center-crop 384. */
+/** ViT-S/16 @384: resize shortest edge to 440, center-crop 384. */
 export const CLASSIFIER_RESIZE = 440
 export const CLASSIFIER_CROP = 384
 /** @deprecated alias of CLASSIFIER_CROP */
 export const CLASSIFIER_SIZE = CLASSIFIER_CROP
 
-export const COMMUNITY_FORENSICS_ID = 'onnx-community/CommunityForensics-DeepfakeDet-ViT-ONNX'
+/** R2 key for the OpenFake-era re-fit Community Forensics ONNX (fp32, ~87 MB). */
+export const DETECTOR_ONNX_KEY = 'models/commfor-vits-384-refit/onnx/model.onnx'
+export const DETECTOR_GITHUB_ONNX =
+  'https://raw.githubusercontent.com/pixilated730/local-ai-image-detector/main/extension/models/detector.onnx'
 
 export type ClassifierDevice = 'webgpu' | 'wasm'
 
-/** WASM-only: WebGPU shader compile is 10–30s every visit. */
-export function classifierLoadAttempts(): Array<{ dtype: 'q8'; device: ClassifierDevice }> {
-  return [{ dtype: 'q8', device: 'wasm' }]
+/** WASM-only: WebGPU shader compile is 10–30s every visit. fp32 — q8 collapsed on this head. */
+export function classifierLoadAttempts(): Array<{ dtype: 'fp32'; device: ClassifierDevice }> {
+  return [{ dtype: 'fp32', device: 'wasm' }]
 }
 
-/** Florence-style keys: {model}/resolve/main/... */
-export const DETECTOR_HF_PATH_TEMPLATE = '{model}/resolve/{revision}/'
-
-export type DetectorLoadSource = {
-  host: string | null
-  modelId: string
-  template: string
-  dtype: 'q8' | 'fp32'
-}
-
-export function detectorLoadSources(r2Host: string): DetectorLoadSource[] {
-  return [
-    { host: r2Host, modelId: COMMUNITY_FORENSICS_ID, template: DETECTOR_HF_PATH_TEMPLATE, dtype: 'q8' },
-    { host: r2Host, modelId: 'models/community-forensics', template: '{model}/', dtype: 'q8' },
-    { host: null, modelId: COMMUNITY_FORENSICS_ID, template: DETECTOR_HF_PATH_TEMPLATE, dtype: 'q8' },
-    { host: null, modelId: COMMUNITY_FORENSICS_ID, template: DETECTOR_HF_PATH_TEMPLATE, dtype: 'fp32' },
-  ]
+export function detectorOnnxUrls(r2Host: string): string[] {
+  const base = r2Host.endsWith('/') ? r2Host : `${r2Host}/`
+  return [`${base}${DETECTOR_ONNX_KEY}`, DETECTOR_GITHUB_ONNX]
 }
 
 export function shortestEdgeSize(width: number, height: number, target: number): { w: number; h: number } {
@@ -82,8 +71,11 @@ export function mean(xs: number[]): number {
   return xs.reduce((a, b) => a + b, 0) / xs.length
 }
 
+/** Shifts the re-fit head's BA operating point to the 0.65 threshold (baked in JS, not ONNX). */
+export const DETECTOR_LOGIT_OFFSET = 1.67
+
 export function aiScoreFromLogitList(logits: number[]): number {
-  return sigmoid(mean(logits))
+  return sigmoid(mean(logits) + DETECTOR_LOGIT_OFFSET)
 }
 
 export function cropHwc(
@@ -105,10 +97,13 @@ export function cropHwc(
 
 export const DETECTOR_R2_HOST = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
 
-export function detectorQuantizedOnnxUrl(host: string = DETECTOR_R2_HOST): string {
+export function detectorOnnxUrl(host: string = DETECTOR_R2_HOST): string {
   const base = host.endsWith('/') ? host : `${host}/`
-  return `${base}${COMMUNITY_FORENSICS_ID}/resolve/main/onnx/model_quantized.onnx`
+  return `${base}${DETECTOR_ONNX_KEY}`
 }
+
+/** @deprecated alias — preload still calls this name in older tests. */
+export const detectorQuantizedOnnxUrl = detectorOnnxUrl
 
 export function sigmoid(z: number): number {
   if (z > 20) return 1
@@ -127,18 +122,21 @@ export function aiScoreFromLogits(data: ArrayLike<number>): number {
   return ea / (ea + eb)
 }
 
-/** CLIP/ViT-S mean-std used by CommunityForensics. */
-export const FORENSICS_MEAN = [0.48145466, 0.4578275, 0.40821073]
-export const FORENSICS_STD = [0.26862954, 0.26130258, 0.27577711]
+/** ImageNet mean-std used by the re-fit ViT-S head (not CLIP). */
+export const IMAGENET_MEAN = [0.485, 0.456, 0.406]
+export const IMAGENET_STD = [0.229, 0.224, 0.225]
+/** @deprecated CLIP stats from the stock CommunityForensics preprocessor. */
+export const FORENSICS_MEAN = IMAGENET_MEAN
+export const FORENSICS_STD = IMAGENET_STD
 
-/** Pack HWC uint8 RGB(A) into NCHW float32, ImageNet/CLIP normalized. */
+/** Pack HWC uint8 RGB(A) into NCHW float32, ImageNet-normalized. */
 export function rgbToNchwFloat32(
   data: ArrayLike<number>,
   width: number,
   height: number,
   channels: number,
-  mean: number[] = FORENSICS_MEAN,
-  std: number[] = FORENSICS_STD,
+  mean: number[] = IMAGENET_MEAN,
+  std: number[] = IMAGENET_STD,
 ): Float32Array {
   const plane = width * height
   const out = new Float32Array(3 * plane)

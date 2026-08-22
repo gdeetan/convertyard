@@ -24,7 +24,7 @@ export interface AiDetectionResult {
   errorMessage?: string
 }
 
-/** Calibrated for CommunityForensics (Chrome-ext ensemble used 0.65). */
+/** Calibrated for the re-fit ViT-S head (offset +1.67 → 0.65 operating point). */
 export function verdictFromProbability(p: number): Verdict {
   if (p >= 0.65) return 'likely-ai'
   if (p <= 0.35) return 'likely-human'
