@@ -275,14 +275,14 @@ export interface VerticalHubConfig {
 
 // ── Viewer-mode tool config (read-only tools) ────────────────────────────────
 
-export interface ViewerExportAction {
+export interface ViewerExportAction<T = AnalyzeResult> {
   id: string
   label: string
   /** Returns a Blob to trigger a download. */
-  build: (results: AnalyzeResult[]) => Promise<{ blob: Blob; filename: string }>
+  build: (results: T[]) => Promise<{ blob: Blob; filename: string }>
 }
 
-export interface ViewerToolConfig {
+export interface ViewerToolConfig<T = AnalyzeResult> {
   mode: 'viewer'
   slug: string
   title: string
@@ -294,18 +294,18 @@ export interface ViewerToolConfig {
   analyzeFn: (
     files: File[],
     onProgress?: (fileIndex: number, pct: number) => void,
-    onResult?: (fileIndex: number, result: AnalyzeResult) => void,
-  ) => Promise<AnalyzeResult[]>
+    onResult?: (fileIndex: number, result: T) => void,
+  ) => Promise<T[]>
   renderResults: React.ComponentType<{
     files: File[]
-    results: AnalyzeResult[]
-    exportActions: ViewerExportAction[]
+    results: T[]
+    exportActions: ViewerExportAction<T>[]
   }>
   extraInput?: React.ComponentType<{
     onFiles: (files: File[]) => void
     disabled: boolean
   }>
-  exportActions?: ViewerExportAction[]
+  exportActions?: ViewerExportAction<T>[]
   faq: FAQItem[]
   relatedTools: string[]
   relatedArticles: string[]
@@ -313,8 +313,11 @@ export interface ViewerToolConfig {
   explainer?: React.ComponentType
 }
 
-export type AnyToolConfig = ToolConfig | ViewerToolConfig
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type AnyToolConfig = ToolConfig | ViewerToolConfig<any>
 
-export function isViewerConfig(c: AnyToolConfig): c is ViewerToolConfig {
-  return (c as ViewerToolConfig).mode === 'viewer'
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isViewerConfig(c: AnyToolConfig): c is ViewerToolConfig<any> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (c as ViewerToolConfig<any>).mode === 'viewer'
 }

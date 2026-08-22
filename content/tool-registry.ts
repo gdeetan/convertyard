@@ -67,6 +67,7 @@ import { config as mp3ToAac } from './tools/mp3-to-aac'
 import { config as mp4ToMov } from './tools/mp4-to-mov'
 import { config as imageToWord } from './tools/image-to-word'
 import { config as exifViewer } from './tools/exif-viewer'
+import { config as aiImageDetector } from './tools/ai-image-detector'
 import type { AnyToolConfig } from '@/lib/types'
 
 export const tools: AnyToolConfig[] = [
@@ -139,6 +140,7 @@ export const tools: AnyToolConfig[] = [
   mp4ToMov,
   imageToWord,
   exifViewer,
+  aiImageDetector,
 ]
 
 export const toolBySlug = Object.fromEntries(

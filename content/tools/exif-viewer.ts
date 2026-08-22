@@ -48,7 +48,7 @@ export const config: ViewerToolConfig = {
     { q: 'Can I check EXIF from an image URL / link?',
       a: 'Yes, for image hosts that allow direct downloads (imgur, wikipedia, github user-content, Unsplash). Sites like Twitter, Instagram, Reddit, and Facebook block direct browser access to their CDNs — in that case, save the image and drop the file here instead.' },
   ],
-  relatedTools: ['edit-metadata', 'alt-text-generator', 'compress-image', 'image-to-text-converter', 'background-remover'],
+  relatedTools: ['ai-image-detector', 'edit-metadata', 'alt-text-generator', 'compress-image', 'background-remover'],
   relatedArticles: [],
   meta: {
     title: 'Free EXIF Viewer — Batch HEIC, RAW & JPG | ConvertYard',

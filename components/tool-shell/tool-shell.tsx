@@ -15,7 +15,6 @@ import { RelatedToolsStrip } from './related-tools-strip'
 import { RelatedArticlesStrip } from './related-articles-strip'
 import type { ToolConfig, FileEntry, ToolPhase, ToolOptions, ToolCategory, CompressionMeta, OcrResultMeta, ConversionResult, ViewerToolConfig, AnyToolConfig } from '@/lib/types'
 import { isViewerConfig } from '@/lib/types'
-import type { AnalyzeResult } from '@/lib/converters/exif-viewer.types'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { sizeTargets } from '@/content/size-target-registry'
 import { useRecentTools } from '@/lib/hooks/use-recent-tools'
@@ -527,9 +526,10 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
 
 // ── Viewer shell (read-only tools) ─────────────────────────────────────────
 
-function ViewerShell({ config }: { config: ViewerToolConfig }) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function ViewerShell({ config }: { config: ViewerToolConfig<any> }) {
   const [files, setFiles] = useState<File[]>([])
-  const [results, setResults] = useState<AnalyzeResult[]>([])
+  const [results, setResults] = useState<unknown[]>([])
   const [phase, setPhase] = useState<'idle' | 'analyzing' | 'done'>('idle')
   const Extra = config.extraInput
   const Results = config.renderResults
@@ -539,10 +539,10 @@ function ViewerShell({ config }: { config: ViewerToolConfig }) {
     setFiles(fs)
     setPhase('analyzing')
     setResults([])
-    const partial: AnalyzeResult[] = new Array(fs.length)
+    const partial: unknown[] = new Array(fs.length)
     const out = await config.analyzeFn(fs, undefined, (i, r) => {
       partial[i] = r
-      setResults([...(partial.filter(Boolean) as AnalyzeResult[])])
+      setResults([...partial.filter(x => x !== undefined)])
     })
     setResults(out)
     setPhase('done')

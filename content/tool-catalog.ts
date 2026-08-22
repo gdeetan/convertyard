@@ -172,6 +172,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'image-upscaler',      title: 'Image Upscaler',      description: 'Upscale photos and illustrations 2×–8× with on-device AI.', category: 'ai-tools', status: 'live', badge: 'AI' },
   { slug: 'transcription',       title: 'Transcribe Audio & Video',       description: 'Transcribe audio and video in your browser. 50+ languages, no upload.', category: 'ai-tools', status: 'live', badge: 'AI' },
   { slug: 'image-description',   title: 'Image Description',   description: 'Generate captions for images with AI.', category: 'ai-tools', status: 'live', badge: 'AI' },
+  { slug: 'ai-image-detector',   title: 'AI Image Detector',   description: 'Check if a photo was made by Midjourney, DALL·E, Stable Diffusion, or a camera. Batch up to 1000.', category: 'ai-tools', status: 'live', badge: 'AI' },
 ]
 
 export const toolsByCategory = (category: CatalogTool['category']): CatalogTool[] =>
