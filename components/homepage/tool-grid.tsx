@@ -299,7 +299,7 @@ export function ToolGrid() {
                     <Icon className="h-4 w-4 text-primary" aria-hidden="true" />
                   </div>
                   <div className="flex gap-1.5">
-                    {'badge' in tool && tool.badge && (
+                    {'badge' in tool && tool.badge && tool.badge !== catLabel && (
                       <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
                         {tool.badge}
                       </span>
