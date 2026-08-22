@@ -7,7 +7,7 @@ import { BatchTable } from './batch-table'
 import { CompareView } from './compare-view'
 import { ExportActions } from './export-actions'
 
-export function ViewerRoot({ results, exportActions }: { files: File[]; results: AnalyzeResult[]; exportActions: ViewerExportAction[] }) {
+export function ViewerRoot({ files, results, exportActions }: { files: File[]; results: AnalyzeResult[]; exportActions: ViewerExportAction[] }) {
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [compareOn, setCompareOn] = useState(false)
 
@@ -18,7 +18,7 @@ export function ViewerRoot({ results, exportActions }: { files: File[]; results:
     if (!r.ok) return <div className="rounded border border-amber-200 bg-amber-50 p-4 text-sm">{r.message}</div>
     return (
       <>
-        <SingleFileView result={r} />
+        <SingleFileView result={r} file={files[0]} />
         <div className="mt-4"><ExportActions results={results} actions={exportActions} /></div>
       </>
     )

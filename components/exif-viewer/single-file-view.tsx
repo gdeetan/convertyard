@@ -1,20 +1,43 @@
 'use client'
+import { useEffect, useState } from 'react'
 import type { AnalyzeSuccess } from '@/lib/converters/exif-viewer.types'
 import { PrivacyPanel } from './privacy-panel'
 import { TagSection } from './tag-section'
 import { GpsMap } from './gps-map'
+import { buildThumbnailDataUrl } from './thumbnail-fallback'
 
 const DEFAULT_OPEN = new Set(['camera', 'exposure', 'gps'])
 
-export function SingleFileView({ result }: { result: AnalyzeSuccess }) {
+export function SingleFileView({ result, file }: { result: AnalyzeSuccess; file?: File }) {
+  const [fallbackUrl, setFallbackUrl] = useState<string | null>(null)
+  const [fallbackStatus, setFallbackStatus] = useState<'idle' | 'loading' | 'failed'>('idle')
+
+  useEffect(() => {
+    if (result.thumbnailDataUrl) return
+    if (!file) return
+    const source = file
+    let cancelled = false
+    setFallbackStatus('loading')
+    buildThumbnailDataUrl(source)
+      .then(url => {
+        if (cancelled) return
+        if (url) { setFallbackUrl(url); setFallbackStatus('idle') }
+        else setFallbackStatus('failed')
+      })
+      .catch(() => { if (!cancelled) setFallbackStatus('failed') })
+    return () => { cancelled = true }
+  }, [result, file])
+
+  const src = result.thumbnailDataUrl ?? fallbackUrl
+
   return (
     <div className="grid gap-6 md:grid-cols-[240px_1fr]">
       <aside>
-        {result.thumbnailDataUrl ? (
-          <img src={result.thumbnailDataUrl} alt="" className="w-full rounded border border-gray-200" />
+        {src ? (
+          <img src={src} alt="" className="w-full rounded border border-gray-200" />
         ) : (
           <div className="flex h-40 w-full items-center justify-center rounded border border-dashed border-gray-300 text-xs text-gray-500">
-            No embedded thumbnail
+            {fallbackStatus === 'loading' ? 'Loading preview…' : 'No preview available'}
           </div>
         )}
         <dl className="mt-3 space-y-1 text-xs">

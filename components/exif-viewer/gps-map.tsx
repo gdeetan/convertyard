@@ -27,6 +27,7 @@ export function GpsMap({ gps }: { gps: GpsFix }) {
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap',
         maxZoom: 19,
+        crossOrigin: 'anonymous',
       }).addTo(map)
       L.marker([gps.lat, gps.lon], { icon: DefaultIcon }).addTo(map)
       setTimeout(() => map?.invalidateSize(), 0)
