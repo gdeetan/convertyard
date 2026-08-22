@@ -5,9 +5,9 @@ export function AiDetectorExplainer() {
       <p>
         An AI image detector estimates whether a picture came from a generative model
         or from a camera. ConvertYard's detector runs entirely in your browser using
-        CommunityForensics ViT-S (trained on millions of images across thousands of
-        generators, including ChatGPT/GPT Image, Flux, Midjourney, and Stable Diffusion).
-        The model downloads once (~37 MB), then later runs use the cache.
+        Community Forensics ViT-S with a 2026 re-fit head (evaluated on GPT Image,
+        Flux 2, Midjourney 7, and other recent generators, plus camera photos).
+        The model downloads once (~87 MB), then later runs use the cache.
       </p>
 
       <h2>How does it work?</h2>
@@ -33,10 +33,10 @@ export function AiDetectorExplainer() {
 
       <h2>Which generators does it detect?</h2>
       <p>
-        The pixel model was trained across thousands of generators (Community Forensics),
-        which covers ChatGPT/GPT Image, DALL·E, Midjourney, Flux, Stable Diffusion,
-        Imagen, Ideogram, and many others better than an SDXL-only detector. It still
-        cannot reliably name the app that made the file. Metadata detection covers
+        The pixel model starts from Community Forensics (thousands of generators) and
+        uses a re-fit head evaluated on 2025–26 generators including GPT Image, Flux 2,
+        and Midjourney 7. It still cannot reliably name the app that made the file.
+        Metadata detection covers
         Stable Diffusion, ComfyUI, Midjourney, Firefly, Imagen, Ideogram, Leonardo,
         Runway, and C2PA Content Credentials when those tags are still in the file.
       </p>
@@ -75,7 +75,7 @@ export function AiDetectorExplainer() {
 
       <h2>What about batch?</h2>
       <p>
-        Drop up to 1,000 images. The model loads once (~37 MB) and each image is
+        Drop up to 1,000 images. The model loads once (~87 MB) and each image is
         classified on-device. Results are downloadable as a CSV so
         moderators, journalists, and stock reviewers can process large sets locally.
       </p>

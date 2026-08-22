@@ -3,18 +3,19 @@ import {
   CLASSIFIER_CROP,
   CLASSIFIER_RESIZE,
   CLASSIFIER_SIZE,
-  COMMUNITY_FORENSICS_ID,
+  DETECTOR_LOGIT_OFFSET,
+  DETECTOR_ONNX_KEY,
   aiScoreFromLogits,
   rgbToNchwFloat32,
   aiScoreFromLogitList,
   centerCropOrigin,
   cropHwc,
+  detectorOnnxUrl,
+  detectorOnnxUrls,
   detectorQuantizedOnnxUrl,
   fiveCropOrigins,
   classifierLoadAttempts,
   combineVerdict,
-  DETECTOR_HF_PATH_TEMPLATE,
-  detectorLoadSources,
   detectorWasmThreads,
   friendlyImageError,
   looksLikeHeicHeader,
@@ -28,20 +29,16 @@ import {
 import { verdictFromProbability } from '../ai-detector.types'
 
 describe('classifierLoadAttempts', () => {
-  it('loads q8 WASM only (skips WebGPU shader compile and fp32)', () => {
-    expect(classifierLoadAttempts()).toEqual([{ dtype: 'q8', device: 'wasm' }])
+  it('loads fp32 WASM only (skips WebGPU shader compile)', () => {
+    expect(classifierLoadAttempts()).toEqual([{ dtype: 'fp32', device: 'wasm' }])
   })
 })
 
-describe('detectorLoadSources', () => {
-  it('loads CommunityForensics from the HuggingFace-style R2 prefix first', () => {
-    const srcs = detectorLoadSources('https://example.r2.dev/')
-    expect(srcs[0]).toMatchObject({
-      modelId: COMMUNITY_FORENSICS_ID,
-      template: DETECTOR_HF_PATH_TEMPLATE,
-      dtype: 'q8',
-    })
-    expect(srcs.some(s => s.host === null && s.modelId === COMMUNITY_FORENSICS_ID)).toBe(true)
+describe('detectorOnnxUrls', () => {
+  it('loads the re-fit fp32 ONNX from R2 first, GitHub as fallback', () => {
+    const urls = detectorOnnxUrls('https://example.r2.dev/')
+    expect(urls[0]).toBe(`https://example.r2.dev/${DETECTOR_ONNX_KEY}`)
+    expect(urls[1]).toMatch(/pixilated730\/local-ai-image-detector/)
   })
 })
 
@@ -97,7 +94,7 @@ describe('verdictFromProbability', () => {
   })
 })
 
-describe('CommunityForensics preprocess + logit', () => {
+describe('re-fit ViT-S preprocess + logit', () => {
   it('resizes the shortest edge to 440 then center-crops 384', () => {
     expect(CLASSIFIER_RESIZE).toBe(440)
     expect(CLASSIFIER_CROP).toBe(384)
@@ -111,7 +108,8 @@ describe('CommunityForensics preprocess + logit', () => {
     expect(crops).toHaveLength(5)
     expect(crops[0]).toEqual({ sx: 199, sy: 28, side: 384 })
     expect(fiveCropOrigins(384, 384, 384)).toHaveLength(1)
-    expect(aiScoreFromLogitList([0, 0])).toBeCloseTo(0.5)
+    expect(DETECTOR_LOGIT_OFFSET).toBe(1.67)
+    expect(aiScoreFromLogitList([0, 0])).toBeCloseTo(1 / (1 + Math.exp(-1.67)))
   })
 
   it('copies a 2x2 crop out of a 4-wide RGB row', () => {
@@ -126,10 +124,11 @@ describe('CommunityForensics preprocess + logit', () => {
     ])
   })
 
-  it('points preload at the R2 q8 ONNX', () => {
-    expect(detectorQuantizedOnnxUrl('https://example.r2.dev/')).toBe(
-      'https://example.r2.dev/onnx-community/CommunityForensics-DeepfakeDet-ViT-ONNX/resolve/main/onnx/model_quantized.onnx',
+  it('points preload at the R2 fp32 ONNX', () => {
+    expect(detectorOnnxUrl('https://example.r2.dev/')).toBe(
+      `https://example.r2.dev/${DETECTOR_ONNX_KEY}`,
     )
+    expect(detectorQuantizedOnnxUrl('https://example.r2.dev/')).toBe(detectorOnnxUrl('https://example.r2.dev/'))
   })
 
   it('maps a single fake-logit through sigmoid', () => {
@@ -143,7 +142,7 @@ describe('CommunityForensics preprocess + logit', () => {
     const rgb = [255, 0, 0, 0, 255, 0, 0, 0, 255, 128, 128, 128]
     const t = rgbToNchwFloat32(rgb, 2, 2, 3)
     expect(t.length).toBe(12)
-    expect(t[0]).toBeCloseTo((1 - 0.48145466) / 0.26862954)
+    expect(t[0]).toBeCloseTo((1 - 0.485) / 0.229)
   })
 })
 

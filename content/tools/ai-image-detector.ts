@@ -24,15 +24,15 @@ export const config: ViewerToolConfig<AiDetectionResult> = {
     },
     {
       q: 'Which AI generators does it detect?',
-      a: 'The pixel classifier is CommunityForensics ViT-S, trained across thousands of generators (ChatGPT/GPT Image, DALL·E, Midjourney, Flux, Stable Diffusion, Imagen, Ideogram, and others). It scores AI vs photo — it does not name the app. The metadata pass still flags Stable Diffusion, ComfyUI, Midjourney, Firefly, Imagen, Ideogram, Leonardo, Runway, and C2PA tags when present.',
+      a: 'The pixel classifier is Community Forensics ViT-S with a 2026 re-fit head, scored on recent generators (GPT Image, Flux 2, Midjourney 7, and others). It scores AI vs photo — it does not name the app. The metadata pass still flags Stable Diffusion, ComfyUI, Midjourney, Firefly, Imagen, Ideogram, Leonardo, Runway, and C2PA tags when present.',
     },
     {
       q: 'How accurate is it?',
-      a: 'On held-out public sets this model family is around 90% balanced accuracy, including JPEG-recompressed copies. ChatGPT images are in scope; 100% scores are still not proof. False positives happen on heavy retouching and generative upscales. False negatives happen after aggressive re-encoding. Use it as one signal.',
+      a: 'Public on-device evals of this checkpoint report about 90% balanced accuracy at a 0.65 threshold, including JPEG-recompressed copies and 2025–26 generators. ChatGPT / GPT Image is in scope; 100% scores are still not proof. False positives happen on heavy retouching. False negatives happen after aggressive re-encoding. Use it as one signal.',
     },
     {
       q: 'Can I check many images at once?',
-      a: 'Yes — drop up to 1,000 images. The model loads once (about 37 MB, cached after first run). Desktops score five 384 px crops and average the logits; phones use one center crop.',
+      a: 'Yes — drop up to 1,000 images. The model loads once (about 87 MB, cached after first run). Desktops score five 384 px crops and average the logits; phones use one center crop.',
     },
     {
       q: 'What formats are supported?',
