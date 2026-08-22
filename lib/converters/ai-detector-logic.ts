@@ -12,6 +12,16 @@ export function classifierLoadAttempts(): Array<{ dtype: 'q8'; device: Classifie
   return [{ dtype: 'q8', device: 'wasm' }]
 }
 
+/** iOS Safari hangs on WASM session create if numThreads > 1. Phones also OOM. */
+export function detectorWasmThreads(
+  profile: 'desktop' | 'android' | 'ios',
+  hasSharedArrayBuffer: boolean,
+  cores: number,
+): number {
+  if (profile !== 'desktop' || !hasSharedArrayBuffer) return 1
+  return Math.max(1, Math.min(8, Math.floor(cores / 2)))
+}
+
 const AI_LABELS = new Set(['artificial', 'ai', 'ai-generated', 'fake', 'sd', 'sdxl', 'generated', 'lab_1'])
 
 export function pickAiScore(preds: Array<{ label: string; score: number }>): number {
@@ -59,6 +69,9 @@ export function looksLikeHeicHeader(header: ArrayBuffer | Uint8Array): boolean {
 
 export function friendlyImageError(err: unknown): string {
   const m = err instanceof Error ? err.message : String(err)
+  if (/memory|out of memory|oom|allocation|Maximum call/i.test(m)) {
+    return 'This device ran out of memory loading the classifier. Close other tabs, or try on a computer.'
+  }
   if (/decode|could not read|not a valid|unsupported input|source image/i.test(m)) {
     return 'Could not read this image. Try JPEG, PNG, or WebP.'
   }

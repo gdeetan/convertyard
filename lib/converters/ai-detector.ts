@@ -84,7 +84,7 @@ function handleWorkerMessage(e: MessageEvent): void {
       classifyWaiters.get(d.id)?.reject(err)
       classifyWaiters.delete(d.id)
     } else {
-      setStatus({ phase: 'error', error: d.message })
+      setStatus({ phase: 'error', error: friendlyImageError(d.message ?? 'Classifier failed') })
       readyPromise = null
       readyReject?.(err)
       readyResolve = null
