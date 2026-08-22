@@ -7,15 +7,8 @@ export const CLASSIFIER_SIZE = 224
 
 export type ClassifierDevice = 'webgpu' | 'wasm'
 
-export function classifierLoadAttempts(
-  webgpu: boolean,
-): Array<{ dtype: 'q8'; device: ClassifierDevice }> {
-  if (webgpu) {
-    return [
-      { dtype: 'q8', device: 'webgpu' },
-      { dtype: 'q8', device: 'wasm' },
-    ]
-  }
+/** WASM-only: WebGPU shader compile for SwinV2 is 10–30s every visit. */
+export function classifierLoadAttempts(): Array<{ dtype: 'q8'; device: ClassifierDevice }> {
   return [{ dtype: 'q8', device: 'wasm' }]
 }
 

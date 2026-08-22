@@ -15,6 +15,7 @@ type Classifier = (
 
 let classifierPromise: Promise<Classifier> | null = null
 let loadedDevice: 'webgpu' | 'wasm' | null = null
+let taskChain: Promise<void> = Promise.resolve()
 
 interface LoadMsg { type: 'load' }
 interface ClassifyMsg {
@@ -25,17 +26,7 @@ interface ClassifyMsg {
 }
 type IncomingMsg = LoadMsg | ClassifyMsg
 
-async function probeWebGPU(): Promise<boolean> {
-  try {
-    const gpu = (self as unknown as { navigator?: { gpu?: { requestAdapter: () => Promise<unknown> } } }).navigator?.gpu
-    if (!gpu) return false
-    return !!(await gpu.requestAdapter())
-  } catch {
-    return false
-  }
-}
-
-function makeProgressCallback(device: 'webgpu' | 'wasm') {
+function makeProgressCallback() {
   const downloaded: Record<string, number> = {}
   const totals: Record<string, number> = {}
   return (info: { status: string; file?: string; loaded?: number; total?: number }) => {
@@ -45,7 +36,7 @@ function makeProgressCallback(device: 'webgpu' | 'wasm') {
       const totalDown = Object.values(downloaded).reduce((a, b) => a + b, 0)
       const totalExpected = Object.values(totals).reduce((a, b) => a + b, 0)
       const pct = totalExpected > 0 ? Math.round((totalDown / totalExpected) * 100) : 0
-      if (pct >= 100) self.postMessage({ type: 'compiling', device })
+      if (pct >= 100) self.postMessage({ type: 'compiling', device: 'wasm' })
       else self.postMessage({ type: 'load-progress', pct })
     }
   }
@@ -66,44 +57,36 @@ async function getClassifier(): Promise<Classifier> {
         }
       } catch { /* backends config best-effort */ }
 
-      const webgpu = await probeWebGPU()
-      const attempts = classifierLoadAttempts(webgpu)
-      let lastErr: unknown
-      for (const opts of attempts) {
-        try {
-          self.postMessage({ type: 'compiling', device: opts.device })
-          const clf = await pipeline('image-classification', MODEL_ID, {
-            ...opts,
-            progress_callback: makeProgressCallback(opts.device),
-          }) as unknown as Classifier
-          loadedDevice = opts.device
-          return clf
-        } catch (err) {
-          lastErr = err
-        }
-      }
-      throw lastErr instanceof Error ? lastErr : new Error('Classifier failed to load')
+      self.postMessage({ type: 'load-progress', pct: 0 })
+      const [opts] = classifierLoadAttempts()
+      const clf = await pipeline('image-classification', MODEL_ID, {
+        ...opts,
+        progress_callback: makeProgressCallback(),
+      }) as unknown as Classifier
+      loadedDevice = opts.device
+      return clf
     })()
   }
   return classifierPromise
 }
 
-self.onmessage = async (e: MessageEvent<IncomingMsg>) => {
+async function handleMessage(msg: IncomingMsg): Promise<void> {
+  if (msg.type === 'load') {
+    await getClassifier()
+    self.postMessage({ type: 'ready', device: loadedDevice ?? 'wasm' })
+    return
+  }
+  if (msg.type === 'classify') {
+    const c = await getClassifier()
+    const blob = new Blob([msg.buffer], { type: msg.mimeType || 'image/png' })
+    const preds = await c(blob, { top_k: 5 })
+    self.postMessage({ type: 'result', id: msg.id, preds })
+  }
+}
+
+self.onmessage = (e: MessageEvent<IncomingMsg>) => {
   const msg = e.data
-  try {
-    if (msg.type === 'load') {
-      await getClassifier()
-      self.postMessage({ type: 'ready', device: loadedDevice ?? 'wasm' })
-      return
-    }
-    if (msg.type === 'classify') {
-      const c = await getClassifier()
-      const blob = new Blob([msg.buffer], { type: msg.mimeType || 'image/png' })
-      const preds = await c(blob, { top_k: 5 })
-      self.postMessage({ type: 'result', id: msg.id, preds })
-      return
-    }
-  } catch (err) {
+  taskChain = taskChain.then(() => handleMessage(msg)).catch((err: unknown) => {
     const message = err instanceof Error ? err.message : String(err)
     if ('id' in msg) {
       self.postMessage({ type: 'error', id: msg.id, message })
@@ -111,7 +94,7 @@ self.onmessage = async (e: MessageEvent<IncomingMsg>) => {
       classifierPromise = null
       self.postMessage({ type: 'error', message })
     }
-  }
+  })
 }
 
 export {}

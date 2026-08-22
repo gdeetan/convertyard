@@ -21,7 +21,7 @@ export function VerdictCard({ result }: { result: AiDetectionResult }) {
     load.phase === 'downloading'
       ? (load.downloadPct > 0 ? `Downloading classifier… ${load.downloadPct}%` : 'Downloading classifier…')
       : load.phase === 'compiling'
-        ? (load.device === 'webgpu' ? 'Compiling classifier (GPU)…' : 'Compiling classifier…')
+        ? 'Starting classifier…'
         : 'Analyzing pixels…'
   const meta = analyzingPixels
     ? { label: pendingLabel, tone: 'text-fg bg-bg-muted border-border', icon: Loader2 }

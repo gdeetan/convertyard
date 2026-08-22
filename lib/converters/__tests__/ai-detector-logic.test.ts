@@ -13,17 +13,8 @@ import {
 import { verdictFromProbability } from '../ai-detector.types'
 
 describe('classifierLoadAttempts', () => {
-  it('only loads q8, preferring WebGPU then WASM', () => {
-    expect(classifierLoadAttempts(true)).toEqual([
-      { dtype: 'q8', device: 'webgpu' },
-      { dtype: 'q8', device: 'wasm' },
-    ])
-  })
-
-  it('skips WebGPU when unavailable and never falls back to fp32', () => {
-    const attempts = classifierLoadAttempts(false)
-    expect(attempts).toEqual([{ dtype: 'q8', device: 'wasm' }])
-    expect(attempts.every(a => a.dtype === 'q8')).toBe(true)
+  it('loads q8 WASM only (skips WebGPU shader compile and fp32)', () => {
+    expect(classifierLoadAttempts()).toEqual([{ dtype: 'q8', device: 'wasm' }])
   })
 })
 
