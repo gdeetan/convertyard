@@ -51,7 +51,7 @@ export const config: ViewerToolConfig = {
   relatedTools: ['edit-metadata', 'alt-text-generator', 'compress-image', 'image-to-text-converter', 'background-remover'],
   relatedArticles: [],
   meta: {
-    title: 'EXIF Viewer — ConvertYard',
-    description: 'View EXIF, IPTC, XMP, and GPS metadata from JPG, HEIC, RAW, and more — right in your browser. Batch up to 1000 files. Files never uploaded.',
+    title: 'Free EXIF Viewer — Batch HEIC, RAW & JPG | ConvertYard',
+    description: 'Free EXIF viewer for JPG, HEIC, RAW, PNG, and WebP. Check GPS, camera, IPTC, and AI-generation tags for up to 1,000 files at once — all in your browser. No uploads.',
   },
 }

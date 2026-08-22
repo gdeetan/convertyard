@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'EXIF Viewer — ConvertYard',
+  title: 'Free EXIF Viewer — Batch HEIC, RAW & JPG | ConvertYard',
   description:
-    'View EXIF, IPTC, XMP, and GPS metadata from JPG, HEIC, RAW, and more — right in your browser. Batch up to 1000 files. Files never uploaded.',
+    'Free EXIF viewer for JPG, HEIC, RAW, PNG, and WebP. Check GPS, camera, IPTC, and AI-generation tags for up to 1,000 files at once — all in your browser. No uploads.',
   alternates: { canonical: 'https://convertyard.com/exif-viewer' },
 }
 
