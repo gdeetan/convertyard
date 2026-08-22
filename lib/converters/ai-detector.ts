@@ -1,14 +1,97 @@
 import type { AiDetectionResult } from './ai-detector.types'
-import { verdictFromProbability } from './ai-detector.types'
+import {
+  CLASSIFIER_SIZE,
+  combineVerdict,
+  pickAiScore,
+  pendingVerdict,
+} from './ai-detector-logic'
 import { detectAiSignatures } from './exif-viewer-ai'
-import { buildThumbnailDataUrl } from './ai-detector-thumbnail'
+import { buildClassifierInput, isHeicFile } from './ai-detector-thumbnail'
 
-const HEIC_MIME = /image\/hei[cf]/i
+// ── Load status (UI subscribes) ──────────────────────────────────────────────
+
+export type ClassifierPhase = 'idle' | 'downloading' | 'compiling' | 'ready' | 'error'
+
+export interface ClassifierStatus {
+  phase: ClassifierPhase
+  downloadPct: number
+  device?: 'webgpu' | 'wasm'
+  error?: string
+}
+
+let status: ClassifierStatus = { phase: 'idle', downloadPct: 0 }
+const listeners = new Set<(s: ClassifierStatus) => void>()
+
+function setStatus(partial: Partial<ClassifierStatus>): void {
+  status = { ...status, ...partial }
+  listeners.forEach(cb => cb(status))
+}
+
+export function getClassifierStatus(): ClassifierStatus {
+  return status
+}
+
+export function subscribeClassifierStatus(cb: (s: ClassifierStatus) => void): () => void {
+  listeners.add(cb)
+  cb(status)
+  return () => { listeners.delete(cb) }
+}
 
 // ── Worker singleton ─────────────────────────────────────────────────────────
 
 let workerInstance: Worker | null = null
 let readyPromise: Promise<void> | null = null
+let readyResolve: (() => void) | null = null
+let readyReject: ((err: Error) => void) | null = null
+
+const classifyWaiters = new Map<string, {
+  resolve: (preds: Array<{ label: string; score: number }>) => void
+  reject: (err: Error) => void
+}>()
+
+function handleWorkerMessage(e: MessageEvent): void {
+  const d = e.data as {
+    type: string
+    pct?: number
+    device?: 'webgpu' | 'wasm'
+    id?: string
+    preds?: Array<{ label: string; score: number }>
+    message?: string
+  }
+  if (d.type === 'load-progress' && d.pct != null) {
+    setStatus({ phase: 'downloading', downloadPct: d.pct })
+    return
+  }
+  if (d.type === 'compiling') {
+    setStatus({ phase: 'compiling', device: d.device, downloadPct: 100 })
+    return
+  }
+  if (d.type === 'ready') {
+    setStatus({ phase: 'ready', downloadPct: 100, device: d.device })
+    readyResolve?.()
+    readyResolve = null
+    readyReject = null
+    return
+  }
+  if (d.type === 'result' && d.id) {
+    classifyWaiters.get(d.id)?.resolve(d.preds ?? [])
+    classifyWaiters.delete(d.id)
+    return
+  }
+  if (d.type === 'error') {
+    const err = new Error(d.message ?? 'Classifier failed')
+    if (d.id) {
+      classifyWaiters.get(d.id)?.reject(err)
+      classifyWaiters.delete(d.id)
+    } else {
+      setStatus({ phase: 'error', error: d.message })
+      readyPromise = null
+      readyReject?.(err)
+      readyResolve = null
+      readyReject = null
+    }
+  }
+}
 
 function getWorker(): Worker {
   if (!workerInstance) {
@@ -16,152 +99,170 @@ function getWorker(): Worker {
       new URL('./ai-detector-worker.ts', import.meta.url),
       { type: 'module' },
     )
+    workerInstance.addEventListener('message', handleWorkerMessage)
   }
   return workerInstance
 }
 
 function ensureReady(): Promise<void> {
+  if (status.phase === 'ready' && readyPromise) return readyPromise
   if (readyPromise) return readyPromise
   readyPromise = new Promise<void>((resolve, reject) => {
-    const worker = getWorker()
-    const handler = (e: MessageEvent) => {
-      if (e.data?.type === 'ready') {
-        worker.removeEventListener('message', handler)
-        // Fire-and-forget warmup once model is ready.
-        worker.postMessage({ type: 'warmup' })
-        resolve()
-      } else if (e.data?.type === 'error' && !('id' in e.data)) {
-        worker.removeEventListener('message', handler)
-        readyPromise = null
-        reject(new Error(e.data.message ?? 'Model load failed'))
-      }
-    }
-    worker.addEventListener('message', handler)
-    worker.postMessage({ type: 'load' })
+    readyResolve = resolve
+    readyReject = reject
   })
+  if (status.phase === 'idle' || status.phase === 'error') {
+    setStatus({ phase: 'downloading', downloadPct: 0, error: undefined })
+  }
+  getWorker().postMessage({ type: 'load' })
   return readyPromise
 }
 
-/** Kick off worker spawn + model download while the visitor reads the page. */
+/** Kick off worker spawn + model download as soon as the page mounts. */
 export function preloadClassifier(): void {
   void ensureReady().catch(() => { /* silent — retried on real use */ })
 }
 
 // ── Per-file classify via worker ─────────────────────────────────────────────
 
-async function classifyDataUrl(dataUrl: string): Promise<Array<{ label: string; score: number }>> {
+async function classifyRgb(rgb: Uint8Array): Promise<Array<{ label: string; score: number }>> {
   await ensureReady()
   const worker = getWorker()
   const id = crypto.randomUUID()
+  const buffer = rgb.buffer.slice(rgb.byteOffset, rgb.byteOffset + rgb.byteLength)
   return new Promise((resolve, reject) => {
-    const handler = (e: MessageEvent) => {
-      if (e.data?.id !== id) return
-      worker.removeEventListener('message', handler)
-      if (e.data.type === 'result') resolve(e.data.preds)
-      else reject(new Error(e.data.message ?? 'Classifier failed'))
-    }
-    worker.addEventListener('message', handler)
-    worker.postMessage({ type: 'classify', id, dataUrl })
+    classifyWaiters.set(id, { resolve, reject })
+    worker.postMessage(
+      { type: 'classify', id, width: CLASSIFIER_SIZE, height: CLASSIFIER_SIZE, channels: 3, buffer },
+      [buffer],
+    )
   })
 }
 
 // ── Public analyzer ──────────────────────────────────────────────────────────
+
+type ExifParse = (file: File, opts: Record<string, boolean>) => Promise<unknown>
+
+type Prepared = {
+  file: File
+  metadataSignatures: AiDetectionResult['metadataSignatures']
+  rgb?: Uint8Array
+  previewDataUrl?: string
+  width?: number
+  height?: number
+  decodeError?: string
+}
+
+async function prepareFile(file: File, parse: ExifParse): Promise<Prepared> {
+  let metadataSignatures: AiDetectionResult['metadataSignatures'] = []
+  try {
+    const raw = (await parse(file, { xmp: true, tiff: true, icc: true, iptc: true, jfif: true, ihdr: true })) as
+      | Record<string, unknown>
+      | undefined
+    if (raw) {
+      const hasC2pa = 'jumbf' in raw || 'C2PA' in raw
+      metadataSignatures = detectAiSignatures(raw, { hasC2pa })
+    }
+  } catch { /* metadata pass is optional */ }
+
+  try {
+    const built = await buildClassifierInput(file, isHeicFile(file))
+    return {
+      file,
+      metadataSignatures,
+      rgb: built.rgb,
+      previewDataUrl: built.previewDataUrl,
+      width: built.width,
+      height: built.height,
+    }
+  } catch (err) {
+    return {
+      file,
+      metadataSignatures,
+      decodeError: err instanceof Error ? err.message : 'Could not decode image',
+    }
+  }
+}
+
+function baseFields(p: Prepared): Pick<AiDetectionResult, 'fileName' | 'fileSize' | 'mimeType' | 'metadataSignatures' | 'thumbnailDataUrl' | 'width' | 'height'> {
+  return {
+    fileName: p.file.name,
+    fileSize: p.file.size,
+    mimeType: p.file.type,
+    metadataSignatures: p.metadataSignatures,
+    thumbnailDataUrl: p.previewDataUrl,
+    width: p.width,
+    height: p.height,
+  }
+}
 
 export async function analyzeForAi(
   files: File[],
   onProgress?: (i: number, pct: number) => void,
   onResult?: (i: number, r: AiDetectionResult) => void,
 ): Promise<AiDetectionResult[]> {
+  const results: AiDetectionResult[] = new Array(files.length)
+  if (files.length === 0) return results
+
   const { parse } = await import('exifr')
-  const results: AiDetectionResult[] = []
+  void ensureReady()
 
+  let nextPrepared = prepareFile(files[0], parse as ExifParse)
   for (let i = 0; i < files.length; i++) {
-    const f = files[i]
-    onProgress?.(i, 10)
+    const prepared = await nextPrepared
+    if (i + 1 < files.length) nextPrepared = prepareFile(files[i + 1], parse as ExifParse)
+    onProgress?.(i, 20)
 
-    let metadataSignatures: AiDetectionResult['metadataSignatures'] = []
-    try {
-      const raw = (await parse(f, { xmp: true, tiff: true, icc: true, iptc: true, jfif: true, ihdr: true })) as
-        | Record<string, unknown>
-        | undefined
-      if (raw) {
-        const hasC2pa = 'jumbf' in raw || 'C2PA' in raw
-        metadataSignatures = detectAiSignatures(raw, { hasC2pa })
-      }
-    } catch { /* metadata pass is optional */ }
-
-    onProgress?.(i, 30)
-
-    let thumbnailDataUrl: string | undefined
-    let width: number | undefined
-    let height: number | undefined
-    try {
-      const built = await buildThumbnailDataUrl(f, HEIC_MIME.test(f.type) || /\.hei[cf]$/i.test(f.name))
-      thumbnailDataUrl = built.dataUrl
-      width = built.width
-      height = built.height
-    } catch (err) {
+    if (prepared.decodeError) {
       const r: AiDetectionResult = {
         ok: false,
-        fileName: f.name,
-        fileSize: f.size,
-        mimeType: f.type,
+        ...baseFields(prepared),
         verdict: 'error',
-        metadataSignatures,
-        errorMessage: err instanceof Error ? err.message : 'Could not decode image',
+        errorMessage: prepared.decodeError,
       }
-      results.push(r); onResult?.(i, r); onProgress?.(i, 100); continue
+      results[i] = r
+      onResult?.(i, r)
+      onProgress?.(i, 100)
+      continue
     }
 
-    onProgress?.(i, 60)
+    const pending: AiDetectionResult = {
+      ok: true,
+      ...baseFields(prepared),
+      verdict: pendingVerdict(prepared.metadataSignatures),
+      classifierPending: true,
+    }
+    results[i] = pending
+    onResult?.(i, pending)
+    onProgress?.(i, 40)
 
     try {
-      const preds = await classifyDataUrl(thumbnailDataUrl!)
+      const preds = await classifyRgb(prepared.rgb!)
       const aiScore = pickAiScore(preds)
-      const verdict = verdictFromProbability(aiScore)
       const r: AiDetectionResult = {
         ok: true,
-        fileName: f.name,
-        fileSize: f.size,
-        mimeType: f.type,
+        ...baseFields(prepared),
         aiProbability: aiScore,
         humanProbability: 1 - aiScore,
-        verdict,
-        metadataSignatures,
-        thumbnailDataUrl,
-        width,
-        height,
+        verdict: combineVerdict(prepared.metadataSignatures, aiScore),
+        classifierPending: false,
       }
-      results.push(r); onResult?.(i, r); onProgress?.(i, 100)
+      results[i] = r
+      onResult?.(i, r)
+      onProgress?.(i, 100)
     } catch (err) {
       const r: AiDetectionResult = {
         ok: false,
-        fileName: f.name,
-        fileSize: f.size,
-        mimeType: f.type,
-        verdict: 'error',
-        metadataSignatures,
-        thumbnailDataUrl,
-        width,
-        height,
+        ...baseFields(prepared),
+        verdict: pending.verdict === 'likely-ai' ? 'likely-ai' : 'error',
+        classifierPending: false,
         errorMessage: err instanceof Error ? err.message : 'Classifier failed',
       }
-      results.push(r); onResult?.(i, r); onProgress?.(i, 100)
+      results[i] = r
+      onResult?.(i, r)
+      onProgress?.(i, 100)
     }
   }
 
   return results
-}
-
-// Model labels vary by checkpoint. Match common AI-class labels; fall back to
-// treating the top prediction as the AI class if the label looks generated.
-const AI_LABELS = new Set(['artificial', 'ai', 'ai-generated', 'fake', 'sd', 'sdxl', 'generated', 'lab_1'])
-
-function pickAiScore(preds: Array<{ label: string; score: number }>): number {
-  for (const p of preds) {
-    if (AI_LABELS.has(p.label.toLowerCase())) return p.score
-  }
-  const top = preds[0]
-  if (top && /ai|artif|fake|generat|sd/i.test(top.label)) return top.score
-  return 1 - (top?.score ?? 0.5)
 }

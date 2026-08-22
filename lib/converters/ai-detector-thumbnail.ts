@@ -1,11 +1,22 @@
-// Produces a downscaled data URL usable both as the classifier input and the
-// verdict-card thumbnail. HEIC is decoded via heic2any before rasterizing.
-const MAX_DIM = 512
+// Produces a 224×224 RGB buffer for the classifier (no JPEG) plus a small
+// preview data URL for the verdict card. HEIC is decoded via heic2any first.
+import { CLASSIFIER_SIZE, rgbaToRgb } from './ai-detector-logic'
 
-export async function buildThumbnailDataUrl(
+const HEIC_MIME = /image\/hei[cf]/i
+
+export function isHeicFile(file: File): boolean {
+  return HEIC_MIME.test(file.type) || /\.hei[cf]$/i.test(file.name)
+}
+
+export async function buildClassifierInput(
   file: File,
   isHeic: boolean,
-): Promise<{ dataUrl: string; width: number; height: number }> {
+): Promise<{
+  rgb: Uint8Array
+  previewDataUrl: string
+  width: number
+  height: number
+}> {
   let blob: Blob = file
   if (isHeic) {
     const heic2any = (await import('heic2any')).default
@@ -14,16 +25,15 @@ export async function buildThumbnailDataUrl(
   }
   const bitmap = await createImageBitmap(blob)
   try {
-    const scale = Math.min(1, MAX_DIM / Math.max(bitmap.width, bitmap.height))
-    const w = Math.max(1, Math.round(bitmap.width * scale))
-    const h = Math.max(1, Math.round(bitmap.height * scale))
     const canvas = document.createElement('canvas')
-    canvas.width = w
-    canvas.height = h
-    const ctx = canvas.getContext('2d')!
-    ctx.drawImage(bitmap, 0, 0, w, h)
+    canvas.width = CLASSIFIER_SIZE
+    canvas.height = CLASSIFIER_SIZE
+    const ctx = canvas.getContext('2d', { willReadFrequently: true })!
+    ctx.drawImage(bitmap, 0, 0, CLASSIFIER_SIZE, CLASSIFIER_SIZE)
+    const rgba = ctx.getImageData(0, 0, CLASSIFIER_SIZE, CLASSIFIER_SIZE).data
     return {
-      dataUrl: canvas.toDataURL('image/jpeg', 0.9),
+      rgb: rgbaToRgb(rgba, CLASSIFIER_SIZE, CLASSIFIER_SIZE),
+      previewDataUrl: canvas.toDataURL('image/jpeg', 0.8),
       width: bitmap.width,
       height: bitmap.height,
     }

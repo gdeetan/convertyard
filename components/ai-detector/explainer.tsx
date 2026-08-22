@@ -7,14 +7,14 @@ export function AiDetectorExplainer() {
         (Stable Diffusion, Midjourney, DALL·E, Flux, Ideogram, Nano Banana…) or from a
         camera. ConvertYard's detector runs entirely in your browser using a SwinV2
         classifier fine-tuned on modern diffusion output. The model downloads once
-        (~130 MB), then future runs are instant and offline.
+        (~90 MB), then future runs are instant and offline.
       </p>
 
       <h2>How does it work?</h2>
       <p>Two signals, checked in parallel:</p>
       <ol>
         <li>
-          <strong>Pixel classifier.</strong> Every image is resized to 512 px and fed to
+          <strong>Pixel classifier.</strong> Every image is resized to 224 px and fed to
           the SwinV2 model. It looks for statistical artifacts that current diffusion
           models leave behind — smoothness in high-frequency bands, inconsistent noise
           patterns, and characteristic color transitions.

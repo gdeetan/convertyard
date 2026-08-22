@@ -1,6 +1,7 @@
 'use client'
 import type { AiDetectionResult, Verdict } from '@/lib/converters/ai-detector.types'
-import { Sparkles, Camera, HelpCircle, AlertTriangle } from 'lucide-react'
+import { metadataImpliesAi } from '@/lib/converters/ai-detector-logic'
+import { Sparkles, Camera, HelpCircle, AlertTriangle, Loader2 } from 'lucide-react'
 
 const VERDICT_META: Record<Verdict, { label: string; tone: string; icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }> }> = {
   'likely-ai':    { label: 'Likely AI-generated', tone: 'text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950/40 border-rose-200 dark:border-rose-900', icon: Sparkles },
@@ -10,7 +11,10 @@ const VERDICT_META: Record<Verdict, { label: string; tone: string; icon: React.C
 }
 
 export function VerdictCard({ result }: { result: AiDetectionResult }) {
-  const meta = VERDICT_META[result.verdict]
+  const analyzingPixels = !!result.classifierPending && !metadataImpliesAi(result.metadataSignatures)
+  const meta = analyzingPixels
+    ? { label: 'Analyzing pixels…', tone: 'text-fg bg-bg-muted border-border', icon: Loader2 }
+    : VERDICT_META[result.verdict]
   const Icon = meta.icon
   const aiPct = result.aiProbability != null ? Math.round(result.aiProbability * 100) : null
 
@@ -36,9 +40,12 @@ export function VerdictCard({ result }: { result: AiDetectionResult }) {
       <div className="min-w-0 space-y-4">
         <div className={`rounded-lg border p-4 ${meta.tone}`}>
           <div className="flex items-start gap-3">
-            <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden={true} />
+            <Icon className={`mt-0.5 h-5 w-5 shrink-0${analyzingPixels ? ' animate-spin' : ''}`} aria-hidden={true} />
             <div className="min-w-0 flex-1">
               <div className="text-base font-semibold">{meta.label}</div>
+              {result.classifierPending && metadataImpliesAi(result.metadataSignatures) && (
+                <div className="mt-1 text-sm">Generator tags found. Confirming with the pixel classifier…</div>
+              )}
               {result.errorMessage && (
                 <div className="mt-1 text-sm">{result.errorMessage}</div>
               )}

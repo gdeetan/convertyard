@@ -14,6 +14,8 @@ export interface AiDetectionResult {
   verdict: Verdict
   /** Named generator hints from EXIF/XMP/PNG-chunk metadata. */
   metadataSignatures: AiSignature[]
+  /** True until the pixel classifier returns. Metadata may already be present. */
+  classifierPending?: boolean
   /** Data URL for the thumbnail rendered in the verdict card. */
   thumbnailDataUrl?: string
   width?: number
