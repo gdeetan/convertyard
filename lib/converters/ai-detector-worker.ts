@@ -2,7 +2,13 @@
 //
 // CommunityForensics ViT-S (single fake-logit). Loaded lazily via Worker.
 
-import { aiScoreFromLogits, detectorLoadSources, detectorWasmThreads } from './ai-detector-logic'
+import {
+  CLASSIFIER_CROP,
+  aiScoreFromLogits,
+  detectorLoadSources,
+  detectorWasmThreads,
+  rgbToNchwFloat32,
+} from './ai-detector-logic'
 import { detectCaptionClientProfile } from './caption-workload'
 
 declare const __HF_TOKEN__: string
@@ -12,8 +18,7 @@ const HF_HOST = 'https://huggingface.co/'
 const HF_TEMPLATE = '{model}/resolve/{revision}/'
 
 type Session = {
-  model: { (inputs: unknown): Promise<{ logits: { data: ArrayLike<number> } }> }
-  processor: (image: unknown) => Promise<unknown>
+  model: (inputs: unknown) => Promise<{ logits: { data: ArrayLike<number> } }>
 }
 
 let sessionPromise: Promise<Session> | null = null
@@ -89,7 +94,7 @@ function applyOnnxHints(env: { backends: unknown }): void {
 async function getSession(): Promise<Session> {
   if (!sessionPromise) {
     sessionPromise = (async () => {
-      const { AutoModelForImageClassification, AutoImageProcessor, env } = await import('@huggingface/transformers')
+      const { AutoModelForImageClassification, env } = await import('@huggingface/transformers')
       env.allowLocalModels = false
       await ensureHfAuth(env)
       try { applyOnnxHints(env) } catch { /* best-effort */ }
@@ -103,14 +108,13 @@ async function getSession(): Promise<Session> {
         try {
           env.remoteHost = src.host ?? HF_HOST
           env.remotePathTemplate = src.template
-          const processor = await AutoImageProcessor.from_pretrained(src.modelId, { progress_callback: cb })
           const model = await AutoModelForImageClassification.from_pretrained(src.modelId, {
             dtype: src.dtype,
             device: 'wasm',
             progress_callback: cb,
           })
           loadedDevice = 'wasm'
-          return { model, processor } as unknown as Session
+          return { model } as unknown as Session
         } catch (err) {
           lastErr = err
         } finally {
@@ -131,12 +135,17 @@ async function handleMessage(msg: IncomingMsg): Promise<void> {
     return
   }
   if (msg.type === 'classify') {
-    const { model, processor } = await getSession()
-    const { RawImage } = await import('@huggingface/transformers')
+    const { model } = await getSession()
+    const { RawImage, Tensor } = await import('@huggingface/transformers')
     const blob = new Blob([msg.buffer], { type: msg.mimeType || 'image/png' })
-    const image = await RawImage.fromBlob(blob)
-    const inputs = await processor(image)
-    const out = await model(inputs)
+    let image = await RawImage.fromBlob(blob)
+    if (image.width !== CLASSIFIER_CROP || image.height !== CLASSIFIER_CROP) {
+      image = await image.resize(CLASSIFIER_CROP, CLASSIFIER_CROP)
+    }
+    if (image.channels === 4) image = image.rgb()
+    const nchw = rgbToNchwFloat32(image.data, image.width, image.height, image.channels)
+    const pixel_values = new Tensor('float32', nchw, [1, 3, image.height, image.width])
+    const out = await model({ pixel_values })
     const p = aiScoreFromLogits(out.logits.data)
     self.postMessage({
       type: 'result',

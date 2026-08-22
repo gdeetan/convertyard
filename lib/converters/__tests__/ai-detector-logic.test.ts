@@ -5,6 +5,7 @@ import {
   CLASSIFIER_SIZE,
   COMMUNITY_FORENSICS_ID,
   aiScoreFromLogits,
+  rgbToNchwFloat32,
   centerCropOrigin,
   classifierLoadAttempts,
   combineVerdict,
@@ -107,6 +108,13 @@ describe('CommunityForensics preprocess + logit', () => {
     expect(aiScoreFromLogits([10])).toBeGreaterThan(0.99)
     expect(aiScoreFromLogits([-10])).toBeLessThan(0.01)
   })
+
+  it('packs 2x2 RGB into NCHW float32 of length 12', () => {
+    const rgb = [255, 0, 0, 0, 255, 0, 0, 0, 255, 128, 128, 128]
+    const t = rgbToNchwFloat32(rgb, 2, 2, 3)
+    expect(t.length).toBe(12)
+    expect(t[0]).toBeCloseTo((1 - 0.48145466) / 0.26862954)
+  })
 })
 
 describe('rgbaToRgb', () => {
@@ -137,5 +145,9 @@ describe('friendlyImageError', () => {
 
   it('maps OOM to a device message', () => {
     expect(friendlyImageError(new Error('out of memory'))).toMatch(/ran out of memory/)
+  })
+
+  it('maps ONNX broadcast failures', () => {
+    expect(friendlyImageError(new Error('failed to call OrtRun(). ERROR_CODE: 1'))).toMatch(/size mismatch/)
   })
 })
