@@ -4,16 +4,20 @@
 
 import {
   CLASSIFIER_CROP,
-  aiScoreFromLogits,
+  DETECTOR_R2_HOST,
+  aiScoreFromLogitList,
+  centerCropOrigin,
+  cropHwc,
   detectorLoadSources,
   detectorWasmThreads,
+  fiveCropOrigins,
   rgbToNchwFloat32,
 } from './ai-detector-logic'
 import { detectCaptionClientProfile } from './caption-workload'
 
 declare const __HF_TOKEN__: string
 
-const MODEL_HOST = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
+const MODEL_HOST = DETECTOR_R2_HOST
 const HF_HOST = 'https://huggingface.co/'
 const HF_TEMPLATE = '{model}/resolve/{revision}/'
 
@@ -31,6 +35,7 @@ interface ClassifyMsg {
   id: string
   mimeType: string
   buffer: ArrayBuffer
+  tta?: boolean
 }
 type IncomingMsg = LoadMsg | ClassifyMsg
 
@@ -139,14 +144,19 @@ async function handleMessage(msg: IncomingMsg): Promise<void> {
     const { RawImage, Tensor } = await import('@huggingface/transformers')
     const blob = new Blob([msg.buffer], { type: msg.mimeType || 'image/png' })
     let image = await RawImage.fromBlob(blob)
-    if (image.width !== CLASSIFIER_CROP || image.height !== CLASSIFIER_CROP) {
-      image = await image.resize(CLASSIFIER_CROP, CLASSIFIER_CROP)
-    }
     if (image.channels === 4) image = image.rgb()
-    const nchw = rgbToNchwFloat32(image.data, image.width, image.height, image.channels)
-    const pixel_values = new Tensor('float32', nchw, [1, 3, image.height, image.width])
-    const out = await model({ pixel_values })
-    const p = aiScoreFromLogits(out.logits.data)
+    const origins = msg.tta
+      ? fiveCropOrigins(image.width, image.height, CLASSIFIER_CROP)
+      : [centerCropOrigin(image.width, image.height, CLASSIFIER_CROP)]
+    const logits: number[] = []
+    for (const origin of origins) {
+      const cropped = cropHwc(image.data, image.width, image.height, image.channels, origin)
+      const nchw = rgbToNchwFloat32(cropped, origin.side, origin.side, image.channels)
+      const pixel_values = new Tensor('float32', nchw, [1, 3, origin.side, origin.side])
+      const out = await model({ pixel_values })
+      logits.push(Number(out.logits.data[0] ?? 0))
+    }
+    const p = aiScoreFromLogitList(logits)
     self.postMessage({
       type: 'result',
       id: msg.id,
