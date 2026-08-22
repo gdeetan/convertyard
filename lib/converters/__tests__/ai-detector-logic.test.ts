@@ -6,7 +6,11 @@ import {
   COMMUNITY_FORENSICS_ID,
   aiScoreFromLogits,
   rgbToNchwFloat32,
+  aiScoreFromLogitList,
   centerCropOrigin,
+  cropHwc,
+  detectorQuantizedOnnxUrl,
+  fiveCropOrigins,
   classifierLoadAttempts,
   combineVerdict,
   DETECTOR_HF_PATH_TEMPLATE,
@@ -100,6 +104,32 @@ describe('CommunityForensics preprocess + logit', () => {
     expect(CLASSIFIER_SIZE).toBe(384)
     expect(shortestEdgeSize(1920, 1080, 440)).toEqual({ w: 782, h: 440 })
     expect(centerCropOrigin(782, 440, 384)).toEqual({ sx: 199, sy: 28, side: 384 })
+  })
+
+  it('five-crops center + four corners and dedupes a square crop', () => {
+    const crops = fiveCropOrigins(782, 440, 384)
+    expect(crops).toHaveLength(5)
+    expect(crops[0]).toEqual({ sx: 199, sy: 28, side: 384 })
+    expect(fiveCropOrigins(384, 384, 384)).toHaveLength(1)
+    expect(aiScoreFromLogitList([0, 0])).toBeCloseTo(0.5)
+  })
+
+  it('copies a 2x2 crop out of a 4-wide RGB row', () => {
+    // 3x2 RGB, crop 2x2 from (1,0)
+    const rgb = [
+      1, 0, 0, 2, 0, 0, 3, 0, 0,
+      4, 0, 0, 5, 0, 0, 6, 0, 0,
+    ]
+    expect(Array.from(cropHwc(rgb, 3, 2, 3, { sx: 1, sy: 0, side: 2 }))).toEqual([
+      2, 0, 0, 3, 0, 0,
+      5, 0, 0, 6, 0, 0,
+    ])
+  })
+
+  it('points preload at the R2 q8 ONNX', () => {
+    expect(detectorQuantizedOnnxUrl('https://example.r2.dev/')).toBe(
+      'https://example.r2.dev/onnx-community/CommunityForensics-DeepfakeDet-ViT-ONNX/resolve/main/onnx/model_quantized.onnx',
+    )
   })
 
   it('maps a single fake-logit through sigmoid', () => {

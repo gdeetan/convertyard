@@ -32,7 +32,7 @@ export const config: ViewerToolConfig<AiDetectionResult> = {
     },
     {
       q: 'Can I check many images at once?',
-      a: 'Yes — drop up to 1,000 images. The model loads once (about 37 MB, cached after first run) and each image is classified on-device with WebAssembly.',
+      a: 'Yes — drop up to 1,000 images. The model loads once (about 37 MB, cached after first run). Desktops score five 384 px crops and average the logits; phones use one center crop.',
     },
     {
       q: 'What formats are supported?',

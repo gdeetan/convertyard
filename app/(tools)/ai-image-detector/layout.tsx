@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { detectorQuantizedOnnxUrl } from '@/lib/converters/ai-detector-logic'
 
 export const metadata: Metadata = {
   title: 'Free AI Image Detector — Batch, In Browser | ConvertYard',
@@ -8,5 +9,15 @@ export const metadata: Metadata = {
 }
 
 export default function Layout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>
+  return (
+    <>
+      <link
+        rel="preload"
+        href={detectorQuantizedOnnxUrl()}
+        as="fetch"
+        crossOrigin="anonymous"
+      />
+      {children}
+    </>
+  )
 }

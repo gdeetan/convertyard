@@ -45,13 +45,69 @@ export function shortestEdgeSize(width: number, height: number, target: number):
   }
 }
 
-export function centerCropOrigin(width: number, height: number, crop: number): { sx: number; sy: number; side: number } {
+export type CropOrigin = { sx: number; sy: number; side: number }
+
+export function centerCropOrigin(width: number, height: number, crop: number): CropOrigin {
   const side = Math.min(crop, width, height)
   return {
     sx: Math.max(0, Math.floor((width - side) / 2)),
     sy: Math.max(0, Math.floor((height - side) / 2)),
     side,
   }
+}
+
+/** Center + four corners. Collapses to one crop when the image is already `crop` on both sides. */
+export function fiveCropOrigins(width: number, height: number, crop: number): CropOrigin[] {
+  const side = Math.min(crop, width, height)
+  const maxX = Math.max(0, width - side)
+  const maxY = Math.max(0, height - side)
+  const all: CropOrigin[] = [
+    { sx: Math.floor(maxX / 2), sy: Math.floor(maxY / 2), side },
+    { sx: 0, sy: 0, side },
+    { sx: maxX, sy: 0, side },
+    { sx: 0, sy: maxY, side },
+    { sx: maxX, sy: maxY, side },
+  ]
+  const seen = new Set<string>()
+  return all.filter(c => {
+    const k = `${c.sx},${c.sy}`
+    if (seen.has(k)) return false
+    seen.add(k)
+    return true
+  })
+}
+
+export function mean(xs: number[]): number {
+  if (xs.length === 0) return 0
+  return xs.reduce((a, b) => a + b, 0) / xs.length
+}
+
+export function aiScoreFromLogitList(logits: number[]): number {
+  return sigmoid(mean(logits))
+}
+
+export function cropHwc(
+  data: ArrayLike<number>,
+  width: number,
+  height: number,
+  channels: number,
+  crop: CropOrigin,
+): Uint8Array {
+  const { sx, sy, side } = crop
+  const out = new Uint8Array(side * side * channels)
+  for (let y = 0; y < side; y++) {
+    const src = ((sy + y) * width + sx) * channels
+    const dst = y * side * channels
+    for (let i = 0; i < side * channels; i++) out[dst + i] = Number(data[src + i])
+  }
+  return out
+}
+
+export const DETECTOR_R2_HOST = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
+
+export function detectorQuantizedOnnxUrl(host: string = DETECTOR_R2_HOST): string {
+  const base = host.endsWith('/') ? host : `${host}/`
+  return `${base}${COMMUNITY_FORENSICS_ID}/resolve/main/onnx/model_quantized.onnx`
 }
 
 export function sigmoid(z: number): number {

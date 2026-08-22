@@ -1,5 +1,5 @@
-// Rasterize to a 224×224 lossless PNG for the classifier (pipeline-native Blob
-// input) plus a small JPEG preview. HEIC is decoded via heic2any first.
+// Scale shortest edge to 440 and send that PNG (worker center-crops, or
+// five-crops on desktop). JPEG preview is the 384 center crop.
 import {
   CLASSIFIER_CROP,
   CLASSIFIER_RESIZE,
@@ -120,7 +120,7 @@ export async function buildClassifierInput(file: File): Promise<{
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('Could not decode image')
     ctx.drawImage(tmp, crop.sx, crop.sy, crop.side, crop.side, 0, 0, crop.side, crop.side)
-    const png = await canvasToPng(canvas)
+    const png = await canvasToPng(tmp)
     return {
       png,
       previewDataUrl: canvas.toDataURL('image/jpeg', 0.8),

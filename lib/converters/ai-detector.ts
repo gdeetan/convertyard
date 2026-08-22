@@ -7,6 +7,7 @@ import {
 } from './ai-detector-logic'
 import { detectAiSignatures } from './exif-viewer-ai'
 import { buildClassifierInput } from './ai-detector-thumbnail'
+import { detectCaptionClientProfile } from './caption-workload'
 
 // ── Load status (UI subscribes) ──────────────────────────────────────────────
 
@@ -125,14 +126,14 @@ export function preloadClassifier(): void {
 
 // ── Per-file classify via worker ─────────────────────────────────────────────
 
-async function classifyPng(png: ArrayBuffer): Promise<Array<{ label: string; score: number }>> {
+async function classifyPng(png: ArrayBuffer, tta: boolean): Promise<Array<{ label: string; score: number }>> {
   await ensureReady()
   const worker = getWorker()
   const id = crypto.randomUUID()
   return new Promise((resolve, reject) => {
     classifyWaiters.set(id, { resolve, reject })
     worker.postMessage(
-      { type: 'classify', id, mimeType: 'image/png', buffer: png },
+      { type: 'classify', id, mimeType: 'image/png', buffer: png, tta },
       [png],
     )
   })
@@ -205,6 +206,11 @@ export async function analyzeForAi(
 
   const { parse } = await import('exifr')
   void ensureReady()
+  const tta = detectCaptionClientProfile(
+    navigator.userAgent ?? '',
+    navigator.maxTouchPoints ?? 0,
+    navigator.platform ?? '',
+  ) === 'desktop'
 
   let nextPrepared = prepareFile(files[0], parse as ExifParse)
   for (let i = 0; i < files.length; i++) {
@@ -236,7 +242,7 @@ export async function analyzeForAi(
     onProgress?.(i, 40)
 
     try {
-      const preds = await classifyPng(prepared.png!)
+      const preds = await classifyPng(prepared.png!, tta)
       const aiScore = pickAiScore(preds)
       const r: AiDetectionResult = {
         ok: true,
