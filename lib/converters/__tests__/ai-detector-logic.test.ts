@@ -3,6 +3,8 @@ import {
   CLASSIFIER_SIZE,
   classifierLoadAttempts,
   combineVerdict,
+  DETECTOR_R2_PATH_TEMPLATE,
+  detectorLoadSources,
   detectorWasmThreads,
   friendlyImageError,
   looksLikeHeicHeader,
@@ -16,6 +18,19 @@ import { verdictFromProbability } from '../ai-detector.types'
 describe('classifierLoadAttempts', () => {
   it('loads q8 WASM only (skips WebGPU shader compile and fp32)', () => {
     expect(classifierLoadAttempts()).toEqual([{ dtype: 'q8', device: 'wasm' }])
+  })
+})
+
+describe('detectorLoadSources', () => {
+  it('tries the flat R2 layout first (no resolve/main)', () => {
+    const srcs = detectorLoadSources('https://example.r2.dev/')
+    expect(srcs[0]).toMatchObject({
+      modelId: 'models/sdxl-detector',
+      template: '{model}/',
+      dtype: 'q8',
+    })
+    expect(DETECTOR_R2_PATH_TEMPLATE).toBe('{model}/')
+    expect(srcs.some(s => s.host === null && s.modelId === 'Organika/sdxl-detector')).toBe(true)
   })
 })
 

@@ -3,11 +3,14 @@
 // Runs the Organika/sdxl-detector SwinV2 classifier off the main thread.
 // Loaded lazily by ai-detector.ts via new Worker(new URL(...)).
 
-import { classifierLoadAttempts, detectorWasmThreads } from './ai-detector-logic'
+import { detectorLoadSources, detectorWasmThreads } from './ai-detector-logic'
 import { detectCaptionClientProfile } from './caption-workload'
 
+declare const __HF_TOKEN__: string
+
 const MODEL_HOST = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
-const MODEL_ID = MODEL_HOST ? 'models/sdxl-detector' : 'Organika/sdxl-detector'
+const HF_HOST = 'https://huggingface.co/'
+const HF_TEMPLATE = '{model}/resolve/{revision}/'
 
 type Classifier = (
   input: Blob,
@@ -43,12 +46,26 @@ function makeProgressCallback() {
   }
 }
 
+async function ensureHfAuth(env: { fetch: typeof fetch }): Promise<void> {
+  if (typeof __HF_TOKEN__ === 'undefined' || !__HF_TOKEN__) return
+  const inner = env.fetch
+  env.fetch = ((url: RequestInfo | URL, init?: RequestInit) => {
+    const u = url instanceof Request ? url.url : url instanceof URL ? url.href : String(url)
+    if (u.includes('huggingface.co') || u.includes('hf.co')) {
+      const headers = new Headers((init?.headers ?? {}) as HeadersInit)
+      headers.set('Authorization', `Bearer ${__HF_TOKEN__}`)
+      return inner(url as Parameters<typeof inner>[0], { ...init, headers })
+    }
+    return inner(url as Parameters<typeof inner>[0], init)
+  }) as typeof env.fetch
+}
+
 async function getClassifier(): Promise<Classifier> {
   if (!classifierPromise) {
     classifierPromise = (async () => {
       const { pipeline, env } = await import('@huggingface/transformers')
       env.allowLocalModels = false
-      if (MODEL_HOST) env.remoteHost = MODEL_HOST
+      await ensureHfAuth(env)
       try {
         const nav = self.navigator
         const profile = detectCaptionClientProfile(
@@ -79,13 +96,28 @@ async function getClassifier(): Promise<Classifier> {
       } catch { /* backends config best-effort */ }
 
       self.postMessage({ type: 'load-progress', pct: 0 })
-      const [opts] = classifierLoadAttempts()
-      const clf = await pipeline('image-classification', MODEL_ID, {
-        ...opts,
-        progress_callback: makeProgressCallback(),
-      }) as unknown as Classifier
-      loadedDevice = opts.device
-      return clf
+      let lastErr: unknown
+      for (const src of detectorLoadSources(MODEL_HOST)) {
+        const prevHost = env.remoteHost
+        const prevTemplate = env.remotePathTemplate
+        try {
+          env.remoteHost = src.host ?? HF_HOST
+          env.remotePathTemplate = src.template
+          const clf = await pipeline('image-classification', src.modelId, {
+            dtype: src.dtype,
+            device: 'wasm',
+            progress_callback: makeProgressCallback(),
+          }) as unknown as Classifier
+          loadedDevice = 'wasm'
+          return clf
+        } catch (err) {
+          lastErr = err
+        } finally {
+          env.remoteHost = prevHost
+          env.remotePathTemplate = prevTemplate ?? HF_TEMPLATE
+        }
+      }
+      throw lastErr instanceof Error ? lastErr : new Error('Classifier failed to load')
     })()
   }
   return classifierPromise
