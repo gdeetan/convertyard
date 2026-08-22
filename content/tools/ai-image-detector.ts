@@ -1,7 +1,7 @@
 import type { ViewerToolConfig } from '@/lib/types'
 import type { AiDetectionResult } from '@/lib/converters/ai-detector.types'
 import { analyzeForAi } from '@/lib/converters/ai-detector'
-import { AiDetectorRoot } from '@/components/ai-detector/viewer-root'
+import { AiDetectorRoot, ClassifierLoadHint } from '@/components/ai-detector/viewer-root'
 import { AiDetectorExplainer } from '@/components/ai-detector/explainer'
 
 export const config: ViewerToolConfig<AiDetectionResult> = {
@@ -15,6 +15,7 @@ export const config: ViewerToolConfig<AiDetectionResult> = {
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.heic', '.heif'],
   analyzeFn: analyzeForAi,
   renderResults: AiDetectorRoot,
+  extraInput: ClassifierLoadHint,
   explainer: AiDetectorExplainer,
   faq: [
     {
@@ -31,7 +32,7 @@ export const config: ViewerToolConfig<AiDetectionResult> = {
     },
     {
       q: 'Can I check many images at once?',
-      a: 'Yes — drop up to 1,000 images. The model loads once (about 130 MB, cached after first run) and each image is classified in 50–500 ms depending on your hardware. WebGPU is used when available with WebAssembly fallback.',
+      a: 'Yes — drop up to 1,000 images. The model loads once (about 90 MB, cached after first run) and each image is classified in 50–500 ms depending on your hardware. WebGPU is used when available with WebAssembly fallback.',
     },
     {
       q: 'What formats are supported?',

@@ -41,12 +41,16 @@ export function BatchTable({ results }: { results: AiDetectionResult[] }) {
                 </div>
               </td>
               <td className="px-3 py-2">
-                <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${VERDICT_TONE[r.verdict]}`}>
-                  {VERDICT_LABEL[r.verdict]}
+                <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${
+                  r.classifierPending && r.verdict !== 'likely-ai'
+                    ? 'bg-bg-muted text-fg-muted'
+                    : VERDICT_TONE[r.verdict]
+                }`}>
+                  {r.classifierPending && r.verdict !== 'likely-ai' ? 'Analyzing…' : VERDICT_LABEL[r.verdict]}
                 </span>
               </td>
               <td className="px-3 py-2 text-right font-mono text-xs">
-                {r.aiProbability != null ? `${Math.round(r.aiProbability * 100)}%` : '—'}
+                {r.aiProbability != null ? `${Math.round(r.aiProbability * 100)}%` : r.classifierPending ? '…' : '—'}
               </td>
               <td className="px-3 py-2 text-xs text-fg-muted">
                 {r.metadataSignatures.length > 0
