@@ -6,7 +6,7 @@
 // Swap to the R2-hosted quantized copy by setting these two constants once
 // scripts/quantize-sdxl-detector.sh has been run and the files are uploaded.
 // Leaving MODEL_HOST empty falls back to HuggingFace hub (slower, fp32 only).
-const MODEL_HOST = '' // e.g. 'https://pub-xxxx.r2.dev/'
+const MODEL_HOST = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
 const MODEL_ID = MODEL_HOST ? 'models/sdxl-detector' : 'Organika/sdxl-detector'
 
 type Classifier = (input: string, opts?: { top_k?: number }) => Promise<Array<{ label: string; score: number }>>
