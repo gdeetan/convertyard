@@ -1,91 +1,99 @@
+import { AiDetectorExamples } from './examples'
+
 export function AiDetectorExplainer() {
   return (
     <div>
-      <h2>What is an AI image detector?</h2>
+      <h2>What this tool does</h2>
       <p>
-        An AI image detector estimates whether a picture came from a generative model
-        or from a camera. ConvertYard's detector runs entirely in your browser using
-        Community Forensics ViT-S with a 2026 re-fit head (evaluated on GPT Image,
-        Flux 2, Midjourney 7, and other recent generators, plus camera photos).
-        The model downloads once (~87 MB), then later runs use the cache.
+        Drop an image and it estimates whether the pixels came from a generator
+        or a camera. The file stays in your browser. The first run downloads an
+        ~87 MB classifier; after that it is cached.
+      </p>
+      <p>
+        A 100% score is a strong hint, not proof. Don't treat it as a
+        certificate.
       </p>
 
-      <h2>How does it work?</h2>
-      <p>Two signals, checked in parallel:</p>
+      <h2>How it works</h2>
+      <p>Two checks run on your device:</p>
       <ol>
         <li>
-          <strong>Pixel classifier.</strong> Every image is resized (shortest edge 440 px)
-          and center-cropped to 384 px, then scored by a ViT-Small forensic classifier.
-          It is a binary AI-vs-photo score — it does not name ChatGPT vs Grok vs Flux.
+          <strong>Pixels.</strong> The image is resized (shortest edge 440 px)
+          and cropped to 384 px, then a small forensic classifier scores
+          AI vs photograph. It does not name ChatGPT vs Flux vs Midjourney.
+          Desktops average five crops; phones use the center crop.
         </li>
         <li>
-          <strong>Metadata signatures.</strong> We also read the file's EXIF, XMP, and
-          PNG chunks for markers left by generators: Stable Diffusion's <code>parameters</code>
-          chunk, ComfyUI's <code>workflow</code> chunk, Midjourney's <code>dc:creator</code> tag,
-          C2PA Content Credentials from Adobe/OpenAI/Microsoft, and Software tags for
-          Firefly, Imagen, Ideogram, Leonardo, and Runway.
+          <strong>Metadata.</strong> We also read EXIF, XMP, and PNG chunks
+          for leftover generator tags: Stable Diffusion <code>parameters</code>,
+          ComfyUI <code>workflow</code>, Midjourney creator fields, C2PA Content
+          Credentials, and Software tags from Firefly, Imagen, Ideogram,
+          Leonardo, and Runway. If those tags are present, that is a strong
+          AI signal on its own.
         </li>
       </ol>
       <p>
-        Metadata is a strong positive signal when present but easy to strip. The
-        classifier fills that gap.
+        Most images you see on social sites have already had metadata stripped.
+        The pixel score is what you have left. Empty metadata does not mean
+        the picture is real.
       </p>
 
-      <h2>Which generators does it detect?</h2>
+      <h2>Examples</h2>
       <p>
-        The pixel model starts from Community Forensics (thousands of generators) and
-        uses a re-fit head evaluated on 2025–26 generators including GPT Image, Flux 2,
-        and Midjourney 7. It still cannot reliably name the app that made the file.
-        Metadata detection covers
-        Stable Diffusion, ComfyUI, Midjourney, Firefly, Imagen, Ideogram, Leonardo,
-        Runway, and C2PA Content Credentials when those tags are still in the file.
+        Three generated pictures, dropped locally. None of them carried
+        generator tags. The classifier still marked them as AI.
       </p>
+      <AiDetectorExamples />
 
-      <h2>How accurate is it?</h2>
+      <h2>Where it gets it wrong</h2>
       <p>
-        Public on-device evals of this family sit around ~90% balanced accuracy when
-        generators in the test set are held out, including after JPEG recompress. It is
-        not proof. Two failure modes to expect:
+        Public tests of this model sit around 90% at our 65% cutoff. That still
+        leaves plenty of misses.
       </p>
       <ul>
         <li>
-          <strong>False positives.</strong> Heavily edited photos, HDR composites, and
-          skin-smoothed portraits sometimes trigger the classifier because they share
-          statistical properties with generated images.
+          <strong>False AI.</strong> Heavy retouching, HDR composites, beauty
+          filters, and generative upscalers on a real photo can look like
+          generated pixels.
         </li>
         <li>
-          <strong>False negatives.</strong> Screenshotting an AI image, re-encoding it as
-          a JPEG at low quality, or running it through an image-to-image pass often
-          erases the tell-tale signal. Combined with metadata stripping, the image can
-          look real to any current detector.
+          <strong>False photo.</strong> Screenshotting an AI image, saving it
+          as a small JPEG, or running it through image-to-image can wash out
+          the signal. The third example above only moved from 100% to 97%
+          after a JPEG conversion — a harder recompress can hide it completely.
         </li>
       </ul>
       <p>
-        Treat the verdict as one piece of evidence, not a court verdict. The metadata
-        panel and reverse-image search are still useful cross-checks.
+        If you know the origin of a file, trust that over the score. Reverse-image
+        search still helps when the stakes are high.
       </p>
 
-      <h2>Does the image leave my device?</h2>
+      <h2>What it can and cannot name</h2>
       <p>
-        No. The image is decoded in-browser, the classifier runs via
-        WebAssembly, and the metadata is parsed locally. There is no upload,
-        no telemetry on the file, and no third-party pixel service. You can verify this in
-        DevTools → Network at any time.
+        The pixel model covers a wide set of generators, including recent ones
+        such as GPT Image, Flux 2, and Midjourney 7. It still cannot tell you
+        which app made the file. Metadata can, but only when the tags were
+        left in.
       </p>
 
-      <h2>What about batch?</h2>
+      <h2>Batch</h2>
       <p>
-        Drop up to 1,000 images. The model loads once (~87 MB) and each image is
-        classified on-device. Results are downloadable as a CSV so
-        moderators, journalists, and stock reviewers can process large sets locally.
+        Drop up to 1,000 images. The model loads once. You can download results
+        as CSV for a local review pass.
       </p>
 
-      <h2>What about deepfakes?</h2>
+      <h2>Does the file leave this tab?</h2>
       <p>
-        The classifier catches diffusion-generated faces and portraits well. Face-swap
-        deepfakes on real footage (video) are a different problem and out of scope here;
-        for stills, treat a "likely AI" verdict on a portrait as a strong hint but always
-        cross-check with source and reverse-image search.
+        No. Decode, classify, and metadata parse all happen in the browser.
+        There is no upload and no telemetry on the file. Confirm it in
+        DevTools → Network if you want.
+      </p>
+
+      <h2>Deepfakes</h2>
+      <p>
+        Diffusion portraits and fully generated faces are in scope. Face-swap
+        video on real footage is not. For a still portrait, treat “likely AI”
+        as a reason to check the source, not as a finished investigation.
       </p>
     </div>
   )
