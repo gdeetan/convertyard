@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CLASSIFIER_CROP,
+  CLASSIFIER_RESIZE,
   CLASSIFIER_SIZE,
+  COMMUNITY_FORENSICS_ID,
+  aiScoreFromLogits,
+  centerCropOrigin,
   classifierLoadAttempts,
   combineVerdict,
-  DETECTOR_R2_PATH_TEMPLATE,
+  DETECTOR_HF_PATH_TEMPLATE,
   detectorLoadSources,
   detectorWasmThreads,
   friendlyImageError,
@@ -12,6 +17,8 @@ import {
   pendingVerdict,
   pickAiScore,
   rgbaToRgb,
+  shortestEdgeSize,
+  sigmoid,
 } from '../ai-detector-logic'
 import { verdictFromProbability } from '../ai-detector.types'
 
@@ -22,15 +29,14 @@ describe('classifierLoadAttempts', () => {
 })
 
 describe('detectorLoadSources', () => {
-  it('tries the flat R2 layout first (no resolve/main)', () => {
+  it('loads CommunityForensics from the HuggingFace-style R2 prefix first', () => {
     const srcs = detectorLoadSources('https://example.r2.dev/')
     expect(srcs[0]).toMatchObject({
-      modelId: 'models/sdxl-detector',
-      template: '{model}/',
+      modelId: COMMUNITY_FORENSICS_ID,
+      template: DETECTOR_HF_PATH_TEMPLATE,
       dtype: 'q8',
     })
-    expect(DETECTOR_R2_PATH_TEMPLATE).toBe('{model}/')
-    expect(srcs.some(s => s.host === null && s.modelId === 'Organika/sdxl-detector')).toBe(true)
+    expect(srcs.some(s => s.host === null && s.modelId === COMMUNITY_FORENSICS_ID)).toBe(true)
   })
 })
 
@@ -79,10 +85,27 @@ describe('metadata + verdict', () => {
 })
 
 describe('verdictFromProbability', () => {
-  it('keeps the existing thresholds', () => {
-    expect(verdictFromProbability(0.75)).toBe('likely-ai')
-    expect(verdictFromProbability(0.25)).toBe('likely-human')
+  it('uses a 0.65 / 0.35 band', () => {
+    expect(verdictFromProbability(0.65)).toBe('likely-ai')
+    expect(verdictFromProbability(0.35)).toBe('likely-human')
     expect(verdictFromProbability(0.5)).toBe('inconclusive')
+  })
+})
+
+describe('CommunityForensics preprocess + logit', () => {
+  it('resizes the shortest edge to 440 then center-crops 384', () => {
+    expect(CLASSIFIER_RESIZE).toBe(440)
+    expect(CLASSIFIER_CROP).toBe(384)
+    expect(CLASSIFIER_SIZE).toBe(384)
+    expect(shortestEdgeSize(1920, 1080, 440)).toEqual({ w: 782, h: 440 })
+    expect(centerCropOrigin(782, 440, 384)).toEqual({ sx: 199, sy: 28, side: 384 })
+  })
+
+  it('maps a single fake-logit through sigmoid', () => {
+    expect(sigmoid(0)).toBeCloseTo(0.5)
+    expect(aiScoreFromLogits([0])).toBeCloseTo(0.5)
+    expect(aiScoreFromLogits([10])).toBeGreaterThan(0.99)
+    expect(aiScoreFromLogits([-10])).toBeLessThan(0.01)
   })
 })
 
@@ -90,12 +113,6 @@ describe('rgbaToRgb', () => {
   it('drops alpha and keeps RGB in order', () => {
     const rgba = new Uint8ClampedArray([10, 20, 30, 255, 40, 50, 60, 128])
     expect(Array.from(rgbaToRgb(rgba, 2, 1))).toEqual([10, 20, 30, 40, 50, 60])
-  })
-})
-
-describe('CLASSIFIER_SIZE', () => {
-  it('matches the ONNX preprocessor (224)', () => {
-    expect(CLASSIFIER_SIZE).toBe(224)
   })
 })
 

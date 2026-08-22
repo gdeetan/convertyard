@@ -2,18 +2,23 @@ import type { AiSignature } from './exif-viewer.types'
 import type { Verdict } from './ai-detector.types'
 import { verdictFromProbability } from './ai-detector.types'
 
-/** Native input size of Organika/sdxl-detector (ViT feature extractor). */
-export const CLASSIFIER_SIZE = 224
+/** CommunityForensics ViT-S: resize shortest edge to 440, center-crop 384. */
+export const CLASSIFIER_RESIZE = 440
+export const CLASSIFIER_CROP = 384
+/** @deprecated alias of CLASSIFIER_CROP */
+export const CLASSIFIER_SIZE = CLASSIFIER_CROP
+
+export const COMMUNITY_FORENSICS_ID = 'onnx-community/CommunityForensics-DeepfakeDet-ViT-ONNX'
 
 export type ClassifierDevice = 'webgpu' | 'wasm'
 
-/** WASM-only: WebGPU shader compile for SwinV2 is 10–30s every visit. */
+/** WASM-only: WebGPU shader compile is 10–30s every visit. */
 export function classifierLoadAttempts(): Array<{ dtype: 'q8'; device: ClassifierDevice }> {
   return [{ dtype: 'q8', device: 'wasm' }]
 }
 
-/** R2 objects live at models/sdxl-detector/config.json, not .../resolve/main/. */
-export const DETECTOR_R2_PATH_TEMPLATE = '{model}/'
+/** Florence-style keys: {model}/resolve/main/... */
+export const DETECTOR_HF_PATH_TEMPLATE = '{model}/resolve/{revision}/'
 
 export type DetectorLoadSource = {
   host: string | null
@@ -24,11 +29,46 @@ export type DetectorLoadSource = {
 
 export function detectorLoadSources(r2Host: string): DetectorLoadSource[] {
   return [
-    { host: r2Host, modelId: 'models/sdxl-detector', template: DETECTOR_R2_PATH_TEMPLATE, dtype: 'q8' },
-    { host: r2Host, modelId: 'models/sdxl-detector', template: '{model}/resolve/{revision}/', dtype: 'q8' },
-    { host: null, modelId: 'Organika/sdxl-detector', template: '{model}/resolve/{revision}/', dtype: 'q8' },
-    { host: null, modelId: 'Organika/sdxl-detector', template: '{model}/resolve/{revision}/', dtype: 'fp32' },
+    { host: r2Host, modelId: COMMUNITY_FORENSICS_ID, template: DETECTOR_HF_PATH_TEMPLATE, dtype: 'q8' },
+    { host: r2Host, modelId: 'models/community-forensics', template: '{model}/', dtype: 'q8' },
+    { host: null, modelId: COMMUNITY_FORENSICS_ID, template: DETECTOR_HF_PATH_TEMPLATE, dtype: 'q8' },
+    { host: null, modelId: COMMUNITY_FORENSICS_ID, template: DETECTOR_HF_PATH_TEMPLATE, dtype: 'fp32' },
   ]
+}
+
+export function shortestEdgeSize(width: number, height: number, target: number): { w: number; h: number } {
+  const short = Math.max(1, Math.min(width, height))
+  const scale = target / short
+  return {
+    w: Math.max(1, Math.round(width * scale)),
+    h: Math.max(1, Math.round(height * scale)),
+  }
+}
+
+export function centerCropOrigin(width: number, height: number, crop: number): { sx: number; sy: number; side: number } {
+  const side = Math.min(crop, width, height)
+  return {
+    sx: Math.max(0, Math.floor((width - side) / 2)),
+    sy: Math.max(0, Math.floor((height - side) / 2)),
+    side,
+  }
+}
+
+export function sigmoid(z: number): number {
+  if (z > 20) return 1
+  if (z < -20) return 0
+  return 1 / (1 + Math.exp(-z))
+}
+
+/** CommunityForensics emits one fake-logit. Two-class softmax still supported. */
+export function aiScoreFromLogits(data: ArrayLike<number>): number {
+  if (data.length <= 1) return sigmoid(Number(data[0] ?? 0))
+  const a = Number(data[0])
+  const b = Number(data[1])
+  const max = Math.max(a, b)
+  const ea = Math.exp(a - max)
+  const eb = Math.exp(b - max)
+  return ea / (ea + eb)
 }
 
 /** iOS Safari hangs on WASM session create if numThreads > 1. Phones also OOM. */

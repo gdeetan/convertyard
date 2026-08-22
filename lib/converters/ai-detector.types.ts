@@ -24,8 +24,9 @@ export interface AiDetectionResult {
   errorMessage?: string
 }
 
+/** Calibrated for CommunityForensics (Chrome-ext ensemble used 0.65). */
 export function verdictFromProbability(p: number): Verdict {
-  if (p >= 0.75) return 'likely-ai'
-  if (p <= 0.25) return 'likely-human'
+  if (p >= 0.65) return 'likely-ai'
+  if (p <= 0.35) return 'likely-human'
   return 'inconclusive'
 }

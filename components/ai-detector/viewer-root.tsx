@@ -41,7 +41,7 @@ export function AiDetectorRoot({ results }: { files: File[]; results: AiDetectio
   if (results.length === 0) {
     return (
       <div className="text-sm text-fg-subtle">
-        {statusLine(s)} First run downloads a ~90 MB model. It's cached after that.
+        {statusLine(s)} First run downloads a ~37 MB model. It's cached after that.
       </div>
     )
   }
