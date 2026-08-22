@@ -9,7 +9,7 @@ export const config: ViewerToolConfig<AiDetectionResult> = {
   slug: 'ai-image-detector',
   title: 'AI Image Detector',
   subtitle: 'Local-first AI-generated image detector. Built for batches.',
-  bestFor: 'Best for a local first-pass on whether a still was generated (ChatGPT, Flux, Midjourney, Stable Diffusion, and similar) or shot on a camera — before publishing or citing it.',
+  bestFor: 'Best for a local first-pass on whether a photo was generated (ChatGPT, Flux, Midjourney, Stable Diffusion, and similar) or shot on a camera — before publishing or citing it.',
   category: 'ai',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.heic', '.heif'],

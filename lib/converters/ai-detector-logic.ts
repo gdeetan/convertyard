@@ -71,6 +71,31 @@ export function aiScoreFromLogits(data: ArrayLike<number>): number {
   return ea / (ea + eb)
 }
 
+/** CLIP/ViT-S mean-std used by CommunityForensics. */
+export const FORENSICS_MEAN = [0.48145466, 0.4578275, 0.40821073]
+export const FORENSICS_STD = [0.26862954, 0.26130258, 0.27577711]
+
+/** Pack HWC uint8 RGB(A) into NCHW float32, ImageNet/CLIP normalized. */
+export function rgbToNchwFloat32(
+  data: ArrayLike<number>,
+  width: number,
+  height: number,
+  channels: number,
+  mean: number[] = FORENSICS_MEAN,
+  std: number[] = FORENSICS_STD,
+): Float32Array {
+  const plane = width * height
+  const out = new Float32Array(3 * plane)
+  const step = channels >= 3 ? channels : 3
+  for (let i = 0; i < plane; i++) {
+    const o = i * step
+    out[i] = (Number(data[o]) / 255 - mean[0]) / std[0]
+    out[plane + i] = (Number(data[o + 1]) / 255 - mean[1]) / std[1]
+    out[2 * plane + i] = (Number(data[o + 2]) / 255 - mean[2]) / std[2]
+  }
+  return out
+}
+
 /** iOS Safari hangs on WASM session create if numThreads > 1. Phones also OOM. */
 export function detectorWasmThreads(
   profile: 'desktop' | 'android' | 'ios',
@@ -130,6 +155,9 @@ export function friendlyImageError(err: unknown): string {
   const m = err instanceof Error ? err.message : String(err)
   if (/memory|out of memory|oom|allocation|Maximum call/i.test(m)) {
     return 'This device ran out of memory loading the classifier. Close other tabs, or try on a computer.'
+  }
+  if (/OrtRun|broadcast|element_wise_ops/i.test(m)) {
+    return 'Classifier hit a size mismatch. Try again, or use a JPEG/PNG export.'
   }
   if (/decode|could not read|not a valid|unsupported input|source image/i.test(m)) {
     return 'Could not read this image. Try JPEG, PNG, or WebP.'
