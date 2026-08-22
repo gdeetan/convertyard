@@ -19,11 +19,24 @@ async function getClassifier(): Promise<Classifier> {
     classifierPromise = (async () => {
       const { pipeline, env } = await import('@huggingface/transformers')
       env.allowLocalModels = false
-      try {
-        return await pipeline('image-classification', MODEL_ID, { dtype: 'q8', device: 'webgpu' }) as unknown as Classifier
-      } catch {
-        return await pipeline('image-classification', MODEL_ID, { dtype: 'q8', device: 'wasm' }) as unknown as Classifier
+      // Organika/sdxl-detector only publishes fp32 onnx/model.onnx.
+      // Try q8 first for future model swaps; fall back to fp32.
+      // Try WebGPU on each variant, fall back to WASM.
+      const attempts: Array<{ dtype: 'q8' | 'fp32'; device: 'webgpu' | 'wasm' }> = [
+        { dtype: 'q8',   device: 'webgpu' },
+        { dtype: 'q8',   device: 'wasm'   },
+        { dtype: 'fp32', device: 'webgpu' },
+        { dtype: 'fp32', device: 'wasm'   },
+      ]
+      let lastErr: unknown
+      for (const opts of attempts) {
+        try {
+          return await pipeline('image-classification', MODEL_ID, opts) as unknown as Classifier
+        } catch (err) {
+          lastErr = err
+        }
       }
+      throw lastErr instanceof Error ? lastErr : new Error('Classifier failed to load')
     })()
   }
   return classifierPromise
