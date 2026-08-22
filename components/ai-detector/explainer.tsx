@@ -68,15 +68,15 @@ export function AiDetectorExplainer() {
       <h2>Does the image leave my device?</h2>
       <p>
         No. The image is decoded in-browser, the classifier runs via
-        WebAssembly/WebGPU, and the metadata is parsed locally. There is no upload,
+        WebAssembly, and the metadata is parsed locally. There is no upload,
         no telemetry on the file, and no third-party pixel service. You can verify this in
         DevTools → Network at any time.
       </p>
 
       <h2>What about batch?</h2>
       <p>
-        Drop up to 1,000 images. The model loads once and each image is classified in
-        50–500 ms depending on your hardware. Results are downloadable as a CSV so
+        Drop up to 1,000 images. The model loads once (~37 MB) and each image is
+        classified on-device. Results are downloadable as a CSV so
         moderators, journalists, and stock reviewers can process large sets locally.
       </p>
 
