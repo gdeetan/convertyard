@@ -9,7 +9,7 @@ export const config: ViewerToolConfig<AiDetectionResult> = {
   slug: 'ai-image-detector',
   title: 'AI Image Detector',
   subtitle: 'Local-first AI-generated image detector. Built for batches.',
-  bestFor: 'Best for a local first-pass on whether a photo was generated (ChatGPT, Flux, Midjourney, Stable Diffusion, and similar) or shot on a camera — before publishing or citing it.',
+  bestFor: 'A first pass on whether an image was generated (ChatGPT, Flux, Midjourney, Stable Diffusion) or photographed. Nothing is uploaded.',
   category: 'ai',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.heic', '.heif'],
@@ -20,35 +20,35 @@ export const config: ViewerToolConfig<AiDetectionResult> = {
   faq: [
     {
       q: 'Does the image leave my browser?',
-      a: 'No. The classifier and metadata parser run entirely on your device via WebAssembly. The image is decoded in the browser, resized, and passed to the model without any upload. You can verify this in your browser DevTools → Network tab.',
+      a: 'No. Decode, classify, and metadata parse all run on your device. Nothing is uploaded. You can confirm that in DevTools → Network.',
     },
     {
       q: 'Which AI generators does it detect?',
-      a: 'The pixel classifier is Community Forensics ViT-S with a 2026 re-fit head, scored on recent generators (GPT Image, Flux 2, Midjourney 7, and others). It scores AI vs photo — it does not name the app. The metadata pass still flags Stable Diffusion, ComfyUI, Midjourney, Firefly, Imagen, Ideogram, Leonardo, Runway, and C2PA tags when present.',
+      a: 'The pixel score is AI vs photograph. It covers a wide set of generators, including ChatGPT / GPT Image, Flux, Midjourney, and Stable Diffusion. It does not name the app. Metadata can still flag Stable Diffusion, ComfyUI, Midjourney, Firefly, Imagen, Ideogram, Leonardo, Runway, and C2PA tags when those tags are still in the file.',
     },
     {
       q: 'How accurate is it?',
-      a: 'Public on-device evals of this checkpoint report about 90% balanced accuracy at a 0.65 threshold, including JPEG-recompressed copies and 2025–26 generators. ChatGPT / GPT Image is in scope; 100% scores are still not proof. False positives happen on heavy retouching. False negatives happen after aggressive re-encoding. Use it as one signal.',
+      a: 'On public test sets it is around 90% at a 65% cutoff. ChatGPT images are in scope. A 100% score is still not proof. Heavy retouching on a real photo can look like AI. Saving a generated image as a small JPEG can hide it. Use the score with the metadata panel and your own judgment.',
+    },
+    {
+      q: 'Why did a JPEG copy score lower than the PNG?',
+      a: 'The classifier reads pixels, not the filename and not EXIF. JPEG compression changes those pixels, so the percentage can move a few points — or a lot, if the quality is low. Stripping EXIF does not hide a generated image by itself; social platforms already strip tags on most files.',
     },
     {
       q: 'Can I check many images at once?',
-      a: 'Yes — drop up to 1,000 images. The model loads once (about 87 MB, cached after first run). Desktops score five 384 px crops and average the logits; phones use one center crop.',
+      a: 'Yes. Drop up to 1,000 files. The model loads once (about 87 MB, then cached). Desktops score five 384 px crops and average them; phones use one center crop.',
     },
     {
       q: 'What formats are supported?',
-      a: 'JPEG, PNG, WebP, AVIF, and HEIC/HEIF. HEIC is decoded locally via a WASM decoder before classification.',
+      a: 'JPEG, PNG, WebP, AVIF, and HEIC/HEIF. HEIC is decoded locally before classification.',
     },
     {
       q: 'Why did it flag my real photo as AI?',
-      a: 'Heavily retouched portraits, HDR composites, and images that have been through generative upscalers or portrait beautifiers share statistical properties with diffusion output. Check the metadata panel — if no AI signatures are present and you know the origin, trust the source.',
-    },
-    {
-      q: 'What if an AI image is missing metadata?',
-      a: 'That is the common case — social platforms strip most metadata. The pixel classifier is designed for this scenario. If both metadata and the classifier come up clean, the image is either human-made or has been aggressively re-encoded past the classifier\'s detection threshold.',
+      a: 'Retouched portraits, HDR composites, beauty filters, and generative upscalers share traits with generated images. If you know how the photo was made, trust that. Empty metadata does not prove it is real.',
     },
     {
       q: 'Can it detect deepfakes?',
-      a: 'For stills, yes — the classifier catches diffusion-generated faces well. Face-swap deepfakes on video are a different problem and out of scope. For high-stakes still-image cases, combine the verdict with reverse-image search and provenance checks.',
+      a: 'For stills, generated faces are usually in range. Face-swap video on real footage is a different problem and out of scope. For a high-stakes still, also reverse-image search and check the source.',
     },
   ],
   relatedTools: ['exif-viewer', 'image-description', 'alt-text-generator', 'background-remover'],

@@ -81,9 +81,8 @@ export function VerdictCard({ result }: { result: AiDetectionResult }) {
         <MetadataPanel result={result} />
 
         <p className="text-xs text-fg-subtle">
-          Classifier accuracy is not perfect. Older or heavily edited AI images may pass as
-          human; some photos with stylized processing may be flagged as AI. Use the metadata
-          panel and human judgment for confirmation.
+          Scores miss. Heavy edits on a real photo can look like AI. A hard JPEG
+          save can hide a generated image. Check metadata, then use your own judgment.
         </p>
       </div>
     </div>
