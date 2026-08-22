@@ -3,7 +3,8 @@
 // Runs the Organika/sdxl-detector SwinV2 classifier off the main thread.
 // Loaded lazily by ai-detector.ts via new Worker(new URL(...)).
 
-import { classifierLoadAttempts } from './ai-detector-logic'
+import { classifierLoadAttempts, detectorWasmThreads } from './ai-detector-logic'
+import { detectCaptionClientProfile } from './caption-workload'
 
 const MODEL_HOST = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
 const MODEL_ID = MODEL_HOST ? 'models/sdxl-detector' : 'Organika/sdxl-detector'
@@ -49,11 +50,31 @@ async function getClassifier(): Promise<Classifier> {
       env.allowLocalModels = false
       if (MODEL_HOST) env.remoteHost = MODEL_HOST
       try {
-        const cores = (self.navigator?.hardwareConcurrency ?? 4) as number
-        const wasm = (env.backends as unknown as { onnx?: { wasm?: { numThreads?: number; simd?: boolean } } }).onnx?.wasm
-        if (wasm) {
-          wasm.numThreads = Math.max(1, Math.min(cores, 8))
-          wasm.simd = true
+        const nav = self.navigator
+        const profile = detectCaptionClientProfile(
+          nav?.userAgent ?? '',
+          nav?.maxTouchPoints ?? 0,
+          nav?.platform ?? '',
+        )
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const onnx = (env.backends as any).onnx
+        if (onnx?.wasm) {
+          onnx.wasm.proxy = false
+          onnx.wasm.simd = true
+          onnx.wasm.numThreads = detectorWasmThreads(
+            profile,
+            typeof SharedArrayBuffer !== 'undefined',
+            nav?.hardwareConcurrency ?? 4,
+          )
+        }
+        // iOS Chrome/Firefox are WebKit; transformers.js only picks the
+        // Safari-safe (non-asyncify) ORT build when the UA looks like Safari.
+        if (profile === 'ios' && onnx?.versions?.web && onnx.wasm) {
+          const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${onnx.versions.web}/dist/`
+          onnx.wasm.wasmPaths = {
+            mjs: `${prefix}ort-wasm-simd-threaded.mjs`,
+            wasm: `${prefix}ort-wasm-simd-threaded.wasm`,
+          }
         }
       } catch { /* backends config best-effort */ }
 

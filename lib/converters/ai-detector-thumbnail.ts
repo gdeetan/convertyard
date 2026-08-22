@@ -1,6 +1,7 @@
 // Rasterize to a 224×224 lossless PNG for the classifier (pipeline-native Blob
 // input) plus a small JPEG preview. HEIC is decoded via heic2any first.
 import { CLASSIFIER_SIZE, looksLikeHeicHeader } from './ai-detector-logic'
+import { detectCaptionClientProfile } from './caption-workload'
 
 const HEIC_MIME = /image\/hei[cf]/i
 
@@ -72,8 +73,14 @@ export async function buildClassifierInput(file: File): Promise<{
   width: number
   height: number
 }> {
+  const profile = detectCaptionClientProfile(
+    navigator.userAgent ?? '',
+    navigator.maxTouchPoints ?? 0,
+    navigator.platform ?? '',
+  )
+  // iOS decodes HEIC natively. heic2any's libheif WASM often OOMs or fails there.
   let blob: Blob = file
-  if (await sniffHeic(file)) {
+  if (await sniffHeic(file) && profile !== 'ios') {
     blob = await heicToJpegBlob(file)
   }
 

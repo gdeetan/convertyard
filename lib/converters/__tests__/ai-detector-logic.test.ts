@@ -3,6 +3,7 @@ import {
   CLASSIFIER_SIZE,
   classifierLoadAttempts,
   combineVerdict,
+  detectorWasmThreads,
   friendlyImageError,
   looksLikeHeicHeader,
   metadataImpliesAi,
@@ -15,6 +16,18 @@ import { verdictFromProbability } from '../ai-detector.types'
 describe('classifierLoadAttempts', () => {
   it('loads q8 WASM only (skips WebGPU shader compile and fp32)', () => {
     expect(classifierLoadAttempts()).toEqual([{ dtype: 'q8', device: 'wasm' }])
+  })
+})
+
+describe('detectorWasmThreads', () => {
+  it('uses a single thread on iOS and Android', () => {
+    expect(detectorWasmThreads('ios', true, 6)).toBe(1)
+    expect(detectorWasmThreads('android', true, 8)).toBe(1)
+  })
+
+  it('threads on desktop only when SharedArrayBuffer exists', () => {
+    expect(detectorWasmThreads('desktop', true, 8)).toBe(4)
+    expect(detectorWasmThreads('desktop', false, 8)).toBe(1)
   })
 })
 
@@ -88,5 +101,9 @@ describe('friendlyImageError', () => {
   it('maps browser decode failures to a short message', () => {
     expect(friendlyImageError(new Error('The source image could not be decoded.'))).toMatch(/Could not read this image/)
     expect(friendlyImageError(new Error('Unsupported input type: object'))).toMatch(/Could not read this image/)
+  })
+
+  it('maps OOM to a device message', () => {
+    expect(friendlyImageError(new Error('out of memory'))).toMatch(/ran out of memory/)
   })
 })
