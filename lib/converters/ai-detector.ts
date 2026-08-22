@@ -1,12 +1,12 @@
 import type { AiDetectionResult } from './ai-detector.types'
 import {
-  CLASSIFIER_SIZE,
   combineVerdict,
+  friendlyImageError,
   pickAiScore,
   pendingVerdict,
 } from './ai-detector-logic'
 import { detectAiSignatures } from './exif-viewer-ai'
-import { buildClassifierInput, isHeicFile } from './ai-detector-thumbnail'
+import { buildClassifierInput } from './ai-detector-thumbnail'
 
 // ── Load status (UI subscribes) ──────────────────────────────────────────────
 
@@ -125,16 +125,15 @@ export function preloadClassifier(): void {
 
 // ── Per-file classify via worker ─────────────────────────────────────────────
 
-async function classifyRgb(rgb: Uint8Array): Promise<Array<{ label: string; score: number }>> {
+async function classifyPng(png: ArrayBuffer): Promise<Array<{ label: string; score: number }>> {
   await ensureReady()
   const worker = getWorker()
   const id = crypto.randomUUID()
-  const buffer = rgb.buffer.slice(rgb.byteOffset, rgb.byteOffset + rgb.byteLength)
   return new Promise((resolve, reject) => {
     classifyWaiters.set(id, { resolve, reject })
     worker.postMessage(
-      { type: 'classify', id, width: CLASSIFIER_SIZE, height: CLASSIFIER_SIZE, channels: 3, buffer },
-      [buffer],
+      { type: 'classify', id, mimeType: 'image/png', buffer: png },
+      [png],
     )
   })
 }
@@ -146,7 +145,7 @@ type ExifParse = (file: File, opts: Record<string, boolean>) => Promise<unknown>
 type Prepared = {
   file: File
   metadataSignatures: AiDetectionResult['metadataSignatures']
-  rgb?: Uint8Array
+  png?: ArrayBuffer
   previewDataUrl?: string
   width?: number
   height?: number
@@ -166,11 +165,11 @@ async function prepareFile(file: File, parse: ExifParse): Promise<Prepared> {
   } catch { /* metadata pass is optional */ }
 
   try {
-    const built = await buildClassifierInput(file, isHeicFile(file))
+    const built = await buildClassifierInput(file)
     return {
       file,
       metadataSignatures,
-      rgb: built.rgb,
+      png: built.png,
       previewDataUrl: built.previewDataUrl,
       width: built.width,
       height: built.height,
@@ -179,7 +178,7 @@ async function prepareFile(file: File, parse: ExifParse): Promise<Prepared> {
     return {
       file,
       metadataSignatures,
-      decodeError: err instanceof Error ? err.message : 'Could not decode image',
+      decodeError: friendlyImageError(err),
     }
   }
 }
@@ -237,7 +236,7 @@ export async function analyzeForAi(
     onProgress?.(i, 40)
 
     try {
-      const preds = await classifyRgb(prepared.rgb!)
+      const preds = await classifyPng(prepared.png!)
       const aiScore = pickAiScore(preds)
       const r: AiDetectionResult = {
         ok: true,
@@ -256,7 +255,7 @@ export async function analyzeForAi(
         ...baseFields(prepared),
         verdict: pending.verdict === 'likely-ai' ? 'likely-ai' : 'error',
         classifierPending: false,
-        errorMessage: err instanceof Error ? err.message : 'Classifier failed',
+        errorMessage: friendlyImageError(err),
       }
       results[i] = r
       onResult?.(i, r)

@@ -3,6 +3,8 @@ import {
   CLASSIFIER_SIZE,
   classifierLoadAttempts,
   combineVerdict,
+  friendlyImageError,
+  looksLikeHeicHeader,
   metadataImpliesAi,
   pendingVerdict,
   pickAiScore,
@@ -75,5 +77,25 @@ describe('rgbaToRgb', () => {
 describe('CLASSIFIER_SIZE', () => {
   it('matches the ONNX preprocessor (224)', () => {
     expect(CLASSIFIER_SIZE).toBe(224)
+  })
+})
+
+describe('looksLikeHeicHeader', () => {
+  it('detects ftypheic', () => {
+    const buf = new Uint8Array(12)
+    buf.set([0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69, 0x63], 4) // ftypheic
+    expect(looksLikeHeicHeader(buf)).toBe(true)
+  })
+
+  it('rejects JPEG SOI', () => {
+    const buf = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01])
+    expect(looksLikeHeicHeader(buf)).toBe(false)
+  })
+})
+
+describe('friendlyImageError', () => {
+  it('maps browser decode failures to a short message', () => {
+    expect(friendlyImageError(new Error('The source image could not be decoded.'))).toMatch(/Could not read this image/)
+    expect(friendlyImageError(new Error('Unsupported input type: object'))).toMatch(/Could not read this image/)
   })
 })

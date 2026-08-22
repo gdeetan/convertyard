@@ -46,7 +46,7 @@ export function BatchTable({ results }: { results: AiDetectionResult[] }) {
                     ? 'bg-bg-muted text-fg-muted'
                     : VERDICT_TONE[r.verdict]
                 }`}>
-                  {r.classifierPending && r.verdict !== 'likely-ai' ? 'Analyzing…' : VERDICT_LABEL[r.verdict]}
+                  {r.classifierPending && r.verdict !== 'likely-ai' ? 'Working…' : VERDICT_LABEL[r.verdict]}
                 </span>
               </td>
               <td className="px-3 py-2 text-right font-mono text-xs">
