@@ -24,8 +24,9 @@ export function GpsMap({ gps }: { gps: GpsFix }) {
         shadowSize: [41, 41],
       })
       map = L.map(ref.current, { scrollWheelZoom: false }).setView([gps.lat, gps.lon], 13)
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap',
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap © CARTO',
+        subdomains: 'abcd',
         maxZoom: 19,
         crossOrigin: 'anonymous',
       }).addTo(map)
