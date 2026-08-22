@@ -22,7 +22,7 @@ function statusLine(s: ClassifierStatus): string {
       : 'Downloading classifier…'
   }
   if (s.phase === 'compiling') {
-    return s.device === 'webgpu' ? 'Compiling classifier (GPU)…' : 'Compiling classifier…'
+    return 'Starting classifier…'
   }
   if (s.phase === 'error') return s.error ? `Classifier failed: ${s.error}` : 'Classifier failed to load'
   if (s.phase === 'ready') return 'Analyzing pixels…'
