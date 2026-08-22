@@ -12,6 +12,25 @@ export function classifierLoadAttempts(): Array<{ dtype: 'q8'; device: Classifie
   return [{ dtype: 'q8', device: 'wasm' }]
 }
 
+/** R2 objects live at models/sdxl-detector/config.json, not .../resolve/main/. */
+export const DETECTOR_R2_PATH_TEMPLATE = '{model}/'
+
+export type DetectorLoadSource = {
+  host: string | null
+  modelId: string
+  template: string
+  dtype: 'q8' | 'fp32'
+}
+
+export function detectorLoadSources(r2Host: string): DetectorLoadSource[] {
+  return [
+    { host: r2Host, modelId: 'models/sdxl-detector', template: DETECTOR_R2_PATH_TEMPLATE, dtype: 'q8' },
+    { host: r2Host, modelId: 'models/sdxl-detector', template: '{model}/resolve/{revision}/', dtype: 'q8' },
+    { host: null, modelId: 'Organika/sdxl-detector', template: '{model}/resolve/{revision}/', dtype: 'q8' },
+    { host: null, modelId: 'Organika/sdxl-detector', template: '{model}/resolve/{revision}/', dtype: 'fp32' },
+  ]
+}
+
 /** iOS Safari hangs on WASM session create if numThreads > 1. Phones also OOM. */
 export function detectorWasmThreads(
   profile: 'desktop' | 'android' | 'ios',
