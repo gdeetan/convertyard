@@ -13,12 +13,21 @@ async function getClassifier() {
     pipelinePromise = (async () => {
       const { pipeline, env } = await import('@huggingface/transformers')
       env.allowLocalModels = false
-      return pipeline('image-classification', MODEL_ID, { dtype: 'q8' })
+      try {
+        return await pipeline('image-classification', MODEL_ID, { dtype: 'q8', device: 'webgpu' })
+      } catch {
+        return pipeline('image-classification', MODEL_ID, { dtype: 'q8', device: 'wasm' })
+      }
     })()
   }
   return pipelinePromise as Promise<
     (input: string, opts?: { top_k?: number }) => Promise<Array<{ label: string; score: number }>>
   >
+}
+
+/** Kick off model download/compile before the user drops files. */
+export function preloadClassifier(): void {
+  void getClassifier().catch(() => { pipelinePromise = null })
 }
 
 export async function analyzeForAi(
