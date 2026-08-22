@@ -1,9 +1,8 @@
 /// <reference lib="webworker" />
 //
-// Runs the Organika/sdxl-detector SwinV2 classifier off the main thread.
-// Loaded lazily by ai-detector.ts via new Worker(new URL(...)).
+// CommunityForensics ViT-S (single fake-logit). Loaded lazily via Worker.
 
-import { detectorLoadSources, detectorWasmThreads } from './ai-detector-logic'
+import { aiScoreFromLogits, detectorLoadSources, detectorWasmThreads } from './ai-detector-logic'
 import { detectCaptionClientProfile } from './caption-workload'
 
 declare const __HF_TOKEN__: string
@@ -12,12 +11,12 @@ const MODEL_HOST = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
 const HF_HOST = 'https://huggingface.co/'
 const HF_TEMPLATE = '{model}/resolve/{revision}/'
 
-type Classifier = (
-  input: Blob,
-  opts?: { top_k?: number },
-) => Promise<Array<{ label: string; score: number }>>
+type Session = {
+  model: { (inputs: unknown): Promise<{ logits: { data: ArrayLike<number> } }> }
+  processor: (image: unknown) => Promise<unknown>
+}
 
-let classifierPromise: Promise<Classifier> | null = null
+let sessionPromise: Promise<Session> | null = null
 let loadedDevice: 'webgpu' | 'wasm' | null = null
 let taskChain: Promise<void> = Promise.resolve()
 
@@ -60,42 +59,43 @@ async function ensureHfAuth(env: { fetch: typeof fetch }): Promise<void> {
   }) as typeof env.fetch
 }
 
-async function getClassifier(): Promise<Classifier> {
-  if (!classifierPromise) {
-    classifierPromise = (async () => {
-      const { pipeline, env } = await import('@huggingface/transformers')
+function applyOnnxHints(env: { backends: unknown }): void {
+  const nav = self.navigator
+  const profile = detectCaptionClientProfile(
+    nav?.userAgent ?? '',
+    nav?.maxTouchPoints ?? 0,
+    nav?.platform ?? '',
+  )
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const onnx = (env.backends as any).onnx
+  if (onnx?.wasm) {
+    onnx.wasm.proxy = false
+    onnx.wasm.simd = true
+    onnx.wasm.numThreads = detectorWasmThreads(
+      profile,
+      typeof SharedArrayBuffer !== 'undefined',
+      nav?.hardwareConcurrency ?? 4,
+    )
+  }
+  if (profile === 'ios' && onnx?.versions?.web && onnx.wasm) {
+    const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${onnx.versions.web}/dist/`
+    onnx.wasm.wasmPaths = {
+      mjs: `${prefix}ort-wasm-simd-threaded.mjs`,
+      wasm: `${prefix}ort-wasm-simd-threaded.wasm`,
+    }
+  }
+}
+
+async function getSession(): Promise<Session> {
+  if (!sessionPromise) {
+    sessionPromise = (async () => {
+      const { AutoModelForImageClassification, AutoImageProcessor, env } = await import('@huggingface/transformers')
       env.allowLocalModels = false
       await ensureHfAuth(env)
-      try {
-        const nav = self.navigator
-        const profile = detectCaptionClientProfile(
-          nav?.userAgent ?? '',
-          nav?.maxTouchPoints ?? 0,
-          nav?.platform ?? '',
-        )
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const onnx = (env.backends as any).onnx
-        if (onnx?.wasm) {
-          onnx.wasm.proxy = false
-          onnx.wasm.simd = true
-          onnx.wasm.numThreads = detectorWasmThreads(
-            profile,
-            typeof SharedArrayBuffer !== 'undefined',
-            nav?.hardwareConcurrency ?? 4,
-          )
-        }
-        // iOS Chrome/Firefox are WebKit; transformers.js only picks the
-        // Safari-safe (non-asyncify) ORT build when the UA looks like Safari.
-        if (profile === 'ios' && onnx?.versions?.web && onnx.wasm) {
-          const prefix = `https://cdn.jsdelivr.net/npm/onnxruntime-web@${onnx.versions.web}/dist/`
-          onnx.wasm.wasmPaths = {
-            mjs: `${prefix}ort-wasm-simd-threaded.mjs`,
-            wasm: `${prefix}ort-wasm-simd-threaded.wasm`,
-          }
-        }
-      } catch { /* backends config best-effort */ }
+      try { applyOnnxHints(env) } catch { /* best-effort */ }
 
       self.postMessage({ type: 'load-progress', pct: 0 })
+      const cb = makeProgressCallback()
       let lastErr: unknown
       for (const src of detectorLoadSources(MODEL_HOST)) {
         const prevHost = env.remoteHost
@@ -103,13 +103,14 @@ async function getClassifier(): Promise<Classifier> {
         try {
           env.remoteHost = src.host ?? HF_HOST
           env.remotePathTemplate = src.template
-          const clf = await pipeline('image-classification', src.modelId, {
+          const processor = await AutoImageProcessor.from_pretrained(src.modelId, { progress_callback: cb })
+          const model = await AutoModelForImageClassification.from_pretrained(src.modelId, {
             dtype: src.dtype,
             device: 'wasm',
-            progress_callback: makeProgressCallback(),
-          }) as unknown as Classifier
+            progress_callback: cb,
+          })
           loadedDevice = 'wasm'
-          return clf
+          return { model, processor } as unknown as Session
         } catch (err) {
           lastErr = err
         } finally {
@@ -120,20 +121,31 @@ async function getClassifier(): Promise<Classifier> {
       throw lastErr instanceof Error ? lastErr : new Error('Classifier failed to load')
     })()
   }
-  return classifierPromise
+  return sessionPromise
 }
 
 async function handleMessage(msg: IncomingMsg): Promise<void> {
   if (msg.type === 'load') {
-    await getClassifier()
+    await getSession()
     self.postMessage({ type: 'ready', device: loadedDevice ?? 'wasm' })
     return
   }
   if (msg.type === 'classify') {
-    const c = await getClassifier()
+    const { model, processor } = await getSession()
+    const { RawImage } = await import('@huggingface/transformers')
     const blob = new Blob([msg.buffer], { type: msg.mimeType || 'image/png' })
-    const preds = await c(blob, { top_k: 5 })
-    self.postMessage({ type: 'result', id: msg.id, preds })
+    const image = await RawImage.fromBlob(blob)
+    const inputs = await processor(image)
+    const out = await model(inputs)
+    const p = aiScoreFromLogits(out.logits.data)
+    self.postMessage({
+      type: 'result',
+      id: msg.id,
+      preds: [
+        { label: 'fake', score: p },
+        { label: 'human', score: 1 - p },
+      ],
+    })
   }
 }
 
@@ -144,7 +156,7 @@ self.onmessage = (e: MessageEvent<IncomingMsg>) => {
     if ('id' in msg) {
       self.postMessage({ type: 'error', id: msg.id, message })
     } else {
-      classifierPromise = null
+      sessionPromise = null
       self.postMessage({ type: 'error', message })
     }
   })

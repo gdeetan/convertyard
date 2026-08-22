@@ -1,6 +1,12 @@
 // Rasterize to a 224×224 lossless PNG for the classifier (pipeline-native Blob
 // input) plus a small JPEG preview. HEIC is decoded via heic2any first.
-import { CLASSIFIER_SIZE, looksLikeHeicHeader } from './ai-detector-logic'
+import {
+  CLASSIFIER_CROP,
+  CLASSIFIER_RESIZE,
+  centerCropOrigin,
+  looksLikeHeicHeader,
+  shortestEdgeSize,
+} from './ai-detector-logic'
 import { detectCaptionClientProfile } from './caption-workload'
 
 const HEIC_MIME = /image\/hei[cf]/i
@@ -100,12 +106,20 @@ export async function buildClassifierInput(file: File): Promise<{
   }
 
   try {
+    const scaled = shortestEdgeSize(bitmap.width, bitmap.height, CLASSIFIER_RESIZE)
+    const crop = centerCropOrigin(scaled.w, scaled.h, CLASSIFIER_CROP)
+    const tmp = document.createElement('canvas')
+    tmp.width = scaled.w
+    tmp.height = scaled.h
+    const tctx = tmp.getContext('2d')
+    if (!tctx) throw new Error('Could not decode image')
+    tctx.drawImage(bitmap, 0, 0, scaled.w, scaled.h)
     const canvas = document.createElement('canvas')
-    canvas.width = CLASSIFIER_SIZE
-    canvas.height = CLASSIFIER_SIZE
+    canvas.width = crop.side
+    canvas.height = crop.side
     const ctx = canvas.getContext('2d')
     if (!ctx) throw new Error('Could not decode image')
-    ctx.drawImage(bitmap, 0, 0, CLASSIFIER_SIZE, CLASSIFIER_SIZE)
+    ctx.drawImage(tmp, crop.sx, crop.sy, crop.side, crop.side, 0, 0, crop.side, crop.side)
     const png = await canvasToPng(canvas)
     return {
       png,

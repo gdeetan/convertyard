@@ -9,7 +9,7 @@ export const config: ViewerToolConfig<AiDetectionResult> = {
   slug: 'ai-image-detector',
   title: 'AI Image Detector',
   subtitle: 'Local-first AI-generated image detector. Built for batches.',
-  bestFor: 'Best for spot-checking whether a photo was made by Midjourney, DALL·E, Stable Diffusion, Flux, or a camera — before publishing, moderating, or citing it.',
+  bestFor: 'Best for a local first-pass on whether a still was generated (ChatGPT, Flux, Midjourney, Stable Diffusion, and similar) or shot on a camera — before publishing or citing it.',
   category: 'ai',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.heic', '.heif'],
@@ -20,19 +20,19 @@ export const config: ViewerToolConfig<AiDetectionResult> = {
   faq: [
     {
       q: 'Does the image leave my browser?',
-      a: 'No. The classifier and metadata parser run entirely on your device via WebAssembly/WebGPU. The image is decoded in the browser, resized, and passed to the model without any upload. You can verify this in your browser DevTools → Network tab.',
+      a: 'No. The classifier and metadata parser run entirely on your device via WebAssembly. The image is decoded in the browser, resized, and passed to the model without any upload. You can verify this in your browser DevTools → Network tab.',
     },
     {
       q: 'Which AI generators does it detect?',
-      a: 'The pixel classifier is trained on modern diffusion output — SDXL, Midjourney, DALL·E, Stable Diffusion 1.5/2.1/3, Flux, Ideogram, and Nano Banana — with lower confidence on older GAN images. The metadata pass separately detects Stable Diffusion, ComfyUI, Midjourney, DALL·E, Firefly, Imagen, Ideogram, Leonardo, Runway, and any C2PA Content Credentials.',
+      a: 'The pixel classifier is CommunityForensics ViT-S, trained across thousands of generators (ChatGPT/GPT Image, DALL·E, Midjourney, Flux, Stable Diffusion, Imagen, Ideogram, and others). It scores AI vs photo — it does not name the app. The metadata pass still flags Stable Diffusion, ComfyUI, Midjourney, Firefly, Imagen, Ideogram, Leonardo, Runway, and C2PA tags when present.',
     },
     {
       q: 'How accurate is it?',
-      a: 'Around 88% F1 on modern diffusion output. False positives occur on heavily edited photos, HDR composites, and skin-smoothed portraits. False negatives occur when an AI image has been re-encoded at low quality or run through an image-to-image pass. Use the verdict as one signal, not proof.',
+      a: 'On held-out public sets this model family is around 90% balanced accuracy, including JPEG-recompressed copies. ChatGPT images are in scope; 100% scores are still not proof. False positives happen on heavy retouching and generative upscales. False negatives happen after aggressive re-encoding. Use it as one signal.',
     },
     {
       q: 'Can I check many images at once?',
-      a: 'Yes — drop up to 1,000 images. The model loads once (about 90 MB, cached after first run) and each image is classified in 50–500 ms depending on your hardware. WebGPU is used when available with WebAssembly fallback.',
+      a: 'Yes — drop up to 1,000 images. The model loads once (about 37 MB, cached after first run) and each image is classified on-device with WebAssembly.',
     },
     {
       q: 'What formats are supported?',
@@ -55,6 +55,6 @@ export const config: ViewerToolConfig<AiDetectionResult> = {
   relatedArticles: [],
   meta: {
     title: 'Free AI Image Detector — Batch, In Browser | ConvertYard',
-    description: 'Free AI image detector. Check if a photo was made by Midjourney, DALL·E, Stable Diffusion, or a camera — up to 1,000 files at once, all in your browser. No uploads.',
+    description: 'Free AI image detector. Check ChatGPT, Flux, Midjourney, Stable Diffusion, and camera photos — up to 1,000 files at once, all in your browser. No uploads.',
   },
 }
