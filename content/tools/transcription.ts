@@ -35,7 +35,11 @@ export const config: ToolConfig = {
     },
     {
       q: 'How accurate is the transcription?',
-      a: 'Balanced mode (Whisper-base) achieves ~90%+ word accuracy on clear, accented-neutral English speech. Accurate mode (Whisper-small) is noticeably better for accented speech and technical vocabulary. Both models struggle with heavy background noise, multiple overlapping speakers (crosstalk), and domain-specific jargon.',
+      a: 'Balanced mode (Whisper-base) achieves ~90%+ word accuracy on clear, accent-neutral English speech. Accurate mode (Whisper-small) is noticeably better for accented speech and technical vocabulary. List names and jargon in Names & terms to lock those spellings. Both models still struggle with heavy background noise and overlapping speakers.',
+    },
+    {
+      q: 'Can I lock names and technical terms?',
+      a: 'Yes. Add them in Names & terms before you transcribe — comma or new line. The list stays in your browser. It hints Whisper while decoding and then corrects leftover misspellings in the finished text. It cannot invent words that were never spoken.',
     },
     {
       q: 'What languages does it support?',

@@ -1,4 +1,13 @@
-import { getFFmpeg } from './ffmpeg-client'
+import { decodeAudioViaWebAudio } from './audio-decode'
+import {
+  extractAudio,
+  releaseCaptionExtractRuntime,
+} from './caption-transcribe'
+import {
+  detectCaptionClientProfile,
+  whisperAudioWindows,
+  type CaptionClientProfile,
+} from './caption-workload'
 import {
   loadTranscriptionModel,
   transcribeAudio as transcribeAudioClient,
@@ -7,6 +16,12 @@ import {
   type TranscriptionResult,
 } from './transcription-client'
 import { classifyTranscriptionError } from './transcription-errors'
+import {
+  applyTranscriptGlossaryToSrt,
+  applyVocabToTranscriptionResult,
+  buildWhisperVocabPrompt,
+  parseTranscriptTerms,
+} from './transcript-terms'
 
 // ── Re-exports ─────────────────────────────────────────────────────────────────
 
@@ -28,6 +43,7 @@ export interface TranscriptionOptions {
   quality: QualityMode
   language: string | null
   outputFormat: OutputFormat
+  terms?: string
 }
 
 export function selectTranscriptionOutput(
@@ -39,26 +55,6 @@ export function selectTranscriptionOutput(
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-async function decodeAudio(file: File): Promise<Float32Array> {
-  const audioCtx = new AudioContext({ sampleRate: 16000 })
-  try {
-    const buffer = await audioCtx.decodeAudioData(await file.arrayBuffer())
-    if (buffer.numberOfChannels === 1) {
-      return buffer.getChannelData(0).slice()
-    }
-    // Mix down to mono
-    const left = buffer.getChannelData(0)
-    const right = buffer.getChannelData(1)
-    const mono = new Float32Array(left.length)
-    for (let i = 0; i < left.length; i++) {
-      mono[i] = (left[i] + right[i]) / 2
-    }
-    return mono
-  } finally {
-    await audioCtx.close()
-  }
-}
-
 const VIDEO_EXTENSIONS = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v']
 
 function isVideo(file: File): boolean {
@@ -67,28 +63,73 @@ function isVideo(file: File): boolean {
   return VIDEO_EXTENSIONS.includes(ext)
 }
 
-async function extractAudioFromVideo(file: File): Promise<File> {
-  const { fetchFile } = await import('@ffmpeg/util')
-  const ffmpeg = await getFFmpeg()
+function currentCaptionProfile() {
+  if (typeof navigator === 'undefined') return 'desktop' as const
+  return detectCaptionClientProfile(
+    navigator.userAgent,
+    navigator.maxTouchPoints,
+    navigator.platform,
+  )
+}
 
-  const inputName = `input_${Date.now()}_${file.name}`
-  const outputName = `output_${Date.now()}.wav`
+const DESKTOP_SLICE_SEC = 30
+const DESKTOP_HOP_SEC = 27
 
-  await ffmpeg.writeFile(inputName, await fetchFile(file))
+/** 30s Whisper windows on desktop/Android; iPhone keeps the 15s Safari slices. */
+export function transcriptionAudioWindows(
+  sampleCount: number,
+  sampleRate: number,
+  profile: CaptionClientProfile,
+): { start: number; end: number; offsetSec: number }[] {
+  if (profile === 'ios') return whisperAudioWindows(sampleCount, sampleRate, profile)
+  if (sampleCount <= 0) return [{ start: 0, end: 0, offsetSec: 0 }]
+  const win = Math.round(DESKTOP_SLICE_SEC * sampleRate)
+  const hop = Math.round(DESKTOP_HOP_SEC * sampleRate)
+  const out: { start: number; end: number; offsetSec: number }[] = []
+  for (let start = 0; start < sampleCount; start += hop) {
+    const end = Math.min(sampleCount, start + win)
+    out.push({ start, end, offsetSec: start / sampleRate })
+    if (end >= sampleCount) break
+  }
+  return out.length > 0 ? out : [{ start: 0, end: sampleCount, offsetSec: 0 }]
+}
+
+function joinTranscriptParts(parts: string[]): string {
+  return parts
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+function offsetChunks(
+  chunks: TranscriptionResult['chunks'] | undefined,
+  offsetSec: number,
+): NonNullable<TranscriptionResult['chunks']> {
+  if (!chunks) return []
+  return chunks.map((chunk) => {
+    const t0 = (chunk.timestamp?.[0] ?? 0) + offsetSec
+    const t1 = (chunk.timestamp?.[1] ?? t0) + offsetSec
+    return { text: chunk.text, timestamp: [t0, t1] as [number, number] }
+  })
+}
+
+async function pcmForTranscription(file: File): Promise<Float32Array> {
+  if (isVideo(file)) {
+    try {
+      const pcm = await extractAudio(file)
+      await releaseCaptionExtractRuntime()
+      return pcm
+    } catch (err) {
+      await releaseCaptionExtractRuntime().catch(() => {})
+      throw classifyTranscriptionError(err, { code: 'VIDEO_AUDIO_EXTRACT_FAILED', phase: 'extract' })
+    }
+  }
   try {
-    await ffmpeg.exec([
-      '-i', inputName,
-      '-vn',
-      '-acodec', 'pcm_s16le',
-      '-ar', '16000',
-      '-ac', '1',
-      outputName,
-    ])
-    const data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
-    return new File([data], outputName, { type: 'audio/wav' })
-  } finally {
-    await ffmpeg.deleteFile(inputName).catch(() => {})
-    await ffmpeg.deleteFile(outputName).catch(() => {})
+    return await decodeAudioViaWebAudio(file)
+  } catch (err) {
+    throw classifyTranscriptionError(err, { code: 'AUDIO_DECODE_FAILED', phase: 'decode' })
   }
 }
 
@@ -123,10 +164,23 @@ export async function transcribeBatch(
   options: TranscriptionOptions,
   onModelProgress: (pct: number) => void,
   onFileProgress: (fileIndex: number, pct: number) => void,
-  onFileResult: (fileIndex: number, result: Pick<TranscriptionBatchResult, 'text' | 'srt' | 'output'>) => void,
+  onFileResult: (
+    fileIndex: number,
+    result: Pick<TranscriptionBatchResult, 'text' | 'srt' | 'output'>,
+    isFinal?: boolean,
+  ) => void,
 ): Promise<TranscriptionBatchResult[]> {
-  await loadTranscriptionModel(options.quality, onModelProgress)
-  onModelProgress(100)
+  const terms = parseTranscriptTerms(options.terms ?? '')
+  const prompt = buildWhisperVocabPrompt(terms)
+  const desktopParallel = currentCaptionProfile() === 'desktop'
+
+  let modelReady = false
+  const modelPromise = desktopParallel
+    ? loadTranscriptionModel(options.quality, onModelProgress).then(() => {
+        modelReady = true
+        onModelProgress(100)
+      })
+    : null
 
   const results: TranscriptionBatchResult[] = []
 
@@ -134,53 +188,77 @@ export async function transcribeBatch(
     try {
       onFileProgress(i, 5)
 
-      let audioFile: File = files[i]
-      if (isVideo(files[i])) {
-        try {
-          audioFile = await extractAudioFromVideo(files[i])
-        } catch (err) {
-          throw classifyTranscriptionError(err, { code: 'VIDEO_AUDIO_EXTRACT_FAILED', phase: 'extract' })
-        }
-      }
-
-      onFileProgress(i, 15)
-
-      let audioData: Float32Array
-      try {
-        audioData = await decodeAudio(audioFile)
-      } catch (err) {
-        throw classifyTranscriptionError(err, { code: 'AUDIO_DECODE_FAILED', phase: 'decode' })
-      }
-
+      const audioData = await pcmForTranscription(files[i])
       onFileProgress(i, 25)
 
+      if (!desktopParallel) {
+        if (!modelReady) {
+          await loadTranscriptionModel(options.quality, onModelProgress)
+          modelReady = true
+          onModelProgress(100)
+        }
+      } else {
+        await modelPromise
+      }
+
       const needsTimestamps = options.outputFormat === 'srt'
-      let result: TranscriptionResult
+      const sampleRate = 16000
+      const windows = transcriptionAudioWindows(audioData.length, sampleRate, currentCaptionProfile())
+      const textParts: string[] = []
+      const mergedChunks: NonNullable<TranscriptionResult['chunks']> = []
+
+      let entry: TranscriptionBatchResult = {
+        filename: files[i].name,
+        text: '',
+        output: '',
+      }
+
       try {
-        result = await transcribeAudioClient(
-          audioData,
-          16000,
-          options.language,
-          needsTimestamps,
-          (pct) => onFileProgress(i, 25 + Math.round(pct * 0.7)),
-        )
+        for (let w = 0; w < windows.length; w++) {
+          const { start, end, offsetSec } = windows[w]
+          const slice = audioData.subarray(start, end)
+          const windowResult = await transcribeAudioClient(
+            slice,
+            sampleRate,
+            options.language,
+            needsTimestamps,
+            (pct) => {
+              const base = (w + pct / 100) / windows.length
+              onFileProgress(i, 25 + Math.round(base * 0.7))
+            },
+            undefined,
+            prompt || undefined,
+          )
+          if (windowResult.text) textParts.push(windowResult.text)
+          mergedChunks.push(...offsetChunks(windowResult.chunks, offsetSec))
+
+          let result: TranscriptionResult = {
+            text: joinTranscriptParts(textParts),
+            chunks: mergedChunks.length > 0 ? mergedChunks : undefined,
+          }
+          if (prompt || terms.length > 0) {
+            result = applyVocabToTranscriptionResult(result, prompt, terms)
+          }
+
+          entry = {
+            filename: files[i].name,
+            text: result.text,
+            output: result.text,
+          }
+          if (options.outputFormat === 'srt') {
+            const srt = buildSRT(result)
+            entry.srt = terms.length > 0 ? applyTranscriptGlossaryToSrt(srt, terms) : srt
+            entry.output = selectTranscriptionOutput(entry, options.outputFormat)
+          }
+
+          const isFinal = w === windows.length - 1
+          onFileProgress(i, isFinal ? 100 : 25 + Math.round(((w + 1) / windows.length) * 0.7))
+          onFileResult(i, { text: entry.text, srt: entry.srt, output: entry.output }, isFinal)
+          await new Promise<void>((r) => setTimeout(r, 0))
+        }
       } catch (err) {
         throw classifyTranscriptionError(err, { code: 'TRANSCRIBE_FAILED', phase: 'transcribe' })
       }
-
-      const text = result.text
-      const entry: TranscriptionBatchResult = {
-        filename: files[i].name,
-        text,
-        output: text,
-      }
-      if (options.outputFormat === 'srt') {
-        entry.srt = buildSRT(result)
-        entry.output = selectTranscriptionOutput(entry, options.outputFormat)
-      }
-
-      onFileProgress(i, 100)
-      onFileResult(i, { text: entry.text, srt: entry.srt, output: entry.output })
 
       results.push(entry)
     } catch (err) {

@@ -20,6 +20,10 @@ import type {
   OutputFormat,
   TranscriptionBatchResult,
 } from '@/lib/converters/transcription'
+import {
+  hasTranscriptTermsOverflow,
+  parseTranscriptTerms,
+} from '@/lib/converters/transcript-terms'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -97,6 +101,7 @@ export default function TranscriptionPage() {
   const [quality, setQuality] = useState<QualityMode>('balanced')
   const [language, setLanguage] = useState<string>('')
   const [outputFormat, setOutputFormat] = useState<OutputFormat>('txt')
+  const [terms, setTerms] = useState('')
   const processingRef = useRef(false)
   const pendingProgress = useRef<Map<number, number>>(new Map())
   const rafPending = useRef(false)
@@ -129,17 +134,21 @@ export default function TranscriptionPage() {
     })
   }, [])
 
-  const applyBatchResult = useCallback((index: number, result: Pick<TranscriptionBatchResult, 'text' | 'srt' | 'output'>) => {
+  const applyBatchResult = useCallback((
+    index: number,
+    result: Pick<TranscriptionBatchResult, 'text' | 'srt' | 'output'>,
+    isFinal = true,
+  ) => {
     updateEntry(index, {
       text: result.text,
       srt: result.srt,
       output: result.output,
-      originalOutput: result.output,
-      status: 'done',
-      progress: 100,
       error: undefined,
       errorDetails: undefined,
       errorCode: undefined,
+      ...(isFinal
+        ? { originalOutput: result.output, status: 'done' as const, progress: 100 }
+        : { status: 'processing' as const }),
     })
   }, [updateEntry])
 
@@ -190,7 +199,7 @@ export default function TranscriptionPage() {
     try {
       const results = await transcribeBatch(
         entries.map((e) => e.file),
-        { quality, language: language || null, outputFormat },
+        { quality, language: language || null, outputFormat, terms },
         (pct) => {
           setModelProgress(pct)
         },
@@ -198,8 +207,8 @@ export default function TranscriptionPage() {
           onFileProgress(fileIndex, pct)
           updateEntry(fileIndex, { status: 'processing' })
         },
-        (fileIndex, result) => {
-          applyBatchResult(fileIndex, result)
+        (fileIndex, result, isFinal) => {
+          applyBatchResult(fileIndex, result, isFinal)
         }
       )
 
@@ -231,7 +240,7 @@ export default function TranscriptionPage() {
     } finally {
       processingRef.current = false
     }
-  }, [applyBatchResult, applyEntryError, entries, quality, language, outputFormat, onFileProgress])
+  }, [applyBatchResult, applyEntryError, entries, quality, language, outputFormat, terms, onFileProgress])
 
   const handleReset = () => {
     setEntries([])
@@ -385,6 +394,32 @@ export default function TranscriptionPage() {
             </select>
           </div>
 
+          {/* Names & terms */}
+          <div>
+            <label htmlFor="terms-input" className="mb-1.5 block text-sm font-medium text-fg">
+              Names &amp; terms
+            </label>
+            <textarea
+              id="terms-input"
+              value={terms}
+              onChange={(e) => setTerms(e.target.value)}
+              placeholder="ConvertYard, Garrick, WebAssembly"
+              rows={3}
+              className="w-full resize-y rounded-lg border border-border bg-bg px-3 py-2 text-sm text-fg focus:outline-none focus:ring-2 focus:ring-primary/50"
+            />
+            <p className="mt-1.5 text-xs text-fg-subtle">
+              Comma or new line. Hints Whisper and fixes spellings after.
+              {terms.trim() ? (
+                <>
+                  {' '}
+                  {hasTranscriptTermsOverflow(terms)
+                    ? 'Using the first 40 terms.'
+                    : `${parseTranscriptTerms(terms).length} term${parseTranscriptTerms(terms).length === 1 ? '' : 's'}.`}
+                </>
+              ) : null}
+            </p>
+          </div>
+
           {/* Output format */}
           <div>
             <p className="mb-1.5 text-sm font-medium text-fg">Output format</p>
@@ -488,6 +523,12 @@ export default function TranscriptionPage() {
                     <span className="text-xs text-fg-subtle shrink-0">{entry.progress}%</span>
                   </div>
                 )}
+
+                {entry.status === 'processing' && entry.output ? (
+                  <pre className="max-h-48 overflow-y-auto whitespace-pre-wrap break-words px-4 pb-3 font-mono text-xs leading-relaxed text-fg-muted">
+                    {entry.output}
+                  </pre>
+                ) : null}
 
                 {/* Editable transcript when done */}
                 {entry.status === 'done' && entry.output !== undefined && (
