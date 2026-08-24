@@ -19,6 +19,10 @@ import {
   type WhisperQuality,
 } from './whisper-postprocess'
 import { detectCaptionClientProfile, needsSafariOnnxWasm } from './caption-workload'
+import {
+  encodeWhisperVocabPromptIds,
+  mergeWhisperDecoderInputIds,
+} from './transcript-terms'
 
 export type { WhisperQuality }
 
@@ -106,6 +110,7 @@ interface TranscribeMsg {
   sampleRate: number
   language: string | null
   timestamps: boolean | 'word'
+  prompt?: string
 }
 
 type IncomingMsg = LoadMsg | TranscribeMsg
@@ -209,18 +214,73 @@ async function loadWhisperModel(quality: WhisperQuality) {
 
 // ── Transcription ─────────────────────────────────────────────────────────────
 
+function whisperDecoderStartTokens(
+  language: string | null,
+  timestamps: boolean | 'word',
+): number[] {
+  const model = whisperPipeline?.model
+  const generationConfig = {
+    ...(model?.generation_config ?? {}),
+    language: language ?? undefined,
+    task: 'transcribe',
+    return_timestamps: timestamps === true || timestamps === 'word',
+  }
+  try {
+    const ids = model?._retrieve_init_tokens?.(generationConfig)
+    if (Array.isArray(ids) && ids.length > 0) return ids
+  } catch {
+    /* reconstruct below */
+  }
+  const gc = model?.generation_config ?? {}
+  const init: number[] = []
+  if (gc.decoder_start_token_id != null) init.push(gc.decoder_start_token_id)
+  if (gc.is_multilingual) {
+    const code = language || 'en'
+    const langId = gc.lang_to_id?.[`<|${code}|>`]
+    if (langId != null) init.push(langId)
+    const taskId = gc.task_to_id?.transcribe
+    if (taskId != null) init.push(taskId)
+  }
+  if (!generationConfig.return_timestamps && gc.no_timestamps_token_id != null) {
+    init.push(gc.no_timestamps_token_id)
+  }
+  return init
+}
+
+function decoderInputIdsForPrompt(
+  prompt: string | undefined,
+  language: string | null,
+  timestamps: boolean | 'word',
+): number[] | undefined {
+  if (!prompt || !whisperPipeline?.tokenizer) return undefined
+  try {
+    const promptIds = encodeWhisperVocabPromptIds(whisperPipeline.tokenizer, prompt)
+    if (promptIds.length === 0) return undefined
+    const init = whisperDecoderStartTokens(language, timestamps)
+    if (init.length === 0) return undefined
+    return mergeWhisperDecoderInputIds(promptIds, init)
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn('[transcription] vocab prompt inject failed, continuing without it', err)
+    return undefined
+  }
+}
+
 async function runTranscribe(
   id: string,
   audioData: Float32Array,
   sampleRate: number,
   language: string | null,
   timestamps: boolean | 'word',
+  prompt?: string,
 ) {
   self.postMessage({ type: 'transcribe-progress', id, progress: 10 })
 
   const decode = decodeParamsForQuality(loadedQuality ?? 'balanced', {
     constrained: isConstrainedClient(),
   })
+
+  const decoder_input_ids = decoderInputIdsForPrompt(prompt, language, timestamps)
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const raw = await (whisperPipeline as any)(audioData, {
@@ -230,6 +290,7 @@ async function runTranscribe(
     chunk_length_s: 30,
     stride_length_s: 3,
     sampling_rate: sampleRate,
+    ...(decoder_input_ids ? { decoder_input_ids } : {}),
     ...decode,
   })
 
@@ -260,9 +321,9 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
   }
 
   if (msg.type === 'transcribe') {
-    const { id, audioData, sampleRate, language, timestamps } = msg
+    const { id, audioData, sampleRate, language, timestamps, prompt } = msg
     try {
-      await runTranscribe(id, audioData, sampleRate, language, timestamps)
+      await runTranscribe(id, audioData, sampleRate, language, timestamps, prompt)
     } catch (err) {
       postError(classifyTranscriptionError(err, {
         phase: 'transcribe',

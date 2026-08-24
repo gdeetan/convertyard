@@ -125,6 +125,7 @@ export function transcribeAudio(
   timestamps: boolean | 'word',
   onProgress?: (pct: number) => void,
   signal?: AbortSignal,
+  prompt?: string,
 ): Promise<TranscriptionResult> {
   return new Promise((resolve, reject) => {
     if (signal?.aborted) {
@@ -196,6 +197,7 @@ export function transcribeAudio(
       sampleRate,
       language,
       timestamps,
+      ...(prompt ? { prompt } : {}),
     }, transfer)
   })
 }

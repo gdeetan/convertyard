@@ -4,6 +4,7 @@ import {
   __resetTranscriptionClientForTests,
   __setWorkerFactoryForTests,
   loadTranscriptionModel,
+  transcribeAudio,
 } from '@/lib/converters/transcription-client'
 
 class MockWorker extends EventTarget {
@@ -56,5 +57,57 @@ describe('transcription client retries after model load failure', () => {
 
     expect(workerCount).toBe(1)
     expect(postMessageCount).toBe(2)
+  })
+})
+
+describe('transcribeAudio prompt forwarding', () => {
+  afterEach(() => {
+    __resetTranscriptionClientForTests()
+  })
+
+  it('includes prompt on the transcribe message when provided', async () => {
+    const posted: unknown[] = []
+    __setWorkerFactoryForTests(() => {
+      const worker = new EventTarget() as EventTarget & { postMessage: (msg: unknown) => void }
+      worker.postMessage = (msg: unknown) => {
+        posted.push(msg)
+        const id = (msg as { id?: string }).id
+        queueMicrotask(() => {
+          worker.dispatchEvent(new MessageEvent('message', {
+            data: { type: 'transcribe-result', id, result: { text: 'ok' } },
+          }))
+        })
+      }
+      return worker as unknown as Worker
+    })
+
+    await transcribeAudio(new Float32Array([0]), 16000, 'en', false, undefined, undefined, 'ConvertYard.')
+    expect(posted[0]).toMatchObject({
+      type: 'transcribe',
+      prompt: 'ConvertYard.',
+      language: 'en',
+      timestamps: false,
+    })
+  })
+
+  it('omits prompt when undefined so captions calls stay unchanged', async () => {
+    const posted: unknown[] = []
+    __setWorkerFactoryForTests(() => {
+      const worker = new EventTarget() as EventTarget & { postMessage: (msg: unknown) => void }
+      worker.postMessage = (msg: unknown) => {
+        posted.push(msg)
+        const id = (msg as { id?: string }).id
+        queueMicrotask(() => {
+          worker.dispatchEvent(new MessageEvent('message', {
+            data: { type: 'transcribe-result', id, result: { text: 'ok' } },
+          }))
+        })
+      }
+      return worker as unknown as Worker
+    })
+
+    await transcribeAudio(new Float32Array([0]), 16000, null, 'word')
+    expect(posted[0]).toMatchObject({ type: 'transcribe', timestamps: 'word' })
+    expect((posted[0] as { prompt?: string }).prompt).toBeUndefined()
   })
 })
