@@ -5,6 +5,7 @@ import {
   filterWhisperChunks,
   filterWhisperResult,
   dedupeStrideOverlaps,
+  isHallucinatedTranscript,
   modelVariantsForQuality,
 } from '../whisper-postprocess'
 
@@ -132,5 +133,16 @@ describe('filterWhisperResult', () => {
     })
     expect(result.text).toBe('Hello world')
     expect(result.chunks).toHaveLength(2)
+  })
+})
+
+describe('isHallucinatedTranscript', () => {
+  it('flags YouTube outros and highly repeated words', () => {
+    expect(isHallucinatedTranscript('Thanks for watching.')).toBe(true)
+    expect(isHallucinatedTranscript('you you you you you you you')).toBe(true)
+  })
+
+  it('keeps ordinary speech', () => {
+    expect(isHallucinatedTranscript('We should ship the converter on Thursday.')).toBe(false)
   })
 })

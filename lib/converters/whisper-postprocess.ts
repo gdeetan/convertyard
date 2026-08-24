@@ -208,6 +208,33 @@ export function dedupeStrideOverlaps(chunks: WhisperChunk[]): WhisperChunk[] {
   return out
 }
 
+/** True when a window is almost certainly invented (outro, or one word looping). */
+export function isHallucinatedTranscript(text: string): boolean {
+  const raw = text.trim()
+  if (!raw) return false
+  const norm = normalizeToken(raw)
+  if (!norm) return true
+  if (HALLUCINATION_PHRASES.includes(norm)) return true
+  for (const phrase of HALLUCINATION_PHRASES) {
+    if (norm === phrase || (norm.startsWith(phrase) && norm.length <= phrase.length + 24)) {
+      return true
+    }
+  }
+  const words = raw.split(/\s+/).filter(Boolean)
+  if (words.length >= 6) {
+    const counts = new Map<string, number>()
+    let max = 0
+    for (const word of words) {
+      const key = word.toLowerCase()
+      const next = (counts.get(key) ?? 0) + 1
+      counts.set(key, next)
+      if (next > max) max = next
+    }
+    if (max / words.length >= 0.6) return true
+  }
+  return false
+}
+
 export function filterWhisperResult(result: WhisperResultLike): { text: string; chunks?: WhisperChunk[] } {
   if (result.chunks && result.chunks.length > 0) {
     const chunks = filterWhisperChunks(result.chunks)

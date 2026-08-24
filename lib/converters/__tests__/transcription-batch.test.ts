@@ -68,7 +68,7 @@ describe('transcribeBatch vocab and audio path', () => {
       expect.any(Float32Array),
       16000,
       'en',
-      false,
+      true,
       expect.any(Function),
       undefined,
       'ConvertYard.',
@@ -147,5 +147,41 @@ describe('transcribeBatch vocab and audio path', () => {
     expect(finals).toEqual([false, false, true])
     expect(results[0].srt).toContain('00:00:27,000 --> 00:00:28,000')
     expect(results[0].text).toBe('one two three')
+  })
+
+  it('does not send long silence to Whisper and keeps SRT offsets on the original timeline', async () => {
+    const sr = 16000
+    const speech = new Float32Array(sr * 2)
+    for (let i = 0; i < speech.length; i++) speech[i] = 0.3 * Math.sin((i * 440 * 2 * Math.PI) / sr)
+    const pcm = new Float32Array(sr * 44)
+    pcm.set(speech, 0)
+    pcm.set(speech, sr * 42)
+    decodeAudioViaWebAudio.mockResolvedValueOnce(pcm)
+    transcribeAudio
+      .mockResolvedValueOnce({
+        text: 'hello',
+        chunks: [{ text: 'hello', timestamp: [0, 1] }],
+      })
+      .mockResolvedValueOnce({
+        text: 'world',
+        chunks: [{ text: 'world', timestamp: [0, 1] }],
+      })
+
+    const file = new File([new Uint8Array([1])], 'gaps.wav', { type: 'audio/wav' })
+    const results = await transcribeBatch(
+      [file],
+      { quality: 'fast', language: null, outputFormat: 'srt', terms: '' },
+      () => {},
+      () => {},
+      () => {},
+    )
+
+    expect(transcribeAudio).toHaveBeenCalledTimes(2)
+    const firstLen = (transcribeAudio.mock.calls[0]?.[0] as Float32Array).length
+    const secondLen = (transcribeAudio.mock.calls[1]?.[0] as Float32Array).length
+    expect(firstLen).toBeLessThan(sr * 5)
+    expect(secondLen).toBeLessThan(sr * 5)
+    expect(results[0].text).toBe('hello world')
+    expect(results[0].srt).toContain('00:00:41')
   })
 })

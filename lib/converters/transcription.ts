@@ -16,6 +16,8 @@ import {
   type TranscriptionResult,
 } from './transcription-client'
 import { classifyTranscriptionError } from './transcription-errors'
+import { isHallucinatedTranscript } from './whisper-postprocess'
+import { detectSpeechIntervals } from './transcript-vad'
 import {
   applyTranscriptGlossaryToSrt,
   applyVocabToTranscriptionResult,
@@ -92,6 +94,30 @@ export function transcriptionAudioWindows(
     if (end >= sampleCount) break
   }
   return out.length > 0 ? out : [{ start: 0, end: sampleCount, offsetSec: 0 }]
+}
+
+/** Slice only speech; if VAD finds nothing, keep the full-file windows. */
+export function transcriptionSpeechWindows(
+  pcm: Float32Array,
+  sampleRate: number,
+  profile: CaptionClientProfile,
+): { start: number; end: number; offsetSec: number }[] {
+  const intervals = detectSpeechIntervals(pcm, sampleRate)
+  const regions = intervals.length > 0
+    ? intervals
+    : [{ start: 0, end: pcm.length }]
+  const out: { start: number; end: number; offsetSec: number }[] = []
+  for (const region of regions) {
+    const inner = transcriptionAudioWindows(region.end - region.start, sampleRate, profile)
+    for (const w of inner) {
+      out.push({
+        start: region.start + w.start,
+        end: region.start + w.end,
+        offsetSec: region.start / sampleRate + w.offsetSec,
+      })
+    }
+  }
+  return out.length > 0 ? out : [{ start: 0, end: pcm.length, offsetSec: 0 }]
 }
 
 function joinTranscriptParts(parts: string[]): string {
@@ -201,9 +227,10 @@ export async function transcribeBatch(
         await modelPromise
       }
 
-      const needsTimestamps = options.outputFormat === 'srt'
+      // Segment timestamps even for TXT — without them Whisper often invents text.
+      const needsTimestamps = true
       const sampleRate = 16000
-      const windows = transcriptionAudioWindows(audioData.length, sampleRate, currentCaptionProfile())
+      const windows = transcriptionSpeechWindows(audioData, sampleRate, currentCaptionProfile())
       const textParts: string[] = []
       const mergedChunks: NonNullable<TranscriptionResult['chunks']> = []
 
@@ -229,8 +256,10 @@ export async function transcribeBatch(
             undefined,
             prompt || undefined,
           )
-          if (windowResult.text) textParts.push(windowResult.text)
-          mergedChunks.push(...offsetChunks(windowResult.chunks, offsetSec))
+          if (!isHallucinatedTranscript(windowResult.text)) {
+            if (windowResult.text) textParts.push(windowResult.text)
+            mergedChunks.push(...offsetChunks(windowResult.chunks, offsetSec))
+          }
 
           let result: TranscriptionResult = {
             text: joinTranscriptParts(textParts),
