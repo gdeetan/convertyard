@@ -216,6 +216,12 @@ function getWorker(): Worker {
       else if (type === 'result') { pending.delete(id); handler.resolve(e.data.file ?? null) }
       else if (type === 'error') { pending.delete(id); handler.resolve(null) }
     })
+    workerInstance.addEventListener('error', (e: ErrorEvent) => {
+      console.info('[compress-video] worker error event:', e.message, e.filename, e.lineno)
+    })
+    workerInstance.addEventListener('messageerror', (e: MessageEvent) => {
+      console.info('[compress-video] worker messageerror (structured clone failure):', e.data)
+    })
   }
   return workerInstance
 }
@@ -225,6 +231,7 @@ async function dispatchToWorker(
   file: File,
   opts: AvcHardwareOpts | HevcHardwareOpts,
 ): Promise<File | null> {
+  console.info(`[compress-video] dispatch ${type} → worker (${file.name}, ${file.size} bytes)`)
   return new Promise((resolve) => {
     const id = ++requestSeq
     pending.set(id, {
@@ -238,7 +245,8 @@ async function dispatchToWorker(
     void _drop
     try {
       getWorker().postMessage({ id, type, file, opts: postOpts })
-    } catch {
+    } catch (err) {
+      console.info('[compress-video] worker postMessage threw:', err instanceof Error ? err.message : String(err))
       pending.delete(id)
       resolve(null)
     }
