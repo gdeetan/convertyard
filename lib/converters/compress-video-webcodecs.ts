@@ -61,11 +61,12 @@ export async function pickAvcEncoderConfig(
   height: number,
   fps: number,
   bitrate: number,
+  format: 'annexb' | 'avc' = 'annexb',
 ): Promise<AvcEncoderConfig | null> {
   if (typeof VideoEncoder === 'undefined') return null
   const extras: Array<Partial<AvcEncoderConfig>> = [
-    { hardwareAcceleration: 'prefer-hardware', avc: { format: 'annexb' } },
-    { avc: { format: 'annexb' } },
+    { hardwareAcceleration: 'prefer-hardware', avc: { format } },
+    { avc: { format } },
   ]
   for (const codec of AVC_CODECS) {
     for (const extra of extras) {
@@ -116,11 +117,12 @@ export async function pickHevcEncoderConfig(
   height: number,
   fps: number,
   bitrate: number,
+  format: 'annexb' | 'hevc' = 'annexb',
 ): Promise<HevcEncoderConfig | null> {
   if (typeof VideoEncoder === 'undefined') return null
   const extras: Array<Partial<HevcEncoderConfig>> = [
-    { hardwareAcceleration: 'prefer-hardware', hevc: { format: 'annexb' } },
-    { hevc: { format: 'annexb' } },
+    { hardwareAcceleration: 'prefer-hardware', hevc: { format } },
+    { hevc: { format } },
   ]
   for (const codec of HEVC_CODECS) {
     for (const extra of extras) {

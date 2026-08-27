@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { pickHevcEncoderConfig, canAttemptHevcWebCodecs, hevcBitrateForLevel } from '../compress-video-webcodecs'
+import { pickHevcEncoderConfig, canAttemptHevcWebCodecs, hevcBitrateForLevel, pickAvcEncoderConfig } from '../compress-video-webcodecs'
 
 describe('canAttemptHevcWebCodecs', () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -55,5 +55,15 @@ describe('pickHevcEncoderConfig', () => {
       isConfigSupported: vi.fn(async () => ({ supported: false })),
     })
     expect(await pickHevcEncoderConfig(1920, 1080, 30, 2_000_000)).toBeNull()
+  })
+})
+
+describe('pickAvcEncoderConfig format', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  it('passes format=avc through to isConfigSupported', async () => {
+    const isConfigSupported = vi.fn(async (cfg: VideoEncoderConfig) => ({ supported: true, config: cfg }))
+    vi.stubGlobal('VideoEncoder', { isConfigSupported })
+    const cfg = await pickAvcEncoderConfig(320, 240, 30, 500_000, 'avc')
+    expect((cfg as { avc?: { format?: string } } | null)?.avc?.format).toBe('avc')
   })
 })
