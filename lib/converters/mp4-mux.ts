@@ -3,11 +3,13 @@ import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
 export type AacAudioMeta = {
   numberOfChannels: number
   sampleRate: number
+  /** AudioSpecificConfig payload extracted from the esds box. */
   description: Uint8Array
 }
 
 export type VideoDecoderConfigDesc = {
   codec: string
+  /** avcC box payload (AVC) or hvcC box payload (HEVC). */
   description: Uint8Array
 }
 
