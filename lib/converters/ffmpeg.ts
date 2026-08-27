@@ -1109,10 +1109,10 @@ export async function compressVideo(
             console.info('[compress-video] hardware HEVC encoder')
             return hwFile
           }
-          // Hardware ran but did not shrink. Do not fall through to libx265
-          // (orders of magnitude slower in WASM). Remux the source instead.
-          const remuxed = await remuxToMp4(file, (pct) => onProgress?.(i, pct))
-          return remuxed ?? file
+          // Hardware ran but output was not smaller. Return the source unchanged
+          // rather than spinning up ffmpeg-wasm just to remux.
+          console.info('[compress-video] hardware HEVC output not smaller — returning source')
+          return file
         }
       }
 
@@ -1131,9 +1131,8 @@ export async function compressVideo(
             console.info(`[compress-video] hardware AVC encoder — ${file.size} → ${hwFile.size} bytes`)
             return hwFile
           }
-          console.info(`[compress-video] AVC hardware output larger than source (${hwFile.size} vs ${file.size}) — remuxing source instead`)
-          const remuxed = await remuxToMp4(file, (pct) => onProgress?.(i, pct))
-          return remuxed ?? file
+          console.info(`[compress-video] AVC hardware output not smaller (${hwFile.size} vs ${file.size}) — returning source`)
+          return file
         }
         console.info('[compress-video] AVC hardware path returned null — using ffmpeg-wasm libx264')
       }
