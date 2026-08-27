@@ -6,8 +6,7 @@
 // The playback-path fallback stays on the main thread and lives in
 // compress-video-webcodecs.ts — this worker is fast-path only.
 
-import { demuxMp4VideoFile } from './mp4-video-demux'
-import { demuxMp4AudioFile } from './mp4-audio-demux'
+import { demuxMp4File } from './mp4-demux'
 import { createAvcMuxer, createHevcMuxer, type MuxerHandle } from './mp4-mux'
 import {
   avcBitrateForLevel,
@@ -64,7 +63,9 @@ async function encodeHevcInWorker(
 ): Promise<File | null> {
   if (typeof VideoDecoder === 'undefined' || typeof VideoEncoder === 'undefined') { logBail('hevc: WebCodecs unavailable'); return null }
 
-  const demuxed = await demuxMp4VideoFile(file)
+  const stripAudio = opts.stripAudio === true
+  const mp4 = await demuxMp4File(file, { includeAudio: !stripAudio })
+  const demuxed = mp4?.video ?? null
   if (!demuxed || demuxed.samples.length === 0) { logBail('hevc: mp4 video demux failed or no samples'); return null }
 
   const srcW = even(demuxed.width)
@@ -102,8 +103,7 @@ async function encodeHevcInWorker(
     return null
   }
 
-  const stripAudio = opts.stripAudio === true
-  const audio = stripAudio ? null : await demuxMp4AudioFile(file)
+  const audio = stripAudio ? null : mp4?.audio ?? null
   if (!stripAudio && !audio) { logBail('hevc: keep-audio requested but source has no AAC audio track'); return null }
 
   let muxer: MuxerHandle | null = null
@@ -236,7 +236,9 @@ async function encodeAvcInWorker(
 ): Promise<File | null> {
   if (typeof VideoDecoder === 'undefined' || typeof VideoEncoder === 'undefined') { logBail('avc: WebCodecs unavailable'); return null }
 
-  const demuxed = await demuxMp4VideoFile(file)
+  const stripAudio = opts.stripAudio === true
+  const mp4 = await demuxMp4File(file, { includeAudio: !stripAudio })
+  const demuxed = mp4?.video ?? null
   if (!demuxed || demuxed.samples.length === 0) { logBail('avc: mp4 video demux failed or no samples'); return null }
 
   const srcW = even(demuxed.width)
@@ -275,8 +277,7 @@ async function encodeAvcInWorker(
     return null
   }
 
-  const stripAudio = opts.stripAudio === true
-  const audio = stripAudio ? null : await demuxMp4AudioFile(file)
+  const audio = stripAudio ? null : mp4?.audio ?? null
   // If the user wants audio but the source has non-AAC (or no) audio, bail so
   // the caller falls back to the playback + ffmpeg-mux path (which handles it).
   if (!stripAudio && !audio) { logBail('avc: keep-audio requested but source has no AAC audio track'); return null }

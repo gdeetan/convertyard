@@ -23,6 +23,8 @@ const HEVC_CODECS = [
   'hvc1.1.6.L120.B0',
 ]
 
+const MOBILE_FAST_PATH_MAX_BYTES = 120 * 1024 * 1024
+
 // H.264 profile.level strings, ordered widest-compat → highest.
 // Baseline 3.1 → Main 3.1 → High 4.0 → High 4.1. Encoder picks the first
 // its hardware backend accepts for the given resolution/fps.
@@ -276,12 +278,9 @@ async function tryEncodeViaVideoDecoder(
   opts: HevcHardwareOpts,
 ): Promise<File | null> {
   if (typeof Worker === 'undefined') return null
-  // Skip on mobile: the fast path allocates ~2x file size in worker memory
-  // (video demux + audio demux each call file.arrayBuffer()), which on mobile
-  // Chrome/Safari triggers File-reference eviction and "File could not be
-  // read Code=-1" errors. Mobile users fall through to the pre-existing
-  // playback path, which reads the file lazily via <video> src.
-  if (isMobileBrowser()) return null
+  // Mobile can use the one-read MP4 demux fast path for modest files. Keep a
+  // cap so very large inputs still fall back to the lazier playback path.
+  if (isMobileBrowser() && file.size > MOBILE_FAST_PATH_MAX_BYTES) return null
   return dispatchToWorker('compress-hevc', file, opts)
 }
 
@@ -479,8 +478,7 @@ async function tryEncodeAvcViaVideoDecoder(
   opts: AvcHardwareOpts,
 ): Promise<File | null> {
   if (typeof Worker === 'undefined') return null
-  // See HEVC counterpart above — skip on mobile to avoid File-eviction OOM.
-  if (isMobileBrowser()) return null
+  if (isMobileBrowser() && file.size > MOBILE_FAST_PATH_MAX_BYTES) return null
   return dispatchToWorker('compress-avc', file, opts)
 }
 

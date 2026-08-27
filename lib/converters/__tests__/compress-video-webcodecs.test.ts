@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { pickHevcEncoderConfig, canAttemptHevcWebCodecs, hevcBitrateForLevel, pickAvcEncoderConfig } from '../compress-video-webcodecs'
+import { demuxMp4File } from '../mp4-demux'
 
 describe('canAttemptHevcWebCodecs', () => {
   afterEach(() => vi.unstubAllGlobals())
@@ -65,5 +66,17 @@ describe('pickAvcEncoderConfig format', () => {
     vi.stubGlobal('VideoEncoder', { isConfigSupported })
     const cfg = await pickAvcEncoderConfig(320, 240, 30, 500_000, 'avc')
     expect((cfg as { avc?: { format?: string } } | null)?.avc?.format).toBe('avc')
+  })
+})
+
+describe('demuxMp4File', () => {
+  it('reads the file once when both video and audio are requested', async () => {
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(16))
+    const file = { size: 16, arrayBuffer } as unknown as File
+
+    const result = await demuxMp4File(file, { includeAudio: true })
+
+    expect(arrayBuffer).toHaveBeenCalledTimes(1)
+    expect(result).toEqual({ video: null, audio: null })
   })
 })
