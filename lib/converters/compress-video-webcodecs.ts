@@ -1,5 +1,7 @@
 import { getCompressVideoFFmpeg, withFfmpegLock } from './ffmpeg-client'
 import { demuxMp4VideoFile } from './mp4-video-demux'
+import { demuxMp4AudioFile } from './mp4-audio-demux'
+import { createAvcMuxer, createHevcMuxer, type MuxerHandle } from './mp4-mux'
 
 type HevcEncoderConfig = VideoEncoderConfig & {
   hevc?: { format?: 'annexb' | 'hevc' }
@@ -522,7 +524,8 @@ async function tryEncodeAvcViaVideoDecoder(
         durationSeconds: durationSeconds || 1,
       })
 
-  const encoderConfig = await pickAvcEncoderConfig(width, height, fps, bitrate)
+  // AVCC format so mp4-muxer can consume chunks directly (no annex-B stripping).
+  const encoderConfig = await pickAvcEncoderConfig(width, height, fps, bitrate, 'avc')
   if (!encoderConfig) return null
 
   const decoderConfig: VideoDecoderConfig = {
@@ -538,16 +541,50 @@ async function tryEncodeAvcViaVideoDecoder(
     return null
   }
 
-  const chunks: Uint8Array[] = []
+  const stripAudio = opts.stripAudio === true
+  const audio = stripAudio ? null : await demuxMp4AudioFile(file)
+  // If the user wants audio but the source has non-AAC (or no) audio, bail so
+  // the caller falls back to the playback + ffmpeg-mux path (which handles it).
+  if (!stripAudio && !audio) return null
+
+  let muxer: MuxerHandle | null = null
+  let muxError: Error | null = null
   let encodeError: Error | null = null
   let decodeError: Error | null = null
   const pending: VideoFrame[] = []
 
   const encoder = new VideoEncoder({
-    output: (chunk) => {
-      const buf = new Uint8Array(chunk.byteLength)
-      chunk.copyTo(buf)
-      chunks.push(buf)
+    output: (chunk, meta) => {
+      try {
+        if (!muxer) {
+          const desc = meta?.decoderConfig?.description
+          if (!desc) throw new Error('encoder metadata missing decoderConfig.description')
+          const descBytes = desc instanceof Uint8Array
+            ? desc
+            : ArrayBuffer.isView(desc)
+              ? new Uint8Array(desc.buffer, desc.byteOffset, desc.byteLength)
+              : new Uint8Array(desc as ArrayBuffer)
+          muxer = createAvcMuxer({
+            width,
+            height,
+            hasAudio: !!audio,
+            videoDecoderConfig: {
+              codec: meta.decoderConfig!.codec,
+              description: descBytes,
+            },
+            audio: audio
+              ? {
+                  numberOfChannels: audio.numberOfChannels,
+                  sampleRate: audio.sampleRate,
+                  description: audio.description,
+                }
+              : undefined,
+          })
+        }
+        muxer.addVideoChunk(chunk)
+      } catch (err) {
+        muxError = err instanceof Error ? err : new Error(String(err))
+      }
     },
     error: (err) => { encodeError = err instanceof Error ? err : new Error(String(err)) },
   })
@@ -562,7 +599,7 @@ async function tryEncodeAvcViaVideoDecoder(
   let frameIndex = 0
   const drain = async () => {
     while (pending.length > 0) {
-      if (encodeError || decodeError) throw encodeError ?? decodeError
+      if (encodeError || decodeError || muxError) throw encodeError ?? decodeError ?? muxError
       while (encoder.encodeQueueSize > 8) await sleep(0)
       let frame = pending.shift()!
       frame = await scaleFrame(frame, width, height)
@@ -576,7 +613,7 @@ async function tryEncodeAvcViaVideoDecoder(
   try {
     opts.onProgress?.(12)
     for (const sample of demuxed.samples) {
-      if (encodeError || decodeError) throw encodeError ?? decodeError
+      if (encodeError || decodeError || muxError) throw encodeError ?? decodeError ?? muxError
       while (decoder.decodeQueueSize > 8) {
         await drain()
         if (decoder.decodeQueueSize > 8) await sleep(0)
@@ -592,10 +629,29 @@ async function tryEncodeAvcViaVideoDecoder(
     await decoder.flush()
     await drain()
     await encoder.flush()
-    if (encodeError || decodeError) throw encodeError ?? decodeError
-    if (chunks.length === 0) return null
-    opts.onProgress?.(84)
-    return await muxAvcAnnexB(file, concatBytes(chunks), opts.stripAudio === true, opts.onProgress)
+    if (encodeError || decodeError || muxError) throw encodeError ?? decodeError ?? muxError
+    const finalMuxer = muxer as MuxerHandle | null
+    if (!finalMuxer) return null
+
+    // Audio passthrough: AAC frames are all keyframes.
+    if (audio) {
+      for (const s of audio.samples) {
+        finalMuxer.addAudioChunk(new EncodedAudioChunk({
+          type: 'key',
+          timestamp: s.timestampUs,
+          duration: s.durationUs,
+          data: s.data,
+        }))
+      }
+    }
+
+    opts.onProgress?.(90)
+    const mp4Bytes = finalMuxer.finalize()
+    opts.onProgress?.(98)
+    const baseName = file.name.replace(/\.[^.]+$/, '')
+    return new File([mp4Bytes as BlobPart], `${baseName}.mp4`, { type: 'video/mp4' })
+  } catch {
+    return null
   } finally {
     for (const frame of pending) {
       try { frame.close() } catch { /* already closed */ }
