@@ -72,7 +72,7 @@ export const config: ToolConfig = {
       a: 'Never. Conversion runs entirely in your browser using ffmpeg.wasm — a full media processing engine compiled to WebAssembly. Your files never leave your device. ConvertYard\'s servers only deliver the tool code — they never see your files.',
     },
   ],
-  relatedTools: ['mp4-to-mp3', 'extract-audio', 'audio-trimmer', 'mp3-to-mp4'],
+  relatedTools: ['compress-mp3', 'mp4-to-mp3', 'extract-audio', 'audio-trimmer', 'mp3-to-mp4'],
   relatedArticles: ['audio-bitrate-explained', 'extract-audio-from-mp4', 'browser-video-editing-2026'],
   meta: {
     title: 'M4A to MP3 — iPhone Voice Memos — ConvertYard',

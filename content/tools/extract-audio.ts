@@ -90,7 +90,7 @@ export const config: ToolConfig = {
       a: 'Some video files — screen recordings, silent clips, or certain converted files — contain a video track but no audio track. Extract Audio cannot produce audio from a file that has none. Open the original video in a media player: if there is no sound when you play it, there is nothing to extract.',
     },
   ],
-  relatedTools: ['mp4-to-mp3', 'compress-video', 'mp3-to-mp4', 'video-to-gif'],
+  relatedTools: ['compress-mp3', 'mp4-to-mp3', 'compress-video', 'mp3-to-mp4', 'video-to-gif'],
   relatedArticles: ['extract-audio-from-mp4', 'audio-bitrate-explained', 'browser-video-editing-2026'],
   meta: {
     title: 'Extract Audio from Video — ConvertYard',

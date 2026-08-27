@@ -72,7 +72,7 @@ export const config: ToolConfig = {
       a: 'No. Conversion runs entirely in your browser using ffmpeg.wasm. Your WAV files never leave your device — the server only delivers the tool code.',
     },
   ],
-  relatedTools: ['mp4-to-mp3', 'audio-trimmer', 'extract-audio', 'flac-to-mp3'],
+  relatedTools: ['compress-mp3', 'mp4-to-mp3', 'audio-trimmer', 'extract-audio', 'flac-to-mp3'],
   relatedArticles: ['audio-bitrate-explained', 'extract-audio-from-mp4', 'browser-video-editing-2026'],
   meta: {
     title: 'WAV to MP3 Converter — ConvertYard',

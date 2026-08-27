@@ -72,7 +72,7 @@ export const config: ToolConfig = {
       a: 'Never. Conversion runs entirely in your browser using ffmpeg.wasm — a full media processing engine compiled to WebAssembly. Your files never leave your device. ConvertYard\'s servers only deliver the tool code — they never see your files.',
     },
   ],
-  relatedTools: ['ogg-to-mp3', 'opus-to-mp3', 'm4a-to-mp3', 'audio-trimmer'],
+  relatedTools: ['compress-mp3', 'ogg-to-mp3', 'opus-to-mp3', 'm4a-to-mp3', 'audio-trimmer'],
   relatedArticles: ['audio-bitrate-explained', 'extract-audio-from-mp4', 'browser-video-editing-2026'],
   meta: {
     title: 'AMR to MP3 — Android Voice Notes — ConvertYard',

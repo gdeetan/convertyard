@@ -109,7 +109,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['mp4-to-mp3'],
+  relatedTools: ['compress-mp3', 'mp4-to-mp3'],
   relatedArticles: ['audio-bitrate-explained', 'extract-audio-from-mp4'],
 
   meta: {

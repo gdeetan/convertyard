@@ -72,7 +72,7 @@ export const config: ToolConfig = {
       a: 'No. Conversion runs entirely in your browser using ffmpeg.wasm. Your OGG files never leave your device — ConvertYard\'s servers only deliver the tool code.',
     },
   ],
-  relatedTools: ['opus-to-mp3', 'amr-to-mp3', 'audio-trimmer', 'extract-audio'],
+  relatedTools: ['compress-mp3', 'opus-to-mp3', 'amr-to-mp3', 'audio-trimmer', 'extract-audio'],
   relatedArticles: ['audio-bitrate-explained', 'extract-audio-from-mp4', 'browser-video-editing-2026'],
   meta: {
     title: 'OGG to MP3 Converter — ConvertYard',
