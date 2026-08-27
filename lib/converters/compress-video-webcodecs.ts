@@ -503,8 +503,11 @@ export async function tryCompressVideoHevcHardware(
           frame.close()
           frameIndex += 1
           opts.onProgress?.(12 + Math.round(Math.min(1, t / duration) * 70))
+          // Desktop HW encoders sustain 4x realtime on 1080p; Safari caps around 4x.
+          // Throttle down when the encoder queue backs up so we don't drop frames.
           if (encoder.encodeQueueSize > 10) video.playbackRate = 1
-          else video.playbackRate = 2
+          else if (encoder.encodeQueueSize > 4) video.playbackRate = 2
+          else video.playbackRate = 4
           if (video.ended || t >= duration - 0.05) {
             video.removeEventListener('ended', onEnded)
             finish()
@@ -847,8 +850,11 @@ export async function tryCompressVideoAvcHardware(
           frame.close()
           frameIndex += 1
           opts.onProgress?.(12 + Math.round(Math.min(1, t / duration) * 70))
+          // Desktop HW encoders sustain 4x realtime on 1080p; Safari caps around 4x.
+          // Throttle down when the encoder queue backs up so we don't drop frames.
           if (encoder.encodeQueueSize > 10) video.playbackRate = 1
-          else video.playbackRate = 2
+          else if (encoder.encodeQueueSize > 4) video.playbackRate = 2
+          else video.playbackRate = 4
           if (video.ended || t >= duration - 0.05) {
             video.removeEventListener('ended', onEnded)
             finish()
