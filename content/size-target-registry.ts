@@ -27,6 +27,10 @@ import { config as compressVideoTo100mb } from './size-targets/compress-video-to
 import { config as compressVideoTo200mb } from './size-targets/compress-video-to-200mb'
 import { config as compressVideoTo500mb } from './size-targets/compress-video-to-500mb'
 import { config as compressVideoTo1gb }   from './size-targets/compress-video-to-1gb'
+import { config as compressMp3To5mb }  from './size-targets/compress-mp3-to-5mb'
+import { config as compressMp3To8mb }  from './size-targets/compress-mp3-to-8mb'
+import { config as compressMp3To16mb } from './size-targets/compress-mp3-to-16mb'
+import { config as compressMp3To25mb } from './size-targets/compress-mp3-to-25mb'
 
 export const sizeTargets: SizeTargetConfig[] = [
   compressImageTo10kb,
@@ -56,4 +60,8 @@ export const sizeTargets: SizeTargetConfig[] = [
   compressVideoTo200mb,
   compressVideoTo500mb,
   compressVideoTo1gb,
+  compressMp3To5mb,
+  compressMp3To8mb,
+  compressMp3To16mb,
+  compressMp3To25mb,
 ]

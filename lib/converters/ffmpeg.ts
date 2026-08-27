@@ -1,5 +1,5 @@
 import { fetchFile } from '@ffmpeg/util'
-import { getFFmpeg, getCompressVideoFFmpeg, withFfmpegLock } from './ffmpeg-client'
+import { getFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock } from './ffmpeg-client'
 import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware } from './compress-video-webcodecs'
 import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from './media-probe'
 import type { ToolOptions, ConversionResult, CompressionMeta } from '@/lib/types'
@@ -2168,7 +2168,10 @@ export async function compressMp3(
 
     try {
       const result = await withFfmpegLock<ConversionResult>(async () => {
-        const ffmpeg = await getFFmpeg()
+        // Mobile always gets the single-thread build. MT deadlocks on Android
+        // Chrome for some libmp3lame filter graphs and gains nothing meaningful
+        // for audio-only workloads.
+        const ffmpeg = isMobileBrowser() ? await getMobileFFmpeg() : await getFFmpeg()
         const file   = files[i]
         const ext    = (file.name.split('.').pop() ?? 'mp3').toLowerCase()
         const inputName  = `cmp3_in_${i}.${ext}`

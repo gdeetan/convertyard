@@ -10,6 +10,7 @@ import { verticals } from '@/content/vertical-registry'
 import { config as compressPdfConfig } from '@/content/tools/compress-pdf'
 import { config as compressImageConfig } from '@/content/tools/compress-image'
 import { config as compressVideoConfig } from '@/content/tools/compress-video'
+import { config as compressMp3Config } from '@/content/tools/compress-mp3'
 import { CompressVideoEngineBanner } from '@/components/tool-shell/compress-video-engine-banner'
 import type { SizeTargetConfig, ToolConfig, ToolOption } from '@/lib/types'
 
@@ -17,6 +18,7 @@ const INHERITED_FAQ_INDICES: Record<string, number[]> = {
   'compress-pdf':   [4, 5], // "Are files uploaded?" + "Can I batch?"
   'compress-image': [6],    // "Are my images uploaded to your servers?"
   'compress-video': [0, 1], // "Are my video files uploaded?" + "Can I compress multiple videos?"
+  'compress-mp3':   [0, 6], // "Can I compress non-MP3 audio?" + "Are my audio files uploaded?"
 }
 
 interface SizeTargetShellProps {
@@ -35,6 +37,18 @@ function buildPrefilledConfig(parentConfig: ToolConfig, config: SizeTargetConfig
       options: parentConfig.options?.map(opt => {
         if (opt.type === 'section-header') return opt
         if (opt.name === 'targetSizeMode') return { ...opt, default: true }
+        if (opt.name === 'targetKB') return { ...opt, default: targetKB }
+        return opt
+      }) as ToolOption[],
+    }
+  }
+  if (config.parentTool === 'compress-mp3') {
+    // MP3 tool uses a method radio ('preset'|'target-size'|...) instead of a toggle.
+    return {
+      ...parentConfig,
+      options: parentConfig.options?.map(opt => {
+        if (opt.type === 'section-header') return opt
+        if (opt.name === 'method')   return { ...opt, default: 'target-size' }
         if (opt.name === 'targetKB') return { ...opt, default: targetKB }
         return opt
       }) as ToolOption[],
@@ -61,6 +75,7 @@ export function SizeTargetShell({
   const parentToolConfig =
     config.parentTool === 'compress-pdf'    ? compressPdfConfig   :
     config.parentTool === 'compress-video'  ? compressVideoConfig :
+    config.parentTool === 'compress-mp3'    ? compressMp3Config   :
     compressImageConfig
   const toolConfig = buildPrefilledConfig(parentToolConfig, config)
 

@@ -227,7 +227,7 @@ export type ToolPhase = 'idle' | 'converting' | 'done'
 // ── Size-target landing page config ──────────────────────────────────────────
 
 export interface SizeTargetConfig {
-  parentTool: 'compress-pdf' | 'compress-image' | 'compress-video'
+  parentTool: 'compress-pdf' | 'compress-image' | 'compress-video' | 'compress-mp3'
   targetBytes: number
   targetLabel: string
   slug: string
