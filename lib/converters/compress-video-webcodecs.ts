@@ -211,7 +211,9 @@ async function scaleFrame(frame: VideoFrame, width: number, height: number): Pro
 
 /**
  * Decode MP4/MOV samples faster than realtime, then hardware-encode HEVC.
- * Returns null so the caller can fall back to the playback path.
+ * Streams chunks straight into mp4-muxer — no ffmpeg.wasm load.
+ * Non-MP4 sources or non-AAC audio (when kept) return null so the caller
+ * falls back to the playback path (which still uses the ffmpeg mux tail).
  */
 async function tryEncodeViaVideoDecoder(
   file: File,
@@ -544,7 +546,9 @@ export async function tryCompressVideoHevcHardware(
 
 /**
  * Decode MP4/MOV samples faster than realtime, then hardware-encode H.264.
- * Returns null so the caller can fall back to the playback path.
+ * Streams chunks straight into mp4-muxer — no ffmpeg.wasm load.
+ * Non-MP4 sources or non-AAC audio (when kept) return null so the caller
+ * falls back to the playback path (which still uses the ffmpeg mux tail).
  */
 async function tryEncodeAvcViaVideoDecoder(
   file: File,
