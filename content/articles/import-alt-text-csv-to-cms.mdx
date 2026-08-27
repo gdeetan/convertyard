@@ -252,7 +252,7 @@ Or for a batch update using a temp table:
 ```sql
 -- Create a temp table and bulk-load your CSV
 CREATE TEMP TABLE alt_imports (filename TEXT, alt_text TEXT);
-COPY alt_imports FROM '/path/to/alt-text.csv' DELIMITER ',' CSV HEADER;
+COPY alt_imports FROM 'YOUR_LOCAL_CSV_PATH' DELIMITER ',' CSV HEADER;
 
 -- Update main table
 UPDATE attachments a
