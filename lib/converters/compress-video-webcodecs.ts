@@ -241,7 +241,7 @@ async function tryEncodeViaVideoDecoder(
         durationSeconds: durationSeconds || 1,
       })
 
-  const encoderConfig = await pickHevcEncoderConfig(width, height, fps, bitrate)
+  const encoderConfig = await pickHevcEncoderConfig(width, height, fps, bitrate, 'hevc')
   if (!encoderConfig) return null
 
   const decoderConfig: VideoDecoderConfig = {
@@ -257,16 +257,48 @@ async function tryEncodeViaVideoDecoder(
     return null
   }
 
-  const chunks: Uint8Array[] = []
+  const stripAudio = opts.stripAudio === true
+  const audio = stripAudio ? null : await demuxMp4AudioFile(file)
+  if (!stripAudio && !audio) return null
+
+  let muxer: MuxerHandle | null = null
+  let muxError: Error | null = null
   let encodeError: Error | null = null
   let decodeError: Error | null = null
   const pending: VideoFrame[] = []
 
   const encoder = new VideoEncoder({
-    output: (chunk) => {
-      const buf = new Uint8Array(chunk.byteLength)
-      chunk.copyTo(buf)
-      chunks.push(buf)
+    output: (chunk, meta) => {
+      try {
+        if (!muxer) {
+          const desc = meta?.decoderConfig?.description
+          if (!desc) throw new Error('encoder metadata missing decoderConfig.description')
+          const descBytes = desc instanceof Uint8Array
+            ? desc
+            : ArrayBuffer.isView(desc)
+              ? new Uint8Array(desc.buffer, desc.byteOffset, desc.byteLength)
+              : new Uint8Array(desc as ArrayBuffer)
+          muxer = createHevcMuxer({
+            width,
+            height,
+            hasAudio: !!audio,
+            videoDecoderConfig: {
+              codec: meta.decoderConfig!.codec,
+              description: descBytes,
+            },
+            audio: audio
+              ? {
+                  numberOfChannels: audio.numberOfChannels,
+                  sampleRate: audio.sampleRate,
+                  description: audio.description,
+                }
+              : undefined,
+          })
+        }
+        muxer.addVideoChunk(chunk)
+      } catch (err) {
+        muxError = err instanceof Error ? err : new Error(String(err))
+      }
     },
     error: (err) => { encodeError = err instanceof Error ? err : new Error(String(err)) },
   })
@@ -281,7 +313,7 @@ async function tryEncodeViaVideoDecoder(
   let frameIndex = 0
   const drain = async () => {
     while (pending.length > 0) {
-      if (encodeError || decodeError) throw encodeError ?? decodeError
+      if (encodeError || decodeError || muxError) throw encodeError ?? decodeError ?? muxError
       while (encoder.encodeQueueSize > 8) await sleep(0)
       let frame = pending.shift()!
       frame = await scaleFrame(frame, width, height)
@@ -295,7 +327,7 @@ async function tryEncodeViaVideoDecoder(
   try {
     opts.onProgress?.(12)
     for (const sample of demuxed.samples) {
-      if (encodeError || decodeError) throw encodeError ?? decodeError
+      if (encodeError || decodeError || muxError) throw encodeError ?? decodeError ?? muxError
       while (decoder.decodeQueueSize > 8) {
         await drain()
         if (decoder.decodeQueueSize > 8) await sleep(0)
@@ -311,10 +343,28 @@ async function tryEncodeViaVideoDecoder(
     await decoder.flush()
     await drain()
     await encoder.flush()
-    if (encodeError || decodeError) throw encodeError ?? decodeError
-    if (chunks.length === 0) return null
-    opts.onProgress?.(84)
-    return await muxHevcAnnexB(file, concatBytes(chunks), opts.stripAudio === true, opts.onProgress)
+    if (encodeError || decodeError || muxError) throw encodeError ?? decodeError ?? muxError
+    if (!muxer) return null
+
+    const finalMuxer = muxer as MuxerHandle
+    if (audio) {
+      for (const s of audio.samples) {
+        finalMuxer.addAudioChunk(new EncodedAudioChunk({
+          type: 'key',
+          timestamp: s.timestampUs,
+          duration: s.durationUs,
+          data: s.data,
+        }))
+      }
+    }
+
+    opts.onProgress?.(90)
+    const mp4Bytes = finalMuxer.finalize()
+    opts.onProgress?.(98)
+    const baseName = file.name.replace(/\.[^.]+$/, '')
+    return new File([mp4Bytes as BlobPart], `${baseName}.mp4`, { type: 'video/mp4' })
+  } catch {
+    return null
   } finally {
     for (const frame of pending) {
       try { frame.close() } catch { /* already closed */ }
