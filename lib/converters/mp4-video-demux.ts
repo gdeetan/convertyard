@@ -297,7 +297,7 @@ export function demuxMp4Video(data: Uint8Array): DemuxedVideo | null {
 }
 
 export async function demuxMp4VideoFile(file: File): Promise<DemuxedVideo | null> {
-  if (file.size < 16 || file.size > 800 * 1024 * 1024) return null
+  if (file.size < 16 || file.size > 4 * 1024 * 1024 * 1024) return null
   try {
     const bytes = new Uint8Array(await file.arrayBuffer())
     return demuxMp4Video(bytes)

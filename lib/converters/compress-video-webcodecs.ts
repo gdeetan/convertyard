@@ -220,7 +220,6 @@ async function tryEncodeViaVideoDecoder(
   opts: HevcHardwareOpts,
 ): Promise<File | null> {
   if (typeof VideoDecoder === 'undefined' || typeof VideoEncoder === 'undefined') return null
-  if (file.size > 120 * 1024 * 1024) return null
 
   const demuxed = await demuxMp4VideoFile(file)
   if (!demuxed || demuxed.samples.length === 0) return null
@@ -555,7 +554,6 @@ async function tryEncodeAvcViaVideoDecoder(
   opts: AvcHardwareOpts,
 ): Promise<File | null> {
   if (typeof VideoDecoder === 'undefined' || typeof VideoEncoder === 'undefined') return null
-  if (file.size > 120 * 1024 * 1024) return null
 
   const demuxed = await demuxMp4VideoFile(file)
   if (!demuxed || demuxed.samples.length === 0) return null

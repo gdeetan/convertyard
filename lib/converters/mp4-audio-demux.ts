@@ -283,7 +283,7 @@ export function demuxMp4Audio(data: Uint8Array): DemuxedAudio | null {
 }
 
 export async function demuxMp4AudioFile(file: File): Promise<DemuxedAudio | null> {
-  if (file.size < 16 || file.size > 800 * 1024 * 1024) return null
+  if (file.size < 16 || file.size > 4 * 1024 * 1024 * 1024) return null
   try {
     const bytes = new Uint8Array(await file.arrayBuffer())
     return demuxMp4Audio(bytes)
