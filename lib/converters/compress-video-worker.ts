@@ -22,6 +22,17 @@ function even(n: number): number {
   return n % 2 === 0 ? n : n - 1
 }
 
+// Posts a diagnostic string back to main so it shows up in the browser's
+// regular console (worker console output is hidden in DevTools by default).
+function logBail(reason: string): void {
+  try {
+    (self as unknown as { postMessage: (m: unknown) => void }).postMessage({
+      type: 'log',
+      message: `fast-path bail: ${reason}`,
+    })
+  } catch { /* worker without postMessage — impossible in practice */ }
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -51,17 +62,17 @@ async function encodeHevcInWorker(
   opts: HevcHardwareOpts,
   onProgress: (pct: number) => void,
 ): Promise<File | null> {
-  if (typeof VideoDecoder === 'undefined' || typeof VideoEncoder === 'undefined') return null
+  if (typeof VideoDecoder === 'undefined' || typeof VideoEncoder === 'undefined') { logBail('hevc: WebCodecs unavailable'); return null }
 
   const demuxed = await demuxMp4VideoFile(file)
-  if (!demuxed || demuxed.samples.length === 0) return null
+  if (!demuxed || demuxed.samples.length === 0) { logBail('hevc: mp4 video demux failed or no samples'); return null }
 
   const srcW = even(demuxed.width)
   const srcH = even(demuxed.height)
-  if (srcW < 2 || srcH < 2) return null
+  if (srcW < 2 || srcH < 2) { logBail(`hevc: bad source dimensions ${srcW}x${srcH}`); return null }
   const height = opts.maxHeight && srcH > opts.maxHeight ? even(opts.maxHeight) : srcH
   const width = height === srcH ? srcW : even(Math.round(srcW * (height / srcH)))
-  if (width < 2 || height < 2) return null
+  if (width < 2 || height < 2) { logBail(`hevc: bad target dimensions ${width}x${height}`); return null }
 
   const durationSeconds = demuxed.samples.reduce((sum, s) => sum + s.durationUs, 0) / 1_000_000
   const fps = durationSeconds > 0
@@ -75,7 +86,7 @@ async function encodeHevcInWorker(
       })
 
   const encoderConfig = await pickHevcEncoderConfig(width, height, fps, bitrate, 'hevc')
-  if (!encoderConfig) return null
+  if (!encoderConfig) { logBail(`hevc: no supported HEVC encoder config for ${width}x${height}@${fps} format=hevc`); return null }
 
   const decoderConfig: VideoDecoderConfig = {
     codec: demuxed.codecString,
@@ -85,14 +96,15 @@ async function encodeHevcInWorker(
   }
   try {
     const support = await VideoDecoder.isConfigSupported(decoderConfig)
-    if (!support.supported) return null
-  } catch {
+    if (!support.supported) { logBail(`hevc: VideoDecoder config unsupported for ${demuxed.codecString}`); return null }
+  } catch (err) {
+    logBail(`hevc: VideoDecoder.isConfigSupported threw: ${err instanceof Error ? err.message : String(err)}`)
     return null
   }
 
   const stripAudio = opts.stripAudio === true
   const audio = stripAudio ? null : await demuxMp4AudioFile(file)
-  if (!stripAudio && !audio) return null
+  if (!stripAudio && !audio) { logBail('hevc: keep-audio requested but source has no AAC audio track'); return null }
 
   let muxer: MuxerHandle | null = null
   let muxError: Error | null = null
@@ -213,17 +225,17 @@ async function encodeAvcInWorker(
   opts: AvcHardwareOpts,
   onProgress: (pct: number) => void,
 ): Promise<File | null> {
-  if (typeof VideoDecoder === 'undefined' || typeof VideoEncoder === 'undefined') return null
+  if (typeof VideoDecoder === 'undefined' || typeof VideoEncoder === 'undefined') { logBail('avc: WebCodecs unavailable'); return null }
 
   const demuxed = await demuxMp4VideoFile(file)
-  if (!demuxed || demuxed.samples.length === 0) return null
+  if (!demuxed || demuxed.samples.length === 0) { logBail('avc: mp4 video demux failed or no samples'); return null }
 
   const srcW = even(demuxed.width)
   const srcH = even(demuxed.height)
-  if (srcW < 2 || srcH < 2) return null
+  if (srcW < 2 || srcH < 2) { logBail(`avc: bad source dimensions ${srcW}x${srcH}`); return null }
   const height = opts.maxHeight && srcH > opts.maxHeight ? even(opts.maxHeight) : srcH
   const width = height === srcH ? srcW : even(Math.round(srcW * (height / srcH)))
-  if (width < 2 || height < 2) return null
+  if (width < 2 || height < 2) { logBail(`avc: bad target dimensions ${width}x${height}`); return null }
 
   const durationSeconds = demuxed.samples.reduce((sum, s) => sum + s.durationUs, 0) / 1_000_000
   const fps = durationSeconds > 0
@@ -238,7 +250,7 @@ async function encodeAvcInWorker(
 
   // AVCC format so mp4-muxer can consume chunks directly (no annex-B stripping).
   const encoderConfig = await pickAvcEncoderConfig(width, height, fps, bitrate, 'avc')
-  if (!encoderConfig) return null
+  if (!encoderConfig) { logBail(`avc: no supported AVC encoder config for ${width}x${height}@${fps} format=avc`); return null }
 
   const decoderConfig: VideoDecoderConfig = {
     codec: demuxed.codecString,
@@ -248,8 +260,9 @@ async function encodeAvcInWorker(
   }
   try {
     const support = await VideoDecoder.isConfigSupported(decoderConfig)
-    if (!support.supported) return null
-  } catch {
+    if (!support.supported) { logBail(`avc: VideoDecoder config unsupported for ${demuxed.codecString}`); return null }
+  } catch (err) {
+    logBail(`avc: VideoDecoder.isConfigSupported threw: ${err instanceof Error ? err.message : String(err)}`)
     return null
   }
 
@@ -257,7 +270,7 @@ async function encodeAvcInWorker(
   const audio = stripAudio ? null : await demuxMp4AudioFile(file)
   // If the user wants audio but the source has non-AAC (or no) audio, bail so
   // the caller falls back to the playback + ffmpeg-mux path (which handles it).
-  if (!stripAudio && !audio) return null
+  if (!stripAudio && !audio) { logBail('avc: keep-audio requested but source has no AAC audio track'); return null }
 
   let muxer: MuxerHandle | null = null
   let muxError: Error | null = null

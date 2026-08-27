@@ -208,6 +208,8 @@ function getWorker(): Worker {
     )
     workerInstance.addEventListener('message', (e: MessageEvent) => {
       const { id, type } = e.data ?? {}
+      // Diagnostic logs from the worker have no id — surface in the main console.
+      if (type === 'log') { console.info('[compress-video]', e.data.message); return }
       const handler = pending.get(id)
       if (!handler) return
       if (type === 'progress') handler.onProgress(e.data.pct)
