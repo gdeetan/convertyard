@@ -280,6 +280,19 @@ export async function tryCompressVideoHevcHardware(
 ): Promise<File | null> {
   if (!canAttemptHevcWebCodecs()) return null
 
+  // The fast path posts progress up to ~90%, then may bail; the playback path
+  // then restarts at ~12%. Clamp monotonically so the UI bar never regresses.
+  const originalOnProgress = opts.onProgress
+  let lastPct = 0
+  opts = {
+    ...opts,
+    onProgress: (pct: number) => {
+      if (pct < lastPct) return
+      lastPct = pct
+      originalOnProgress?.(pct)
+    },
+  }
+
   try {
     const decoded = await tryEncodeViaVideoDecoder(file, opts)
     if (decoded) return decoded
@@ -458,6 +471,7 @@ async function tryEncodeAvcViaVideoDecoder(
  * Hardware H.264 via WebCodecs. Returns null when the browser cannot do it
  * so the caller can fall back to libx264 in ffmpeg.wasm.
  */
+// See tryCompressVideoHevcHardware for the monotonic-progress rationale.
 export async function tryCompressVideoAvcHardware(
   file: File,
   opts: AvcHardwareOpts = {},
@@ -465,6 +479,17 @@ export async function tryCompressVideoAvcHardware(
   if (!canAttemptAvcWebCodecs()) {
     console.info('[compress-video] AVC WebCodecs unavailable — falling back to wasm')
     return null
+  }
+
+  const originalOnProgress = opts.onProgress
+  let lastPct = 0
+  opts = {
+    ...opts,
+    onProgress: (pct: number) => {
+      if (pct < lastPct) return
+      lastPct = pct
+      originalOnProgress?.(pct)
+    },
   }
 
   try {
