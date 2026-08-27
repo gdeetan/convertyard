@@ -72,7 +72,7 @@ export const config: ToolConfig = {
       a: 'No. Conversion runs entirely in your browser using ffmpeg.wasm. Your Opus files never leave your device — ConvertYard\'s servers only deliver the tool code.',
     },
   ],
-  relatedTools: ['ogg-to-mp3', 'amr-to-mp3', 'm4a-to-mp3', 'audio-trimmer'],
+  relatedTools: ['compress-mp3', 'ogg-to-mp3', 'amr-to-mp3', 'm4a-to-mp3', 'audio-trimmer'],
   relatedArticles: ['audio-bitrate-explained', 'extract-audio-from-mp4', 'browser-video-editing-2026'],
   meta: {
     title: 'OPUS to MP3 — WhatsApp Audio — ConvertYard',

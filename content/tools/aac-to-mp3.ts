@@ -37,7 +37,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['mp4-to-mp3', 'm4a-to-mp3', 'mp3-to-wav', 'audio-trimmer'],
+  relatedTools: ['compress-mp3', 'mp4-to-mp3', 'm4a-to-mp3', 'mp3-to-wav', 'audio-trimmer'],
   relatedArticles: [],
 
   meta: {

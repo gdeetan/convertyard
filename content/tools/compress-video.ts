@@ -153,7 +153,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['mp4-to-mp3', 'video-to-gif', 'gif-to-mp4', 'mp4-to-webp'],
+  relatedTools: ['compress-mp3', 'mp4-to-mp3', 'video-to-gif', 'gif-to-mp4', 'mp4-to-webp'],
   relatedArticles: ['compress-video-without-uploading', 'h264-vs-h265-video-compression', 'batch-compress-videos'],
 
   meta: {

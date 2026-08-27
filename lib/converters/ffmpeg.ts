@@ -2,7 +2,7 @@ import { fetchFile } from '@ffmpeg/util'
 import { getFFmpeg, getCompressVideoFFmpeg, withFfmpegLock } from './ffmpeg-client'
 import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware } from './compress-video-webcodecs'
 import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from './media-probe'
-import type { ToolOptions, ConversionResult } from '@/lib/types'
+import type { ToolOptions, ConversionResult, CompressionMeta } from '@/lib/types'
 
 function toError(err: unknown): Error {
   if (err instanceof Error) return err
@@ -2092,5 +2092,220 @@ export async function dngToPng(
       onResult?.(i, error)
     }
   }
+  return results
+}
+
+// ── MP3 Compressor ──────────────────────────────────────────────────────────
+// libmp3lame is in the shared ffmpeg.wasm build (see mp4ToMp3, aacToMp3).
+// If a future build drops it, this function breaks noisily on ffmpeg.exec.
+
+const LAME_VBR_QUALITY: Record<string, number> = {
+  small:   0, // ~245 kbps VBR — transparent
+  medium:  2, // ~190 kbps VBR — LAME default
+  high:    5, // ~130 kbps VBR
+  maximum: 7, // ~100 kbps VBR
+}
+
+function clampMp3BitrateKbps(kbps: number): number {
+  if (!isFinite(kbps) || kbps <= 0) return 128
+  if (kbps < 32)  return 32
+  if (kbps > 320) return 320
+  return Math.round(kbps)
+}
+
+async function probeAudioDurationSeconds(file: File): Promise<number> {
+  if (typeof document === 'undefined' || typeof URL?.createObjectURL !== 'function') return 0
+  try {
+    return await new Promise<number>((resolve) => {
+      const audio = document.createElement('audio')
+      const objectUrl = URL.createObjectURL(file)
+      let settled = false
+      const finish = (d: number) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timeoutId)
+        audio.removeAttribute('src')
+        audio.load()
+        URL.revokeObjectURL(objectUrl)
+        resolve(d)
+      }
+      const timeoutId = window.setTimeout(() => finish(0), 2000)
+      audio.preload = 'metadata'
+      audio.onloadedmetadata = () => {
+        const d = audio.duration
+        finish(isFinite(d) && d > 0 ? d : 0)
+      }
+      audio.onerror = () => finish(0)
+      audio.src = objectUrl
+    })
+  } catch {
+    return 0
+  }
+}
+
+export async function compressMp3(
+  files: File[],
+  options: ToolOptions,
+  onProgress?: (fileIndex: number, pct: number) => void,
+  onResult?: (fileIndex: number, result: ConversionResult) => void
+): Promise<ConversionResult[]> {
+  const results: ConversionResult[] = []
+
+  const voiceMode     = options.voiceMode === true || options.voiceMode === 'true'
+  const method        = (options.method as string) ?? 'preset'
+  const preset        = (options.preset as string) ?? 'medium'
+  const targetKB      = typeof options.targetKB === 'number' ? options.targetKB : 8192
+  const customBitrate = (options.customBitrate as string) ?? '128'
+  const customMode    = (options.customMode as string) ?? 'cbr' // 'cbr' | 'vbr'
+  const percentage    = typeof options.percentage === 'number' ? options.percentage : 50
+  const channels      = (options.channels as string) ?? 'keep'   // 'keep' | 'stereo' | 'mono'
+  const sampleRate    = (options.sampleRate as string) ?? 'keep' // 'keep' | '48000' | '44100' | '22050' | '16000'
+  const trimSilence   = options.trimSilence === true || options.trimSilence === 'true'
+  const preserveTags  = options.preserveTags !== false && options.preserveTags !== 'false'
+
+  for (let i = 0; i < files.length; i++) {
+    onProgress?.(i, 3)
+
+    try {
+      const result = await withFfmpegLock<ConversionResult>(async () => {
+        const ffmpeg = await getFFmpeg()
+        const file   = files[i]
+        const ext    = (file.name.split('.').pop() ?? 'mp3').toLowerCase()
+        const inputName  = `cmp3_in_${i}.${ext}`
+        const outputName = `cmp3_out_${i}.mp3`
+
+        await ffmpeg.writeFile(inputName, await fetchFile(file))
+        onProgress?.(i, 8)
+
+        // Build encoder args
+        const codecArgs: string[] = ['-c:a', 'libmp3lame']
+        let appliedSettings = ''
+
+        if (voiceMode) {
+          codecArgs.push('-b:a', '64k', '-ac', '1', '-ar', '22050')
+          appliedSettings = 'Voice mode: 64 kbps mono @ 22.05 kHz'
+        } else if (method === 'preset') {
+          const q = LAME_VBR_QUALITY[preset] ?? 2
+          codecArgs.push('-q:a', String(q))
+          appliedSettings = `Quality preset "${preset}" (VBR -q:a ${q})`
+        } else if (method === 'target-size') {
+          const duration = await probeAudioDurationSeconds(file)
+          if (duration <= 0) {
+            // Fall back to preset medium if we can't read duration
+            codecArgs.push('-q:a', '2')
+            appliedSettings = 'Target size unavailable (no duration) — fell back to Medium preset'
+          } else {
+            const targetBytes = targetKB * 1024
+            const rawKbps = (targetBytes * 8) / duration / 1000
+            const kbps = clampMp3BitrateKbps(rawKbps)
+            codecArgs.push('-b:a', `${kbps}k`)
+            appliedSettings = `Target ${targetKB} KB → ${kbps} kbps CBR`
+          }
+        } else if (method === 'custom-bitrate') {
+          const kbps = clampMp3BitrateKbps(parseInt(customBitrate, 10))
+          if (customMode === 'vbr') {
+            // Map kbps roughly to LAME VBR quality
+            const q = kbps >= 245 ? 0 : kbps >= 190 ? 2 : kbps >= 130 ? 5 : 7
+            codecArgs.push('-q:a', String(q))
+            appliedSettings = `Custom VBR ~${kbps} kbps (-q:a ${q})`
+          } else {
+            codecArgs.push('-b:a', `${kbps}k`)
+            appliedSettings = `Custom CBR ${kbps} kbps`
+          }
+        } else if (method === 'percentage') {
+          const audioInfo = await probeAudioInfo(ffmpeg, inputName)
+          const sourceKbps = audioInfo?.bitrateKbps ?? 192
+          const pct = Math.max(10, Math.min(95, percentage))
+          const kbps = clampMp3BitrateKbps((sourceKbps * pct) / 100)
+          codecArgs.push('-b:a', `${kbps}k`)
+          appliedSettings = `${pct}% of ${sourceKbps} kbps → ${kbps} kbps CBR`
+        } else {
+          codecArgs.push('-q:a', '2')
+          appliedSettings = 'Default VBR (medium)'
+        }
+
+        // Channels & sample rate overrides (voice mode already sets these)
+        if (!voiceMode) {
+          if (channels === 'mono')   codecArgs.push('-ac', '1')
+          if (channels === 'stereo') codecArgs.push('-ac', '2')
+          if (sampleRate !== 'keep') codecArgs.push('-ar', sampleRate)
+        }
+
+        const filterArgs: string[] = []
+        if (trimSilence) {
+          filterArgs.push(
+            '-af',
+            'silenceremove=start_periods=1:start_silence=0.3:start_threshold=-50dB:stop_periods=1:stop_silence=0.3:stop_threshold=-50dB'
+          )
+        }
+
+        // Metadata & cover art. -c:v copy preserves any attached picture stream.
+        // Drop cover video if trim silence is active (filter graph would fail on the video stream).
+        const metaArgs: string[] = []
+        if (preserveTags) {
+          metaArgs.push('-map_metadata', '0', '-id3v2_version', '3', '-write_id3v1', '1')
+          if (!trimSilence) metaArgs.push('-c:v', 'copy')
+        } else {
+          metaArgs.push('-map_metadata', '-1', '-vn')
+        }
+
+        const args = [
+          '-i', inputName,
+          ...filterArgs,
+          ...codecArgs,
+          ...metaArgs,
+          '-y',
+          outputName,
+        ]
+
+        const progressHandler = ({ progress }: { progress: number }) => {
+          onProgress?.(i, Math.round(10 + progress * 85))
+        }
+        ffmpeg.on('progress', progressHandler)
+
+        let data: Uint8Array<ArrayBuffer> | undefined
+        try {
+          await ffmpeg.exec(args)
+          data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+        } finally {
+          ffmpeg.off('progress', progressHandler)
+          await ffmpeg.deleteFile(inputName).catch(() => {})
+          await ffmpeg.deleteFile(outputName).catch(() => {})
+        }
+
+        if (!data || data.byteLength === 0) throw new Error('Compression produced no output')
+
+        const baseName = file.name.replace(/\.[^.]+$/, '')
+        // Suffix "-compressed" when input was already .mp3 so users can distinguish
+        const outName = ext === 'mp3' ? `${baseName}-compressed.mp3` : `${baseName}.mp3`
+        const outFile = new File([data], outName, { type: 'audio/mpeg' })
+
+        if (method === 'target-size' || method === 'percentage') {
+          const targetBytes = method === 'target-size' ? targetKB * 1024 : Math.round(file.size * (percentage / 100))
+          const meta: CompressionMeta = {
+            originalBytes: file.size,
+            targetBytes,
+            achievedBytes: outFile.size,
+            reachedTarget: outFile.size <= targetBytes * 1.05,
+            isUnchanged: false,
+            iterationsUsed: 1,
+            appliedSettings,
+          }
+          return { file: outFile, meta }
+        }
+
+        return outFile
+      })
+
+      results.push(result)
+      onProgress?.(i, 100)
+      onResult?.(i, result)
+    } catch (err) {
+      const error = toError(err)
+      results.push(error)
+      onResult?.(i, error)
+    }
+  }
+
   return results
 }
