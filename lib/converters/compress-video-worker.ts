@@ -208,7 +208,8 @@ async function encodeHevcInWorker(
     onProgress(98)
     const baseName = file.name.replace(/\.[^.]+$/, '')
     return new File([mp4Bytes as BlobPart], `${baseName}.mp4`, { type: 'video/mp4' })
-  } catch {
+  } catch (err) {
+    logBail(`encode/mux threw: ${err instanceof Error ? err.message : String(err)}`)
     return null
   } finally {
     for (const frame of pending) {
@@ -375,7 +376,8 @@ async function encodeAvcInWorker(
     onProgress(98)
     const baseName = file.name.replace(/\.[^.]+$/, '')
     return new File([mp4Bytes as BlobPart], `${baseName}.mp4`, { type: 'video/mp4' })
-  } catch {
+  } catch (err) {
+    logBail(`encode/mux threw: ${err instanceof Error ? err.message : String(err)}`)
     return null
   } finally {
     for (const frame of pending) {

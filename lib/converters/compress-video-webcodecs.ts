@@ -214,7 +214,11 @@ function getWorker(): Worker {
       if (!handler) return
       if (type === 'progress') handler.onProgress(e.data.pct)
       else if (type === 'result') { pending.delete(id); handler.resolve(e.data.file ?? null) }
-      else if (type === 'error') { pending.delete(id); handler.resolve(null) }
+      else if (type === 'error') {
+        console.info('[compress-video] worker posted error:', e.data.message)
+        pending.delete(id)
+        handler.resolve(null)
+      }
     })
     workerInstance.addEventListener('error', (e: ErrorEvent) => {
       console.info('[compress-video] worker error event:', e.message, e.filename, e.lineno)
