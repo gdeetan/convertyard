@@ -162,8 +162,16 @@ async function encodeHevcInWorker(
       while (encoder.encodeQueueSize > 8) await sleep(0)
       let frame = pending.shift()!
       frame = await scaleFrame(frame, width, height)
-      encoder.encode(frame, { keyFrame: frameIndex % (fps * 2) === 0 })
+      // Retime to a monotonic constant-fps clock. The demuxer reads stts (DTS)
+      // only — no ctts — so B-frame content arrives at the encoder with
+      // out-of-order timestamps and mp4-muxer rejects them. Constant fps is
+      // consistent with the bitrate math we already do.
+      const targetTsUs = Math.round((frameIndex * 1_000_000) / fps)
+      const targetDurUs = Math.round(1_000_000 / fps)
+      const retimed = new VideoFrame(frame, { timestamp: targetTsUs, duration: targetDurUs })
       frame.close()
+      encoder.encode(retimed, { keyFrame: frameIndex % (fps * 2) === 0 })
+      retimed.close()
       frameIndex += 1
       onProgress(12 + Math.round(Math.min(1, frameIndex / demuxed.samples.length) * 70))
     }
@@ -329,8 +337,16 @@ async function encodeAvcInWorker(
       while (encoder.encodeQueueSize > 8) await sleep(0)
       let frame = pending.shift()!
       frame = await scaleFrame(frame, width, height)
-      encoder.encode(frame, { keyFrame: frameIndex % (fps * 2) === 0 })
+      // Retime to a monotonic constant-fps clock. The demuxer reads stts (DTS)
+      // only — no ctts — so B-frame content arrives at the encoder with
+      // out-of-order timestamps and mp4-muxer rejects them. Constant fps is
+      // consistent with the bitrate math we already do.
+      const targetTsUs = Math.round((frameIndex * 1_000_000) / fps)
+      const targetDurUs = Math.round(1_000_000 / fps)
+      const retimed = new VideoFrame(frame, { timestamp: targetTsUs, duration: targetDurUs })
       frame.close()
+      encoder.encode(retimed, { keyFrame: frameIndex % (fps * 2) === 0 })
+      retimed.close()
       frameIndex += 1
       onProgress(12 + Math.round(Math.min(1, frameIndex / demuxed.samples.length) * 70))
     }
