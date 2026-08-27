@@ -1,5 +1,10 @@
 import { getCompressVideoFFmpeg, withFfmpegLock } from './ffmpeg-client'
 
+function isMobileBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent)
+}
+
 type HevcEncoderConfig = VideoEncoderConfig & {
   hevc?: { format?: 'annexb' | 'hevc' }
   latencyMode?: 'quality' | 'realtime'
@@ -271,6 +276,12 @@ async function tryEncodeViaVideoDecoder(
   opts: HevcHardwareOpts,
 ): Promise<File | null> {
   if (typeof Worker === 'undefined') return null
+  // Skip on mobile: the fast path allocates ~2x file size in worker memory
+  // (video demux + audio demux each call file.arrayBuffer()), which on mobile
+  // Chrome/Safari triggers File-reference eviction and "File could not be
+  // read Code=-1" errors. Mobile users fall through to the pre-existing
+  // playback path, which reads the file lazily via <video> src.
+  if (isMobileBrowser()) return null
   return dispatchToWorker('compress-hevc', file, opts)
 }
 
@@ -468,6 +479,8 @@ async function tryEncodeAvcViaVideoDecoder(
   opts: AvcHardwareOpts,
 ): Promise<File | null> {
   if (typeof Worker === 'undefined') return null
+  // See HEVC counterpart above — skip on mobile to avoid File-eviction OOM.
+  if (isMobileBrowser()) return null
   return dispatchToWorker('compress-avc', file, opts)
 }
 
