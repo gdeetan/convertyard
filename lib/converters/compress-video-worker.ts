@@ -149,11 +149,43 @@ async function encodeHevcInWorker(
   const audio = stripAudio ? null : mp4?.audio ?? null
   if (!stripAudio && !audio) { logBail('hevc: keep-audio requested but source has no AAC audio track'); return null }
 
+  // Precompute per-source-sample presentation offsets so retiming uses the true
+  // source timeline (VFR-safe) rather than frameIndex/fps. If frames get dropped
+  // between decoder → encoder, we extend the last chunk's duration at finalize
+  // so total video duration still equals source duration — otherwise output
+  // plays back sped-up.
+  const sourceStartsUs = new Array<number>(demuxed.samples.length)
+  const sourceDursUs = new Array<number>(demuxed.samples.length)
+  let acc = 0
+  for (let i = 0; i < demuxed.samples.length; i++) {
+    sourceStartsUs[i] = acc
+    sourceDursUs[i] = demuxed.samples[i].durationUs > 0
+      ? demuxed.samples[i].durationUs
+      : Math.round(1_000_000 / fps)
+    acc += sourceDursUs[i]
+  }
+  const sourceTotalUs = acc
+
   let muxer: MuxerHandle | null = null
   let muxError: Error | null = null
   let encodeError: Error | null = null
   let decodeError: Error | null = null
   const pending: VideoFrame[] = []
+
+  type PendingChunk = { type: 'key' | 'delta', timestamp: number, duration: number, data: Uint8Array }
+  const chunkBuf: { last: PendingChunk | null } = { last: null }
+  const flushLastChunk = (extraDurUs = 0) => {
+    if (!chunkBuf.last || !muxer) return
+    const info = chunkBuf.last
+    chunkBuf.last = null
+    const chunk = new EncodedVideoChunk({
+      type: info.type,
+      timestamp: info.timestamp,
+      duration: info.duration + extraDurUs,
+      data: info.data,
+    })
+    muxer.addVideoChunk(chunk)
+  }
 
   const encoder = new VideoEncoder({
     output: (chunk, meta) => {
@@ -183,7 +215,15 @@ async function encodeHevcInWorker(
               : undefined,
           })
         }
-        muxer.addVideoChunk(chunk)
+        flushLastChunk()
+        const buf = new Uint8Array(chunk.byteLength)
+        chunk.copyTo(buf)
+        chunkBuf.last = {
+          type: chunk.type,
+          timestamp: chunk.timestamp,
+          duration: chunk.duration ?? 0,
+          data: buf,
+        }
       } catch (err) {
         muxError = err instanceof Error ? err : new Error(String(err))
       }
@@ -205,12 +245,12 @@ async function encodeHevcInWorker(
       while (encoder.encodeQueueSize > 8) await sleep(0)
       let frame = pending.shift()!
       frame = await scaleFrame(frame, width, height)
-      // Retime to a monotonic constant-fps clock. The demuxer reads stts (DTS)
-      // only — no ctts — so B-frame content arrives at the encoder with
-      // out-of-order timestamps and mp4-muxer rejects them. Constant fps is
-      // consistent with the bitrate math we already do.
-      const targetTsUs = Math.round((frameIndex * 1_000_000) / fps)
-      const targetDurUs = Math.round(1_000_000 / fps)
+      // Retime using source sample offsets so the output timeline matches the
+      // source exactly (handles VFR and any fps rounding). Decoder emits in
+      // presentation order — for stts-only sources (no ctts) that's decode
+      // order, so frameIndex aligns 1:1 with demuxed.samples[frameIndex].
+      const targetTsUs = sourceStartsUs[frameIndex] ?? Math.round((frameIndex * 1_000_000) / fps)
+      const targetDurUs = sourceDursUs[frameIndex] ?? Math.round(1_000_000 / fps)
       const retimed = new VideoFrame(frame, { timestamp: targetTsUs, duration: targetDurUs })
       frame.close()
       encoder.encode(retimed, { keyFrame: frameIndex % (fps * 2) === 0 })
@@ -241,6 +281,14 @@ async function encodeHevcInWorker(
     await runWithTicks(withTimeout(encoder.flush(), 30_000, 'hevc: encoder.flush()'), 86, 90, onProgress)
     if (encodeError || decodeError || muxError) throw encodeError ?? decodeError ?? muxError
     if (!muxer) return null
+
+    // Extend the last video chunk so total video duration equals source duration.
+    // Prevents "fast-play" output when some frames don't round-trip through the
+    // decode → encode pipeline (queue pressure, scaleFrame fallout, etc.).
+    const encodedEndUs = chunkBuf.last ? chunkBuf.last.timestamp + chunkBuf.last.duration : 0
+    const extraUs = Math.max(0, sourceTotalUs - encodedEndUs)
+    flushLastChunk(extraUs)
+    if (muxError) throw muxError
 
     const finalMuxer = muxer as MuxerHandle
     if (audio) {
@@ -325,11 +373,40 @@ async function encodeAvcInWorker(
   // the caller falls back to the playback + ffmpeg-mux path (which handles it).
   if (!stripAudio && !audio) { logBail('avc: keep-audio requested but source has no AAC audio track'); return null }
 
+  // See HEVC path for rationale: retime from real source offsets and extend the
+  // final chunk so any dropped frames don't turn into fast-play output.
+  const sourceStartsUs = new Array<number>(demuxed.samples.length)
+  const sourceDursUs = new Array<number>(demuxed.samples.length)
+  let acc = 0
+  for (let i = 0; i < demuxed.samples.length; i++) {
+    sourceStartsUs[i] = acc
+    sourceDursUs[i] = demuxed.samples[i].durationUs > 0
+      ? demuxed.samples[i].durationUs
+      : Math.round(1_000_000 / fps)
+    acc += sourceDursUs[i]
+  }
+  const sourceTotalUs = acc
+
   let muxer: MuxerHandle | null = null
   let muxError: Error | null = null
   let encodeError: Error | null = null
   let decodeError: Error | null = null
   const pending: VideoFrame[] = []
+
+  type PendingChunk = { type: 'key' | 'delta', timestamp: number, duration: number, data: Uint8Array }
+  const chunkBuf: { last: PendingChunk | null } = { last: null }
+  const flushLastChunk = (extraDurUs = 0) => {
+    if (!chunkBuf.last || !muxer) return
+    const info = chunkBuf.last
+    chunkBuf.last = null
+    const chunk = new EncodedVideoChunk({
+      type: info.type,
+      timestamp: info.timestamp,
+      duration: info.duration + extraDurUs,
+      data: info.data,
+    })
+    muxer.addVideoChunk(chunk)
+  }
 
   const encoder = new VideoEncoder({
     output: (chunk, meta) => {
@@ -359,7 +436,15 @@ async function encodeAvcInWorker(
               : undefined,
           })
         }
-        muxer.addVideoChunk(chunk)
+        flushLastChunk()
+        const buf = new Uint8Array(chunk.byteLength)
+        chunk.copyTo(buf)
+        chunkBuf.last = {
+          type: chunk.type,
+          timestamp: chunk.timestamp,
+          duration: chunk.duration ?? 0,
+          data: buf,
+        }
       } catch (err) {
         muxError = err instanceof Error ? err : new Error(String(err))
       }
@@ -381,12 +466,10 @@ async function encodeAvcInWorker(
       while (encoder.encodeQueueSize > 8) await sleep(0)
       let frame = pending.shift()!
       frame = await scaleFrame(frame, width, height)
-      // Retime to a monotonic constant-fps clock. The demuxer reads stts (DTS)
-      // only — no ctts — so B-frame content arrives at the encoder with
-      // out-of-order timestamps and mp4-muxer rejects them. Constant fps is
-      // consistent with the bitrate math we already do.
-      const targetTsUs = Math.round((frameIndex * 1_000_000) / fps)
-      const targetDurUs = Math.round(1_000_000 / fps)
+      // Retime using source sample offsets so the output timeline matches the
+      // source exactly (VFR-safe). See HEVC path for details.
+      const targetTsUs = sourceStartsUs[frameIndex] ?? Math.round((frameIndex * 1_000_000) / fps)
+      const targetDurUs = sourceDursUs[frameIndex] ?? Math.round(1_000_000 / fps)
       const retimed = new VideoFrame(frame, { timestamp: targetTsUs, duration: targetDurUs })
       frame.close()
       encoder.encode(retimed, { keyFrame: frameIndex % (fps * 2) === 0 })
@@ -418,6 +501,11 @@ async function encodeAvcInWorker(
     if (encodeError || decodeError || muxError) throw encodeError ?? decodeError ?? muxError
     const finalMuxer = muxer as MuxerHandle | null
     if (!finalMuxer) return null
+
+    const encodedEndUs = chunkBuf.last ? chunkBuf.last.timestamp + chunkBuf.last.duration : 0
+    const extraUs = Math.max(0, sourceTotalUs - encodedEndUs)
+    flushLastChunk(extraUs)
+    if (muxError) throw muxError
 
     // Audio passthrough: AAC frames are all keyframes.
     if (audio) {

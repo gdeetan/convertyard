@@ -517,7 +517,7 @@ export async function tryCompressVideoHevcHardware(
 
     opts.onProgress?.(84)
     const annexB = concatBytes(chunks)
-    return await muxHevcAnnexB(file, annexB, opts.stripAudio === true, opts.onProgress)
+    return await muxHevcAnnexB(file, annexB, opts.stripAudio === true, fps, opts.onProgress)
   } catch {
     return null
   } finally {
@@ -721,7 +721,7 @@ export async function tryCompressVideoAvcHardware(
     opts.onProgress?.(84)
     const annexB = concatBytes(chunks)
     console.info('[compress-video] AVC via playback path succeeded')
-    return await muxAvcAnnexB(file, annexB, opts.stripAudio === true, opts.onProgress)
+    return await muxAvcAnnexB(file, annexB, opts.stripAudio === true, fps, opts.onProgress)
   } catch (err) {
     console.warn('[compress-video] AVC playback path failed — falling back to wasm', err)
     return null
@@ -738,6 +738,7 @@ async function muxAvcAnnexB(
   videoFile: File,
   annexB: Uint8Array,
   stripAudio: boolean,
+  fps: number,
   onProgress?: (pct: number) => void,
 ): Promise<File | null> {
   return withFfmpegLock(async () => {
@@ -756,6 +757,7 @@ async function muxAvcAnnexB(
     const audioArgs = stripAudio ? ['-an'] : ['-map', '1:a:0?', '-c:a', 'copy']
     let exitCode = await ffmpeg.exec([
       '-f', 'h264',
+      '-framerate', String(fps),
       '-i', rawName,
       '-i', srcName,
       '-map', '0:v:0',
@@ -812,6 +814,7 @@ async function muxHevcAnnexB(
   videoFile: File,
   annexB: Uint8Array,
   stripAudio: boolean,
+  fps: number,
   onProgress?: (pct: number) => void,
 ): Promise<File | null> {
   return withFfmpegLock(async () => {
@@ -830,6 +833,7 @@ async function muxHevcAnnexB(
     const audioArgs = stripAudio ? ['-an'] : ['-map', '1:a:0?', '-c:a', 'copy']
     let exitCode = await ffmpeg.exec([
       '-f', 'hevc',
+      '-framerate', String(fps),
       '-i', rawName,
       '-i', srcName,
       '-map', '0:v:0',
