@@ -1,4 +1,5 @@
 import { fetchFile } from '@ffmpeg/util'
+import { FFFSType } from '@ffmpeg/ffmpeg'
 import { getFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock } from './ffmpeg-client'
 import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware } from './compress-video-webcodecs'
 import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from './media-probe'
@@ -1088,11 +1089,13 @@ export async function compressVideo(
     onProgress?.(i, 5)
     try {
       const file   = files[i]
-      // iOS Safari kills tabs near ~1GB. With ffmpeg's fetchFile + writeFile
-      // pattern peak memory is ~4× the input, so >250MB reliably crashes the
-      // tab (page refresh). Block early with an actionable error.
-      if (isMobileBrowser() && file.size > 250 * 1024 * 1024) {
-        return new Error('This file is too large for mobile browsers (over 250 MB may crash the tab). Please use a desktop browser for large videos.')
+      // iOS Safari kills tabs around ~1GB resident. The wasm compressVideo
+      // path now mounts the source via WORKERFS (no JS/MEMFS copy), which
+      // roughly halves peak memory vs the old fetchFile+writeFile flow.
+      // 500MB is the empirical ceiling before working buffers still push
+      // iOS over the edge.
+      if (isMobileBrowser() && file.size > 500 * 1024 * 1024) {
+        return new Error('This file is too large for mobile browsers (over 500 MB may crash the tab). Please use a desktop browser for large videos.')
       }
       const hasVideoTrack = await probeVideoTrack(file)
       if (hasVideoTrack === false) {
@@ -1147,15 +1150,27 @@ export async function compressVideo(
       // don't collide on progress/log listeners or overlapping tempfile writes.
       return await withFfmpegLock(async () => {
       const ffmpeg = await getCompressVideoFFmpeg()
+      const ts = Date.now()
       const ext    = file.name.split('.').pop() ?? 'mp4'
-      const inputName  = `cv_in_${i}.${ext}`
-      const outputName = `cv_out_${i}.mp4`
+      const inputBase  = `cv_in_${i}_${ts}.${ext}`
+      // WORKERFS mounts the source File directly — no fetchFile()/writeFile
+      // copy into MEMFS. Peak memory drops from ~4× to ~1–2× file size, which
+      // lets iOS Safari handle inputs up to ~500MB without the tab kill.
+      const mountPoint = `/mnt/cv_${i}_${ts}`
+      const inputName  = `${mountPoint}/${inputBase}`
+      const outputName = `cv_out_${i}_${ts}.mp4`
 
-      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      await ffmpeg.createDir(mountPoint).catch(() => {})
+      await ffmpeg.mount(
+        FFFSType.WORKERFS,
+        { blobs: [{ name: inputBase, data: file }] },
+        mountPoint,
+      )
       onProgress?.(i, 10)
 
       let data: Uint8Array<ArrayBuffer> | undefined
 
+      try {
       if (!targetSizeMode) {
         const crf = crfMap[level] ?? 23
         // Mobile: cap at 720p for large files when user didn't set a resolution — prevents OOM tab kill on iOS/Android
@@ -1196,7 +1211,6 @@ export async function compressVideo(
           data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
         } finally {
           ffmpeg.off('progress', progressHandler)
-          await ffmpeg.deleteFile(inputName).catch(() => {})
           await ffmpeg.deleteFile(outputName).catch(() => {})
         }
       } else {
@@ -1230,7 +1244,6 @@ export async function compressVideo(
             data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
           } finally {
             ffmpeg.off('progress', progressHandler)
-            await ffmpeg.deleteFile(inputName).catch(() => {})
             await ffmpeg.deleteFile(outputName).catch(() => {})
           }
         } else {
@@ -1292,7 +1305,6 @@ export async function compressVideo(
               data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
             } finally {
               ffmpeg.off('progress', progressHandler)
-              await ffmpeg.deleteFile(inputName).catch(() => {})
               await ffmpeg.deleteFile(outputName).catch(() => {})
             }
           } else {
@@ -1329,7 +1341,7 @@ export async function compressVideo(
                 crf = Math.min(crf + 5, 51)
               }
             } finally {
-              await ffmpeg.deleteFile(inputName).catch(() => {})
+              /* input unmount happens in outer finally */
             }
           }
         }
@@ -1340,6 +1352,12 @@ export async function compressVideo(
       if (!data || data.byteLength === 0) throw new Error('Compression produced no output')
       const baseName = file.name.replace(/\.[^.]+$/, '')
       return new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
+      } finally {
+        // Unmount always — WORKERFS is read-only so deleteFile(inputName)
+        // would fail; unmount is the correct cleanup for the mounted source.
+        await ffmpeg.unmount(mountPoint).catch(() => {})
+        await ffmpeg.deleteDir(mountPoint).catch(() => {})
+      }
       })
     } catch (err) {
       return toError(err)
