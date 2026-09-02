@@ -147,7 +147,14 @@ async function encodeHevcInWorker(
   }
 
   const audio = stripAudio ? null : mp4?.audio ?? null
-  if (!stripAudio && !audio) { logBail('hevc: keep-audio requested but source has no AAC audio track'); return null }
+  // Only bail when the source has an audio track we can't parse (non-AAC etc.).
+  // Truly silent sources (no 'soun' track) proceed video-only — otherwise they
+  // fall into the playback path which drops frames on high-motion silent clips
+  // and produces sped-up output.
+  if (!stripAudio && !audio && mp4?.hasAudioTrack) {
+    logBail('hevc: source has an audio track but it is not parseable AAC — falling back')
+    return null
+  }
 
   // Precompute per-source-sample presentation offsets so retiming uses the true
   // source timeline (VFR-safe) rather than frameIndex/fps. If frames get dropped
@@ -369,9 +376,13 @@ async function encodeAvcInWorker(
   }
 
   const audio = stripAudio ? null : mp4?.audio ?? null
-  // If the user wants audio but the source has non-AAC (or no) audio, bail so
-  // the caller falls back to the playback + ffmpeg-mux path (which handles it).
-  if (!stripAudio && !audio) { logBail('avc: keep-audio requested but source has no AAC audio track'); return null }
+  // Silent sources: proceed video-only. Only bail for sources that have an
+  // audio track we can't parse — in that case the playback + ffmpeg path can
+  // still preserve the audio.
+  if (!stripAudio && !audio && mp4?.hasAudioTrack) {
+    logBail('avc: source has an audio track but it is not parseable AAC — falling back')
+    return null
+  }
 
   // See HEVC path for rationale: retime from real source offsets and extend the
   // final chunk so any dropped frames don't turn into fast-play output.

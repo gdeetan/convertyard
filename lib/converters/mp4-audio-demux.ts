@@ -210,6 +210,29 @@ function parseAudioSampleEntry(data: Uint8Array, entry: Box): {
   }
 }
 
+// Cheap scan: does the file have any audio ('soun') track? Used to distinguish
+// "source has no audio" (safe to encode video-only) from "source has audio but
+// we can't parse it" (should preserve via ffmpeg fallback).
+export function hasAudioTrack(data: Uint8Array): boolean {
+  if (data.byteLength < 16) return false
+  const top = readBoxes(data, 0, data.byteLength)
+  const moov = findBox(top, 'moov')
+  if (!moov) return false
+  const traks = readBoxes(data, moov.payloadStart, moov.payloadEnd).filter((b) => b.type === 'trak')
+  for (const trak of traks) {
+    const hdlr = walk(data, trak.payloadStart, trak.payloadEnd, 'hdlr')
+    if (!hdlr || hdlr.payloadStart + 12 > hdlr.payloadEnd) continue
+    const handler = String.fromCharCode(
+      data[hdlr.payloadStart + 8],
+      data[hdlr.payloadStart + 9],
+      data[hdlr.payloadStart + 10],
+      data[hdlr.payloadStart + 11],
+    )
+    if (handler === 'soun') return true
+  }
+  return false
+}
+
 export function demuxMp4Audio(data: Uint8Array): DemuxedAudio | null {
   if (data.byteLength < 16) return null
   const top = readBoxes(data, 0, data.byteLength)
