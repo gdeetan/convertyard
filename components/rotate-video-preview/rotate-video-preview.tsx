@@ -31,30 +31,36 @@ function labelFor(rotation: Rotation): string {
   }
 }
 
-export function RotateVideoPreview({ files, options }: Props) {
-  const file = files[0]
-  const rotation = (typeof options.rotation === 'string' ? options.rotation : '90cw') as Rotation
+function useObjectUrl(file: File | null | undefined): string | null {
+  const url = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
+  useEffect(() => {
+    return () => {
+      if (url) URL.revokeObjectURL(url)
+    }
+  }, [url])
+  return url
+}
+
+function useVideoPoster(fileUrl: string | null): {
+  posterUrl: string | null
+  dims: { w: number; h: number } | null
+} {
   const [posterUrl, setPosterUrl] = useState<string | null>(null)
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null)
   const revokeRef = useRef<string | null>(null)
 
-  const fileUrl = useMemo(() => (file ? URL.createObjectURL(file) : null), [file])
-
   useEffect(() => {
-    return () => {
-      if (fileUrl) URL.revokeObjectURL(fileUrl)
+    if (!fileUrl) {
+      setPosterUrl(null)
+      setDims(null)
+      return
     }
-  }, [fileUrl])
-
-  useEffect(() => {
-    if (!fileUrl) return
     let cancelled = false
     const video = document.createElement('video')
     video.preload = 'metadata'
     video.muted = true
     video.playsInline = true
     video.src = fileUrl
-    video.crossOrigin = 'anonymous'
 
     const onLoaded = () => {
       if (cancelled) return
@@ -62,7 +68,7 @@ export function RotateVideoPreview({ files, options }: Props) {
       try {
         video.currentTime = Math.min(0.1, (video.duration || 1) / 4)
       } catch {
-        drawFallback()
+        /* noop */
       }
     }
     const onSeeked = () => {
@@ -84,22 +90,17 @@ export function RotateVideoPreview({ files, options }: Props) {
           setPosterUrl(url)
         }, 'image/jpeg', 0.8)
       } catch {
-        drawFallback()
+        /* noop */
       }
-    }
-    const drawFallback = () => {
-      setPosterUrl(null)
     }
 
     video.addEventListener('loadedmetadata', onLoaded)
     video.addEventListener('seeked', onSeeked)
-    video.addEventListener('error', drawFallback)
 
     return () => {
       cancelled = true
       video.removeEventListener('loadedmetadata', onLoaded)
       video.removeEventListener('seeked', onSeeked)
-      video.removeEventListener('error', drawFallback)
       video.src = ''
     }
   }, [fileUrl])
@@ -110,36 +111,73 @@ export function RotateVideoPreview({ files, options }: Props) {
     }
   }, [])
 
+  return { posterUrl, dims }
+}
+
+export function RotateVideoPreview({ files, results, options }: Props) {
+  const file = files[0]
+  const result = results[0] ?? null
+  const rotation = (typeof options.rotation === 'string' ? options.rotation : '90cw') as Rotation
+
+  const sourceUrl = useObjectUrl(file)
+  const resultUrl = useObjectUrl(result)
+
+  const { posterUrl: sourcePoster, dims: sourceDims } = useVideoPoster(sourceUrl)
+  const { posterUrl: resultPoster, dims: resultDims } = useVideoPoster(resultUrl)
+
+  const [playResult, setPlayResult] = useState(false)
+
+  useEffect(() => {
+    setPlayResult(false)
+  }, [resultUrl])
+
   if (!file) return null
 
   const isSwap = rotation === '90cw' || rotation === '90ccw'
-  const aspect = dims ? dims.w / dims.h : 16 / 9
-  const boxAspect = isSwap ? 1 / aspect : aspect
+  const sourceAspect = sourceDims ? sourceDims.w / sourceDims.h : 16 / 9
+  const previewAfterAspect = resultDims
+    ? resultDims.w / resultDims.h
+    : (isSwap ? 1 / sourceAspect : sourceAspect)
+
+  const afterReady = !!resultUrl
 
   return (
     <div className="rounded-xl border border-border bg-bg-elevated p-4">
       <div className="mb-3 flex items-baseline justify-between">
-        <h3 className="text-sm font-semibold text-fg">Rotation preview</h3>
+        <h3 className="text-sm font-semibold text-fg">
+          {afterReady ? 'Rotation result' : 'Rotation preview'}
+        </h3>
         <span className="text-xs text-fg-muted">{labelFor(rotation)}</span>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <PreviewTile
           label="Before"
-          posterUrl={posterUrl}
-          aspect={aspect}
+          posterUrl={sourcePoster}
+          aspect={sourceAspect}
           transform="none"
         />
-        <PreviewTile
-          label="After"
-          posterUrl={posterUrl}
-          aspect={boxAspect}
-          transform={transformFor(rotation)}
-          highlight
-        />
+        {afterReady ? (
+          <ResultTile
+            label="After"
+            posterUrl={resultPoster ?? sourcePoster}
+            aspect={previewAfterAspect}
+            videoUrl={resultUrl}
+            playing={playResult}
+            onPlay={() => setPlayResult(true)}
+          />
+        ) : (
+          <PreviewTile
+            label="After (preview)"
+            posterUrl={sourcePoster}
+            aspect={previewAfterAspect}
+            transform={transformFor(rotation)}
+            highlight
+          />
+        )}
       </div>
       {files.length > 1 && (
         <p className="mt-3 text-xs text-fg-muted">
-          Preview shows the first file. All {files.length} files will get the same rotation.
+          Preview shows the first file. All {files.length} files use the same rotation.
         </p>
       )}
     </div>
@@ -161,10 +199,8 @@ function PreviewTile({
 }) {
   return (
     <div>
-      <div className="mb-1.5 flex items-center gap-2">
-        <span className={`text-xs font-medium ${highlight ? 'text-primary' : 'text-fg-muted'}`}>
-          {label}
-        </span>
+      <div className="mb-1.5 text-xs font-medium">
+        <span className={highlight ? 'text-primary' : 'text-fg-muted'}>{label}</span>
       </div>
       <div
         className="relative w-full overflow-hidden rounded-lg border border-border bg-black"
@@ -182,6 +218,68 @@ function PreviewTile({
             <div className="text-xs text-fg-subtle">Loading preview…</div>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+function ResultTile({
+  label,
+  posterUrl,
+  aspect,
+  videoUrl,
+  playing,
+  onPlay,
+}: {
+  label: string
+  posterUrl: string | null
+  aspect: number
+  videoUrl: string
+  playing: boolean
+  onPlay: () => void
+}) {
+  return (
+    <div>
+      <div className="mb-1.5 text-xs font-medium text-success">{label} · processed</div>
+      <div
+        className="relative w-full overflow-hidden rounded-lg border border-border bg-black"
+        style={{ aspectRatio: aspect > 0 ? aspect : 16 / 9 }}
+      >
+        {playing ? (
+          <video
+            src={videoUrl}
+            controls
+            autoPlay
+            playsInline
+            className="absolute inset-0 h-full w-full object-contain"
+          />
+        ) : (
+          <>
+            {posterUrl ? (
+              <img
+                src={posterUrl}
+                alt={label}
+                className="absolute inset-0 h-full w-full object-contain"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-xs text-fg-subtle">
+                Loading preview…
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={onPlay}
+              className="absolute inset-0 flex items-center justify-center bg-black/25 transition-colors hover:bg-black/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+              aria-label="Play processed video"
+            >
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-white/90 text-black shadow-lg">
+                <svg viewBox="0 0 24 24" className="ml-0.5 h-5 w-5" fill="currentColor" aria-hidden="true">
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </span>
+            </button>
+          </>
+        )}
       </div>
     </div>
   )
