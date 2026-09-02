@@ -22,6 +22,44 @@ function isMobileBrowser(): boolean {
   return navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent)
 }
 
+// Wrap ffmpeg.exec with a rolling log tail so a non-zero exit surfaces the real
+// reason (OOM, invalid data, etc.) instead of the useless "FS error" that
+// bubbles up when the caller then tries to readFile() a missing output.
+async function execWithReason(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ffmpeg: any,
+  args: string[],
+): Promise<{ code: number; tail: string }> {
+  const logLines: string[] = []
+  const logHandler = ({ message }: { message: string }) => {
+    if (!message) return
+    logLines.push(message)
+    if (logLines.length > 40) logLines.shift()
+  }
+  ffmpeg.on('log', logHandler)
+  try {
+    const code = await ffmpeg.exec(args)
+    return { code, tail: logLines.join('\n') }
+  } finally {
+    ffmpeg.off('log', logHandler)
+  }
+}
+
+function friendlyFfmpegError(what: string, code: number, tail: string): Error {
+  const lower = tail.toLowerCase()
+  if (lower.includes('cannot allocate memory') || lower.includes('out of memory') || lower.includes('memory allocation')) {
+    return new Error(`${what} failed — the browser ran out of memory. Try a smaller resolution or a shorter clip, or use a desktop browser.`)
+  }
+  if (lower.includes('invalid data') || lower.includes('moov atom not found') || lower.includes('could not find codec')) {
+    return new Error(`${what} failed — the source file appears corrupted or uses an unsupported codec.`)
+  }
+  if (lower.includes('no such file') || lower.includes('errnoerror')) {
+    return new Error(`${what} failed — internal file handling error. Please refresh and try again.`)
+  }
+  const lastLine = tail.split('\n').filter(Boolean).slice(-1)[0] ?? ''
+  return new Error(`${what} failed (exit ${code})${lastLine ? `: ${lastLine.slice(0, 200)}` : ''}`)
+}
+
 function explainMp4ToWebpError(error: Error): Error {
   if (
     error.message.includes('Output file #0 does not contain any stream') ||
@@ -1198,7 +1236,7 @@ export async function compressVideo(
         }
         ffmpeg.on('progress', progressHandler)
         try {
-          await ffmpeg.exec([
+          const { code, tail } = await execWithReason(ffmpeg, [
             ...threadArgs,
             '-i', inputName,
             ...effectiveCrfVfArgs,
@@ -1208,6 +1246,7 @@ export async function compressVideo(
             ...presetAudioArgs,
             outputName,
           ])
+          if (code !== 0) throw friendlyFfmpegError('Video compression', code, tail)
           data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
         } finally {
           ffmpeg.off('progress', progressHandler)
@@ -1234,13 +1273,14 @@ export async function compressVideo(
           }
           ffmpeg.on('progress', progressHandler)
           try {
-            await ffmpeg.exec([
+            const { code, tail } = await execWithReason(ffmpeg, [
               '-i', inputName,
               '-c', 'copy',
               ...(remuxHevc ? ['-tag:v', 'hvc1'] : []),
               '-movflags', '+faststart',
               outputName,
             ])
+            if (code !== 0) throw friendlyFfmpegError('Remux', code, tail)
             data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
           } finally {
             ffmpeg.off('progress', progressHandler)
@@ -1290,7 +1330,7 @@ export async function compressVideo(
             }
             ffmpeg.on('progress', progressHandler)
             try {
-              await ffmpeg.exec([
+              const { code, tail } = await execWithReason(ffmpeg, [
                 ...threadArgs,
                 '-i', inputName,
                 ...effectiveVfArgs,
@@ -1302,6 +1342,7 @@ export async function compressVideo(
                 ...targetAudioArgs,
                 outputName,
               ])
+              if (code !== 0) throw friendlyFfmpegError('Video compression', code, tail)
               data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
             } finally {
               ffmpeg.off('progress', progressHandler)
@@ -1319,7 +1360,7 @@ export async function compressVideo(
                 }
                 ffmpeg.on('progress', progressHandler)
                 try {
-                  await ffmpeg.exec([
+                  const { code, tail } = await execWithReason(ffmpeg, [
                     ...threadArgs,
                     '-i', inputName,
                     ...effectiveVfArgs,
@@ -1329,6 +1370,7 @@ export async function compressVideo(
                     ...audioArgs,
                     outputName,
                   ])
+                  if (code !== 0) throw friendlyFfmpegError('Video compression', code, tail)
                 } finally {
                   ffmpeg.off('progress', progressHandler)
                 }
