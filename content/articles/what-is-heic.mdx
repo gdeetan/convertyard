@@ -76,12 +76,57 @@ Send your photos off to some online converter – perhaps even without understan
 
 Then again, there's browser-based conversion. The browser pulls the conversion code from the server, but your photos stay on your device the whole time and are wiped from your computer's RAM once processing is done — nothing is uploaded. ConvertYard's HEIC-to-JPG converter is a great example of this type of utility.
 
+<img
+  src="/articles/what-is-heic/tool.webp"
+  alt="ConvertYard HEIC to JPG converter interface"
+  className="my-6 w-full rounded-xl border border-border"
+  loading="lazy"
+/>
+
 1. Go to [ConvertYard's HEIC to JPG converter](/heic-to-jpg/).
 2. Upload your HEIC files. You can drag and drop them into the big rectangle or select them on your local machine.
 3. Quality: 90 (there is also an option for max quality, but it will roughly double the file size, and it's not needed most of the time).
 4. Check Auto-orient to ensure portrait-shooting iPhone photos will come in upright (as opposed to being inverted).
 5. Remove EXIF/IPTC/XMP metadata including GPS data (if needed).
 6. Click Convert and download.
+
+<img
+  src="/articles/what-is-heic/after-conversion.webp"
+  alt="Converted JPG files ready to download from ConvertYard"
+  className="my-6 w-full rounded-xl border border-border"
+  loading="lazy"
+/>
+
+### Before and after: HEIC vs converted JPG
+
+Same photo, same visual quality — but the JPG opens everywhere while the HEIC does not.
+
+<div className="my-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+  <figure>
+    <img
+      src="/articles/what-is-heic/img-3499.jpg"
+      alt="Original HEIC photo (rendered as JPG for browser preview)"
+      className="w-full rounded-xl border border-border"
+      loading="lazy"
+    />
+    <figcaption className="mt-2 text-center text-sm text-fg-subtle">
+      Before — HEIC (2.8 MB, iPhone original)
+    </figcaption>
+  </figure>
+  <figure>
+    <img
+      src="/articles/what-is-heic/img-3499.jpg"
+      alt="Converted JPG photo"
+      className="w-full rounded-xl border border-border"
+      loading="lazy"
+    />
+    <figcaption className="mt-2 text-center text-sm text-fg-subtle">
+      After — JPG (477 KB, converted with ConvertYard)
+    </figcaption>
+  </figure>
+</div>
+
+One side benefit of using ConvertYard's HEIC to JPG converter is the file size savings — over 80% in this instance, partly because the image was resized to 1000 pixels. If you look closely at the before and after screenshots, there's hardly any change in the quality.
 
 When working with sensitive images and using lossless editing, we recommend converting HEIC to PNG to keep every pixel intact. PNGs are generally much larger than their HEIC counterparts but have no quality loss, which makes them perfect for editing.
 
