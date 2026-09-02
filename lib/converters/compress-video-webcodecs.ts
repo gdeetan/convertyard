@@ -397,6 +397,53 @@ async function spliceSourceAudio(videoOnly: File, source: File): Promise<File> {
   })
 }
 
+type CapturedChunk = { type: 'key' | 'delta'; timestamp: number; duration: number; data: Uint8Array }
+
+// Build a video-only MP4 from encoded chunks, extending the last chunk so total
+// duration equals the source duration. Used by the playback path so frame drops
+// (rVFC at high playbackRate on mobile / large clips) don't produce sped-up
+// output. The caller splices audio back in with ffmpeg when keep-audio is on.
+async function buildVideoOnlyMp4(
+  codec: 'avc' | 'hevc',
+  width: number,
+  height: number,
+  chunks: CapturedChunk[],
+  firstMeta: EncodedVideoChunkMetadata | undefined,
+  sourceDurationUs: number,
+  filename: string,
+): Promise<File | null> {
+  if (chunks.length === 0) return null
+  const desc = firstMeta?.decoderConfig?.description
+  if (!desc || !firstMeta?.decoderConfig?.codec) return null
+  const descBytes = desc instanceof Uint8Array
+    ? desc
+    : ArrayBuffer.isView(desc)
+      ? new Uint8Array(desc.buffer, desc.byteOffset, desc.byteLength)
+      : new Uint8Array(desc as ArrayBuffer)
+  const { createAvcMuxer, createHevcMuxer } = await import('./mp4-mux')
+  const maker = codec === 'hevc' ? createHevcMuxer : createAvcMuxer
+  const muxer = maker({
+    width,
+    height,
+    hasAudio: false,
+    videoDecoderConfig: { codec: firstMeta.decoderConfig.codec, description: descBytes },
+  })
+  const last = chunks[chunks.length - 1]
+  const encodedEndUs = last.timestamp + last.duration
+  const extraUs = Math.max(0, sourceDurationUs - encodedEndUs)
+  for (let i = 0; i < chunks.length - 1; i++) {
+    const c = chunks[i]
+    muxer.addVideoChunk(new EncodedVideoChunk({
+      type: c.type, timestamp: c.timestamp, duration: c.duration, data: c.data,
+    }))
+  }
+  muxer.addVideoChunk(new EncodedVideoChunk({
+    type: last.type, timestamp: last.timestamp, duration: last.duration + extraUs, data: last.data,
+  }))
+  const bytes = muxer.finalize()
+  return new File([bytes as BlobPart], filename, { type: 'video/mp4' })
+}
+
 async function tryEncodeViaVideoDecoder(
   file: File,
   opts: HevcHardwareOpts,
@@ -479,7 +526,14 @@ export async function tryCompressVideoHevcHardware(
           durationSeconds: duration,
         })
 
-    const encoderConfig = await pickHevcEncoderConfig(width, height, fps, bitrate)
+    // Prefer hvcc bitstream so mp4-muxer honours real chunk timestamps.
+    // Falls back to annexb + ffmpeg mux on browsers that reject hvcc output.
+    let encoderConfig = await pickHevcEncoderConfig(width, height, fps, bitrate, 'hevc')
+    let useMp4Muxer = true
+    if (!encoderConfig) {
+      encoderConfig = await pickHevcEncoderConfig(width, height, fps, bitrate, 'annexb')
+      useMp4Muxer = false
+    }
     if (!encoderConfig) return null
 
     const needsScale = width !== even(srcW) || height !== even(srcH)
@@ -493,13 +547,25 @@ export async function tryCompressVideoHevcHardware(
       if (!ctx) return null
     }
 
-    const chunks: Uint8Array[] = []
+    const rawChunks: Uint8Array[] = []
+    const capturedChunks: CapturedChunk[] = []
+    let firstMeta: EncodedVideoChunkMetadata | undefined
     let encodeError: Error | null = null
     const encoder = new VideoEncoder({
-      output: (chunk) => {
+      output: (chunk, meta) => {
+        if (!firstMeta && meta) firstMeta = meta
         const buf = new Uint8Array(chunk.byteLength)
         chunk.copyTo(buf)
-        chunks.push(buf)
+        if (useMp4Muxer) {
+          capturedChunks.push({
+            type: chunk.type,
+            timestamp: chunk.timestamp,
+            duration: chunk.duration ?? Math.round(1_000_000 / fps),
+            data: buf,
+          })
+        } else {
+          rawChunks.push(buf)
+        }
       },
       error: (err) => { encodeError = err instanceof Error ? err : new Error(String(err)) },
     })
@@ -582,10 +648,20 @@ export async function tryCompressVideoHevcHardware(
       try { encoder.close() } catch { /* already closed */ }
     }
     if (encodeError) throw encodeError
-    if (chunks.length === 0) return null
 
     opts.onProgress?.(84)
-    const annexB = concatBytes(chunks)
+    console.info('[compress-video] HEVC via playback path succeeded')
+    if (useMp4Muxer) {
+      if (capturedChunks.length === 0) return null
+      const sourceDurationUs = Math.round(duration * 1_000_000)
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      const videoOnly = await buildVideoOnlyMp4('hevc', width, height, capturedChunks, firstMeta, sourceDurationUs, `${baseName}.mp4`)
+      if (!videoOnly) return null
+      if (opts.stripAudio === true) return videoOnly
+      return await spliceSourceAudio(videoOnly, file)
+    }
+    if (rawChunks.length === 0) return null
+    const annexB = concatBytes(rawChunks)
     return await muxHevcAnnexB(file, annexB, opts.stripAudio === true, fps, opts.onProgress)
   } catch {
     return null
@@ -686,7 +762,17 @@ export async function tryCompressVideoAvcHardware(
           durationSeconds: duration,
         })
 
-    const encoderConfig = await pickAvcEncoderConfig(width, height, fps, bitrate)
+    // Prefer avcc bitstream so we can mux via mp4-muxer with real chunk
+    // timestamps — rVFC at 4x on mobile / large clips drops source frames, and
+    // the old raw-AnnexB → ffmpeg mux would then interpret N chunks at a
+    // constant fps and produce a shorter (fast-play) output. Fall back to
+    // annexb + ffmpeg mux only if the browser can't do avcc.
+    let encoderConfig = await pickAvcEncoderConfig(width, height, fps, bitrate, 'avc')
+    let useMp4Muxer = true
+    if (!encoderConfig) {
+      encoderConfig = await pickAvcEncoderConfig(width, height, fps, bitrate, 'annexb')
+      useMp4Muxer = false
+    }
     if (!encoderConfig) return null
 
     const needsScale = width !== even(srcW) || height !== even(srcH)
@@ -700,13 +786,25 @@ export async function tryCompressVideoAvcHardware(
       if (!ctx) return null
     }
 
-    const chunks: Uint8Array[] = []
+    const rawChunks: Uint8Array[] = []
+    const capturedChunks: CapturedChunk[] = []
+    let firstMeta: EncodedVideoChunkMetadata | undefined
     let encodeError: Error | null = null
     const encoder = new VideoEncoder({
-      output: (chunk) => {
+      output: (chunk, meta) => {
+        if (!firstMeta && meta) firstMeta = meta
         const buf = new Uint8Array(chunk.byteLength)
         chunk.copyTo(buf)
-        chunks.push(buf)
+        if (useMp4Muxer) {
+          capturedChunks.push({
+            type: chunk.type,
+            timestamp: chunk.timestamp,
+            duration: chunk.duration ?? Math.round(1_000_000 / fps),
+            data: buf,
+          })
+        } else {
+          rawChunks.push(buf)
+        }
       },
       error: (err) => { encodeError = err instanceof Error ? err : new Error(String(err)) },
     })
@@ -789,11 +887,20 @@ export async function tryCompressVideoAvcHardware(
       try { encoder.close() } catch { /* already closed */ }
     }
     if (encodeError) throw encodeError
-    if (chunks.length === 0) return null
 
     opts.onProgress?.(84)
-    const annexB = concatBytes(chunks)
     console.info('[compress-video] AVC via playback path succeeded')
+    if (useMp4Muxer) {
+      if (capturedChunks.length === 0) return null
+      const sourceDurationUs = Math.round(duration * 1_000_000)
+      const baseName = file.name.replace(/\.[^.]+$/, '')
+      const videoOnly = await buildVideoOnlyMp4('avc', width, height, capturedChunks, firstMeta, sourceDurationUs, `${baseName}.mp4`)
+      if (!videoOnly) return null
+      if (opts.stripAudio === true) return videoOnly
+      return await spliceSourceAudio(videoOnly, file)
+    }
+    if (rawChunks.length === 0) return null
+    const annexB = concatBytes(rawChunks)
     return await muxAvcAnnexB(file, annexB, opts.stripAudio === true, fps, opts.onProgress)
   } catch (err) {
     console.warn('[compress-video] AVC playback path failed — falling back to wasm', err)
