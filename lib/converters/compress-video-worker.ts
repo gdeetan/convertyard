@@ -36,6 +36,49 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
 
+// Watchdog: some Chromium builds (Android especially, some desktop HW encoder
+// combos) leave encoder.flush() / decoder.flush() pending forever after a
+// silent driver failure. Wrap the awaited call in a race so we surface the
+// hang as an error and let the main thread fall back cleanly.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${ms}ms`))
+    }, ms)
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v) },
+      (e) => { clearTimeout(timer); reject(e) },
+    )
+  })
+}
+
+// Emit interpolated progress from `from` to `to` while `promise` is pending.
+// Prevents the UI bar from visibly stalling between encode (82) and finalize
+// (90+). Ticks every 400ms, easing so the last few percent slow down.
+async function runWithTicks<T>(
+  promise: Promise<T>,
+  from: number,
+  to: number,
+  onProgress: (pct: number) => void,
+): Promise<T> {
+  let current = from
+  onProgress(current)
+  const tick = setInterval(() => {
+    // Move 25% of the remaining distance each tick, capped one short of `to`
+    // so we never overshoot the real completion pct.
+    const step = Math.max(1, Math.floor((to - current) * 0.25))
+    if (current + step < to) {
+      current += step
+      onProgress(current)
+    }
+  }, 400)
+  try {
+    return await promise
+  } finally {
+    clearInterval(tick)
+  }
+}
+
 async function scaleFrame(frame: VideoFrame, width: number, height: number): Promise<VideoFrame> {
   if (frame.displayWidth === width && frame.displayHeight === height) return frame
   if (typeof createImageBitmap !== 'function') {
@@ -193,9 +236,9 @@ async function encodeHevcInWorker(
       }))
       await drain()
     }
-    await decoder.flush()
+    await runWithTicks(withTimeout(decoder.flush(), 30_000, 'hevc: decoder.flush()'), 82, 86, onProgress)
     await drain()
-    await encoder.flush()
+    await runWithTicks(withTimeout(encoder.flush(), 30_000, 'hevc: encoder.flush()'), 86, 90, onProgress)
     if (encodeError || decodeError || muxError) throw encodeError ?? decodeError ?? muxError
     if (!muxer) return null
 
@@ -211,9 +254,9 @@ async function encodeHevcInWorker(
       }
     }
 
-    onProgress(90)
+    onProgress(92)
     const mp4Bytes = finalMuxer.finalize()
-    onProgress(98)
+    onProgress(97)
     const baseName = file.name.replace(/\.[^.]+$/, '')
     return new File([mp4Bytes as BlobPart], `${baseName}.mp4`, { type: 'video/mp4' })
   } catch (err) {
@@ -369,9 +412,9 @@ async function encodeAvcInWorker(
       }))
       await drain()
     }
-    await decoder.flush()
+    await runWithTicks(withTimeout(decoder.flush(), 30_000, 'avc: decoder.flush()'), 82, 86, onProgress)
     await drain()
-    await encoder.flush()
+    await runWithTicks(withTimeout(encoder.flush(), 30_000, 'avc: encoder.flush()'), 86, 90, onProgress)
     if (encodeError || decodeError || muxError) throw encodeError ?? decodeError ?? muxError
     const finalMuxer = muxer as MuxerHandle | null
     if (!finalMuxer) return null
@@ -388,9 +431,9 @@ async function encodeAvcInWorker(
       }
     }
 
-    onProgress(90)
+    onProgress(92)
     const mp4Bytes = finalMuxer.finalize()
-    onProgress(98)
+    onProgress(97)
     const baseName = file.name.replace(/\.[^.]+$/, '')
     return new File([mp4Bytes as BlobPart], `${baseName}.mp4`, { type: 'video/mp4' })
   } catch (err) {

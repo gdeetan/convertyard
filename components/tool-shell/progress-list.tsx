@@ -132,7 +132,7 @@ function ProgressRow({ entry }: { entry: FileEntry }) {
             {file.name}
           </span>
           <span className="shrink-0 text-xs text-fg-muted tabular-nums">
-            {formatBytes(file.size)}
+            {isProcessing || isPending ? `${Math.round(progress)}% · ` : ''}{formatBytes(file.size)}
           </span>
         </div>
 

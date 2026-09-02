@@ -199,11 +199,37 @@ type WorkerRequestType = 'compress-avc' | 'compress-hevc'
 type PendingEntry = {
   resolve: (file: File | null) => void
   onProgress: (pct: number) => void
+  lastActivityAt: number
+  heartbeatTimer: ReturnType<typeof setInterval>
+  hardTimeoutTimer: ReturnType<typeof setTimeout>
 }
 
 let workerInstance: Worker | null = null
 let requestSeq = 0
 const pending = new Map<number, PendingEntry>()
+
+// Fail a hung request: clear timers, drop it from pending, terminate the
+// worker so subsequent files don't inherit a wedged state, and resolve null
+// so the caller falls back to the playback / ffmpeg path.
+function failRequest(id: number, reason: string): void {
+  const entry = pending.get(id)
+  if (!entry) return
+  console.info(`[compress-video] worker request ${id} aborted: ${reason}`)
+  clearInterval(entry.heartbeatTimer)
+  clearTimeout(entry.hardTimeoutTimer)
+  pending.delete(id)
+  // Terminate the worker on any hang so the next file gets a clean instance.
+  try { workerInstance?.terminate() } catch { /* ignore */ }
+  workerInstance = null
+  // Fail every other in-flight request too — they share the same worker.
+  for (const [otherId, other] of pending) {
+    clearInterval(other.heartbeatTimer)
+    clearTimeout(other.hardTimeoutTimer)
+    pending.delete(otherId)
+    other.resolve(null)
+  }
+  entry.resolve(null)
+}
 
 function getWorker(): Worker {
   if (!workerInstance) {
@@ -219,22 +245,39 @@ function getWorker(): Worker {
       if (type === 'log') { console.info('[compress-video]', e.data.message); return }
       const handler = pending.get(id)
       if (!handler) return
+      handler.lastActivityAt = Date.now()
       if (type === 'progress') handler.onProgress(e.data.pct)
-      else if (type === 'result') { pending.delete(id); handler.resolve(e.data.file ?? null) }
+      else if (type === 'result') {
+        clearInterval(handler.heartbeatTimer)
+        clearTimeout(handler.hardTimeoutTimer)
+        pending.delete(id)
+        handler.resolve(e.data.file ?? null)
+      }
       else if (type === 'error') {
         console.info('[compress-video] worker posted error:', e.data.message)
+        clearInterval(handler.heartbeatTimer)
+        clearTimeout(handler.hardTimeoutTimer)
         pending.delete(id)
         handler.resolve(null)
       }
     })
     workerInstance.addEventListener('error', (e: ErrorEvent) => {
       console.info('[compress-video] worker error event:', e.message, e.filename, e.lineno)
+      // A worker-level error kills every in-flight request — fail them all.
+      for (const [id] of pending) failRequest(id, 'worker error event')
     })
     workerInstance.addEventListener('messageerror', (e: MessageEvent) => {
       console.info('[compress-video] worker messageerror (structured clone failure):', e.data)
     })
   }
   return workerInstance
+}
+
+// Rough per-file compute budget. Scales with input size so a 500MB file has
+// headroom while a 10MB file fails fast. Floor of 90s, ceiling of 20 minutes.
+function hardTimeoutForFile(bytes: number): number {
+  const seconds = Math.max(90, Math.min(1200, 60 + Math.round(bytes / (1024 * 1024)) * 3))
+  return seconds * 1000
 }
 
 async function dispatchToWorker(
@@ -245,9 +288,26 @@ async function dispatchToWorker(
   console.info(`[compress-video] dispatch ${type} → worker (${file.name}, ${file.size} bytes)`)
   return new Promise((resolve) => {
     const id = ++requestSeq
+    const now = Date.now()
+    // Heartbeat: if the worker sends no progress or result for 30s, treat it
+    // as wedged (silent driver hang on some Android WebCodecs stacks).
+    const heartbeatTimer = setInterval(() => {
+      const entry = pending.get(id)
+      if (!entry) return
+      if (Date.now() - entry.lastActivityAt > 30_000) {
+        failRequest(id, 'no worker activity for 30s')
+      }
+    }, 5_000)
+    // Hard ceiling — even if progress keeps ticking, don't sit forever.
+    const hardTimeoutTimer = setTimeout(() => {
+      failRequest(id, `hard timeout after ${Math.round(hardTimeoutForFile(file.size) / 1000)}s`)
+    }, hardTimeoutForFile(file.size))
     pending.set(id, {
       resolve,
       onProgress: (pct: number) => opts.onProgress?.(pct),
+      lastActivityAt: now,
+      heartbeatTimer,
+      hardTimeoutTimer,
     })
     // Strip the onProgress function before postMessage — functions aren't
     // structured-cloneable. The pending map keeps the live callback around.
@@ -258,6 +318,8 @@ async function dispatchToWorker(
       getWorker().postMessage({ id, type, file, opts: postOpts })
     } catch (err) {
       console.info('[compress-video] worker postMessage threw:', err instanceof Error ? err.message : String(err))
+      clearInterval(heartbeatTimer)
+      clearTimeout(hardTimeoutTimer)
       pending.delete(id)
       resolve(null)
     }

@@ -1088,6 +1088,12 @@ export async function compressVideo(
     onProgress?.(i, 5)
     try {
       const file   = files[i]
+      // iOS Safari kills tabs near ~1GB. With ffmpeg's fetchFile + writeFile
+      // pattern peak memory is ~4× the input, so >250MB reliably crashes the
+      // tab (page refresh). Block early with an actionable error.
+      if (isMobileBrowser() && file.size > 250 * 1024 * 1024) {
+        return new Error('This file is too large for mobile browsers (over 250 MB may crash the tab). Please use a desktop browser for large videos.')
+      }
       const hasVideoTrack = await probeVideoTrack(file)
       if (hasVideoTrack === false) {
         return new Error('This file has no video track. Video Compressor only works on video files, not audio-only files.')
