@@ -1,4 +1,5 @@
 import { rotateVideo } from '@/lib/converters/ffmpeg'
+import { RotateVideoPreview } from '@/components/rotate-video-preview/rotate-video-preview'
 import type { ToolConfig } from '@/lib/types'
 
 const LARGE_FILE_BYTES = 300 * 1024 * 1024
@@ -20,10 +21,11 @@ export const config: ToolConfig = {
   acceptsExt: ['.mp4', '.mov', '.webm', '.avi', '.mkv', '.wmv'],
   outputExt: '.mp4',
   convertFn: rotateVideo,
+  previewPanel: RotateVideoPreview,
   warningFn: (files) => {
     const hasLarge = files.some((f) => f.size > LARGE_FILE_BYTES)
     return hasLarge
-      ? 'Large files take longer — rotation requires re-encoding the video track. A 300 MB video may take 2–5 minutes depending on your device.'
+      ? 'Large files take longer — rotation requires re-encoding the video track. A 300 MB video typically takes 1–3 minutes depending on your device.'
       : null
   },
   options: [

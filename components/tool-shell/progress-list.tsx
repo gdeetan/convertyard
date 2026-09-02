@@ -31,13 +31,16 @@ export function ProgressList({ entries, announcement }: ProgressListProps) {
   const done = entries.filter((e) => e.status === 'done').length
   const errors = entries.filter((e) => e.status === 'error').length
   const total = entries.length
+  const overallPct = total > 0
+    ? Math.round(entries.reduce((sum, e) => sum + (e.status === 'done' ? 100 : e.status === 'error' ? 100 : e.progress || 0), 0) / total)
+    : 0
 
   return (
     <div className="space-y-3">
       {/* Summary + live announcement */}
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium text-fg">
-          Converting {total} file{total !== 1 ? 's' : ''}…
+          Converting {total} file{total !== 1 ? 's' : ''}… <span className="text-primary tabular-nums font-semibold">{overallPct}%</span>
         </span>
         <span className="text-fg-muted tabular-nums">
           {done + errors} / {total}

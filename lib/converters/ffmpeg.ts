@@ -1690,7 +1690,18 @@ export async function rotateVideo(
       ffmpeg.on('progress', progressHandler)
       let data: Uint8Array<ArrayBuffer> | undefined
       try {
-        await ffmpeg.exec(['-i', inputName, '-vf', vf, '-c:a', 'copy', outputName])
+        await ffmpeg.exec([
+          '-i', inputName,
+          '-vf', vf,
+          '-c:v', 'libx264',
+          '-preset', 'ultrafast',
+          '-crf', '23',
+          '-pix_fmt', 'yuv420p',
+          '-threads', '0',
+          '-movflags', '+faststart',
+          '-c:a', 'copy',
+          outputName,
+        ])
         data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
       } finally {
         ffmpeg.off('progress', progressHandler)
