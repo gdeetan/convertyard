@@ -6,95 +6,95 @@ export const meta = {
   faq: [
     {
       q: 'What is HEIC format?',
-      a: "HEIC (High Efficiency Image Container) is Apple's default photo format since iOS 11. It uses HEIF compression, which produces files roughly half the size of equivalent JPGs at the same visual quality. The trade-off is compatibility — Windows, Android, and most non-Apple apps don't open HEIC natively.",
+      a: 'HEIC (High Efficiency Image Container) is the default photo format Apple introduced in iOS 11. Developed by the same authors as HEVC (High Efficiency Video Coding), HEIF (High Efficiency Image File Format) uses HEIF compression to produce images of the same quality but at about half the size of JPG images. In many cases, Windows, Android, and other non-Apple applications and programs can\'t open and view HEIC photos.',
     },
     {
       q: "Why can't I open HEIC files on Windows?",
-      a: 'Windows needs the "HEIF Image Extensions" codec installed from the Microsoft Store before it can open HEIC files. Even with the codec, many older desktop editors cannot read HEIC. Converting to JPG or PNG is the reliable solution for cross-platform use.',
+      a: 'The "HEIF Image Extensions" codec is available through the Microsoft Store to view HEIC files on Windows. While this extension lets you view HEIC files, older desktop applications may not support them. Converting HEIC files to JPG or PNG provides the most cross-platform compatible solution.',
     },
     {
       q: 'Does converting HEIC to JPG lose quality?',
-      a: 'At quality 90 (the default), the difference is imperceptible. JPG at 90 is excellent quality — the re-encoding introduces minimal degradation that is invisible in normal viewing. If you plan to edit the images further, convert at 95–100 to preserve maximum data. For sharing and web use, 85–90 is the sweet spot.',
+      a: 'The quality change when converting from HEIC to JPG is usually insignificant, and you\'ll generally convert at 90% quality or so (the default), which is excellent and has only minor re-encoding degradation you won\'t notice in normal photos. If you want to edit the image later, consider converting at 95% or even 100% quality. For web sharing, etc., convert at about 85% quality, which is still great for online sharing.',
     },
     {
       q: 'How do I convert HEIC files directly on my iPhone?',
-      a: 'You can configure your iPhone to capture JPG instead of HEIC: go to Settings → Camera → Formats and select "Most Compatible." This shoots JPG going forward. For existing HEIC files, share them to a Mac or use a browser-based converter like ConvertYard — the photos stay on your device.',
+      a: 'To create JPG versions of your existing iPhone photos, you can change the format in the Camera app settings, such as Settings > Camera > Formats > Most Compatible. Then you can upload and convert your HEIC images in your browser. The images will stay local on your iPhone or iPad.',
     },
     {
       q: 'Can I convert 1000 HEIC files at once?',
-      a: 'Yes. Drop all your files into ConvertYard at once — it processes them in your browser one at a time. On a modern laptop, 1000 average iPhone photos typically completes in 15–25 minutes. Download everything as a single ZIP when done.',
+      a: 'Yes. You can convert 1000+ HEIC files from your iPhone photos in one step; it\'s still processed one file at a time to ensure accuracy and quality. Typically, it takes about 15-25 minutes for 1,000 average-sized iPhone camera HEIC files to finish converting, after which you can download them all at once in a single ZIP file.',
     },
   ],
   relatedTools: ['heic-to-jpg', 'heic-to-png'],
 }
 
-If you've ever emailed an iPhone photo and had someone reply that they can't open it, you've met HEIC. It's Apple's default camera format — excellent for storage, frustrating for sharing. This guide explains what HEIC actually is, what data lives inside those files, and how to convert them without sending your photos to a stranger's server.
+Are your iPhone photos showing up as HEIC files? Here's what HEIC is, why it matters, and how to convert them. This post explains what HEIC is and which data points are stored in HEIC photo files. More importantly, we give you a way to convert HEIC files to JPG (and PNG) without uploading your images to a third-party server.
 
 **[Convert HEIC to JPG — files never leave your browser →](/heic-to-jpg/)**
 
 ## What is HEIC?
 
-HEIC stands for High Efficiency Image Container. It's a file format developed by Apple that uses HEIF (High Efficiency Image Format) compression, a standard created by the Moving Picture Experts Group — the same organization behind MP3 and MP4.
+HEIC is Apple's file format for storing images from the iPhone camera. HEIC images use HEIF (High Efficiency Image Format) compression, a standard created by the Moving Picture Experts Group (MPEG), the same organization that created MP3 and MP4.
 
-Apple introduced HEIC as the default camera format in iOS 11 (2017) and macOS High Sierra. The driving reason was storage efficiency. A 12-megapixel iPhone photo in HEIC format is typically 2–3 MB. The equivalent JPG is 4–6 MB. When your phone shoots hundreds of photos a year, that difference matters.
+HEIC images are often much smaller than their equivalent JPG counterparts. A single 12-megapixel image, for example, might be stored as a 2-3MB HEIC file. This compares to a typical 4-6MB JPG file. HEIC's storage efficiency can make a big difference if you store many photos.
 
-The compression works by using a more sophisticated algorithm than JPEG's 30-year-old standard. HEIF applies techniques borrowed from modern video compression — specifically the HEVC (H.265) video codec — to still images. The result is dramatically better quality-per-byte than JPEG.
+This new image format uses advanced HEIF algorithms based on modern video compression techniques, such as the HEVC (H.265) video codec. So while JPEGs are forced to use 30-year-old technology, HEIC images can be highly compressed with exceptional image quality.
 
-HEIC and HEIF are often used interchangeably but are technically distinct: HEIF is the compression standard; HEIC is the container format that holds it. This is analogous to how H.264 is a video compression standard while MP4 is a container format.
+To be clear, HEIC is the container format, while HEIF (High Efficiency Image Format) is the compression standard stored inside it — think of it the same way MP4 holds H.264 video. H.264 is video compression, while the MP4 (MPEG-4 Part 14) container is used to hold that video compression.
 
 ## What data is stored inside a HEIC file
 
-Most guides about HEIC stop at "it's a compressed image format." The reality is more interesting — and worth understanding before you share these files.
+While most guides on HEIC stop at the idea of a new, compressed image format, there is a lot more to it. It's good to know what sort of data is embedded in your photos before sharing them.
 
-**GPS coordinates.** Every photo taken on an iPhone with location services enabled embeds your precise GPS coordinates — latitude, longitude, and altitude — in the EXIF metadata. This is not specific to HEIC; JPGs do the same. But it's worth knowing that a HEIC file from a trip abroad contains the exact location where each photo was taken, readable by anyone with the right software. ConvertYard's "Strip metadata" option removes this during conversion.
+**GPS coordinates.** Because iPhone photos include GPS data when location services are active, HEIC files from your last trip abroad include the exact location where every shot was taken. You can remove these by choosing "Strip metadata" from the main interface when converting your HEIC files to other formats, such as JPG.
 
-**Device fingerprint.** The EXIF data includes the camera model (e.g., "Apple iPhone 15 Pro"), lens focal length, aperture, shutter speed, ISO, and iOS software version. For most uses this is harmless. For sensitive documents photographed with your phone, you may want to strip it.
+**Device fingerprint information:** camera model, lens focal length, aperture, shutter speed, ISO, iOS version, and more. It's usually harmless, but you might want to strip it from sensitive documents taken with your phone.
 
-**Face detection regions.** When Apple's Photos app recognizes faces in your photo, it stores the bounding box coordinates of each detected face as XMP metadata inside the file. This data does not typically survive conversion to JPG (the conversion strips it), but it lives in the original HEIC file.
+**Face detection regions.** When you take a photo of a person in the Photos app, the app can detect faces and save the bounding box of those faces as XMP metadata in the file. This metadata is not normally transferred when converting between image formats, such as when converting a HEIC file to JPG.
 
-**Portrait mode depth maps.** Photos taken in Portrait mode on iPhone 7 Plus and later contain a depth map — a second image encoding the distance of each pixel from the camera. This is what enables the background blur effect. The depth map is embedded in the HEIC container and can be extracted by applications that support it. It does not transfer to JPG.
+**Portrait mode depth maps.** A photo taken in Portrait mode contains not only a regular image but also a depth map of the scene, a second image in which each pixel is assigned a distance from the camera. This is what makes it possible to blur the background of a portrait after the photo was taken. The depth map is stored within the HEIC file and can be extracted by image-processing applications that support HEIC.
 
-**Live Photo video track.** Live Photos store a 1.5-second video clip alongside the still image in the same HEIC file. The combined file is typically 4–8 MB. The video track is discarded when converting to JPG or PNG — you get only the key still frame.
+**Live Photo Video Track.** HEIC files can also contain video, namely a Live Photo captured by an Apple iPhone. This includes a video track up to 1.5 seconds long and a freeze-frame shot of the Live Photo (still image). Both are saved in a single container file, which typically ranges from 4MB to 8MB for a 12MP still image shot in 4:2:0 color mode. The Video Track is not included when converting an HEIC file to a JPG or PNG image.
 
 ## Why HEIC files won't open everywhere
 
-The compatibility problem comes down to licensing. HEIF uses patented compression technology. Apple licenses it and ships the decoder in all its operating systems. Other platforms must either license it themselves or leave users to install the codec manually.
+You read that right. Many companies don't license the HEIF compression technology and therefore don't include a decoder in their operating systems. They leave it to users to install the HEIC image extension, which lets them view HEIC images. Windows 10 and Windows 11 users must install this free extension from the Microsoft Store to open HEIC images in the Windows Photos app.
 
-**Windows 10 and 11** can open HEIC files after installing the free "HEIF Image Extensions" from the Microsoft Store. Without it, the built-in Photos app shows an error. Even with the codec, many older desktop editors (pre-2018 image apps, GIMP before 2.10.2) cannot read HEIC.
+After downloading and installing the free 'HEIF Image Extensions' from the Microsoft Store, Windows 10 and Windows 11 can open HEIC image files. Although the HEIF Image Extensions let the built-in Windows 10 Photos app open HEIC files, many older image editors (pre-2018), as well as many versions of GIMP (pre-GIMP 2.10.2), do not support HEIC files.
 
-**Android** has no system-level HEIC support. Some Samsung and Pixel devices can view HEIC in their stock gallery apps, but this is a manufacturer add-on, not a platform standard. No HEIC support exists across Android apps generally.
+Android does not support .heic files at the system level. Only some Android devices with the latest versions of Samsung and Pixel mobiles can open HEIC files in their Gallery apps. However, this is not supported at the platform level, and most other image editors and viewers on Android do not support HEIC.
 
-**Web browsers** — Chrome, Firefox, Edge — cannot display HEIC files inline. Safari on macOS and iOS can, using Apple's native codec. This means you cannot embed HEIC images in web pages for cross-browser viewing.
+Web Browsers—such as Google Chrome, Mozilla Firefox, and Microsoft Edge—cannot display HEIC images inline. Safari, the default Web Browser on Apple Macs and iOS devices, can view HEIC images thanks to Apple's HEIC decoder, but this is specific to Apple products and therefore not suitable for websites that require cross-browser compatibility.
 
-**Email clients** display HEIC as an attachment without a preview thumbnail on Windows and Android. Recipients must download and open the file, which often fails without the right codec installed.
+If you are sharing photos (including documents) by email with people outside your Apple ecosystem, the safest practice is to convert all photos to JPG files before sending. The email client will display JPG images attached to an email and show a thumbnail for each. HEIC images, on the other hand, appear as email attachments, and recipients must download them before opening. If the recipient does not have a codec installed to open HEIC images, the file may fail to open in email clients.
 
-The safest rule: if you're sharing a photo with anyone outside the Apple ecosystem, or uploading to any website, convert it to JPG first.
+The rule here is simple. If you're going to share photos, whether they have been embedded in documents or not, outside of the Apple-based ecosystem, then convert to JPG before upload.
 
-## How to convert HEIC to JPG without uploading your photos
+## How to convert HEIC to JPG without uploading your photos?
 
-The straightforward option — and the one most people find first — is to upload the files to an online converter. The problem is that you're sending your photos (which, as we covered, may contain GPS data and face detection data) to a third-party server you know nothing about. Some of these services are fine. Many have vague or nonexistent retention policies.
+Send your photos off to some online converter – perhaps even without understanding the full scope of the data you send (photos could include GPS coordinates of where the shots were taken and even data about the faces detected within the images). If you do end up using an online service to convert your HEIC files, familiarize yourself with that service's policies to ensure it doesn't keep your images after conversion.
 
-A better approach: convert in your browser. ConvertYard uses WebAssembly (libvips) to perform the conversion entirely on your device. The tool code loads from the server, but your photos never leave your computer.
+Then again, there's browser-based conversion. The browser pulls the conversion code from the server, but your photos stay on your device the whole time and are wiped from your computer's RAM once processing is done — nothing is uploaded. [ConvertYard's HEIC-to-JPG converter](/heic-to-jpg/) is a great example of this type of utility.
 
 1. Go to [ConvertYard's HEIC to JPG converter](/heic-to-jpg/).
-2. Drop your HEIC files into the dropzone — or click to select them.
-3. Set quality to 90 (the default). This produces excellent JPG output at roughly half the original file size.
-4. Enable **Auto-orient** to ensure photos shot in portrait appear upright (iPhones store rotation in EXIF rather than rotating the pixels).
-5. Enable **Strip metadata** if you want to remove GPS coordinates and camera data from the output.
+2. Upload your HEIC files. You can drag and drop them into the big rectangle or select them on your local machine.
+3. Quality: 90 (there is also an option for max quality, but it will roughly double the file size, and it's not needed most of the time).
+4. Check Auto-orient to ensure portrait-shooting iPhone photos will come in upright (as opposed to being inverted).
+5. Remove EXIF/IPTC/XMP metadata including GPS data (if needed).
 6. Click Convert and download.
 
-If you need lossless output — every pixel preserved exactly — use [HEIC to PNG](/heic-to-png/) instead. PNG files will be larger than the HEIC originals but contain no quality loss, making them better for editing.
+When working with sensitive images and using lossless editing, we recommend converting [HEIC to PNG](/heic-to-png/) to keep every pixel intact. PNGs are generally much larger than their HEIC counterparts but have no quality loss, which makes them perfect for editing.
 
 ## Batch converting 100+ iPhone photos at once
 
-If you're migrating a photo library — switching from iPhone to Android, archiving photos for a client, preparing images for a website — converting one file at a time is not realistic.
+For larger jobs, ConvertYard's batch converter handles whole photo libraries at once, which is useful when migrating from iPhone to Android or storing photos of family members and relatives for clients and/or your own website.
 
-ConvertYard handles batches natively. Drop all your files in at once. Set your options once. The conversion runs through every file in sequence and builds a ZIP of the outputs. There are no artificial limits on file count.
+All files are converted one after another. There are no restrictions on the number of files you can convert in one session. The output is saved as a downloadable zip file.
 
 Practical notes for large batches:
 
-- **Processing speed:** On a modern laptop, 500 average-sized iPhone photos (10–12 megapixels each) takes roughly 10–20 minutes. Keep the browser tab in the foreground — some browsers throttle background tabs and slow down the processing.
-- **Memory:** Very large batches of high-resolution photos (48 megapixel iPhone 15 Pro shots) can use significant RAM. If you're converting thousands of files, break them into batches of 200–500.
-- **Portrait mode:** HEIC photos shot in Portrait mode are larger files due to the embedded depth map. Conversion to JPG strips the depth map and produces a standard flat image.
+- **Processing time:** Up to 500 iPhone photos (average size, 10-12 MP) can be processed within 10-20 minutes on current laptops. Keep the browser tab open and in the foreground (some browsers throttle background processing).
+- **Memory:** HEIC files with high-resolution photos can use a lot of memory. Large batches of iPhone 15 Pro shots (48MP) can easily consume 4 GB or more of RAM during conversion. This is why large batches are best split into smaller groups, such as 200-500 images.
+- **Convert Portrait Mode photos:** HEIC files taken in Portrait mode contain not only the typical image data but also a depth map of the scene. When converting these images to JPG, ConvertYard strips the depth map so it saves a simple flat image.
 
-For ongoing library management, consider changing your iPhone's camera format to JPG going forward: Settings → Camera → Formats → Most Compatible. Existing photos stay as HEIC, but new shots save as JPG.
+To keep managing your large photo library on your computer, go to your iPhone settings, select Camera, and change your image capture format to Most Compatible (i.e., JPG images instead of HEIC). Images already on your phone will be in the HEIC format, but new images will be captured as JPG images.
