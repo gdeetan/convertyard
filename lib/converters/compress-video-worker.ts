@@ -79,6 +79,8 @@ async function runWithTicks<T>(
   }
 }
 
+type WorkerResult = { file: File; audioDropped: boolean }
+
 async function scaleFrame(frame: VideoFrame, width: number, height: number): Promise<VideoFrame> {
   if (frame.displayWidth === width && frame.displayHeight === height) return frame
   if (typeof createImageBitmap !== 'function') {
@@ -103,7 +105,7 @@ async function encodeHevcInWorker(
   file: File,
   opts: HevcHardwareOpts,
   onProgress: (pct: number) => void,
-): Promise<File | null> {
+): Promise<WorkerResult | null> {
   if (typeof VideoDecoder === 'undefined' || typeof VideoEncoder === 'undefined') { logBail('hevc: WebCodecs unavailable'); return null }
 
   const stripAudio = opts.stripAudio === true
@@ -147,14 +149,12 @@ async function encodeHevcInWorker(
   }
 
   const audio = stripAudio ? null : mp4?.audio ?? null
-  // Only bail when the source has an audio track we can't parse (non-AAC etc.).
-  // Truly silent sources (no 'soun' track) proceed video-only — otherwise they
-  // fall into the playback path which drops frames on high-motion silent clips
-  // and produces sped-up output.
-  if (!stripAudio && !audio && mp4?.hasAudioTrack) {
-    logBail('hevc: source has an audio track but it is not parseable AAC — falling back')
-    return null
-  }
+  // audioDropped = "worker won't include audio in the output; caller should
+  // splice it back in from the source with ffmpeg". Happens when the source
+  // has an audio track we can't parse as AAC (e.g. LPCM on Sony/GoPro clips).
+  // Previously we bailed to the playback path, which drops frames and
+  // produces sped-up output — always worse than a quick ffmpeg audio splice.
+  const audioDropped = !stripAudio && !audio && !!mp4?.hasAudioTrack
 
   // Precompute per-source-sample presentation offsets so retiming uses the true
   // source timeline (VFR-safe) rather than frameIndex/fps. If frames get dropped
@@ -313,7 +313,10 @@ async function encodeHevcInWorker(
     const mp4Bytes = finalMuxer.finalize()
     onProgress(97)
     const baseName = file.name.replace(/\.[^.]+$/, '')
-    return new File([mp4Bytes as BlobPart], `${baseName}.mp4`, { type: 'video/mp4' })
+    return {
+      file: new File([mp4Bytes as BlobPart], `${baseName}.mp4`, { type: 'video/mp4' }),
+      audioDropped,
+    }
   } catch (err) {
     logBail(`encode/mux threw: ${err instanceof Error ? err.message : String(err)}`)
     return null
@@ -331,7 +334,7 @@ async function encodeAvcInWorker(
   file: File,
   opts: AvcHardwareOpts,
   onProgress: (pct: number) => void,
-): Promise<File | null> {
+): Promise<WorkerResult | null> {
   if (typeof VideoDecoder === 'undefined' || typeof VideoEncoder === 'undefined') { logBail('avc: WebCodecs unavailable'); return null }
 
   const stripAudio = opts.stripAudio === true
@@ -376,13 +379,10 @@ async function encodeAvcInWorker(
   }
 
   const audio = stripAudio ? null : mp4?.audio ?? null
-  // Silent sources: proceed video-only. Only bail for sources that have an
-  // audio track we can't parse — in that case the playback + ffmpeg path can
-  // still preserve the audio.
-  if (!stripAudio && !audio && mp4?.hasAudioTrack) {
-    logBail('avc: source has an audio track but it is not parseable AAC — falling back')
-    return null
-  }
+  // See HEVC path: if the source has an audio track we can't parse as AAC,
+  // run video-only and flag audioDropped so the caller can splice audio back
+  // in via ffmpeg. Beats falling into the frame-dropping playback path.
+  const audioDropped = !stripAudio && !audio && !!mp4?.hasAudioTrack
 
   // See HEVC path for rationale: retime from real source offsets and extend the
   // final chunk so any dropped frames don't turn into fast-play output.
@@ -534,7 +534,10 @@ async function encodeAvcInWorker(
     const mp4Bytes = finalMuxer.finalize()
     onProgress(97)
     const baseName = file.name.replace(/\.[^.]+$/, '')
-    return new File([mp4Bytes as BlobPart], `${baseName}.mp4`, { type: 'video/mp4' })
+    return {
+      file: new File([mp4Bytes as BlobPart], `${baseName}.mp4`, { type: 'video/mp4' }),
+      audioDropped,
+    }
   } catch (err) {
     logBail(`encode/mux threw: ${err instanceof Error ? err.message : String(err)}`)
     return null
@@ -560,13 +563,18 @@ self.addEventListener('message', async (e: MessageEvent<WorkerRequest>) => {
     ;(self as unknown as Worker).postMessage({ id, type: 'progress', pct })
   }
   try {
-    let file: File | null = null
+    let result: WorkerResult | null = null
     if (msg.type === 'compress-avc') {
-      file = await encodeAvcInWorker(msg.file, msg.opts, onProgress)
+      result = await encodeAvcInWorker(msg.file, msg.opts, onProgress)
     } else if (msg.type === 'compress-hevc') {
-      file = await encodeHevcInWorker(msg.file, msg.opts, onProgress)
+      result = await encodeHevcInWorker(msg.file, msg.opts, onProgress)
     }
-    ;(self as unknown as Worker).postMessage({ id, type: 'result', file })
+    ;(self as unknown as Worker).postMessage({
+      id,
+      type: 'result',
+      file: result?.file ?? null,
+      audioDropped: result?.audioDropped ?? false,
+    })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     ;(self as unknown as Worker).postMessage({ id, type: 'error', message })

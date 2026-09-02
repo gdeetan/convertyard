@@ -196,8 +196,10 @@ export type HevcHardwareOpts = {
 
 type WorkerRequestType = 'compress-avc' | 'compress-hevc'
 
+type WorkerOutcome = { file: File; audioDropped: boolean } | null
+
 type PendingEntry = {
-  resolve: (file: File | null) => void
+  resolve: (outcome: WorkerOutcome) => void
   onProgress: (pct: number) => void
   lastActivityAt: number
   heartbeatTimer: ReturnType<typeof setInterval>
@@ -218,17 +220,15 @@ function failRequest(id: number, reason: string): void {
   clearInterval(entry.heartbeatTimer)
   clearTimeout(entry.hardTimeoutTimer)
   pending.delete(id)
-  // Terminate the worker on any hang so the next file gets a clean instance.
   try { workerInstance?.terminate() } catch { /* ignore */ }
   workerInstance = null
-  // Fail every other in-flight request too — they share the same worker.
   for (const [otherId, other] of pending) {
     clearInterval(other.heartbeatTimer)
     clearTimeout(other.hardTimeoutTimer)
     pending.delete(otherId)
-    other.resolve(null)
+    other.resolve(null as WorkerOutcome)
   }
-  entry.resolve(null)
+  entry.resolve(null as WorkerOutcome)
 }
 
 function getWorker(): Worker {
@@ -251,7 +251,10 @@ function getWorker(): Worker {
         clearInterval(handler.heartbeatTimer)
         clearTimeout(handler.hardTimeoutTimer)
         pending.delete(id)
-        handler.resolve(e.data.file ?? null)
+        const outcome: WorkerOutcome = e.data.file
+          ? { file: e.data.file as File, audioDropped: !!e.data.audioDropped }
+          : null
+        handler.resolve(outcome)
       }
       else if (type === 'error') {
         console.info('[compress-video] worker posted error:', e.data.message)
@@ -284,9 +287,9 @@ async function dispatchToWorker(
   type: WorkerRequestType,
   file: File,
   opts: AvcHardwareOpts | HevcHardwareOpts,
-): Promise<File | null> {
+): Promise<WorkerOutcome> {
   console.info(`[compress-video] dispatch ${type} → worker (${file.name}, ${file.size} bytes)`)
-  return new Promise((resolve) => {
+  return new Promise<WorkerOutcome>((resolve) => {
     const id = ++requestSeq
     const now = Date.now()
     // Heartbeat: if the worker sends no progress or result for 30s, treat it
@@ -335,10 +338,69 @@ async function dispatchToWorker(
  * The heavy work runs in compress-video-worker.ts. This thin wrapper only
  * exists to route through it and stay on-brand with the file's public shape.
  */
+// The worker runs video-only when the source has an audio track it can't
+// parse as AAC (LPCM in Sony/GoPro clips, for example). This helper splices
+// the source audio back in with a single ffmpeg pass — copy if the source
+// audio is mp4-compatible, transcode to AAC otherwise. Beats falling into
+// the playback path, which drops frames and produces sped-up output.
+async function spliceSourceAudio(videoOnly: File, source: File): Promise<File> {
+  const { getCompressVideoFFmpeg, withFfmpegLock } = await import('./ffmpeg-client')
+  return withFfmpegLock(async () => {
+    const { fetchFile } = await import('@ffmpeg/util')
+    const ffmpeg = await getCompressVideoFFmpeg()
+    const ts = Date.now()
+    const vName = `spl_v_${ts}.mp4`
+    const srcExt = source.name.match(/\.[^.]+$/)?.[0] ?? '.mp4'
+    const sName = `spl_s_${ts}${srcExt}`
+    const oName = `spl_o_${ts}.mp4`
+    await ffmpeg.writeFile(vName, new Uint8Array(await videoOnly.arrayBuffer()))
+    await ffmpeg.writeFile(sName, await fetchFile(source))
+    try {
+      let code = await ffmpeg.exec([
+        '-i', vName,
+        '-i', sName,
+        '-map', '0:v:0',
+        '-map', '1:a:0?',
+        '-c:v', 'copy',
+        '-c:a', 'copy',
+        '-shortest',
+        '-movflags', '+faststart',
+        oName,
+      ])
+      if (code !== 0) {
+        await ffmpeg.deleteFile(oName).catch(() => {})
+        code = await ffmpeg.exec([
+          '-i', vName,
+          '-i', sName,
+          '-map', '0:v:0',
+          '-map', '1:a:0?',
+          '-c:v', 'copy',
+          '-c:a', 'aac',
+          '-b:a', '128k',
+          '-shortest',
+          '-movflags', '+faststart',
+          oName,
+        ])
+      }
+      if (code !== 0) return videoOnly
+      const data = await ffmpeg.readFile(oName) as Uint8Array<ArrayBuffer>
+      if (!data?.byteLength) return videoOnly
+      const baseName = source.name.replace(/\.[^.]+$/, '')
+      return new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
+    } finally {
+      await Promise.all([
+        ffmpeg.deleteFile(vName).catch(() => {}),
+        ffmpeg.deleteFile(sName).catch(() => {}),
+        ffmpeg.deleteFile(oName).catch(() => {}),
+      ])
+    }
+  })
+}
+
 async function tryEncodeViaVideoDecoder(
   file: File,
   opts: HevcHardwareOpts,
-): Promise<File | null> {
+): Promise<WorkerOutcome> {
   if (typeof Worker === 'undefined') return null
   // Mobile can use the one-read MP4 demux fast path for modest files. Keep a
   // cap so very large inputs still fall back to the lazier playback path.
@@ -371,7 +433,14 @@ export async function tryCompressVideoHevcHardware(
 
   try {
     const decoded = await tryEncodeViaVideoDecoder(file, opts)
-    if (decoded) return decoded
+    if (decoded) {
+      console.info('[compress-video] HEVC via VideoDecoder fast path')
+      if (decoded.audioDropped) {
+        console.info('[compress-video] source audio not parseable as AAC — splicing via ffmpeg')
+        return await spliceSourceAudio(decoded.file, file)
+      }
+      return decoded.file
+    }
   } catch {
     /* fall through to the playback path */
   }
@@ -538,7 +607,7 @@ export async function tryCompressVideoHevcHardware(
 async function tryEncodeAvcViaVideoDecoder(
   file: File,
   opts: AvcHardwareOpts,
-): Promise<File | null> {
+): Promise<WorkerOutcome> {
   if (typeof Worker === 'undefined') return null
   if (isMobileBrowser() && file.size > MOBILE_FAST_PATH_MAX_BYTES) return null
   return dispatchToWorker('compress-avc', file, opts)
@@ -573,7 +642,11 @@ export async function tryCompressVideoAvcHardware(
     const decoded = await tryEncodeAvcViaVideoDecoder(file, opts)
     if (decoded) {
       console.info('[compress-video] AVC via VideoDecoder fast path')
-      return decoded
+      if (decoded.audioDropped) {
+        console.info('[compress-video] source audio not parseable as AAC — splicing via ffmpeg')
+        return await spliceSourceAudio(decoded.file, file)
+      }
+      return decoded.file
     }
     console.info('[compress-video] AVC VideoDecoder path returned null — trying playback path')
   } catch (err) {
