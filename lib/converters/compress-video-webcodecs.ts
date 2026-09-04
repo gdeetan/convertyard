@@ -536,10 +536,17 @@ export async function tryCompressVideoHevcHardware(
     }
     if (!encoderConfig) return null
 
+    // Mobile Safari can hand back raw (pre-rotation) pixels via
+    // `new VideoFrame(video)` while videoWidth/videoHeight report the
+    // display-oriented dims — the mismatch is what plays iPhone clips back
+    // rotated. drawImage() to canvas bakes in the display orientation, so
+    // route mobile through canvas regardless of scale.
+    const mobile = isMobileBrowser()
     const needsScale = width !== even(srcW) || height !== even(srcH)
+    const useCanvas = mobile || needsScale
     let canvas: HTMLCanvasElement | null = null
     let ctx: CanvasRenderingContext2D | null = null
-    if (needsScale) {
+    if (useCanvas) {
       canvas = document.createElement('canvas')
       canvas.width = width
       canvas.height = height
@@ -578,10 +585,33 @@ export async function tryCompressVideoHevcHardware(
     let lastFrameAt = Date.now()
     await new Promise<void>((resolve, reject) => {
       let settled = false
+      // Mobile buffers one frame so each encoded chunk can be stamped with
+      // its true duration (nextT - thisT). Without this, iOS Safari drops
+      // rendered frames but we stamp every chunk with a fixed 1/30s duration,
+      // leaving gaps in the muxed timeline that play back as freezes.
+      let prevFrame: VideoFrame | null = null
+      let prevTsSec = 0
+      const cleanupPrev = () => {
+        if (prevFrame) { try { prevFrame.close() } catch { /* already closed */ } prevFrame = null }
+      }
+      const encodePrev = (durSec: number) => {
+        if (!prevFrame) return
+        const durUs = Math.max(1, Math.round(durSec * 1_000_000))
+        const retimed = new VideoFrame(prevFrame, {
+          timestamp: Math.round(prevTsSec * 1_000_000),
+          duration: durUs,
+        })
+        prevFrame.close()
+        prevFrame = null
+        encoder.encode(retimed, { keyFrame: frameIndex % (fps * 2) === 0 })
+        retimed.close()
+        frameIndex += 1
+      }
       const finish = () => {
         if (settled) return
         settled = true
         clearInterval(watchdog)
+        cleanupPrev()
         video.pause()
         resolve()
       }
@@ -589,6 +619,7 @@ export async function tryCompressVideoHevcHardware(
         if (settled) return
         settled = true
         clearInterval(watchdog)
+        cleanupPrev()
         video.pause()
         reject(err instanceof Error ? err : new Error(String(err)))
       }
@@ -597,13 +628,37 @@ export async function tryCompressVideoHevcHardware(
           fail(new Error('Hardware HEVC stalled — no frames for 8s'))
         }
       }, 1000)
-      const onEnded = () => finish()
+      const onEnded = () => {
+        if (mobile && prevFrame) {
+          try { encodePrev(Math.max(0.001, duration - prevTsSec)) } catch { cleanupPrev() }
+        }
+        finish()
+      }
       video.addEventListener('ended', onEnded, { once: true })
       const onFrame = (_now: number, meta: { mediaTime: number }) => {
         try {
           if (encodeError) throw encodeError
           lastFrameAt = Date.now()
           const t = meta.mediaTime
+          if (mobile) {
+            ctx!.drawImage(video, 0, 0, width, height)
+            const frame = new VideoFrame(canvas!, {
+              timestamp: Math.round(t * 1_000_000),
+              duration: Math.round((1 / fps) * 1_000_000),
+            })
+            if (prevFrame) encodePrev(Math.max(0.001, t - prevTsSec))
+            prevFrame = frame
+            prevTsSec = t
+            opts.onProgress?.(12 + Math.round(Math.min(1, t / duration) * 70))
+            if (video.ended || t >= duration - 0.05) {
+              encodePrev(Math.max(0.001, duration - prevTsSec))
+              video.removeEventListener('ended', onEnded)
+              finish()
+              return
+            }
+            rVFC(onFrame)
+            return
+          }
           let frame: VideoFrame
           if (ctx && canvas) {
             ctx.drawImage(video, 0, 0, width, height)
@@ -775,10 +830,15 @@ export async function tryCompressVideoAvcHardware(
     }
     if (!encoderConfig) return null
 
+    // See HEVC playback path: route mobile through canvas so drawImage()
+    // bakes in the display orientation, and buffer one frame so each
+    // encoded chunk gets its true (nextT - thisT) duration.
+    const mobile = isMobileBrowser()
     const needsScale = width !== even(srcW) || height !== even(srcH)
+    const useCanvas = mobile || needsScale
     let canvas: HTMLCanvasElement | null = null
     let ctx: CanvasRenderingContext2D | null = null
-    if (needsScale) {
+    if (useCanvas) {
       canvas = document.createElement('canvas')
       canvas.width = width
       canvas.height = height
@@ -817,10 +877,29 @@ export async function tryCompressVideoAvcHardware(
     let lastFrameAt = Date.now()
     await new Promise<void>((resolve, reject) => {
       let settled = false
+      let prevFrame: VideoFrame | null = null
+      let prevTsSec = 0
+      const cleanupPrev = () => {
+        if (prevFrame) { try { prevFrame.close() } catch { /* already closed */ } prevFrame = null }
+      }
+      const encodePrev = (durSec: number) => {
+        if (!prevFrame) return
+        const durUs = Math.max(1, Math.round(durSec * 1_000_000))
+        const retimed = new VideoFrame(prevFrame, {
+          timestamp: Math.round(prevTsSec * 1_000_000),
+          duration: durUs,
+        })
+        prevFrame.close()
+        prevFrame = null
+        encoder.encode(retimed, { keyFrame: frameIndex % (fps * 2) === 0 })
+        retimed.close()
+        frameIndex += 1
+      }
       const finish = () => {
         if (settled) return
         settled = true
         clearInterval(watchdog)
+        cleanupPrev()
         video.pause()
         resolve()
       }
@@ -828,6 +907,7 @@ export async function tryCompressVideoAvcHardware(
         if (settled) return
         settled = true
         clearInterval(watchdog)
+        cleanupPrev()
         video.pause()
         reject(err instanceof Error ? err : new Error(String(err)))
       }
@@ -836,13 +916,37 @@ export async function tryCompressVideoAvcHardware(
           fail(new Error('Hardware AVC stalled — no frames for 8s'))
         }
       }, 1000)
-      const onEnded = () => finish()
+      const onEnded = () => {
+        if (mobile && prevFrame) {
+          try { encodePrev(Math.max(0.001, duration - prevTsSec)) } catch { cleanupPrev() }
+        }
+        finish()
+      }
       video.addEventListener('ended', onEnded, { once: true })
       const onFrame = (_now: number, meta: { mediaTime: number }) => {
         try {
           if (encodeError) throw encodeError
           lastFrameAt = Date.now()
           const t = meta.mediaTime
+          if (mobile) {
+            ctx!.drawImage(video, 0, 0, width, height)
+            const frame = new VideoFrame(canvas!, {
+              timestamp: Math.round(t * 1_000_000),
+              duration: Math.round((1 / fps) * 1_000_000),
+            })
+            if (prevFrame) encodePrev(Math.max(0.001, t - prevTsSec))
+            prevFrame = frame
+            prevTsSec = t
+            opts.onProgress?.(12 + Math.round(Math.min(1, t / duration) * 70))
+            if (video.ended || t >= duration - 0.05) {
+              encodePrev(Math.max(0.001, duration - prevTsSec))
+              video.removeEventListener('ended', onEnded)
+              finish()
+              return
+            }
+            rVFC(onFrame)
+            return
+          }
           let frame: VideoFrame
           if (ctx && canvas) {
             ctx.drawImage(video, 0, 0, width, height)
