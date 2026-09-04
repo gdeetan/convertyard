@@ -6,8 +6,33 @@
 // The playback-path fallback stays on the main thread and lives in
 // compress-video-webcodecs.ts — this worker is fast-path only.
 
-import { demuxMp4FileStreaming as demuxMp4File } from './mp4-demux-streaming'
+import { demuxMp4File as demuxMp4FileClassic } from './mp4-demux'
+import { demuxMp4FileStreaming } from './mp4-demux-streaming'
 import { createAvcMuxer, createHevcMuxer, type MuxerHandle } from './mp4-mux'
+
+// Files ≤ 2 GB use the classic in-memory demuxer that shipped before the
+// streaming rewrite — it is battle-tested and known to parse mp4 flavors
+// (fragmented, edit-list-heavy, unusual matrix rotations) that MP4Box.js
+// occasionally rejects. Above 2 GB the classic demuxer OOMs on
+// file.arrayBuffer(), so streaming is the only viable path.
+// If the classic demuxer returns null on a ≤ 2 GB file we still fall back
+// to streaming — losing nothing, gaining coverage on the odd rejection.
+const CLASSIC_DEMUX_CAP = 2 * 1024 * 1024 * 1024
+async function demuxMp4File(
+  file: File,
+  opts: { includeAudio?: boolean } = {},
+): ReturnType<typeof demuxMp4FileStreaming> {
+  if (file.size <= CLASSIC_DEMUX_CAP) {
+    try {
+      const classic = await demuxMp4FileClassic(file, opts)
+      if (classic) return classic
+      logBail('classic demuxer returned null — trying streaming')
+    } catch (err) {
+      logBail(`classic demuxer threw: ${err instanceof Error ? err.message : String(err)} — trying streaming`)
+    }
+  }
+  return demuxMp4FileStreaming(file, opts)
+}
 import {
   avcBitrateForLevel,
   hevcBitrateForLevel,

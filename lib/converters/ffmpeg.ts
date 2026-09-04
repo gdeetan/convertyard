@@ -1184,14 +1184,13 @@ export async function compressVideo(
         console.info('[compress-video] AVC hardware path returned null — using ffmpeg-wasm libx264')
       }
 
-      // Desktop >4 GB has no realistic in-browser path even with the
-      // streaming MP4Box.js demuxer: the encoded output buffer still lives
-      // in a single Uint8Array (v8 caps ArrayBuffer at ~2 GB), and while
-      // typical compression takes a 4 GB source down to <1 GB output,
-      // beyond 4 GB the risk of an oversized output plus the wasm fallback
-      // OOM makes the encode unreliable. Fail fast with a clear message.
-      if (!isMobileBrowser() && file.size > 4 * 1024 * 1024 * 1024) {
-        return new Error('This file is too large for in-browser compression (over 4 GB exceeds browser memory limits). Trim or split the video first, or use a desktop app.')
+      // Desktop >3 GB has no realistic in-browser path: the encoded output
+      // buffer still lives in a single Uint8Array (v8 caps ArrayBuffer at
+      // ~2 GB), and libx264/libx265 in ffmpeg-wasm allocates encoder state
+      // + reference frames on top of that. 3 GB is the tested ceiling
+      // where a typical compression still lands well under 2 GB output.
+      if (!isMobileBrowser() && file.size > 3 * 1024 * 1024 * 1024) {
+        return new Error('This file is too large for in-browser compression (over 3 GB exceeds browser memory limits). Trim or split the video first, or use a desktop app.')
       }
 
       // wasm fallback: serialize on the shared ffmpeg instance so parallel workers
@@ -1412,7 +1411,22 @@ export async function compressVideo(
       }
       })
     } catch (err) {
-      return explainCompressVideoError(toError(err))
+      const error = toError(err)
+      // Instrumentation: the friendly message swallows the real reason, so
+      // dump full context to the console before mapping. Anyone reporting
+      // a failure can paste this — no telemetry, stays client-side.
+      try {
+        console.error('[compress-video] processOne failed', {
+          fileName: files[i]?.name,
+          fileSize: files[i]?.size,
+          fileType: files[i]?.type,
+          userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+          isMobile: isMobileBrowser(),
+          message: error.message,
+          stack: error.stack,
+        })
+      } catch { /* console unavailable — ignore */ }
+      return explainCompressVideoError(error)
     }
   }
 
@@ -1448,8 +1462,13 @@ export async function compressVideo(
 function explainCompressVideoError(error: Error): Error {
   const msg = error.message ?? ''
   if (msg.includes('ErrnoError: FS error') || msg.includes('FS error')) {
+    if (isMobileBrowser()) {
+      return new Error(
+        'Video compression failed on this device. Some mobile browsers can\'t finalize the output — try "Remove audio", a smaller resolution, or a desktop browser.',
+      )
+    }
     return new Error(
-      'Video compression failed on this device. Some mobile browsers can\'t finalize the output — try "Remove audio", a smaller resolution, or a desktop browser.',
+      'Video compression failed — the browser ran out of memory finishing the file. Try a smaller resolution, "Remove audio", or split the video and compress the halves separately.',
     )
   }
   return error
