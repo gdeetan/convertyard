@@ -6,7 +6,7 @@
 // The playback-path fallback stays on the main thread and lives in
 // compress-video-webcodecs.ts — this worker is fast-path only.
 
-import { demuxMp4FileStreaming as demuxMp4File } from './mp4-demux-streaming'
+import { demuxMp4File } from './mp4-demux'
 import { createAvcMuxer, createHevcMuxer, type MuxerHandle } from './mp4-mux'
 import {
   avcBitrateForLevel,

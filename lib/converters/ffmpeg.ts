@@ -1184,14 +1184,15 @@ export async function compressVideo(
         console.info('[compress-video] AVC hardware path returned null — using ffmpeg-wasm libx264')
       }
 
-      // Desktop >4 GB has no realistic in-browser path even with the
-      // streaming MP4Box.js demuxer: the encoded output buffer still lives
-      // in a single Uint8Array (v8 caps ArrayBuffer at ~2 GB), and while
-      // typical compression takes a 4 GB source down to <1 GB output,
-      // beyond 4 GB the risk of an oversized output plus the wasm fallback
-      // OOM makes the encode unreliable. Fail fast with a clear message.
-      if (!isMobileBrowser() && file.size > 4 * 1024 * 1024 * 1024) {
-        return new Error('This file is too large for in-browser compression (over 4 GB exceeds browser memory limits). Trim or split the video first, or use a desktop app.')
+      // Desktop >2 GB has no realistic wasm path: libx264/libx265 in
+      // ffmpeg-wasm allocates encoder state + reference frames on top of
+      // the MEMFS output buffer, and the ~2 GB Uint8Array ceiling in v8
+      // plus the WASM heap cap will OOM mid-encode (surfaces as "FS
+      // error" around 80–85% when readFile hits an aborted runtime).
+      // Fail fast with an actionable message instead of dragging the
+      // user through a doomed encode.
+      if (!isMobileBrowser() && file.size > 2 * 1024 * 1024 * 1024) {
+        return new Error('This file is too large for in-browser compression (over 2 GB exceeds browser memory limits). Trim or split the video first, or use a desktop app.')
       }
 
       // wasm fallback: serialize on the shared ffmpeg instance so parallel workers
