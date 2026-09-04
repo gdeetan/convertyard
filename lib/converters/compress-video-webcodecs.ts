@@ -5,6 +5,21 @@ function isMobileBrowser(): boolean {
   return navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent)
 }
 
+function isIOSBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent))
+}
+
+// Per-platform cap for the VideoDecoder worker fast path. Above the cap the
+// caller falls back to the realtime playback capture, which drops frames on
+// mobile and produces laggy output. iOS Safari has a ~1 GB per-tab budget;
+// Android Chrome has 2–4 GB. 500 MB matches the hard-block ceiling in
+// ffmpeg.ts — files above that error out clean before either path runs.
+function mobileFastPathMaxBytes(): number {
+  return isIOSBrowser() ? 400 * 1024 * 1024 : 500 * 1024 * 1024
+}
+
 type HevcEncoderConfig = VideoEncoderConfig & {
   hevc?: { format?: 'annexb' | 'hevc' }
   latencyMode?: 'quality' | 'realtime'
@@ -23,7 +38,6 @@ const HEVC_CODECS = [
   'hvc1.1.6.L120.B0',
 ]
 
-const MOBILE_FAST_PATH_MAX_BYTES = 120 * 1024 * 1024
 
 // H.264 profile.level strings, ordered widest-compat → highest.
 // Baseline 3.1 → Main 3.1 → High 4.0 → High 4.1. Encoder picks the first
@@ -562,8 +576,10 @@ async function tryEncodeViaVideoDecoder(
 ): Promise<WorkerOutcome> {
   if (typeof Worker === 'undefined') return null
   // Mobile can use the one-read MP4 demux fast path for modest files. Keep a
-  // cap so very large inputs still fall back to the lazier playback path.
-  if (isMobileBrowser() && file.size > MOBILE_FAST_PATH_MAX_BYTES) return null
+  // per-platform cap so very large inputs still fall back to the lazier
+  // playback path — iOS Safari's tab budget forces a lower ceiling than
+  // Android Chrome.
+  if (isMobileBrowser() && file.size > mobileFastPathMaxBytes()) return null
   return dispatchToWorker('compress-hevc', file, opts)
 }
 
@@ -852,7 +868,7 @@ async function tryEncodeAvcViaVideoDecoder(
   opts: AvcHardwareOpts,
 ): Promise<WorkerOutcome> {
   if (typeof Worker === 'undefined') return null
-  if (isMobileBrowser() && file.size > MOBILE_FAST_PATH_MAX_BYTES) return null
+  if (isMobileBrowser() && file.size > mobileFastPathMaxBytes()) return null
   return dispatchToWorker('compress-avc', file, opts)
 }
 
