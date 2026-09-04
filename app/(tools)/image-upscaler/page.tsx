@@ -1,10 +1,47 @@
 'use client'
 
 import { Suspense, useEffect, useRef, useState } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import { ToolShell } from '@/components/tool-shell/tool-shell'
 import { BeforeAfterSlider } from '@/components/image/BeforeAfterSlider'
 import { config } from '@/content/tools/image-upscaler'
 import type { ToolOptions } from '@/lib/types'
+
+function UpscalerImportantNote() {
+  return (
+    <details className="group mx-auto max-w-3xl px-4 pt-4 sm:px-6">
+      <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm font-medium text-fg transition hover:bg-warning/15">
+        <AlertTriangle
+          className="h-4 w-4 shrink-0 text-warning"
+          aria-hidden="true"
+        />
+        <span>Important note</span>
+        <span
+          className="ml-auto text-xs text-fg-muted transition group-open:hidden"
+          aria-hidden="true"
+        >
+          Show
+        </span>
+        <span
+          className="ml-auto hidden text-xs text-fg-muted group-open:inline"
+          aria-hidden="true"
+        >
+          Hide
+        </span>
+      </summary>
+      <p className="mt-2 rounded-xl border border-border bg-bg-elevated px-4 py-3 text-sm leading-relaxed text-fg-muted">
+        This tool is best for upscaling product photos or illustrations at 2x
+        to 4x. It isn&rsquo;t meant to replace desktop tools that offer more
+        processing power. On mobile devices, the output is capped at 2,048
+        pixels, so Safari and Chrome don&rsquo;t refresh during the upscaling
+        cycle. Very tall and wide graphic files like infographics or full-page
+        screenshots cannot be enlarged to a full 4x scale. Desktop upscaling
+        is capped at 8,192 pixels. These files will be shrunk first, so the
+        result will be blurry.
+      </p>
+    </details>
+  )
+}
 
 // ── Before/After preview panel ─────────────────────────────────────────────
 
@@ -118,6 +155,7 @@ function ImageUpscalerPage() {
 
   return (
     <>
+      <UpscalerImportantNote />
       {(modelState !== 'ready' || activeDevice) && (
         <div className="mx-auto max-w-3xl px-4 pt-6 sm:px-6">
           <div className="flex items-center gap-3 rounded-xl border border-border bg-bg-elevated px-4 py-3 text-sm text-fg-muted">

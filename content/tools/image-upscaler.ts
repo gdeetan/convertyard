@@ -6,8 +6,9 @@ export const config: ToolConfig = {
   title: 'AI Image Upscaler',
   subtitle:
     'Enlarge photos and illustrations 2×–8× in your browser. Logos can stay on Lanczos. No upload, no account.',
-  bestFor:
-    'Best for enlarging product photos and web images at 2×–4×. Not a replacement for desktop print tools. On phones the output is capped at 2,048 px so Safari and Chrome do not reload the tab. Very tall or wide files — long infographics, full-page screenshots — cannot be enlarged to a true 4×. Desktop is capped at 8,192 px; those files are pre-shrunk first and the result can be smaller than the original.',
+  // Long-form caveat is rendered as a collapsible "Important note" in the
+  // page (see app/(tools)/image-upscaler/page.tsx) instead of the shared
+  // bestFor line, so the warning icon draws the eye before the drop area.
   category: 'ai',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/tiff'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.bmp', '.tiff'],
