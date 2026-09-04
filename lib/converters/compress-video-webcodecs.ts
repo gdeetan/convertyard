@@ -416,6 +416,11 @@ async function spliceSourceAudio(
 
     let mounted = false
     let wroteVideo = false
+    let wroteSourceMemfs = false
+    // The source's ffmpeg path — WORKERFS mount when available, otherwise
+    // a flat MEMFS filename after fallback writeFile. Assigned below.
+    let sourceInputPath = sName
+    const memfsSourceName = `spl_srcmem_${ts}${srcExt}`
     try {
       try {
         ffmpeg.on('progress', progressHandler)
@@ -436,9 +441,27 @@ async function spliceSourceAudio(
           mountPoint,
         )
         mounted = true
-      } catch (err) {
-        console.warn('[compress-video] splice: WORKERFS mount failed — returning video-only', err)
-        return videoOnly
+      } catch (workerfsErr) {
+        // WORKERFS requires the ffmpeg core to be loaded inside a Worker;
+        // when it's not (some desktop code paths, extension-modified pages)
+        // the mount throws "ErrnoError: FS error" and we lose audio.
+        // Fall back to copying the source into MEMFS via writeFile. On
+        // mobile this can OOM the wasm heap, so we only fall back on
+        // desktop — mobile still hard-fails to video-only.
+        if (isMobileBrowser()) {
+          console.warn('[compress-video] splice: WORKERFS mount failed (mobile) — returning video-only', workerfsErr)
+          return videoOnly
+        }
+        console.info('[compress-video] splice: WORKERFS mount failed — copying source to MEMFS', workerfsErr)
+        try {
+          const { fetchFile } = await import('@ffmpeg/util')
+          await ffmpeg.writeFile(memfsSourceName, await fetchFile(source))
+          wroteSourceMemfs = true
+          sourceInputPath = memfsSourceName
+        } catch (memfsErr) {
+          console.warn('[compress-video] splice: MEMFS fallback writeFile failed — returning video-only', memfsErr)
+          return videoOnly
+        }
       }
 
       // Log tail so a non-zero exit tells us WHY the splice failed instead
@@ -464,7 +487,7 @@ async function spliceSourceAudio(
       try {
         let code = await runExec([
           '-i', vName,
-          '-i', sName,
+          '-i', sourceInputPath,
           '-map', '0:v:0',
           '-map', '1:a:0?',
           '-c:v', 'copy',
@@ -477,7 +500,7 @@ async function spliceSourceAudio(
           await ffmpeg.deleteFile(oName).catch(() => {})
           code = await runExec([
             '-i', vName,
-            '-i', sName,
+            '-i', sourceInputPath,
             '-map', '0:v:0',
             '-map', '1:a:0?',
             '-c:v', 'copy',
@@ -517,6 +540,7 @@ async function spliceSourceAudio(
         await ffmpeg.unmount(mountPoint).catch(() => {})
         await ffmpeg.deleteDir(mountPoint).catch(() => {})
       }
+      if (wroteSourceMemfs) await ffmpeg.deleteFile(memfsSourceName).catch(() => {})
       if (wroteVideo) await ffmpeg.deleteFile(vName).catch(() => {})
       await ffmpeg.deleteFile(oName).catch(() => {})
     }
