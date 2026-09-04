@@ -1184,6 +1184,17 @@ export async function compressVideo(
         console.info('[compress-video] AVC hardware path returned null — using ffmpeg-wasm libx264')
       }
 
+      // Desktop >2 GB has no realistic wasm path: libx264/libx265 in
+      // ffmpeg-wasm allocates encoder state + reference frames on top of
+      // the MEMFS output buffer, and the ~2 GB Uint8Array ceiling in v8
+      // plus the WASM heap cap will OOM mid-encode (surfaces as "FS
+      // error" around 80–85% when readFile hits an aborted runtime).
+      // Fail fast with an actionable message instead of dragging the
+      // user through a doomed encode.
+      if (!isMobileBrowser() && file.size > 2 * 1024 * 1024 * 1024) {
+        return new Error('This file is too large for in-browser compression (over 2 GB exceeds browser memory limits). Trim or split the video first, or use a desktop app.')
+      }
+
       // wasm fallback: serialize on the shared ffmpeg instance so parallel workers
       // don't collide on progress/log listeners or overlapping tempfile writes.
       return await withFfmpegLock(async () => {
