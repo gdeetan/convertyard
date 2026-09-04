@@ -125,31 +125,31 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Can I compress multiple videos at once?',
-      a: 'Yes. Drop as many files as you need. ConvertYard compresses them one at a time in your browser and packages the results in a single ZIP. There is no hard limit on file count.',
+      a: 'Yes. Compress one or ten files. However, with .mov files over 1.5 gigabytes, you may get an FS error, which means the browser is out of memory. For smaller files under 1 GB, you can follow the 1-to-5 file principle.',
     },
     {
       q: 'What video formats are supported?',
-      a: 'Input: MP4, MOV, WebM, AVI, MKV, WMV, and TS. Output is always MP4 (H.264 or H.265). MP4 plays on virtually every device without additional software — phones, browsers, smart TVs, and editing tools all read it.',
+      a: 'It supports these formats: MP4, MOV, WebM, AVI, MKV, WMV, and TS. However, the output is always MP4 (H.264 or H.265). You can play an MP4 file on any device without additional software, and most video editing software supports it.',
     },
     {
       q: 'What does the compression level setting do?',
-      a: 'Compression level controls the CRF (Constant Rate Factor) — the trade-off between quality and file size. Small (CRF 18) is near-lossless with modest size reduction. Medium (CRF 23) is the H.264 default and gives a good balance. High (CRF 28) is visibly compressed but significantly smaller. Maximum (CRF 35) is for archiving where file size matters more than perfect quality.',
+      a: 'The compression level parameter controls the Constant Rate Factor (CRF) of the H.264 video codec. CRF balances quality and size. For example, Small (CRF 18) is nearly lossless but reduces size only slightly, while Medium (CRF 23) is the H.264 default and a good trade-off between quality and size. High (CRF 28) is heavily compressed but much smaller than Medium quality. Maximum (CRF 35) is for archiving, and size matters more than quality.',
     },
     {
       q: 'What is H.265 and should I use it?',
-      a: 'H.265 (HEVC) is a newer video codec that achieves 30–50% smaller files than H.264 at the same visual quality. Use it if you are sharing the video on modern devices (iPhone, recent Android, Windows 10+, macOS). Avoid it for videos that need to play on old Android devices (pre-2016) or Windows PCs without codec packs installed.',
+      a: 'H.265 (or HEVC format) is the newer codec that compresses videos (at least with my testing MOV files) up to a whopping 116% difference with no noticeable difference in quality. If you’re using a video or sharing it with someone who uses a newer laptop or mobile device (like the newer iPhone or Android), you can use this format. Use the older H.264 format for devices released before 2016.',
     },
     {
       q: 'How does target size mode work?',
-      a: 'Enable Target size mode and enter your target in MB or KB. The tool probes your video duration, calculates the exact bitrate needed to hit the target, then encodes in two passes — a fast analysis pass and a final output pass. This is the same 2-pass VBR approach used by professional video tools. If the file already fits within your target, it remuxes the container instead of re-encoding.',
+      a: "Target size, as its name implies, aims to compress the video to a specific file size. It does this by calculating its duration, then determining the exact bitrate needed to reach the target file size. The video is encoded twice: first, an analysis pass, then an output pass. It's similar to how professional video software does it (using a 2-pass VBR encoding). When the file approaches its target size, it remuxes the container files instead of re-encoding.",
     },
     {
       q: 'Does compressing a video reduce its resolution or duration?',
-      a: 'Compression alone does not change resolution or duration — only the quality of each frame is affected. If you select a resolution option (e.g., 720p), the tool will downscale the video as part of compression. Duration is never changed by this tool.',
+      a: "No, compression does not reduce your video's duration. It only reduces the quality of each frame. If you choose a resolution such as 720p, your video will be downscaled during compression. However, your video will still be the same duration.",
     },
     {
       q: 'Why does video compression take longer than image conversion?',
-      a: "Video compression must process every frame — a 60-second video at 30fps has 1,800 frames to encode. The tool uses ffmpeg.wasm, a full video processing engine (~25 MB) that runs entirely in your browser. It loads once and is cached for subsequent use. Actual compression time depends on file length, resolution, and your device's CPU speed.",
+      a: 'Video compression takes longer because it needs to process multiple frames. For example, your 60-second video at 30fps has around 1,800 frames, whereas an image compressor only has one frame; thus, the compression is much faster.',
     },
   ],
 
