@@ -38,6 +38,13 @@ function build(codec: 'avc' | 'hevc', opts: MuxOpts): MuxerHandle {
   const muxer = new Muxer({
     target,
     fastStart: 'in-memory',
+    // Auto-normalize per-track start timestamps to zero. Sources with edit
+    // lists or non-zero composition offsets (common in iOS/Android camera
+    // captures, especially after the streaming MP4Box demuxer preserves
+    // absolute pts) otherwise trip mp4-muxer's "first chunk must have
+    // timestamp 0" invariant, kill the fast path, and send the whole
+    // encode into the wasm fallback where big files OOM.
+    firstTimestampBehavior: 'offset',
     video: {
       codec,
       width: opts.width,
