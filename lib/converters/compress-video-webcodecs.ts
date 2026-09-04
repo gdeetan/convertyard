@@ -343,71 +343,168 @@ async function dispatchToWorker(
 // the source audio back in with a single ffmpeg pass — copy if the source
 // audio is mp4-compatible, transcode to AAC otherwise. Beats falling into
 // the playback path, which drops frames and produces sped-up output.
-async function spliceSourceAudio(videoOnly: File, source: File): Promise<File> {
-  const { getCompressVideoFFmpeg, withFfmpegLock } = await import('./ffmpeg-client')
-  const { FFFSType } = await import('@ffmpeg/ffmpeg')
+async function spliceSourceAudio(
+  videoOnly: File,
+  source: File,
+  onProgress?: (pct: number) => void,
+): Promise<File> {
+  // The splice is a "best effort" — if anything below fails (ffmpeg load,
+  // WORKERFS quirk, silent WASM abort, missing output), we return the
+  // video-only file instead of crashing the whole compression. A silent
+  // audio drop is strictly better than the raw "ErrnoError: FS error" that
+  // used to bubble up to the UI on iOS Safari and Android Chrome.
+  let ffmpegClient: typeof import('./ffmpeg-client')
+  let ffFs: typeof import('@ffmpeg/ffmpeg')
+  try {
+    ffmpegClient = await import('./ffmpeg-client')
+    ffFs = await import('@ffmpeg/ffmpeg')
+  } catch (err) {
+    console.warn('[compress-video] splice: ffmpeg module load failed — returning video-only', err)
+    return videoOnly
+  }
+  const { getCompressVideoFFmpeg, withFfmpegLock } = ffmpegClient
+  const { FFFSType } = ffFs
   return withFfmpegLock(async () => {
-    const ffmpeg = await getCompressVideoFFmpeg()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let ffmpeg: any
+    try {
+      ffmpeg = await getCompressVideoFFmpeg()
+    } catch (err) {
+      console.warn('[compress-video] splice: ffmpeg core load failed — returning video-only', err)
+      return videoOnly
+    }
     const ts = Date.now()
     const vName = `spl_v_${ts}.mp4`
     const srcExt = source.name.match(/\.[^.]+$/)?.[0] ?? '.mp4'
     const sBase = `spl_s_${ts}${srcExt}`
     // WORKERFS mounts the source File directly instead of copying it into
     // MEMFS via fetchFile+writeFile. On iOS Safari the MEMFS copy blows the
-    // ~1 GB WASM heap for source files ≳150 MB, surfacing as "FS error"
-    // after the worker path has already produced the video-only encode.
-    // Mirrors what compressVideo() does in ffmpeg.ts.
+    // ~1 GB WASM heap for source files ≳150 MB.
     const mountPoint = `/mnt/spl_${ts}`
     const sName = `${mountPoint}/${sBase}`
     const oName = `spl_o_${ts}.mp4`
-    await ffmpeg.writeFile(vName, new Uint8Array(await videoOnly.arrayBuffer()))
-    await ffmpeg.createDir(mountPoint).catch(() => {})
-    await ffmpeg.mount(
-      FFFSType.WORKERFS,
-      { blobs: [{ name: sBase, data: source }] },
-      mountPoint,
-    )
+
+    // Splice progress: the caller has already ticked up to ~90. Move 91→99
+    // during exec so the UI bar doesn't visibly freeze. Uses both ffmpeg's
+    // real progress events and a heartbeat so we still tick even if the core
+    // never emits (ST core on iOS often skips them for -c copy).
+    let splicePct = 91
+    const emit = (pct: number) => {
+      if (pct <= splicePct) return
+      splicePct = Math.min(99, pct)
+      onProgress?.(splicePct)
+    }
+    emit(91)
+    const progressHandler = ({ progress }: { progress: number }) => {
+      emit(91 + Math.round(Math.min(1, Math.max(0, progress)) * 8))
+    }
+    const heartbeat = setInterval(() => emit(splicePct + 1), 800)
+
+    let mounted = false
+    let wroteVideo = false
     try {
-      let code = await ffmpeg.exec([
-        '-i', vName,
-        '-i', sName,
-        '-map', '0:v:0',
-        '-map', '1:a:0?',
-        '-c:v', 'copy',
-        '-c:a', 'copy',
-        '-shortest',
-        '-movflags', '+faststart',
-        oName,
-      ])
-      if (code !== 0) {
-        await ffmpeg.deleteFile(oName).catch(() => {})
-        code = await ffmpeg.exec([
+      try {
+        ffmpeg.on('progress', progressHandler)
+      } catch { /* older ffmpeg-wasm — ignore */ }
+
+      try {
+        await ffmpeg.writeFile(vName, new Uint8Array(await videoOnly.arrayBuffer()))
+        wroteVideo = true
+      } catch (err) {
+        console.warn('[compress-video] splice: writeFile(videoOnly) failed — returning video-only', err)
+        return videoOnly
+      }
+      try {
+        await ffmpeg.createDir(mountPoint).catch(() => {})
+        await ffmpeg.mount(
+          FFFSType.WORKERFS,
+          { blobs: [{ name: sBase, data: source }] },
+          mountPoint,
+        )
+        mounted = true
+      } catch (err) {
+        console.warn('[compress-video] splice: WORKERFS mount failed — returning video-only', err)
+        return videoOnly
+      }
+
+      // Log tail so a non-zero exit tells us WHY the splice failed instead
+      // of silently returning video-only. Same pattern as execWithReason
+      // in ffmpeg.ts.
+      const logLines: string[] = []
+      const logHandler = ({ message }: { message: string }) => {
+        if (!message) return
+        logLines.push(message)
+        if (logLines.length > 20) logLines.shift()
+      }
+      try { ffmpeg.on('log', logHandler) } catch { /* ignore */ }
+
+      const runExec = async (args: string[]): Promise<number> => {
+        try {
+          return await ffmpeg.exec(args)
+        } catch (err) {
+          console.warn('[compress-video] splice: ffmpeg.exec threw —', err instanceof Error ? err.message : String(err))
+          return -1
+        }
+      }
+
+      try {
+        let code = await runExec([
           '-i', vName,
           '-i', sName,
           '-map', '0:v:0',
           '-map', '1:a:0?',
           '-c:v', 'copy',
-          '-c:a', 'aac',
-          '-b:a', '128k',
+          '-c:a', 'copy',
           '-shortest',
           '-movflags', '+faststart',
           oName,
         ])
+        if (code !== 0) {
+          await ffmpeg.deleteFile(oName).catch(() => {})
+          code = await runExec([
+            '-i', vName,
+            '-i', sName,
+            '-map', '0:v:0',
+            '-map', '1:a:0?',
+            '-c:v', 'copy',
+            '-c:a', 'aac',
+            '-b:a', '128k',
+            '-shortest',
+            '-movflags', '+faststart',
+            oName,
+          ])
+        }
+        if (code !== 0) {
+          const tail = logLines.slice(-4).join(' | ')
+          console.warn(`[compress-video] splice: exec failed (code ${code})${tail ? ` — ${tail}` : ''} — returning video-only`)
+          return videoOnly
+        }
+
+        let data: Uint8Array<ArrayBuffer> | undefined
+        try {
+          data = await ffmpeg.readFile(oName) as Uint8Array<ArrayBuffer>
+        } catch (err) {
+          console.warn('[compress-video] splice: readFile(output) failed — returning video-only', err)
+          return videoOnly
+        }
+        if (!data?.byteLength) return videoOnly
+        const baseName = source.name.replace(/\.[^.]+$/, '')
+        emit(99)
+        return new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
+      } finally {
+        try { ffmpeg.off('log', logHandler) } catch { /* ignore */ }
       }
-      if (code !== 0) return videoOnly
-      const data = await ffmpeg.readFile(oName) as Uint8Array<ArrayBuffer>
-      if (!data?.byteLength) return videoOnly
-      const baseName = source.name.replace(/\.[^.]+$/, '')
-      return new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
     } finally {
+      clearInterval(heartbeat)
+      try { ffmpeg.off('progress', progressHandler) } catch { /* ignore */ }
       // WORKERFS is read-only, so deleteFile(sName) would fail — unmount +
       // deleteDir is the correct cleanup for the mounted source.
-      await ffmpeg.unmount(mountPoint).catch(() => {})
-      await ffmpeg.deleteDir(mountPoint).catch(() => {})
-      await Promise.all([
-        ffmpeg.deleteFile(vName).catch(() => {}),
-        ffmpeg.deleteFile(oName).catch(() => {}),
-      ])
+      if (mounted) {
+        await ffmpeg.unmount(mountPoint).catch(() => {})
+        await ffmpeg.deleteDir(mountPoint).catch(() => {})
+      }
+      if (wroteVideo) await ffmpeg.deleteFile(vName).catch(() => {})
+      await ffmpeg.deleteFile(oName).catch(() => {})
     }
   })
 }
@@ -499,7 +596,7 @@ export async function tryCompressVideoHevcHardware(
       console.info('[compress-video] HEVC via VideoDecoder fast path')
       if (decoded.audioDropped) {
         console.info('[compress-video] source audio not parseable as AAC — splicing via ffmpeg')
-        return await spliceSourceAudio(decoded.file, file)
+        return await spliceSourceAudio(decoded.file, file, opts.onProgress)
       }
       return decoded.file
     }
@@ -728,7 +825,7 @@ export async function tryCompressVideoHevcHardware(
       const videoOnly = await buildVideoOnlyMp4('hevc', width, height, capturedChunks, firstMeta, sourceDurationUs, `${baseName}.mp4`)
       if (!videoOnly) return null
       if (opts.stripAudio === true) return videoOnly
-      return await spliceSourceAudio(videoOnly, file)
+      return await spliceSourceAudio(videoOnly, file, opts.onProgress)
     }
     if (rawChunks.length === 0) return null
     const annexB = concatBytes(rawChunks)
@@ -790,7 +887,7 @@ export async function tryCompressVideoAvcHardware(
       console.info('[compress-video] AVC via VideoDecoder fast path')
       if (decoded.audioDropped) {
         console.info('[compress-video] source audio not parseable as AAC — splicing via ffmpeg')
-        return await spliceSourceAudio(decoded.file, file)
+        return await spliceSourceAudio(decoded.file, file, opts.onProgress)
       }
       return decoded.file
     }
@@ -1016,7 +1113,7 @@ export async function tryCompressVideoAvcHardware(
       const videoOnly = await buildVideoOnlyMp4('avc', width, height, capturedChunks, firstMeta, sourceDurationUs, `${baseName}.mp4`)
       if (!videoOnly) return null
       if (opts.stripAudio === true) return videoOnly
-      return await spliceSourceAudio(videoOnly, file)
+      return await spliceSourceAudio(videoOnly, file, opts.onProgress)
     }
     if (rawChunks.length === 0) return null
     const annexB = concatBytes(rawChunks)

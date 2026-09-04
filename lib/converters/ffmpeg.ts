@@ -1402,7 +1402,7 @@ export async function compressVideo(
       }
       })
     } catch (err) {
-      return toError(err)
+      return explainCompressVideoError(toError(err))
     }
   }
 
@@ -1428,6 +1428,21 @@ export async function compressVideo(
   await Promise.all(workers)
   for (const r of indexed) results.push(r)
   return results
+}
+
+// Safety net for the compress-video path. spliceSourceAudio() handles its own
+// FS errors and falls back to video-only, but a raw "ErrnoError: FS error"
+// can still bubble from the wasm path if a probe or exec crashes in a way
+// execWithReason doesn't catch (silent WASM abort, etc.). Convert it to
+// something the user can act on instead of leaking the emscripten string.
+function explainCompressVideoError(error: Error): Error {
+  const msg = error.message ?? ''
+  if (msg.includes('ErrnoError: FS error') || msg.includes('FS error')) {
+    return new Error(
+      'Video compression failed on this device. Some mobile browsers can\'t finalize the output — try "Remove audio", a smaller resolution, or a desktop browser.',
+    )
+  }
+  return error
 }
 
 function explainExtractAudioError(error: Error): Error {
