@@ -22,16 +22,33 @@ async function demuxMp4File(
   file: File,
   opts: { includeAudio?: boolean } = {},
 ): ReturnType<typeof demuxMp4FileStreaming> {
+  const wantAudio = opts.includeAudio === true
+  let classic: Awaited<ReturnType<typeof demuxMp4FileStreaming>> = null
   if (file.size <= CLASSIC_DEMUX_CAP) {
     try {
-      const classic = await demuxMp4FileClassic(file, opts)
-      if (classic) return classic
-      logBail('classic demuxer returned null — trying streaming')
+      classic = await demuxMp4FileClassic(file, opts)
     } catch (err) {
       logBail(`classic demuxer threw: ${err instanceof Error ? err.message : String(err)} — trying streaming`)
     }
   }
-  return demuxMp4FileStreaming(file, opts)
+  // Classic parsed video + audio (or source has no audio) — good to go.
+  if (classic && (!wantAudio || classic.audio || !classic.hasAudioTrack)) {
+    return classic
+  }
+  // Either classic bailed entirely, or classic got the video but couldn't
+  // parse the audio config (rare AAC layouts). Try streaming; if streaming
+  // succeeds and we have partial classic video, prefer classic's video
+  // (proven parser) but graft streaming's audio in.
+  logBail(
+    classic
+      ? 'classic returned no audio despite hasAudioTrack — trying streaming for audio'
+      : 'classic demuxer returned null — trying streaming',
+  )
+  const streaming = await demuxMp4FileStreaming(file, opts)
+  if (classic && streaming?.audio) {
+    return { video: classic.video, audio: streaming.audio, hasAudioTrack: classic.hasAudioTrack }
+  }
+  return streaming ?? classic
 }
 import {
   avcBitrateForLevel,

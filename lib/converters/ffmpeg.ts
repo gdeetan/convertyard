@@ -1443,7 +1443,31 @@ export async function compressVideo(
     while (true) {
       const i = cursor++
       if (i >= files.length) return
+      const src = files[i]
+      const t0 = Date.now()
       const result = await processOne(i)
+      // Summary log — one line per file with input/output sizes, elapsed
+      // time, path outcome, source audio presence. Pair with the more
+      // detailed console.info/warn lines emitted by each fast-path
+      // (hardware AVC/HEVC, splice, wasm) to trace missing audio.
+      try {
+        const inMb = (src.size / 1024 / 1024).toFixed(2)
+        const secs = ((Date.now() - t0) / 1000).toFixed(1)
+        const outFile = result instanceof File
+          ? result
+          : (result && typeof result === 'object' && 'file' in result ? result.file : null)
+        if (outFile) {
+          const outMb = (outFile.size / 1024 / 1024).toFixed(2)
+          const ratio = src.size > 0 ? ((outFile.size / src.size) * 100).toFixed(0) : '?'
+          console.info(
+            `[compress-video] SUMMARY ${src.name} in=${inMb}MB out=${outMb}MB (${ratio}% of source) elapsed=${secs}s isMobile=${isMobileBrowser()}`,
+          )
+        } else if (result instanceof Error) {
+          console.info(
+            `[compress-video] SUMMARY ${src.name} in=${inMb}MB FAILED elapsed=${secs}s isMobile=${isMobileBrowser()} err="${result.message}"`,
+          )
+        }
+      } catch { /* logging must never break the pipeline */ }
       indexed[i] = result
       onResult?.(i, result)
       onProgress?.(i, 100)
