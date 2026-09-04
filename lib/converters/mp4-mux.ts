@@ -25,6 +25,12 @@ type MuxOpts = {
   hasAudio: boolean
   videoDecoderConfig: VideoDecoderConfigDesc
   audio?: AacAudioMeta
+  /**
+   * Clockwise display rotation in degrees. Written into the output tkhd matrix
+   * so iOS-recorded portrait video (landscape sensor pixels + 90° metadata)
+   * plays back right-side-up instead of sideways.
+   */
+  rotation?: 0 | 90 | 180 | 270
 }
 
 function build(codec: 'avc' | 'hevc', opts: MuxOpts): MuxerHandle {
@@ -36,6 +42,7 @@ function build(codec: 'avc' | 'hevc', opts: MuxOpts): MuxerHandle {
       codec,
       width: opts.width,
       height: opts.height,
+      rotation: opts.rotation ?? 0,
     },
     audio: opts.hasAudio && opts.audio
       ? {

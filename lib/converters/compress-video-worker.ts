@@ -208,6 +208,7 @@ async function encodeHevcInWorker(
           muxer = createHevcMuxer({
             width,
             height,
+            rotation: demuxed.rotation,
             hasAudio: !!audio,
             videoDecoderConfig: {
               codec: meta.decoderConfig!.codec,
@@ -433,6 +434,7 @@ async function encodeAvcInWorker(
           muxer = createAvcMuxer({
             width,
             height,
+            rotation: demuxed.rotation,
             hasAudio: !!audio,
             videoDecoderConfig: {
               codec: meta.decoderConfig!.codec,

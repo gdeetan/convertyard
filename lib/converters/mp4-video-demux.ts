@@ -11,6 +11,8 @@ export type DemuxedVideo = {
   description: Uint8Array
   width: number
   height: number
+  /** Clockwise display rotation from the tkhd matrix. 0 if identity/unknown. */
+  rotation: 0 | 90 | 180 | 270
   samples: DemuxSample[]
 }
 
@@ -73,6 +75,29 @@ function walk(data: Uint8Array, start: number, end: number, type: string): Box |
     }
   }
   return undefined
+}
+
+// tkhd holds the 3x3 display transform matrix. iOS records portrait video with
+// sensor-orientation (landscape) pixels + a 90° rotation matrix, so preserving
+// this into the output is what keeps mobile playback right-side-up.
+function parseTkhdRotation(data: Uint8Array, tkhd: Box): 0 | 90 | 180 | 270 {
+  const view = viewOf(data)
+  const version = data[tkhd.payloadStart]
+  // full-box header (4) + version-specific dates/id/duration + reserved(8) +
+  // layer(2) + alt_group(2) + volume(2) + reserved(2) = 16
+  const headerSkip = version === 1 ? 4 + 32 + 16 : 4 + 20 + 16
+  const matrixStart = tkhd.payloadStart + headerSkip
+  if (matrixStart + 24 > tkhd.payloadEnd) return 0
+  // Matrix entries a, b, c, d are 16.16 signed fixed-point. One = 0x00010000.
+  const a = view.getInt32(matrixStart + 0) / 65536
+  const b = view.getInt32(matrixStart + 4) / 65536
+  const c = view.getInt32(matrixStart + 12) / 65536
+  const d = view.getInt32(matrixStart + 16) / 65536
+  const near = (x: number, target: number) => Math.abs(x - target) < 0.01
+  if (near(a, 0) && near(b, 1) && near(c, -1) && near(d, 0)) return 90
+  if (near(a, -1) && near(b, 0) && near(c, 0) && near(d, -1)) return 180
+  if (near(a, 0) && near(b, -1) && near(c, 1) && near(d, 0)) return 270
+  return 0
 }
 
 function readU32Array(data: Uint8Array, offset: number, count: number): number[] {
@@ -237,6 +262,8 @@ export function demuxMp4Video(data: Uint8Array): DemuxedVideo | null {
     )
     if (handler !== 'vide') continue
 
+    const tkhd = walk(data, trak.payloadStart, trak.payloadEnd, 'tkhd')
+    const rotation = tkhd ? parseTkhdRotation(data, tkhd) : 0
     const mdhd = walk(data, trak.payloadStart, trak.payloadEnd, 'mdhd')
     const stsd = walk(data, trak.payloadStart, trak.payloadEnd, 'stsd')
     const stts = walk(data, trak.payloadStart, trak.payloadEnd, 'stts')
@@ -290,6 +317,7 @@ export function demuxMp4Video(data: Uint8Array): DemuxedVideo | null {
       description: parsed.description,
       width: parsed.width,
       height: parsed.height,
+      rotation,
       samples,
     }
   }

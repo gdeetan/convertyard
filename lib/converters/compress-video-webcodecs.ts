@@ -345,16 +345,28 @@ async function dispatchToWorker(
 // the playback path, which drops frames and produces sped-up output.
 async function spliceSourceAudio(videoOnly: File, source: File): Promise<File> {
   const { getCompressVideoFFmpeg, withFfmpegLock } = await import('./ffmpeg-client')
+  const { FFFSType } = await import('@ffmpeg/ffmpeg')
   return withFfmpegLock(async () => {
-    const { fetchFile } = await import('@ffmpeg/util')
     const ffmpeg = await getCompressVideoFFmpeg()
     const ts = Date.now()
     const vName = `spl_v_${ts}.mp4`
     const srcExt = source.name.match(/\.[^.]+$/)?.[0] ?? '.mp4'
-    const sName = `spl_s_${ts}${srcExt}`
+    const sBase = `spl_s_${ts}${srcExt}`
+    // WORKERFS mounts the source File directly instead of copying it into
+    // MEMFS via fetchFile+writeFile. On iOS Safari the MEMFS copy blows the
+    // ~1 GB WASM heap for source files ≳150 MB, surfacing as "FS error"
+    // after the worker path has already produced the video-only encode.
+    // Mirrors what compressVideo() does in ffmpeg.ts.
+    const mountPoint = `/mnt/spl_${ts}`
+    const sName = `${mountPoint}/${sBase}`
     const oName = `spl_o_${ts}.mp4`
     await ffmpeg.writeFile(vName, new Uint8Array(await videoOnly.arrayBuffer()))
-    await ffmpeg.writeFile(sName, await fetchFile(source))
+    await ffmpeg.createDir(mountPoint).catch(() => {})
+    await ffmpeg.mount(
+      FFFSType.WORKERFS,
+      { blobs: [{ name: sBase, data: source }] },
+      mountPoint,
+    )
     try {
       let code = await ffmpeg.exec([
         '-i', vName,
@@ -388,9 +400,12 @@ async function spliceSourceAudio(videoOnly: File, source: File): Promise<File> {
       const baseName = source.name.replace(/\.[^.]+$/, '')
       return new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
     } finally {
+      // WORKERFS is read-only, so deleteFile(sName) would fail — unmount +
+      // deleteDir is the correct cleanup for the mounted source.
+      await ffmpeg.unmount(mountPoint).catch(() => {})
+      await ffmpeg.deleteDir(mountPoint).catch(() => {})
       await Promise.all([
         ffmpeg.deleteFile(vName).catch(() => {}),
-        ffmpeg.deleteFile(sName).catch(() => {}),
         ffmpeg.deleteFile(oName).catch(() => {}),
       ])
     }
