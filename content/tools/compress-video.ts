@@ -122,6 +122,25 @@ export const config: ToolConfig = {
     },
   ],
 
+  howItWorks: [
+    {
+      label: 'Drop your files',
+      desc: 'Click to browse, or drop your files. For best results, process 1-5 files at a time.',
+    },
+    {
+      label: 'Choose settings',
+      desc: 'Adjust quality, format, and other options to match your needs.',
+    },
+    {
+      label: 'Click Convert',
+      desc: 'Files are processed in the browser. Nothing uploads. No risk of data breach.',
+    },
+    {
+      label: 'Download',
+      desc: 'Download files individually or grab all at once as a ZIP.',
+    },
+  ],
+
   faq: [
     {
       q: 'Can I compress multiple videos at once?',
