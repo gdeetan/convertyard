@@ -492,7 +492,11 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
       </div>
 
       {/* ── How this tool works ──────────────────────────────────────────── */}
-      <HowItWorks title={config.title} hasOptions={!!config.options?.length} />
+      <HowItWorks
+        title={config.title}
+        hasOptions={!!config.options?.length}
+        override={config.howItWorks}
+      />
 
       {/* ── FAQ, related tools, related articles (hidden when embedded) ─── */}
       {!embedded && (
@@ -690,13 +694,22 @@ function SizeTargetGrid({ slug }: { slug: string }) {
 
 // ── How it works mini-section ──────────────────────────────────────────────
 
-function HowItWorks({ title, hasOptions }: { title: string; hasOptions: boolean }) {
-  const steps = [
-    { n: '1', label: 'Drop your files', desc: 'Drag and drop, click to browse, or paste from clipboard. Up to 1,000 files at once.' },
-    ...(hasOptions ? [{ n: '2', label: 'Choose settings', desc: 'Adjust quality, format, and other options to match your needs.' }] : []),
-    { n: hasOptions ? '3' : '2', label: 'Click Convert', desc: `Everything runs in your browser via WebAssembly. ${title} happens locally — no server involved.` },
-    { n: hasOptions ? '4' : '3', label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+function HowItWorks({
+  title,
+  hasOptions,
+  override,
+}: {
+  title: string
+  hasOptions: boolean
+  override?: Array<{ label: string; desc: string }>
+}) {
+  const baseSteps = override ?? [
+    { label: 'Drop your files', desc: 'Drag and drop, click to browse, or paste from clipboard. Up to 1,000 files at once.' },
+    ...(hasOptions ? [{ label: 'Choose settings', desc: 'Adjust quality, format, and other options to match your needs.' }] : []),
+    { label: 'Click Convert', desc: `Everything runs in your browser via WebAssembly. ${title} happens locally — no server involved.` },
+    { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
   ]
+  const steps = baseSteps.map((s, i) => ({ n: String(i + 1), ...s }))
 
   return (
     <section className="mt-12" aria-labelledby="how-it-works-heading">

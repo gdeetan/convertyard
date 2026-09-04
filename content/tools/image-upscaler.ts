@@ -35,6 +35,25 @@ export const config: ToolConfig = {
     return null
   },
 
+  howItWorks: [
+    {
+      label: 'Drop your files',
+      desc: 'Drag or click to open your files in the upscaler. If you’re upscaling a large file, I’d recommend doing one or two per batch so it finishes faster.',
+    },
+    {
+      label: 'Choose settings',
+      desc: 'Adjust quality, format, and other options to match your needs.',
+    },
+    {
+      label: 'Click Convert',
+      desc: 'Images upscale in the browser through WebAssembly. Nothing is uploaded.',
+    },
+    {
+      label: 'Download',
+      desc: 'Download files individually or grab all at once as a ZIP.',
+    },
+  ],
+
   limitationNote: {
     summary: 'Sharper than a normal resize — not a desktop upscaler',
     body: 'On GPU browsers, photos at 4× run Real-ESRGAN general v3 (~5 MB). Illustrations, badges, and line art use RealESR AnimeVideo v3 (~2.5 MB). Other browsers use Swin2SR for photos and Lanczos for illustrations. 2× photos always use Swin2SR. It does not denoise, recover faces, or match desktop tools such as Topaz Photo AI. Graphic / logo mode is Lanczos resize plus light sharpen — no neural net. A 4× result cannot exceed 8,192 px on a side. A 1,000×13,000 infographic is shrunk before upscaling — export those from the design file, or split them into shorter sections.',
@@ -89,39 +108,39 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my images uploaded to run the upscaler?',
-      a: 'No. Files are upscaled in your browser. Nothing is sent to a server. GPU browsers download Real-ESRGAN v3 (~5 MB) for photos and AnimeVideo v3 (~2.5 MB) for illustrations; other browsers use Swin2SR for photos and Lanczos for illustrations. Models cache after the first load.',
+      a: 'No. Files are upscaled in your browser. Nothing is sent to a server. GPU browsers download Real-ESRGAN v3 (~5 MB) for photos and AnimeVideo v3 (~2.5 MB) for illustrations; other browsers use Swin2SR for photos and Lanczos for illustrations. Models are cached after the first load.',
     },
     {
-      q: 'What do Photo, Illustration, and Graphic actually do?',
-      a: 'Photo runs Real-ESRGAN v3 at 4× (Swin2SR at 2×, or as a fallback). Illustration runs RealESR AnimeVideo v3 — better for line art, badges, comics, and flat colour. Graphic / logo is Lanczos plus a light unsharp, with no neural net. Auto-detect sends few-colour / flat-patch files to Illustration; pick Graphic if the model halos type or a wordmark.',
+      q: 'What do the Photo, Illustration, and Graphic actually do?',
+      a: 'Photo: Runs Real-ESRGAN v3 at 4× resolution (Swin2SR 2× as a fallback). Illustration: Runs Real-ESR AnimeVideo v3 to better handle line art, badges, comics, etc. Graphic / logo: Lanczos resampling + a tiny amount of unsharp masking. Auto-detect: Sends few-color / flat-patch images to be handled by Illustration.',
     },
     {
       q: 'Is this better than a standard resize?',
-      a: 'On photographs and 2D art, usually yes at 2×–4×. A normal resize interpolates pixels and looks soft. The photo and illustration models reconstruct edges. They are not as sharp as desktop tools that use larger models, and they do not recover faces or strip noise first. Graphic / logo mode is a standard (Lanczos) resize.',
+      a: 'Short answer: yes. Standard upscaling will result in blurry images without the additional processing. An image upscaler reconstructs the edges. It won’t be as sharp as desktop tools that use larger models and don’t have face-recovery passes or noise-stripping.',
     },
     {
       q: 'How does this compare to Topaz or other desktop upscalers?',
-      a: 'It does not match them. Topaz Photo AI and Gigapixel run several full-precision models on your GPU — denoise, sharpen, face recovery, then upscale. This page runs Real-ESRGAN v3 (or Swin2SR at 2×) in the tab. Use it for private, free, batch enlargements of everyday photos. Use a desktop tool for portraits, noisy files, old scans, and print-critical work.',
+      a: 'Honestly, it won’t match Topaz or any desktop upscaler, but based on my testing, it does a decent job at upscaling images and graphics without stretching and blurring them. It does not match them. Topaz Photo AI and Gigapixel run several full-precision models on your GPU — denoise, sharpen, face recovery, then upscale. Run this tool on a desktop for the best results; the mobile version has a memory limit.',
     },
     {
       q: 'Which scale should I pick?',
-      a: '4× is the usual balance of quality and time. Use 2× for a small bump or a faster result. 3× runs the 4× model and then Lanczos-downsamples. Photo 8× runs Real-ESRGAN 4× then Swin2SR 2×. Illustration 8× runs AnimeVideo 4× then Lanczos — much slower, much larger files, and more likely to hit browser memory limits.',
+      a: 'The best balance would be the 4× option. If you need faster results, use the 2× mode. The 3× is slightly faster than the 4× and yields a similar result, since it uses the 4× model with Lanczos downsampling. The photo upscaler runs on Real-ESRGAN 4×. The illustration upscaler uses AnimeVideo 4×, then Lanczos, which is slower, creates larger files, and is likely to hit browser memory limits (especially on mobile).',
     },
     {
       q: 'What types of images produce poor results?',
-      a: 'Portraits (no face-recovery pass), noisy or low-light photos, old scans, and anything under about 50 px on a side. Illustration mode can halo tiny type on logos — switch to Graphic / logo if that happens. Very tall or wide sources (a 4× side over 8,192 px) are pre-shrunk to fit the browser canvas — the download can be smaller than the original.',
+      a: 'Typically portraits that have no recovery pass, noisy (or low-light) photographs, or old scanned pictures. Using the Illustration mode can result in a halo around logos. If that happens, switch to the graphic/logo option. Tall or wide photos or illustrations over 8,192 pixels are pre-shrunk to fit the browser canvas, resulting in a blurred output.',
     },
     {
       q: 'Can I upscale a long infographic or full-page screenshot?',
-      a: 'Not to a true 4× of the whole file. The browser cannot draw a bitmap larger than 8,192 px on a side, so at 4× the source must stay under about 2,048 px in its longest dimension. Taller files are shrunk first. Split the graphic into shorter sections, or export a larger raster from the original design (Canva, Figma, Illustrator).',
+      a: 'Depends on the infographic’s size. Anything larger than 8,192 pixels will be pre-shrunk. Use images under 2,048 pixels for the best results.',
     },
     {
       q: 'What scale should I use for printing?',
-      a: 'A 500×500 px image at 4× becomes 2000×2000 px — about 6×6 inches at 300 DPI. That is fine for a small print if the source is already clean. 8× makes the pixels; it does not invent Topaz-level detail. File sizes land in the tens of megabytes.',
+      a: 'A 500 × 500-pixel image upscaled at 4× becomes 2,000 × 2,000 pixels, or around 6 × 6 inches at 300 DPI, which is good enough for a small print. This upscaler will not produce Topaz-level outputs, but I try to max out the output to get as close as possible. Let me know what your results are by emailing me at hello@convertyard.com; I’d love to hear from you.',
     },
     {
       q: 'How many files can I process at once?',
-      a: 'The dropzone accepts up to 1,000 files. They run one at a time. For this tool, keep batches closer to 20–50 — each photo is a heavy GPU/CPU job. If a file fails, try it alone or drop to 2×.',
+      a: 'Technically, you can do up to 1,000 files. But for the best results, and to reduce waiting time, do a batch of 10 images per to see how it comes out.',
     },
   ],
 

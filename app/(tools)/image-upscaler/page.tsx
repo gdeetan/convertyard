@@ -9,7 +9,7 @@ import type { ToolOptions } from '@/lib/types'
 
 function UpscalerImportantNote() {
   return (
-    <details className="group mx-auto max-w-3xl px-4 pt-4 sm:px-6">
+    <details className="group">
       <summary className="flex cursor-pointer list-none items-center gap-2 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm font-medium text-fg transition hover:bg-warning/15">
         <AlertTriangle
           className="h-4 w-4 shrink-0 text-warning"
@@ -155,7 +155,6 @@ function ImageUpscalerPage() {
 
   return (
     <>
-      <UpscalerImportantNote />
       {(modelState !== 'ready' || activeDevice) && (
         <div className="mx-auto max-w-3xl px-4 pt-6 sm:px-6">
           <div className="flex items-center gap-3 rounded-xl border border-border bg-bg-elevated px-4 py-3 text-sm text-fg-muted">
@@ -187,7 +186,7 @@ function ImageUpscalerPage() {
           </div>
         </div>
       )}
-      <ToolShell config={configWithPreview} />
+      <ToolShell config={configWithPreview} notice={<UpscalerImportantNote />} />
     </>
   )
 }

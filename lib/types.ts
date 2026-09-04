@@ -178,6 +178,9 @@ export interface ToolConfig {
     summary: string
     body: string
   }
+  // Per-tool override for the shared "How it works" steps. Numbering is
+  // computed automatically. Leave undefined to use the shell defaults.
+  howItWorks?: Array<{ label: string; desc: string }>
   warningFn?: (files: File[]) => string | null
   previewPanel?: React.ComponentType<{
     files: File[]
