@@ -8,19 +8,15 @@ export const config: SizeTargetConfig = {
   h1: 'Compress Video to 1 GB',
   subhead: 'Near-lossless compression for 4K recordings and long-form professional footage.',
   intro:
-    "1 GB is the threshold for near-lossless H.264 compression of long 4K recordings. At this size, multiple hours of 1080p or 30–60 minutes of 4K footage can be stored with no perceptible quality difference from the uncompressed original. 1 GB is a common ceiling for broadcast media ingest pipelines that accept H.264 proxies, many cloud storage sync tools, and high-quality video archive workflows where storage space still matters.",
+    'Content creators who want a near-lossless H.264 output for long 4K videos should choose the 1 GB option. At this size, multiple hours of 1080p or 30–60 minutes of 4K footage can be stored with no perceptible loss of quality compared to the uncompressed original. This threshold is what most broadcast media uses (H.264) to store high-quality video without compromising storage capacity. Note: the current version of the video compressor has a file size limit of 2 GB, and we are continually searching for ways to raise this limit.',
   useCases: [
     {
       label: 'Long 4K recordings at near-lossless quality',
-      description: '30–60 minutes of 4K drone footage, documentary recordings, or conference video compresses to under 1 GB at CRF 18–20 with negligible quality loss.',
-    },
-    {
-      label: 'Proxy files for editing workflows',
-      description: 'Editors working with 50–200 GB RAW camera files create 1 GB proxy files for smooth editing, then link back to originals for final export.',
+      description: 'A one-gigabyte compressed video file is equivalent to 30 to 60 minutes of 4K drone footage, webinar recording, and documentary videos.',
     },
     {
       label: 'Broadcast-ready H.264 deliverables',
-      description: 'Broadcasters and streaming platforms often require H.264 MP4 deliverables under specific file size thresholds. 1 GB covers most 30-minute programmes.',
+      description: 'Broadcasters and streaming platforms often require H.264 MP4 deliverables that meet specific file-size thresholds. 1 GB covers most 30-minute programs.',
     },
   ],
   specificFaq: [

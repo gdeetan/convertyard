@@ -8,19 +8,19 @@ export const config: SizeTargetConfig = {
   h1: 'Compress Video to 200 MB',
   subhead: 'Long 1080p clips that still transfer fast. Covers WeTransfer and most file-sharing tools.',
   intro:
-    "WeTransfer's free tier allows up to 2 GB per transfer, but files under 200 MB upload and download noticeably faster on typical home connections. At 200 MB you can archive 20–30 minute 1080p recordings while keeping quality high enough for professional review — well above the visible quality threshold for screen viewing.",
+    "WeTransfer's free tier has a 2-gigabyte transfer limit. Files under 200 MB will upload and download faster over a standard home internet connection. A 200 MB file can save a 20- to 30-minute 1080p video without sacrificing quality.",
   useCases: [
     {
       label: 'WeTransfer free-tier file transfers',
-      description: 'WeTransfer free allows up to 2 GB per transfer. Individual video files under 200 MB upload and download faster and are less likely to hit timeout issues on slow connections.',
+      description: 'WeTransfer free allows up to 2 GB per transfer. As noted above, videos under 200 MB upload and download faster and are less likely to experience timeouts, even on slow connections.',
     },
     {
       label: 'Long interview or meeting recordings',
-      description: 'A 1-hour interview or recorded meeting at 1080p compresses to 150–200 MB — small enough to email or share via most cloud links without storage penalties.',
+      description: 'Compress a 1-hour podcast or live stream at 1080p and upload it on most cloud services without paying for extra storage.',
     },
     {
       label: 'Long-form tutorial recordings for review',
-      description: '20–30 minute 1080p tutorial recordings or product walkthroughs for client review fit at 200 MB with good quality retention.',
+      description: 'Send long-form, 20- to 30-minute product reviews in 1080p for client review without compromising on video quality, at 200 MB.',
     },
   ],
   specificFaq: [

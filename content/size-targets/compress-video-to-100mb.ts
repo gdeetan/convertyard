@@ -8,15 +8,15 @@ export const config: SizeTargetConfig = {
   h1: 'Compress Video to 100 MB',
   subhead: 'Hit Discord Nitro Basic and most LMS upload limits. Full 1080p quality at 100 MB.',
   intro:
-    "100 MB covers Discord Nitro Basic (100 MB) and most learning management systems — Canvas, Moodle, and Blackboard typically cap course video uploads at 100–250 MB. At 100 MB you can maintain 1080p quality for clips up to 10 minutes, making this the sweet spot for course content, tutorial recordings, and professional demo videos.",
+    '100 MB is equal to the size of Discord Nitro Basic (100 MB) and will cover most learning management systems such as Canvas, Moodle, and Blackboard, which usually set a limit of 100–250 MB for course video uploads. Typically, users can save 10-minute video clips at 1080p, good for basic tutorial videos for content creators.',
   useCases: [
     {
       label: 'Discord Nitro Basic uploads (100 MB cap)',
-      description: 'Discord Nitro Basic raises the file upload limit from 25 MB to 100 MB. Gaming clips, highlight reels, and event recordings fit at 1080p.',
+      description: 'A Discord Nitro Basic user gets an upload limit of 100 MB. That means you can upload your gaming clips, highlights, and other event videos up to 1080p.',
     },
     {
       label: 'Canvas / Moodle course video uploads',
-      description: 'University and corporate LMS platforms often cap course video uploads at 100–250 MB. Lecture recordings and tutorial videos compress well at this target.',
+      description: 'University and corporate LMS platforms typically set a file size limit of 100–250 MB for course videos. Lectures and tutorial videos typically compress well to this size target.',
     },
     {
       label: 'Tutorial and how-to video masters',

@@ -8,23 +8,23 @@ export const config: SizeTargetConfig = {
   h1: 'Compress Video to 10 MB',
   subhead: 'Hit the WhatsApp and Telegram share limit. Drop the file, click compress.',
   intro:
-    'WhatsApp and Telegram cap video shares at 16 MB and 50 MB respectively, but most recipients have data limits that make smaller files load faster. 10 MB is the practical ceiling for a video you want to share instantly without buffering — it loads on 3G in under 10 seconds. Short clips (under 2 minutes), talking-head recordings, and screen captures compress well to 10 MB at 720p or lower.',
+    'When sending a video via WhatsApp, Telegram, by email, or even as a social media story, it is best to keep the original file size as low as possible. The maximum sizes for video shares on WhatsApp and Telegram are 16 MB and 50 MB, respectively, but these limits are often lower than most people’s data caps. In reality, 10 MB or even lower is far better, as videos of this size will download in under 10 seconds on a 3G connection. Short clips (under 2 minutes), talking-head videos, and screen recordings all compress well to about 10 MB at 720p or lower.',
   useCases: [
     {
       label: 'WhatsApp video shares',
-      description: 'WhatsApp compresses video you share anyway — sending a pre-compressed file avoids double-compression artifacts and ensures faster delivery.',
+      description: 'WhatsApp already compresses videos that users share. Therefore, to avoid artifacts from double compression, it is better to send the video in a pre-compressed format.',
     },
     {
       label: 'Telegram direct messages',
-      description: 'Short clips sent directly in Telegram chat load instantly on mobile when kept under 10 MB.',
+      description: 'Short video clips sent to individuals via Telegram chat are instantly delivered to mobile recipients when kept under 10 MB.',
     },
     {
       label: 'Email video attachments',
-      description: 'Most email providers accept up to 10–25 MB. A 10 MB video opens without an external link.',
+      description: 'Most email clients allow files up to 10–25 MB to be opened directly from the email without clicking a link to view the video online.',
     },
     {
       label: 'Social media story uploads',
-      description: 'Instagram, Facebook, and TikTok stories load faster and get better reach when the source file is already compressed before upload.',
+      description: 'Videos loaded as compressed files will also perform better in stories on Instagram, Facebook and TikTok and even get more views.',
     },
   ],
   specificFaq: [
