@@ -284,9 +284,12 @@ async function encodeHevcInWorker(
       }))
       await drain()
     }
-    await runWithTicks(withTimeout(decoder.flush(), 30_000, 'hevc: decoder.flush()'), 82, 86, onProgress)
+    // 8s matches the main-thread playback watchdog. Android WebCodecs commonly
+    // leaves flush() pending forever after a silent driver hang — 30s here left
+    // the UI frozen at ~85% for half a minute before fallback engaged.
+    await runWithTicks(withTimeout(decoder.flush(), 8_000, 'hevc: decoder.flush()'), 82, 86, onProgress)
     await drain()
-    await runWithTicks(withTimeout(encoder.flush(), 30_000, 'hevc: encoder.flush()'), 86, 90, onProgress)
+    await runWithTicks(withTimeout(encoder.flush(), 8_000, 'hevc: encoder.flush()'), 86, 90, onProgress)
     if (encodeError || decodeError || muxError) throw encodeError ?? decodeError ?? muxError
     if (!muxer) return null
 
@@ -508,9 +511,10 @@ async function encodeAvcInWorker(
       }))
       await drain()
     }
-    await runWithTicks(withTimeout(decoder.flush(), 30_000, 'avc: decoder.flush()'), 82, 86, onProgress)
+    // See HEVC path: 8s so wedged Android WebCodecs falls back promptly.
+    await runWithTicks(withTimeout(decoder.flush(), 8_000, 'avc: decoder.flush()'), 82, 86, onProgress)
     await drain()
-    await runWithTicks(withTimeout(encoder.flush(), 30_000, 'avc: encoder.flush()'), 86, 90, onProgress)
+    await runWithTicks(withTimeout(encoder.flush(), 8_000, 'avc: encoder.flush()'), 86, 90, onProgress)
     if (encodeError || decodeError || muxError) throw encodeError ?? decodeError ?? muxError
     const finalMuxer = muxer as MuxerHandle | null
     if (!finalMuxer) return null

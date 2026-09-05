@@ -1206,15 +1206,40 @@ export async function compressVideo(
       // copy into MEMFS. Peak memory drops from ~4× to ~1–2× file size, which
       // lets iOS Safari handle inputs up to ~500MB without the tab kill.
       const mountPoint = `/mnt/cv_${i}_${ts}`
-      const inputName  = `${mountPoint}/${inputBase}`
+      const workerfsInputName = `${mountPoint}/${inputBase}`
+      const memfsInputName = `cv_memin_${i}_${ts}.${ext}`
       const outputName = `cv_out_${i}_${ts}.mp4`
 
-      await ffmpeg.createDir(mountPoint).catch(() => {})
-      await ffmpeg.mount(
-        FFFSType.WORKERFS,
-        { blobs: [{ name: inputBase, data: file }] },
-        mountPoint,
-      )
+      // WORKERFS requires the ffmpeg core to be loaded inside a Web Worker.
+      // On Android Chrome the core sometimes loads on the main thread and
+      // mount() throws "ErrnoError: FS error" — which used to propagate up as
+      // the generic "can't finalize" message. Fall back to a MEMFS copy in
+      // that case: peak memory doubles vs WORKERFS, but for the mobile size
+      // ceiling (bounded above by the 500MB hard-block) it stays workable.
+      let mounted = false
+      let wroteMemfs = false
+      let inputName = workerfsInputName
+      try {
+        await ffmpeg.createDir(mountPoint).catch(() => {})
+        await ffmpeg.mount(
+          FFFSType.WORKERFS,
+          { blobs: [{ name: inputBase, data: file }] },
+          mountPoint,
+        )
+        mounted = true
+      } catch (workerfsErr) {
+        console.warn('[compress-video] WORKERFS mount failed — copying source to MEMFS', workerfsErr)
+        try {
+          await ffmpeg.writeFile(memfsInputName, await fetchFile(file))
+          wroteMemfs = true
+          inputName = memfsInputName
+        } catch (memfsErr) {
+          console.warn('[compress-video] MEMFS fallback also failed', memfsErr)
+          throw new Error(
+            'This device cannot process the file in the browser (mobile memory limits). Try a smaller file, a shorter clip, or a desktop browser.',
+          )
+        }
+      }
       onProgress?.(i, 10)
 
       let data: Uint8Array<ArrayBuffer> | undefined
@@ -1406,10 +1431,16 @@ export async function compressVideo(
       const baseName = file.name.replace(/\.[^.]+$/, '')
       return new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
       } finally {
-        // Unmount always — WORKERFS is read-only so deleteFile(inputName)
-        // would fail; unmount is the correct cleanup for the mounted source.
-        await ffmpeg.unmount(mountPoint).catch(() => {})
-        await ffmpeg.deleteDir(mountPoint).catch(() => {})
+        // WORKERFS is read-only so deleteFile on a mounted path would fail;
+        // unmount + deleteDir is the correct cleanup for the mount. MEMFS
+        // fallback uses a plain writeFile'd path, so deleteFile applies there.
+        if (mounted) {
+          await ffmpeg.unmount(mountPoint).catch(() => {})
+          await ffmpeg.deleteDir(mountPoint).catch(() => {})
+        }
+        if (wroteMemfs) {
+          await ffmpeg.deleteFile(memfsInputName).catch(() => {})
+        }
       }
       })
     } catch (err) {

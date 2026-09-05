@@ -624,9 +624,13 @@ export async function tryCompressVideoHevcHardware(
   if (!canAttemptHevcWebCodecs()) return null
 
   // The fast path posts progress up to ~90%, then may bail; the playback path
-  // then restarts at ~12%. Clamp monotonically so the UI bar never regresses.
+  // then restarts at ~12%. Clamp monotonically WITHIN a single path so the bar
+  // doesn't jitter, but reset between paths — otherwise a stalled fast-path
+  // flush leaves lastPct at ~85 and the playback path's 12→82 emissions get
+  // swallowed, freezing the visible bar for the entire fallback.
   const originalOnProgress = opts.onProgress
   let lastPct = 0
+  const resetProgressClamp = () => { lastPct = 0 }
   opts = {
     ...opts,
     onProgress: (pct: number) => {
@@ -649,6 +653,9 @@ export async function tryCompressVideoHevcHardware(
   } catch {
     /* fall through to the playback path */
   }
+  // Fast path returned null or threw — release the clamp so playback-path
+  // progress renders instead of leaving the bar visually frozen at 85.
+  resetProgressClamp()
 
   const url = URL.createObjectURL(file)
   const video = document.createElement('video')
@@ -916,8 +923,11 @@ export async function tryCompressVideoAvcHardware(
     return null
   }
 
+  // See HEVC version: monotonic clamp within a path, reset between paths so
+  // playback-path progress isn't swallowed after a stalled fast-path flush.
   const originalOnProgress = opts.onProgress
   let lastPct = 0
+  const resetProgressClamp = () => { lastPct = 0 }
   opts = {
     ...opts,
     onProgress: (pct: number) => {
@@ -941,6 +951,7 @@ export async function tryCompressVideoAvcHardware(
   } catch (err) {
     console.warn('[compress-video] AVC VideoDecoder path threw — trying playback path', err)
   }
+  resetProgressClamp()
 
   const url = URL.createObjectURL(file)
   const video = document.createElement('video')
