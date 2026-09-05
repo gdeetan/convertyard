@@ -1210,33 +1210,41 @@ export async function compressVideo(
       const memfsInputName = `cv_memin_${i}_${ts}.${ext}`
       const outputName = `cv_out_${i}_${ts}.mp4`
 
-      // WORKERFS zero-copies the source File into MEMFS — great memory win
-      // on desktop. But on Android Chrome the WORKERFS mount frequently
-      // throws ErrnoError, AND some builds leave the internal FS state
-      // corrupted after the failed mount so subsequent MEMFS writes also
-      // fail. Skip WORKERFS on mobile entirely: the 500MB hard-block and
-      // the resolution cap keep MEMFS writes within the wasm heap budget.
+      // WORKERFS streams the source File into ffmpeg's FS without an
+      // arrayBuffer read — crucial on Android, where files picked from
+      // Google Photos / cloud storage often have revoked read access and
+      // arrayBuffer() throws "File could not be read! Code=-1". Try
+      // WORKERFS first on every platform; only fall back to MEMFS if the
+      // mount itself throws.
       let mounted = false
       let wroteMemfs = false
       let inputName = workerfsInputName
-      if (isMobileBrowser()) {
-        await ffmpeg.writeFile(memfsInputName, await fetchFile(file))
-        wroteMemfs = true
-        inputName = memfsInputName
-      } else {
+      try {
+        await ffmpeg.createDir(mountPoint).catch(() => {})
+        await ffmpeg.mount(
+          FFFSType.WORKERFS,
+          { blobs: [{ name: inputBase, data: file }] },
+          mountPoint,
+        )
+        mounted = true
+      } catch (workerfsErr) {
+        console.warn('[compress-video] WORKERFS mount failed — copying source to MEMFS', workerfsErr)
         try {
-          await ffmpeg.createDir(mountPoint).catch(() => {})
-          await ffmpeg.mount(
-            FFFSType.WORKERFS,
-            { blobs: [{ name: inputBase, data: file }] },
-            mountPoint,
-          )
-          mounted = true
-        } catch (workerfsErr) {
-          console.warn('[compress-video] WORKERFS mount failed — copying source to MEMFS', workerfsErr)
           await ffmpeg.writeFile(memfsInputName, await fetchFile(file))
           wroteMemfs = true
           inputName = memfsInputName
+        } catch (memfsErr) {
+          const msg = memfsErr instanceof Error ? memfsErr.message : String(memfsErr)
+          // DOMException "File could not be read! Code=-1" means the browser
+          // revoked read access to the picked file (common with Google Photos
+          // / cloud storage URIs on Android). Surface an actionable message
+          // instead of the raw browser error.
+          if (/could not be read|permission/i.test(msg)) {
+            throw new Error(
+              'Could not read this file — Android may have revoked access. Move the file to Downloads or re-select it from Files, then try again.',
+            )
+          }
+          throw memfsErr
         }
       }
       onProgress?.(i, 10)
