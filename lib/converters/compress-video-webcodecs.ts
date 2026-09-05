@@ -40,14 +40,20 @@ const HEVC_CODECS = [
 
 
 // H.264 profile.level strings, ordered widest-compat → highest.
-// Baseline 3.1 → Main 3.1 → High 4.0 → High 4.1. Encoder picks the first
-// its hardware backend accepts for the given resolution/fps.
+// Baseline 3.1 → Main 3.1 → High 4.0 → High 4.1 → Baseline 4.0 →
+// High 5.0 → High 5.1 → High 5.2. Levels 5.x are required for 4K
+// (Level 4.1 tops out at 1080p60 / 2K@30) — without them a 4K
+// "Original resolution" pick fails `isConfigSupported` on strict
+// backends (Safari) and falls to libx264/wasm, which OOMs mid-encode.
 const AVC_CODECS = [
   'avc1.42E01F',
   'avc1.4D401F',
   'avc1.640028',
   'avc1.640029',
   'avc1.42E028',
+  'avc1.640032',
+  'avc1.640033',
+  'avc1.640034',
 ]
 
 const HEVC_BPP: Record<string, number> = {
