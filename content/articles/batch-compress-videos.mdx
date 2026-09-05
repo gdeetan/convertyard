@@ -80,6 +80,13 @@ The amount of compression will depend on what resolution you select. Going from 
 
 ## What will actually stop a batch?
 
+<img
+  src="/articles/batch-compress-videos/batch-video-compressor.webp"
+  alt="ConvertYard batch video compressor interface with multiple files queued"
+  className="my-6 w-[110%] max-w-none md:-ml-[5%] rounded-xl border border-border"
+  loading="lazy"
+/>
+
 The number of files isn't the limit; the processor is.
 
 - **Memory.** A 4K file stored in the WASM heap can crash the entire tab. Large files must be split before you compress them in a desktop session.
