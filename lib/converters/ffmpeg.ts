@@ -22,6 +22,43 @@ function isMobileBrowser(): boolean {
   return navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent)
 }
 
+// Copy an Android/iOS content:// File into a JS-owned Blob so its bytes
+// survive any later permission revocation. Tries arrayBuffer() first, then
+// falls back to streaming — some Android builds fail one but not the other.
+// Only invoked from the video compressor's processOne; other tools that
+// only need one read up-front don't hit the revocation window.
+async function materializeFile(file: File): Promise<File> {
+  const alreadyMaterialized = (file as unknown as { __materialized?: boolean }).__materialized
+  if (alreadyMaterialized) return file
+  const errors: string[] = []
+  try {
+    const buf = await file.arrayBuffer()
+    const out = new File([buf], file.name, { type: file.type, lastModified: file.lastModified })
+    ;(out as unknown as { __materialized: boolean }).__materialized = true
+    return out
+  } catch (err) {
+    errors.push(err instanceof Error ? err.message : String(err))
+  }
+  try {
+    const reader = file.stream().getReader()
+    const chunks: BlobPart[] = []
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) chunks.push(value as unknown as BlobPart)
+    }
+    const out = new File(chunks, file.name, { type: file.type, lastModified: file.lastModified })
+    ;(out as unknown as { __materialized: boolean }).__materialized = true
+    return out
+  } catch (err) {
+    errors.push(err instanceof Error ? err.message : String(err))
+  }
+  console.warn('[compress-video] materialize failed:', errors.join(' | '))
+  throw new Error(
+    'Could not read this file. Android often revokes access to videos shared from apps like Viber, WhatsApp, or Google Photos. Save the video to your Downloads folder first, then upload it from there.',
+  )
+}
+
 // Wrap ffmpeg.exec with a rolling log tail so a non-zero exit surfaces the real
 // reason (OOM, invalid data, etc.) instead of the useless "FS error" that
 // bubbles up when the caller then tries to readFile() a missing output.
@@ -1126,7 +1163,7 @@ export async function compressVideo(
   const processOne = async (i: number): Promise<ConversionResult> => {
     onProgress?.(i, 5)
     try {
-      const file   = files[i]
+      let file = files[i]
       // iOS Safari kills tabs around ~1GB resident. The wasm compressVideo
       // path now mounts the source via WORKERFS (no JS/MEMFS copy), which
       // roughly halves peak memory vs the old fetchFile+writeFile flow.
@@ -1134,6 +1171,16 @@ export async function compressVideo(
       // iOS over the edge.
       if (isMobileBrowser() && file.size > 500 * 1024 * 1024) {
         return new Error('This file is too large for mobile browsers (over 500 MB may crash the tab). Please use a desktop browser for large videos.')
+      }
+      // Android shared files (Viber/WhatsApp/Google Photos come through as
+      // content:// URIs) can have their read permission revoked between the
+      // pick and any later read. Materialize the bytes into a JS-owned Blob
+      // up front so WORKERFS mount, arrayBuffer(), and <video> src all read
+      // from memory instead of the fragile content resolver.
+      try {
+        file = await materializeFile(file)
+      } catch (err) {
+        return err instanceof Error ? err : new Error(String(err))
       }
       const hasVideoTrack = await probeVideoTrack(file)
       if (hasVideoTrack === false) {
