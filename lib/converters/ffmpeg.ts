@@ -1210,34 +1210,33 @@ export async function compressVideo(
       const memfsInputName = `cv_memin_${i}_${ts}.${ext}`
       const outputName = `cv_out_${i}_${ts}.mp4`
 
-      // WORKERFS requires the ffmpeg core to be loaded inside a Web Worker.
-      // On Android Chrome the core sometimes loads on the main thread and
-      // mount() throws "ErrnoError: FS error" — which used to propagate up as
-      // the generic "can't finalize" message. Fall back to a MEMFS copy in
-      // that case: peak memory doubles vs WORKERFS, but for the mobile size
-      // ceiling (bounded above by the 500MB hard-block) it stays workable.
+      // WORKERFS zero-copies the source File into MEMFS — great memory win
+      // on desktop. But on Android Chrome the WORKERFS mount frequently
+      // throws ErrnoError, AND some builds leave the internal FS state
+      // corrupted after the failed mount so subsequent MEMFS writes also
+      // fail. Skip WORKERFS on mobile entirely: the 500MB hard-block and
+      // the resolution cap keep MEMFS writes within the wasm heap budget.
       let mounted = false
       let wroteMemfs = false
       let inputName = workerfsInputName
-      try {
-        await ffmpeg.createDir(mountPoint).catch(() => {})
-        await ffmpeg.mount(
-          FFFSType.WORKERFS,
-          { blobs: [{ name: inputBase, data: file }] },
-          mountPoint,
-        )
-        mounted = true
-      } catch (workerfsErr) {
-        console.warn('[compress-video] WORKERFS mount failed — copying source to MEMFS', workerfsErr)
+      if (isMobileBrowser()) {
+        await ffmpeg.writeFile(memfsInputName, await fetchFile(file))
+        wroteMemfs = true
+        inputName = memfsInputName
+      } else {
         try {
+          await ffmpeg.createDir(mountPoint).catch(() => {})
+          await ffmpeg.mount(
+            FFFSType.WORKERFS,
+            { blobs: [{ name: inputBase, data: file }] },
+            mountPoint,
+          )
+          mounted = true
+        } catch (workerfsErr) {
+          console.warn('[compress-video] WORKERFS mount failed — copying source to MEMFS', workerfsErr)
           await ffmpeg.writeFile(memfsInputName, await fetchFile(file))
           wroteMemfs = true
           inputName = memfsInputName
-        } catch (memfsErr) {
-          console.warn('[compress-video] MEMFS fallback also failed', memfsErr)
-          throw new Error(
-            'This device cannot process the file in the browser (mobile memory limits). Try a smaller file, a shorter clip, or a desktop browser.',
-          )
         }
       }
       onProgress?.(i, 10)
