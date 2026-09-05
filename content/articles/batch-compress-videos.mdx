@@ -76,19 +76,21 @@ If half the files need High + 720p and the other half need Medium at original si
 | Mixed old hardware | H.264, Medium, 720p. |
 | Only recent iPhones / Androids | H.265 on, Medium. |
 
-Sport and games shrink less than slides and talking heads. If the folder is half screen recordings and half a soccer match, split it. See [H.264 vs H.265](/blog/h264-vs-h265-video-compression/) if the codec is the open question.
+The amount of compression will depend on what resolution you select. Going from 4K to 1080p will probably have the biggest size decrease, up to 90% based on my tests. So a 5 GB file will shrink to around 190 MB. Another factor is choosing between the older H.264 and the newer H.265 for devices (post-2016). The H.265 format offers better compression without degrading video quality. If you're sending clips to your editor who uses a newer device, this format can further reduce file size.
 
-## What will actually stop a batch
+## What will actually stop a batch?
 
-There is no product file-count limit. The machine is the limit.
+The number of files isn't the limit; the processor is.
 
-- **Memory.** A 4K file in a WASM heap can kill the tab. Split huge files onto a desktop session.
-- **Time.** Ten 3-minute clips is roughly ten times one clip. Start it when you can leave the machine alone.
-- **Phones.** Fine for one or two small files. Not a field batch station.
-- **Sleep / closed tab.** In-progress work is gone. Files you already downloaded are safe. This is not a cloud job you can resume.
-- **A bad file.** No video track → that row fails, the rest continue.
+- **Memory.** A 4K file stored in the WASM heap can crash the entire tab. Large files must be split before you compress them in a desktop session.
+- **Time.** Ten 3-minute clips will be roughly 10 times as long as one single clip, so schedule that for late at night when you can leave the thing alone.
+- **Phones.** Fine for a single small file, but not for a field batch station of work.
+- **Sleep / closed tab.** Any work not saved will be lost. However, files you've already downloaded are safe, even though you couldn't play them. This is NOT a cloud-based job that you can resume later.
+- **A bad file.** One uncompressed file won't cause the entire batch to fail, since the tool will show the download link for the compressed files even if the batch isn't finished.
 
-A hundred long files overnight: HandBrake’s queue or desktop ffmpeg. The browser tool is for the folder on the computer in front of you, today, without installing anything.
+If you need to compress 100 files, use HandBrake or do a batch of 20 on the ConvertYard desktop video compressor.
+
+Remember that the browser tool is simply for processing the folder on the user's local computer. No installing of any additional software today!
 
 How the file stays local is covered in [Compress video without uploading](/blog/compress-video-without-uploading/).
 
