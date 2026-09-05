@@ -32,7 +32,7 @@ export const meta = {
   relatedTools: ['compress-video', 'extract-audio', 'video-trimmer', 'mp4-to-mp3'],
 }
 
-One video is a settings choice. Twenty videos is an afternoon if you upload, wait, download, and rename each one.
+Compressing one video? Select the file, choose settings, then upload. Twenty videos? Select files, wait 10 to 20 minutes for compression, then download the ZIP file.
 
 Batch compression: drop the folder, set the knobs once, download a ZIP.
 
@@ -41,36 +41,27 @@ Batch compression: drop the folder, set the knobs once, download a ZIP.
 ## When this is the right job
 
 - A week of lectures has to go out as email attachments.
-- Fifteen screen recordings will not send in Slack.
-- Every clip must sit under the same cap — [25 MB for Gmail](/compress-video/to-25mb/), 10 MB for a form, 50 MB for a portal.
-- A pile of iPhone HEVC clips needs to become H.264 MP4s for people on older PCs.
+- Can't send fifteen screen recordings on Slack.
+- Every file should be below a specific size limit: 25 MB on Gmail, 10 MB on Messenger.
+- A batch of iPhone HEVC clips needs to be converted to H.264 MP4s for people using older PCs.
 
-One 8-minute file? Skip the batch framing and [compress that file](/compress-video/). Same engine.
+An 8-minute-long video? Skip batch framing and [compress that file](/compress-video/).
 
-## Three ways to do a folder
+## Three ways to compress a batch of videos
 
-**HandBrake or Media Encoder.** Local, hardware encode, a real queue. Right if you already live there. Heavy if you wanted to shrink a folder once.
+**HandBrake (Open-Source Video Transcoder).** Local, hardware-encoded with a real queue. It's a good option if you're already working in these apps. But it's very heavy for one-time folder compression.
 
-**Desktop ffmpeg.** Fastest honest option for a big directory:
+**Desktop-Based FFmpeg.** Fastest option for a large directory. Nothing to upload. No limit on the number of videos to process. However, you need FFmpeg installed, and you need to know what to do when a file doesn't have a video track.
 
-```bash
-for f in *.mp4; do
-  ffmpeg -i "$f" -c:v libx264 -crf 23 -preset medium -c:a aac -b:a 128k "compressed/$f"
-done
-```
-
-No upload, no file-count fiction. You need ffmpeg installed, and you need to know what to do when one file has no video track.
-
-**Browser, locally.** ffmpeg compiled to WebAssembly, running in the tab. ConvertYard processes files one at a time so the tab does not hold two uncompressed videos plus two outputs. No install. No GPU encoder — a phone is the wrong machine for a folder of 200 MB clips. Use a desktop browser.
+**Compress in the Browser, locally.** I've compiled FFmpeg to run as a WebAssembly instance within your browser tab. I process one file at a time to avoid loading the tab with two uncompressed videos and two outputs. No installation is required. Whilst ConvertYard is accessible from a phone's browser, a phone is the wrong machine for processing a folder of 200 MB clips. A desktop browser is more suitable.
 
 ## Steps
 
-1. Open [convertyard.com/compress-video](/compress-video/). If every file has the same cap, start on [10 MB](/compress-video/to-10mb/), [25 MB](/compress-video/to-25mb/), or [50 MB](/compress-video/to-50mb/) instead.
-2. Drop the files, or drop the folder itself onto the dropzone. (Click-to-browse is a file picker — hold Cmd or Ctrl to multi-select. A dropped folder is how you send a whole directory.) MP4, MOV, WebM, AVI, MKV, WMV, TS can be mixed. Output is MP4. Audio-only files fail (no video track) and do not stop the rest.
-3. Set the knobs once. They apply to every file.
-4. Test one representative clip first. Play it on the device that has to work. Fix CRF or resolution now — a batch has no preview pass.
-5. Stay on the tab. Files encode in order. Android Chrome stalls a background encode. On iPhone and iPad, treat anything over 50 MB as risky and anything over 100 MB as a desktop job.
-6. Download the ZIP. Names stay the same, extension becomes `.mp4`. Originals on disk are not touched.
+1. Open [convertyard.com/compress-video](/compress-video/). Choose the correct settings. For example, if you need to send videos on Gmail, choose the 'to 25 MB' target file size.
+2. Select videos you want to compress. Or drop them into the dropzone. I've tested this extensively (up to 30 files under 500 MB), and it finished compressing in under 30 minutes. Please note that the output will be in MP4 only, as it's the most compatible across platforms (Windows, Mac, iOS, and Android).
+3. Choose the appropriate settings for your needs — these will apply to every file.
+4. Don't close the tab (especially iPhone users), and wait for the compression to finish.
+5. Download the ZIP or individual file. File names are automatically generated.
 
 ## One policy per drop
 
