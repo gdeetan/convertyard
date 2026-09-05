@@ -620,20 +620,22 @@ export async function tryCompressVideoHevcHardware(
 ): Promise<File | null> {
   if (!canAttemptHevcWebCodecs()) return null
 
-  // The fast path posts progress up to ~90%, then may bail; the playback path
-  // then restarts at ~12%. Clamp monotonically WITHIN a single path so the bar
-  // doesn't jitter, but reset between paths — otherwise a stalled fast-path
-  // flush leaves lastPct at ~85 and the playback path's 12→82 emissions get
-  // swallowed, freezing the visible bar for the entire fallback.
+  // Progress remap: the fast path emits 12→90. If it bails at, say, 85%,
+  // the playback fallback would naïvely restart at 12% — visible regress.
+  // Instead we track a `baseline` set at rebasePhase() time and remap the
+  // fallback path's 0-100 into [baseline, 100]. Monotonic AND smooth: no
+  // stuck-at-85 freeze, no jarring backward jump.
   const originalOnProgress = opts.onProgress
+  let baseline = 0
   let lastPct = 0
-  const resetProgressClamp = () => { lastPct = 0 }
+  const rebasePhase = () => { baseline = lastPct }
   opts = {
     ...opts,
     onProgress: (pct: number) => {
-      if (pct < lastPct) return
-      lastPct = pct
-      originalOnProgress?.(pct)
+      const remapped = baseline + Math.round((100 - baseline) * (pct / 100))
+      if (remapped < lastPct) return
+      lastPct = remapped
+      originalOnProgress?.(remapped)
     },
   }
 
@@ -650,9 +652,9 @@ export async function tryCompressVideoHevcHardware(
   } catch {
     /* fall through to the playback path */
   }
-  // Fast path returned null or threw — release the clamp so playback-path
-  // progress renders instead of leaving the bar visually frozen at 85.
-  resetProgressClamp()
+  // Fast path returned null or threw — rebase so playback progress
+  // continues smoothly from wherever the fast path left off, no dip.
+  rebasePhase()
 
   const url = URL.createObjectURL(file)
   const video = document.createElement('video')
@@ -928,17 +930,19 @@ export async function tryCompressVideoAvcHardware(
     return null
   }
 
-  // See HEVC version: monotonic clamp within a path, reset between paths so
-  // playback-path progress isn't swallowed after a stalled fast-path flush.
+  // See HEVC version: rebase between paths so the fallback continues from
+  // where the fast path stopped instead of jumping backward.
   const originalOnProgress = opts.onProgress
+  let baseline = 0
   let lastPct = 0
-  const resetProgressClamp = () => { lastPct = 0 }
+  const rebasePhase = () => { baseline = lastPct }
   opts = {
     ...opts,
     onProgress: (pct: number) => {
-      if (pct < lastPct) return
-      lastPct = pct
-      originalOnProgress?.(pct)
+      const remapped = baseline + Math.round((100 - baseline) * (pct / 100))
+      if (remapped < lastPct) return
+      lastPct = remapped
+      originalOnProgress?.(remapped)
     },
   }
 
@@ -956,7 +960,7 @@ export async function tryCompressVideoAvcHardware(
   } catch (err) {
     console.warn('[compress-video] AVC VideoDecoder path threw — trying playback path', err)
   }
-  resetProgressClamp()
+  rebasePhase()
 
   const url = URL.createObjectURL(file)
   const video = document.createElement('video')

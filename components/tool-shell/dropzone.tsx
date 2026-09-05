@@ -49,25 +49,30 @@ export function Dropzone({
       const valid = multiple ? typed : typed.slice(0, 1)
       const typeRejected = raw.length - typed.length
       if (valid.length > 0) {
-        // Android revokes read access to content:// URIs (Viber, WhatsApp,
-        // Google Photos, MediaStore camera captures) shortly after the pick.
-        // Copy video bytes into a JS-owned Blob NOW while the permission is
-        // still valid, so downstream WORKERFS/MEMFS/HTMLVideoElement reads
-        // never hit a revoked URI. Non-video files skip this (cheap tools
-        // like image converters don't need the extra memory pass).
-        setSrMsg(`Reading ${valid.length} file${valid.length > 1 ? 's' : ''}…`)
-        const prepared = await Promise.all(
-          valid.map(async (f) => {
-            if (!f.type.startsWith('video/') || isMaterialized(f)) return f
-            try {
-              return await materializeFile(f)
-            } catch {
-              // Fall through with the original file — compressVideo throws a
-              // clearer message when the byte-level read finally fails.
-              return f
-            }
-          }),
-        )
+        // Android/iOS revoke read access to content:// URIs (Viber,
+        // WhatsApp, Google Photos, MediaStore camera captures) shortly
+        // after the pick, so on MOBILE we copy video bytes into a
+        // JS-owned Blob while the permission is still valid. On desktop
+        // there's no revocation window and this copy just adds ~1-2s of
+        // visible lag between pick and preview — skip it there entirely.
+        const isMobile = typeof navigator !== 'undefined' &&
+          (navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent))
+        let prepared = valid
+        if (isMobile) {
+          setSrMsg(`Reading ${valid.length} file${valid.length > 1 ? 's' : ''}…`)
+          prepared = await Promise.all(
+            valid.map(async (f) => {
+              if (!f.type.startsWith('video/') || isMaterialized(f)) return f
+              try {
+                return await materializeFile(f)
+              } catch {
+                // Fall through with the original file — compressVideo throws
+                // a clearer message when the byte-level read finally fails.
+                return f
+              }
+            }),
+          )
+        }
         onAdd(prepared)
         setSrMsg(
           `${prepared.length} file${prepared.length > 1 ? 's' : ''} added.${typeRejected > 0 ? ` ${typeRejected} rejected (wrong type).` : ''}`
