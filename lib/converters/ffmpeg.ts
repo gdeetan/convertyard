@@ -1195,15 +1195,32 @@ export async function compressVideo(
         console.info('[compress-video] AVC hardware path returned null — using ffmpeg-wasm libx264')
       }
 
-      // Desktop >2 GB has no realistic wasm path: libx264/libx265 in
-      // ffmpeg-wasm allocates encoder state + reference frames on top of
-      // the MEMFS output buffer, and the ~2 GB Uint8Array ceiling in v8
-      // plus the WASM heap cap will OOM mid-encode (surfaces as "FS
-      // error" around 80–85% when readFile hits an aborted runtime).
-      // Fail fast with an actionable message instead of dragging the
-      // user through a doomed encode.
+      // Desktop >2 GB: the classic ffmpeg-wasm path OOMs (v8 ~2 GB
+      // Uint8Array cap + WASM heap ceiling). Try the mediabunny streaming
+      // pipeline first — it reads via Blob.slice and writes to OPFS, so
+      // neither the source nor the output ever lives entirely in memory.
+      // Loaded on demand (dynamic import) so <2 GB users don't pay the
+      // ~70 KB bundle cost.
       if (!isMobileBrowser() && file.size > 2 * 1024 * 1024 * 1024) {
-        return new Error('This file is too large for in-browser compression (over 2 GB exceeds browser memory limits). Trim or split the video first, or use a desktop app.')
+        try {
+          const { isMediabunnySupported, compressVideoWithMediabunny } =
+            await import('./compress-video-mediabunny')
+          if (isMediabunnySupported()) {
+            console.info(`[compress-video] file >2 GB — routing to mediabunny streaming path (${file.size} bytes)`)
+            const result = await compressVideoWithMediabunny(
+              file,
+              options,
+              (pct) => onProgress?.(i, pct),
+            )
+            return result
+          }
+          console.info('[compress-video] mediabunny unsupported on this browser — falling through to 2 GB error')
+        } catch (err) {
+          console.warn('[compress-video] mediabunny path threw — falling through to 2 GB error', err)
+        }
+        return new Error(
+          'Files over 2 GB need Chrome or Edge on desktop for the extended engine. Try Chrome/Edge, trim the video first, or install ConvertYard as a desktop app for the best large-file experience.',
+        )
       }
 
       // wasm fallback: serialize on the shared ffmpeg instance so parallel workers

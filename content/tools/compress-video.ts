@@ -26,6 +26,17 @@ export const config: ToolConfig = {
     const isMobile = typeof navigator !== 'undefined' &&
       (navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent))
 
+    // Extended engine for files >2 GB — mediabunny + OPFS streaming, only
+    // on Chromium desktop. Tell the user what's happening + point them at
+    // the PWA install as an optional nicer experience.
+    const hasHuge = files.some((f) => f.size > 2 * 1024 * 1024 * 1024)
+    if (hasHuge) {
+      if (isMobile) {
+        return 'Files over 2 GB need Chrome or Edge on a desktop computer — mobile browsers can\'t handle them. Try uploading from a laptop or desktop.'
+      }
+      return 'Large file detected. ConvertYard will load an extended engine (~70 KB, one-time download) to stream this through your device\'s storage instead of memory. Works best on Chrome or Edge. Tip: install ConvertYard as an app (icon beside the URL bar) for a nicer standalone window — same file support, just a cleaner launcher.'
+    }
+
     if (isMobile) {
       const hasVeryLarge = files.some((f) => f.size > 100 * 1024 * 1024)
       const hasLarge = files.some((f) => f.size > 50 * 1024 * 1024)
