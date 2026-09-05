@@ -1,4 +1,4 @@
-import { Muxer, ArrayBufferTarget } from 'mp4-muxer'
+import { Muxer, ArrayBufferTarget, FileSystemWritableFileStreamTarget } from 'mp4-muxer'
 
 export type AacAudioMeta = {
   numberOfChannels: number
@@ -16,7 +16,8 @@ export type VideoDecoderConfigDesc = {
 export type MuxerHandle = {
   addVideoChunk(chunk: EncodedVideoChunk): void
   addAudioChunk(chunk: EncodedAudioChunk): void
-  finalize(): Uint8Array
+  /** In-memory targets return the finished MP4; stream targets return null. */
+  finalize(): Uint8Array | null
 }
 
 type MuxOpts = {
@@ -31,13 +32,27 @@ type MuxOpts = {
    * plays back right-side-up instead of sideways.
    */
   rotation?: 0 | 90 | 180 | 270
+  /**
+   * When set, output is streamed to an OPFS-backed FileSystemWritableFileStream
+   * instead of accumulated in memory. Required for >2 GB files (V8 caps a
+   * single Uint8Array at ~2 GB). Caller is responsible for closing the stream
+   * and reading the resulting file after finalize().
+   */
+  streamTarget?: FileSystemWritableFileStream
 }
 
 function build(codec: 'avc' | 'hevc', opts: MuxOpts): MuxerHandle {
-  const target = new ArrayBufferTarget()
+  const bufferTarget = opts.streamTarget ? null : new ArrayBufferTarget()
   const muxer = new Muxer({
-    target,
-    fastStart: 'in-memory',
+    target: opts.streamTarget
+      ? new FileSystemWritableFileStreamTarget(opts.streamTarget)
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      : bufferTarget!,
+    // Stream targets need a fixed moov reservation up front (there's no way
+    // to seek back after we've handed bytes to the disk stream). Fragmented
+    // MP4 avoids the seek-back entirely — plays fine in Chrome/Edge/Safari/
+    // ffplay/VLC and is the canonical shape for streaming muxers.
+    fastStart: opts.streamTarget ? 'fragmented' : 'in-memory',
     video: {
       codec,
       width: opts.width,
@@ -83,7 +98,8 @@ function build(codec: 'avc' | 'hevc', opts: MuxOpts): MuxerHandle {
     },
     finalize() {
       muxer.finalize()
-      return new Uint8Array(target.buffer)
+      if (bufferTarget) return new Uint8Array(bufferTarget.buffer)
+      return null
     },
   }
 }

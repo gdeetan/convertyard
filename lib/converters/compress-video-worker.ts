@@ -21,6 +21,53 @@ function even(n: number): number {
   return n % 2 === 0 ? n : n - 1
 }
 
+// ── OPFS streaming output ────────────────────────────────────────────────────
+// For files large enough that the encoded output would approach V8's ~2 GB
+// Uint8Array ceiling, stream muxer output to an OPFS-backed writable stream
+// instead of accumulating chunks in memory. Only lights up when the platform
+// supports it (Chromium desktop, some Firefox).
+const OPFS_MIN_BYTES = 400 * 1024 * 1024
+
+type OpfsHandle = {
+  stream: FileSystemWritableFileStream
+  handle: FileSystemFileHandle
+  fileName: string
+}
+
+async function openOpfsWritable(baseName: string): Promise<OpfsHandle | null> {
+  try {
+    if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) return null
+    const root = await navigator.storage.getDirectory()
+    const fileName = `${baseName}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.mp4`
+    const handle = await root.getFileHandle(fileName, { create: true })
+    const stream = await handle.createWritable()
+    return { stream, handle, fileName }
+  } catch (err) {
+    logBail(`opfs unavailable: ${err instanceof Error ? err.message : String(err)}`)
+    return null
+  }
+}
+
+// Prune leftover OPFS mux outputs from previous sessions. Best-effort; if
+// the browser hasn't evicted them under quota pressure, do it ourselves so
+// the directory doesn't grow unbounded across visits.
+async function cleanupOpfsOldFiles(currentFileName: string): Promise<void> {
+  try {
+    if (typeof navigator === 'undefined' || !navigator.storage?.getDirectory) return
+    const root = await navigator.storage.getDirectory()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const iterator = (root as any).values?.() as AsyncIterable<FileSystemHandle> | undefined
+    if (!iterator) return
+    for await (const entry of iterator) {
+      if (entry.kind !== 'file') continue
+      if (entry.name === currentFileName) continue
+      if (!entry.name.endsWith('.mp4')) continue
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (root as any).removeEntry(entry.name).catch(() => {})
+    }
+  } catch { /* quota / api variance — best-effort */ }
+}
+
 // Posts a diagnostic string back to main so it shows up in the browser's
 // regular console (worker console output is hidden in DevTools by default).
 function logBail(reason: string): void {
@@ -173,6 +220,9 @@ async function encodeHevcInWorker(
   }
   const sourceTotalUs = acc
 
+  const baseName = file.name.replace(/\.[^.]+$/, '')
+  const opfs = file.size > OPFS_MIN_BYTES ? await openOpfsWritable(baseName) : null
+
   let muxer: MuxerHandle | null = null
   let muxError: Error | null = null
   let encodeError: Error | null = null
@@ -221,6 +271,7 @@ async function encodeHevcInWorker(
                   description: audio.description,
                 }
               : undefined,
+            streamTarget: opfs?.stream,
           })
         }
         flushLastChunk()
@@ -316,13 +367,26 @@ async function encodeHevcInWorker(
     onProgress(92)
     const mp4Bytes = finalMuxer.finalize()
     onProgress(97)
-    const baseName = file.name.replace(/\.[^.]+$/, '')
+    if (opfs) {
+      await opfs.stream.close()
+      cleanupOpfsOldFiles(opfs.fileName).catch(() => {})
+      const opfsFile = await opfs.handle.getFile()
+      return {
+        file: new File([opfsFile], `${baseName}.mp4`, { type: 'video/mp4' }),
+        audioDropped,
+      }
+    }
     return {
       file: new File([mp4Bytes as BlobPart], `${baseName}.mp4`, { type: 'video/mp4' }),
       audioDropped,
     }
   } catch (err) {
     logBail(`encode/mux threw: ${err instanceof Error ? err.message : String(err)}`)
+    if (opfs) {
+      try { await opfs.stream.close() } catch { /* already closed */ }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      try { await (await navigator.storage.getDirectory() as any).removeEntry?.(opfs.fileName) } catch { /* best-effort */ }
+    }
     return null
   } finally {
     for (const frame of pending) {
@@ -402,6 +466,9 @@ async function encodeAvcInWorker(
   }
   const sourceTotalUs = acc
 
+  const baseName = file.name.replace(/\.[^.]+$/, '')
+  const opfs = file.size > OPFS_MIN_BYTES ? await openOpfsWritable(baseName) : null
+
   let muxer: MuxerHandle | null = null
   let muxError: Error | null = null
   let encodeError: Error | null = null
@@ -450,6 +517,7 @@ async function encodeAvcInWorker(
                   description: audio.description,
                 }
               : undefined,
+            streamTarget: opfs?.stream,
           })
         }
         flushLastChunk()
@@ -539,13 +607,26 @@ async function encodeAvcInWorker(
     onProgress(92)
     const mp4Bytes = finalMuxer.finalize()
     onProgress(97)
-    const baseName = file.name.replace(/\.[^.]+$/, '')
+    if (opfs) {
+      await opfs.stream.close()
+      cleanupOpfsOldFiles(opfs.fileName).catch(() => {})
+      const opfsFile = await opfs.handle.getFile()
+      return {
+        file: new File([opfsFile], `${baseName}.mp4`, { type: 'video/mp4' }),
+        audioDropped,
+      }
+    }
     return {
       file: new File([mp4Bytes as BlobPart], `${baseName}.mp4`, { type: 'video/mp4' }),
       audioDropped,
     }
   } catch (err) {
     logBail(`encode/mux threw: ${err instanceof Error ? err.message : String(err)}`)
+    if (opfs) {
+      try { await opfs.stream.close() } catch { /* already closed */ }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      try { await (await navigator.storage.getDirectory() as any).removeEntry?.(opfs.fileName) } catch { /* best-effort */ }
+    }
     return null
   } finally {
     for (const frame of pending) {
