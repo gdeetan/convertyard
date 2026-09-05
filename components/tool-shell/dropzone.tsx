@@ -5,6 +5,7 @@ import { UploadCloud, Plus, AlertCircle } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { formatBytes } from '@/lib/utils/download'
 import { fileMatchesAccept, filesFromDataTransfer } from '@/lib/utils/drop-files'
+import { materializeFile, isMaterialized } from '@/lib/utils/materialize-file'
 
 interface DropzoneProps {
   accepts: string[]          // MIME types
@@ -43,14 +44,33 @@ export function Dropzone({
   )
 
   const handleFiles = useCallback(
-    (raw: File[]) => {
+    async (raw: File[]) => {
       const typed = validate(raw)
       const valid = multiple ? typed : typed.slice(0, 1)
       const typeRejected = raw.length - typed.length
       if (valid.length > 0) {
-        onAdd(valid)
+        // Android revokes read access to content:// URIs (Viber, WhatsApp,
+        // Google Photos, MediaStore camera captures) shortly after the pick.
+        // Copy video bytes into a JS-owned Blob NOW while the permission is
+        // still valid, so downstream WORKERFS/MEMFS/HTMLVideoElement reads
+        // never hit a revoked URI. Non-video files skip this (cheap tools
+        // like image converters don't need the extra memory pass).
+        setSrMsg(`Reading ${valid.length} file${valid.length > 1 ? 's' : ''}…`)
+        const prepared = await Promise.all(
+          valid.map(async (f) => {
+            if (!f.type.startsWith('video/') || isMaterialized(f)) return f
+            try {
+              return await materializeFile(f)
+            } catch {
+              // Fall through with the original file — compressVideo throws a
+              // clearer message when the byte-level read finally fails.
+              return f
+            }
+          }),
+        )
+        onAdd(prepared)
         setSrMsg(
-          `${valid.length} file${valid.length > 1 ? 's' : ''} added.${typeRejected > 0 ? ` ${typeRejected} rejected (wrong type).` : ''}`
+          `${prepared.length} file${prepared.length > 1 ? 's' : ''} added.${typeRejected > 0 ? ` ${typeRejected} rejected (wrong type).` : ''}`
         )
       }
       if (valid.length === 0 && raw.length > 0) {

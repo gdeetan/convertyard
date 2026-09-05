@@ -1,4 +1,5 @@
 import { fetchFile } from '@ffmpeg/util'
+import { materializeFile } from '@/lib/utils/materialize-file'
 import { FFFSType } from '@ffmpeg/ffmpeg'
 import { getFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock } from './ffmpeg-client'
 import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware } from './compress-video-webcodecs'
@@ -20,43 +21,6 @@ function toError(err: unknown): Error {
 function isMobileBrowser(): boolean {
   if (typeof navigator === 'undefined') return false
   return navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent)
-}
-
-// Copy an Android/iOS content:// File into a JS-owned Blob so its bytes
-// survive any later permission revocation. Tries arrayBuffer() first, then
-// falls back to streaming — some Android builds fail one but not the other.
-// Only invoked from the video compressor's processOne; other tools that
-// only need one read up-front don't hit the revocation window.
-async function materializeFile(file: File): Promise<File> {
-  const alreadyMaterialized = (file as unknown as { __materialized?: boolean }).__materialized
-  if (alreadyMaterialized) return file
-  const errors: string[] = []
-  try {
-    const buf = await file.arrayBuffer()
-    const out = new File([buf], file.name, { type: file.type, lastModified: file.lastModified })
-    ;(out as unknown as { __materialized: boolean }).__materialized = true
-    return out
-  } catch (err) {
-    errors.push(err instanceof Error ? err.message : String(err))
-  }
-  try {
-    const reader = file.stream().getReader()
-    const chunks: BlobPart[] = []
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      if (value) chunks.push(value as unknown as BlobPart)
-    }
-    const out = new File(chunks, file.name, { type: file.type, lastModified: file.lastModified })
-    ;(out as unknown as { __materialized: boolean }).__materialized = true
-    return out
-  } catch (err) {
-    errors.push(err instanceof Error ? err.message : String(err))
-  }
-  console.warn('[compress-video] materialize failed:', errors.join(' | '))
-  throw new Error(
-    'Could not read this file. Android often revokes access to videos shared from apps like Viber, WhatsApp, or Google Photos. Save the video to your Downloads folder first, then upload it from there.',
-  )
 }
 
 // Wrap ffmpeg.exec with a rolling log tail so a non-zero exit surfaces the real
