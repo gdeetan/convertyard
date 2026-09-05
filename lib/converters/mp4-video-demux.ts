@@ -122,6 +122,27 @@ function parseStts(data: Uint8Array, box: Box, sampleCount: number): number[] {
   return durations
 }
 
+// ctts (composition-time-to-sample) box gives per-sample PTS-vs-DTS offset.
+// Only present for streams with B-frames. Version 1 uses signed int32 offsets
+// (needed for HEVC where offsets can be negative); version 0 uses unsigned.
+// Without ctts, PTS === DTS and every offset is 0.
+function parseCtts(data: Uint8Array, box: Box | undefined, sampleCount: number): number[] {
+  if (!box) return new Array(sampleCount).fill(0)
+  const view = viewOf(data)
+  const version = view.getUint8(box.payloadStart)
+  const entryCount = view.getUint32(box.payloadStart + 4)
+  const offsets: number[] = []
+  let p = box.payloadStart + 8
+  for (let i = 0; i < entryCount && p + 8 <= box.payloadEnd; i++) {
+    const n = view.getUint32(p)
+    const o = version === 1 ? view.getInt32(p + 4) : view.getUint32(p + 4)
+    p += 8
+    for (let k = 0; k < n && offsets.length < sampleCount; k++) offsets.push(o)
+  }
+  while (offsets.length < sampleCount) offsets.push(0)
+  return offsets
+}
+
 function parseStsz(data: Uint8Array, box: Box): number[] {
   const view = viewOf(data)
   const defaultSize = view.getUint32(box.payloadStart + 4)
@@ -272,6 +293,7 @@ export function demuxMp4Video(data: Uint8Array): DemuxedVideo | null {
     const stco = walk(data, trak.payloadStart, trak.payloadEnd, 'stco')
       ?? walk(data, trak.payloadStart, trak.payloadEnd, 'co64')
     const stss = walk(data, trak.payloadStart, trak.payloadEnd, 'stss')
+    const ctts = walk(data, trak.payloadStart, trak.payloadEnd, 'ctts')
     if (!mdhd || !stsd || !stts || !stsz || !stsc || !stco) continue
 
     const mdhdView = viewOf(data)
@@ -290,6 +312,9 @@ export function demuxMp4Video(data: Uint8Array): DemuxedVideo | null {
     const sizes = parseStsz(data, stsz)
     if (sizes.length === 0) continue
     const durations = parseStts(data, stts, sizes.length)
+    // ctts offsets are in the same timescale units as durations (mdhd
+    // timescale). Zero for every sample when no B-frames.
+    const cttsOffsets = parseCtts(data, ctts, sizes.length)
     const chunkOffsets = parseStco(data, stco, stco.type === 'co64')
     const offsets = sampleOffsets(sizes, chunkOffsets, parseStsc(data, stsc))
     const keyframes = parseStss(data, stss, sizes.length)
@@ -302,9 +327,15 @@ export function demuxMp4Video(data: Uint8Array): DemuxedVideo | null {
       const end = start + sizes[i]
       if (start < 0 || end > data.byteLength) return null
       const durationUs = Math.round((durations[i] / timescale) * 1_000_000)
+      // timestampUs is the PRESENTATION timestamp (PTS = DTS + ctts offset),
+      // not DTS. WebCodecs' VideoDecoder uses EncodedVideoChunk.timestamp as
+      // the presentation timestamp of the decoded frame, so passing DTS to
+      // B-frame sources (iOS HEVC especially) produced non-monotonic output
+      // → visible "backwards and forwards" playback in the muxed file.
+      const ptsRawUnits = dts + cttsOffsets[i]
       samples.push({
         data: data.subarray(start, end),
-        timestampUs: Math.round((dts / timescale) * 1_000_000),
+        timestampUs: Math.round((ptsRawUnits / timescale) * 1_000_000),
         durationUs,
         keyframe: keyframes[i],
       })

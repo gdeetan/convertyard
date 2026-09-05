@@ -208,17 +208,25 @@ async function encodeHevcInWorker(
   // between decoder → encoder, we extend the last chunk's duration at finalize
   // so total video duration still equals source duration — otherwise output
   // plays back sped-up.
-  const sourceStartsUs = new Array<number>(demuxed.samples.length)
-  const sourceDursUs = new Array<number>(demuxed.samples.length)
-  let acc = 0
-  for (let i = 0; i < demuxed.samples.length; i++) {
-    sourceStartsUs[i] = acc
-    sourceDursUs[i] = demuxed.samples[i].durationUs > 0
-      ? demuxed.samples[i].durationUs
-      : Math.round(1_000_000 / fps)
-    acc += sourceDursUs[i]
+  //
+  // sample.timestampUs is now PTS (see mp4-video-demux ctts parsing). Decoder
+  // emits frames in PTS order, so sourceStartsUs must be indexed by PTS-order
+  // position — otherwise B-frame sources (iOS HEVC in particular) produce a
+  // non-monotonic output timeline and the muxed file plays "back and forth".
+  const ptsOrder = [...demuxed.samples].sort((a, b) => a.timestampUs - b.timestampUs)
+  const sourceStartsUs = new Array<number>(ptsOrder.length)
+  const sourceDursUs = new Array<number>(ptsOrder.length)
+  for (let i = 0; i < ptsOrder.length; i++) {
+    sourceStartsUs[i] = ptsOrder[i].timestampUs
+    const nextPts = i + 1 < ptsOrder.length ? ptsOrder[i + 1].timestampUs : null
+    const gapUs = nextPts !== null ? nextPts - ptsOrder[i].timestampUs : 0
+    sourceDursUs[i] = gapUs > 0
+      ? gapUs
+      : (ptsOrder[i].durationUs > 0 ? ptsOrder[i].durationUs : Math.round(1_000_000 / fps))
   }
-  const sourceTotalUs = acc
+  const sourceTotalUs = ptsOrder.length > 0
+    ? sourceStartsUs[ptsOrder.length - 1] + sourceDursUs[ptsOrder.length - 1]
+    : 0
 
   const baseName = file.name.replace(/\.[^.]+$/, '')
   const opfs = file.size > OPFS_MIN_BYTES ? await openOpfsWritable(baseName) : null
