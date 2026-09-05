@@ -1,11 +1,71 @@
 'use client'
 
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { formatBytes } from '@/lib/utils/download'
 import type { FileEntry } from '@/lib/types'
+
+// Estimate remaining time from a monotonic progress percentage. Uses a
+// rolling EMA of "elapsed per percent" so late-run rate changes don't jerk
+// the estimate around. Returns a human string like "about 45s remaining"
+// or null when we don't have enough signal yet.
+function useEtaLabel(pct: number, active: boolean): string | null {
+  const startAtRef = useRef<number | null>(null)
+  const emaMsPerPctRef = useRef<number | null>(null)
+  const lastPctRef = useRef(0)
+  const lastAtRef = useRef<number | null>(null)
+  const [label, setLabel] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!active) {
+      startAtRef.current = null
+      emaMsPerPctRef.current = null
+      lastPctRef.current = 0
+      lastAtRef.current = null
+      setLabel(null)
+      return
+    }
+    const now = Date.now()
+    if (startAtRef.current === null && pct > 0) {
+      startAtRef.current = now
+      lastAtRef.current = now
+      lastPctRef.current = pct
+      return
+    }
+    if (startAtRef.current === null || pct <= lastPctRef.current) return
+    const dPct = pct - lastPctRef.current
+    const dMs = now - (lastAtRef.current ?? now)
+    if (dPct > 0 && dMs > 0) {
+      const instant = dMs / dPct
+      // Blend 20% new sample so the estimate stays responsive but not jumpy.
+      emaMsPerPctRef.current = emaMsPerPctRef.current == null
+        ? instant
+        : emaMsPerPctRef.current * 0.8 + instant * 0.2
+    }
+    lastPctRef.current = pct
+    lastAtRef.current = now
+    // Only surface an estimate once we've made real progress; the first
+    // few percent are dominated by wasm/hardware warmup and give wildly
+    // pessimistic numbers.
+    if (pct < 5 || pct >= 99 || emaMsPerPctRef.current == null) return
+    const remainingMs = emaMsPerPctRef.current * (100 - pct)
+    setLabel(formatRemaining(remainingMs))
+  }, [pct, active])
+
+  return label
+}
+
+function formatRemaining(ms: number): string {
+  const s = Math.max(1, Math.round(ms / 1000))
+  if (s < 60) return `about ${s}s remaining`
+  const m = Math.round(s / 60)
+  if (m < 60) return `about ${m} min remaining`
+  const h = Math.floor(m / 60)
+  const mm = m % 60
+  return `about ${h}h ${mm}m remaining`
+}
 
 interface ProgressListProps {
   entries: FileEntry[]
@@ -34,6 +94,8 @@ export function ProgressList({ entries, announcement }: ProgressListProps) {
   const overallPct = total > 0
     ? Math.round(entries.reduce((sum, e) => sum + (e.status === 'done' ? 100 : e.status === 'error' ? 100 : e.progress || 0), 0) / total)
     : 0
+  const active = total > 0 && done + errors < total
+  const eta = useEtaLabel(overallPct, active)
 
   return (
     <div className="space-y-3">
@@ -41,6 +103,9 @@ export function ProgressList({ entries, announcement }: ProgressListProps) {
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium text-fg">
           Converting {total} file{total !== 1 ? 's' : ''}… <span className="text-primary tabular-nums font-semibold">{overallPct}%</span>
+          {eta && (
+            <span className="ml-2 text-fg-muted font-normal tabular-nums">· {eta}</span>
+          )}
         </span>
         <span className="text-fg-muted tabular-nums">
           {done + errors} / {total}
