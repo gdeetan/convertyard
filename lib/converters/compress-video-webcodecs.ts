@@ -449,15 +449,12 @@ async function spliceSourceAudio(
         mounted = true
       } catch (workerfsErr) {
         // WORKERFS requires the ffmpeg core to be loaded inside a Worker;
-        // when it's not (some desktop code paths, extension-modified pages)
-        // the mount throws "ErrnoError: FS error" and we lose audio.
-        // Fall back to copying the source into MEMFS via writeFile. On
-        // mobile this can OOM the wasm heap, so we only fall back on
-        // desktop — mobile still hard-fails to video-only.
-        if (isMobileBrowser()) {
-          console.warn('[compress-video] splice: WORKERFS mount failed (mobile) — returning video-only', workerfsErr)
-          return videoOnly
-        }
+        // some platforms (iOS Safari especially) throw here. Previously we
+        // hard-failed to video-only on mobile because a MEMFS copy risked
+        // OOMing the wasm heap — but the file has already been materialized
+        // by the dropzone into a JS-owned Blob, and the mobile size cap
+        // (500MB hard-block) keeps the copy within budget. Try MEMFS on
+        // mobile too so iPhone users don't lose their audio track.
         console.info('[compress-video] splice: WORKERFS mount failed — copying source to MEMFS', workerfsErr)
         try {
           const { fetchFile } = await import('@ffmpeg/util')
@@ -815,6 +812,14 @@ export async function tryCompressVideoHevcHardware(
             prevFrame = frame
             prevTsSec = t
             opts.onProgress?.(12 + Math.round(Math.min(1, t / duration) * 70))
+            // iOS Safari drops rVFC callbacks when drawImage+encode exceeds
+            // the frame budget (16ms at 60fps) — output plays choppy because
+            // half the source frames never reach the encoder. Slow playback
+            // when the encoder falls behind so every source frame gets a
+            // full paint interval.
+            if (encoder.encodeQueueSize > 6) video.playbackRate = 0.5
+            else if (encoder.encodeQueueSize > 2) video.playbackRate = 0.75
+            else video.playbackRate = 1
             if (video.ended || t >= duration - 0.05) {
               encodePrev(Math.max(0.001, duration - prevTsSec))
               video.removeEventListener('ended', onEnded)
@@ -1107,6 +1112,14 @@ export async function tryCompressVideoAvcHardware(
             prevFrame = frame
             prevTsSec = t
             opts.onProgress?.(12 + Math.round(Math.min(1, t / duration) * 70))
+            // iOS Safari drops rVFC callbacks when drawImage+encode exceeds
+            // the frame budget (16ms at 60fps) — output plays choppy because
+            // half the source frames never reach the encoder. Slow playback
+            // when the encoder falls behind so every source frame gets a
+            // full paint interval.
+            if (encoder.encodeQueueSize > 6) video.playbackRate = 0.5
+            else if (encoder.encodeQueueSize > 2) video.playbackRate = 0.75
+            else video.playbackRate = 1
             if (video.ended || t >= duration - 0.05) {
               encodePrev(Math.max(0.001, duration - prevTsSec))
               video.removeEventListener('ended', onEnded)
