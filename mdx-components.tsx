@@ -2,9 +2,11 @@
 import type { MDXComponents } from 'mdx/types'
 import type { ComponentPropsWithoutRef } from 'react'
 import Link from 'next/link'
+import { BeforeAfterCompare } from '@/components/ui/BeforeAfterCompare'
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
+    BeforeAfterCompare,
     h2: ({ children }: ComponentPropsWithoutRef<'h2'>) => (
       <h2 className="mt-10 mb-4 text-2xl font-bold text-fg">{children}</h2>
     ),

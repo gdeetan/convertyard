@@ -109,32 +109,14 @@ Then again, there's browser-based conversion. The browser pulls the conversion c
 
 Same photo, same visual quality — but the JPG opens everywhere while the HEIC does not.
 
-<div className="my-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
-  <figure>
-    <img
-      src="/articles/what-is-heic/img-3499.jpg"
-      alt="Original HEIC photo (rendered as JPG for browser preview)"
-      className="w-full rounded-xl border border-border"
-      loading="lazy"
-    />
-    <figcaption className="mt-2 text-center text-sm text-fg-subtle">
-      Before — HEIC (2.8 MB, iPhone original)
-    </figcaption>
-  </figure>
-  <figure>
-    <img
-      src="/articles/what-is-heic/img-3499.jpg"
-      alt="Converted JPG photo"
-      className="w-full rounded-xl border border-border"
-      loading="lazy"
-    />
-    <figcaption className="mt-2 text-center text-sm text-fg-subtle">
-      After — JPG (477 KB, converted with ConvertYard)
-    </figcaption>
-  </figure>
-</div>
-
-One side benefit of using ConvertYard's HEIC to JPG converter is the file size savings — over 80% in this instance, partly because the image was resized to 1000 pixels. If you look closely at the before and after screenshots, there's hardly any change in the quality.
+<BeforeAfterCompare
+  beforeSrc="/articles/what-is-heic/before-heic.jpg"
+  beforeAlt="Original HEIC photo from iPhone, rendered for browser preview"
+  beforeLabel="HEIC — 2.8 MB"
+  afterSrc="/articles/what-is-heic/after-jpg.jpg"
+  afterAlt="Same photo converted from HEIC to JPG with ConvertYard"
+  afterLabel="JPG — 4.5 MB"
+/>
 
 When working with sensitive images and using lossless editing, we recommend converting HEIC to PNG to keep every pixel intact. PNGs are generally much larger than their HEIC counterparts but have no quality loss, which makes them perfect for editing.
 
