@@ -758,18 +758,32 @@ export async function tryCompressVideoHevcHardware(
       const cleanupPrev = () => {
         if (prevFrame) { try { prevFrame.close() } catch { /* already closed */ } prevFrame = null }
       }
+      // iOS Safari drops rVFC callbacks when drawImage + encoder.encode exceeds
+      // the source's frame budget — the *observed* gap (t - prevTsSec) then
+      // spans multiple source frames. If we stamp that whole gap as one
+      // frame's duration, the muxer's stts entry holds a single image for
+      // 66-100ms while neighboring frames flash by, which plays as visible
+      // stutter / "buffering" pauses. Duplicate the previous frame at target
+      // cadence to fill the gap instead so playback stays smooth.
+      const expectedIntervalSec = 1 / fps
       const encodePrev = (durSec: number) => {
         if (!prevFrame) return
-        const durUs = Math.max(1, Math.round(durSec * 1_000_000))
-        const retimed = new VideoFrame(prevFrame, {
-          timestamp: Math.round(prevTsSec * 1_000_000),
-          duration: durUs,
-        })
+        const copies = durSec > expectedIntervalSec * 1.5
+          ? Math.max(1, Math.round(durSec / expectedIntervalSec))
+          : 1
+        const subDurUs = Math.max(1, Math.round((durSec / copies) * 1_000_000))
+        const baseTsUs = Math.round(prevTsSec * 1_000_000)
+        for (let k = 0; k < copies; k++) {
+          const retimed = new VideoFrame(prevFrame, {
+            timestamp: baseTsUs + k * subDurUs,
+            duration: subDurUs,
+          })
+          encoder.encode(retimed, { keyFrame: frameIndex % (fps * 2) === 0 })
+          retimed.close()
+          frameIndex += 1
+        }
         prevFrame.close()
         prevFrame = null
-        encoder.encode(retimed, { keyFrame: frameIndex % (fps * 2) === 0 })
-        retimed.close()
-        frameIndex += 1
       }
       const finish = () => {
         if (settled) return
@@ -1060,18 +1074,29 @@ export async function tryCompressVideoAvcHardware(
       const cleanupPrev = () => {
         if (prevFrame) { try { prevFrame.close() } catch { /* already closed */ } prevFrame = null }
       }
+      // See HEVC playback path: iOS Safari's rVFC skips callbacks under load,
+      // so the observed gap can span multiple source frames. Fill the gap with
+      // duplicates at target cadence so the muxed stts table stays uniform
+      // instead of alternating short/long holds (visible as stutter).
+      const expectedIntervalSec = 1 / fps
       const encodePrev = (durSec: number) => {
         if (!prevFrame) return
-        const durUs = Math.max(1, Math.round(durSec * 1_000_000))
-        const retimed = new VideoFrame(prevFrame, {
-          timestamp: Math.round(prevTsSec * 1_000_000),
-          duration: durUs,
-        })
+        const copies = durSec > expectedIntervalSec * 1.5
+          ? Math.max(1, Math.round(durSec / expectedIntervalSec))
+          : 1
+        const subDurUs = Math.max(1, Math.round((durSec / copies) * 1_000_000))
+        const baseTsUs = Math.round(prevTsSec * 1_000_000)
+        for (let k = 0; k < copies; k++) {
+          const retimed = new VideoFrame(prevFrame, {
+            timestamp: baseTsUs + k * subDurUs,
+            duration: subDurUs,
+          })
+          encoder.encode(retimed, { keyFrame: frameIndex % (fps * 2) === 0 })
+          retimed.close()
+          frameIndex += 1
+        }
         prevFrame.close()
         prevFrame = null
-        encoder.encode(retimed, { keyFrame: frameIndex % (fps * 2) === 0 })
-        retimed.close()
-        frameIndex += 1
       }
       const finish = () => {
         if (settled) return
