@@ -601,12 +601,23 @@ async function tryEncodeViaVideoDecoder(
   file: File,
   opts: HevcHardwareOpts,
 ): Promise<WorkerOutcome> {
-  if (typeof Worker === 'undefined') return null
+  if (typeof Worker === 'undefined') {
+    console.info('[compress-video][probe] HEVC fast-path bail: Worker undefined')
+    return null
+  }
   // Mobile can use the one-read MP4 demux fast path for modest files. Keep a
   // per-platform cap so very large inputs still fall back to the lazier
   // playback path — iOS Safari's tab budget forces a lower ceiling than
   // Android Chrome.
-  if (isMobileBrowser() && file.size > mobileFastPathMaxBytes()) return null
+  if (isMobileBrowser() && file.size > mobileFastPathMaxBytes()) {
+    console.info('[compress-video][probe] HEVC fast-path bail: file over mobile cap', {
+      ios: isIOSBrowser(), sizeMB: Math.round(file.size / 1024 / 1024), capMB: Math.round(mobileFastPathMaxBytes() / 1024 / 1024),
+    })
+    return null
+  }
+  console.info('[compress-video][probe] HEVC fast-path dispatch to worker', {
+    ios: isIOSBrowser(), mobile: isMobileBrowser(), sizeMB: Math.round(file.size / 1024 / 1024), name: file.name, mime: file.type,
+  })
   return dispatchToWorker('compress-hevc', file, opts)
 }
 
@@ -747,6 +758,11 @@ export async function tryCompressVideoHevcHardware(
 
     let frameIndex = 0
     let lastFrameAt = Date.now()
+    // Probe B: monotonicity of rVFC meta.mediaTime in HEVC playback fallback.
+    let mtRegressCount = 0
+    let mtRepeatCount = 0
+    let mtSampleCount = 0
+    let mtMaxRegressSec = 0
     await new Promise<void>((resolve, reject) => {
       let settled = false
       // Mobile buffers one frame so each encoded chunk can be stamped with
@@ -810,6 +826,9 @@ export async function tryCompressVideoHevcHardware(
         if (mobile && prevFrame) {
           try { encodePrev(Math.max(0.001, duration - prevTsSec)) } catch { cleanupPrev() }
         }
+        console.info('[compress-video][probe] HEVC playback finished', {
+          samples: mtSampleCount, regressions: mtRegressCount, repeats: mtRepeatCount, maxRegressSec: mtMaxRegressSec,
+        })
         finish()
       }
       video.addEventListener('ended', onEnded, { once: true })
@@ -819,6 +838,20 @@ export async function tryCompressVideoHevcHardware(
           lastFrameAt = Date.now()
           const t = meta.mediaTime
           if (mobile) {
+            // Probe B (HEVC): watch for non-monotonic rVFC mediaTime under
+            // dynamic playbackRate on iOS Safari.
+            mtSampleCount += 1
+            if (mtSampleCount > 1) {
+              if (t < prevTsSec) {
+                mtRegressCount += 1
+                const delta = t - prevTsSec
+                if (delta < mtMaxRegressSec) mtMaxRegressSec = delta
+                if (mtRegressCount <= 10) console.warn('[compress-video][probe] HEVC rVFC mediaTime regressed', { prev: prevTsSec, now: t, deltaSec: delta, playbackRate: video.playbackRate, encodeQ: encoder.encodeQueueSize })
+              } else if (t === prevTsSec) {
+                mtRepeatCount += 1
+                if (mtRepeatCount <= 10) console.warn('[compress-video][probe] HEVC rVFC mediaTime repeated', { t, playbackRate: video.playbackRate, encodeQ: encoder.encodeQueueSize })
+              }
+            }
             ctx!.drawImage(video, 0, 0, width, height)
             const frame = new VideoFrame(canvas!, {
               timestamp: Math.round(t * 1_000_000),
@@ -925,8 +958,19 @@ async function tryEncodeAvcViaVideoDecoder(
   file: File,
   opts: AvcHardwareOpts,
 ): Promise<WorkerOutcome> {
-  if (typeof Worker === 'undefined') return null
-  if (isMobileBrowser() && file.size > mobileFastPathMaxBytes()) return null
+  if (typeof Worker === 'undefined') {
+    console.info('[compress-video][probe] AVC fast-path bail: Worker undefined')
+    return null
+  }
+  if (isMobileBrowser() && file.size > mobileFastPathMaxBytes()) {
+    console.info('[compress-video][probe] AVC fast-path bail: file over mobile cap', {
+      ios: isIOSBrowser(), sizeMB: Math.round(file.size / 1024 / 1024), capMB: Math.round(mobileFastPathMaxBytes() / 1024 / 1024),
+    })
+    return null
+  }
+  console.info('[compress-video][probe] AVC fast-path dispatch to worker', {
+    ios: isIOSBrowser(), mobile: isMobileBrowser(), sizeMB: Math.round(file.size / 1024 / 1024), name: file.name, mime: file.type,
+  })
   return dispatchToWorker('compress-avc', file, opts)
 }
 
@@ -1067,6 +1111,11 @@ export async function tryCompressVideoAvcHardware(
 
     let frameIndex = 0
     let lastFrameAt = Date.now()
+    // Probe B: monotonicity of rVFC meta.mediaTime in AVC playback fallback.
+    let mtRegressCount = 0
+    let mtRepeatCount = 0
+    let mtSampleCount = 0
+    let mtMaxRegressSec = 0
     await new Promise<void>((resolve, reject) => {
       let settled = false
       let prevFrame: VideoFrame | null = null
@@ -1123,6 +1172,9 @@ export async function tryCompressVideoAvcHardware(
         if (mobile && prevFrame) {
           try { encodePrev(Math.max(0.001, duration - prevTsSec)) } catch { cleanupPrev() }
         }
+        console.info('[compress-video][probe] AVC playback finished', {
+          samples: mtSampleCount, regressions: mtRegressCount, repeats: mtRepeatCount, maxRegressSec: mtMaxRegressSec,
+        })
         finish()
       }
       video.addEventListener('ended', onEnded, { once: true })
@@ -1132,6 +1184,20 @@ export async function tryCompressVideoAvcHardware(
           lastFrameAt = Date.now()
           const t = meta.mediaTime
           if (mobile) {
+            // Probe B (AVC): watch for non-monotonic rVFC mediaTime under
+            // dynamic playbackRate on iOS Safari.
+            mtSampleCount += 1
+            if (mtSampleCount > 1) {
+              if (t < prevTsSec) {
+                mtRegressCount += 1
+                const delta = t - prevTsSec
+                if (delta < mtMaxRegressSec) mtMaxRegressSec = delta
+                if (mtRegressCount <= 10) console.warn('[compress-video][probe] AVC rVFC mediaTime regressed', { prev: prevTsSec, now: t, deltaSec: delta, playbackRate: video.playbackRate, encodeQ: encoder.encodeQueueSize })
+              } else if (t === prevTsSec) {
+                mtRepeatCount += 1
+                if (mtRepeatCount <= 10) console.warn('[compress-video][probe] AVC rVFC mediaTime repeated', { t, playbackRate: video.playbackRate, encodeQ: encoder.encodeQueueSize })
+              }
+            }
             ctx!.drawImage(video, 0, 0, width, height)
             const frame = new VideoFrame(canvas!, {
               timestamp: Math.round(t * 1_000_000),
