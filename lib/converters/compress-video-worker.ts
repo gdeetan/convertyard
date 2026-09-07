@@ -460,19 +460,26 @@ async function encodeAvcInWorker(
   // in via ffmpeg. Beats falling into the frame-dropping playback path.
   const audioDropped = !stripAudio && !audio && !!mp4?.hasAudioTrack
 
-  // See HEVC path for rationale: retime from real source offsets and extend the
-  // final chunk so any dropped frames don't turn into fast-play output.
-  const sourceStartsUs = new Array<number>(demuxed.samples.length)
-  const sourceDursUs = new Array<number>(demuxed.samples.length)
-  let acc = 0
-  for (let i = 0; i < demuxed.samples.length; i++) {
-    sourceStartsUs[i] = acc
-    sourceDursUs[i] = demuxed.samples[i].durationUs > 0
-      ? demuxed.samples[i].durationUs
-      : Math.round(1_000_000 / fps)
-    acc += sourceDursUs[i]
+  // See HEVC path for rationale: retime from real source offsets so B-frame
+  // sources don't produce a non-monotonic output timeline ("back and forth"
+  // playback), and extend the final chunk at finalize so dropped frames don't
+  // turn into fast-play output. sample.timestampUs is PTS (from mp4-video-demux
+  // ctts parsing); VideoDecoder emits frames in PTS order, so sourceStartsUs
+  // must be indexed by PTS-order position, not decode order.
+  const ptsOrder = [...demuxed.samples].sort((a, b) => a.timestampUs - b.timestampUs)
+  const sourceStartsUs = new Array<number>(ptsOrder.length)
+  const sourceDursUs = new Array<number>(ptsOrder.length)
+  for (let i = 0; i < ptsOrder.length; i++) {
+    sourceStartsUs[i] = ptsOrder[i].timestampUs
+    const nextPts = i + 1 < ptsOrder.length ? ptsOrder[i + 1].timestampUs : null
+    const gapUs = nextPts !== null ? nextPts - ptsOrder[i].timestampUs : 0
+    sourceDursUs[i] = gapUs > 0
+      ? gapUs
+      : (ptsOrder[i].durationUs > 0 ? ptsOrder[i].durationUs : Math.round(1_000_000 / fps))
   }
-  const sourceTotalUs = acc
+  const sourceTotalUs = ptsOrder.length > 0
+    ? sourceStartsUs[ptsOrder.length - 1] + sourceDursUs[ptsOrder.length - 1]
+    : 0
 
   const baseName = file.name.replace(/\.[^.]+$/, '')
   const opfs = file.size > OPFS_MIN_BYTES ? await openOpfsWritable(baseName) : null
