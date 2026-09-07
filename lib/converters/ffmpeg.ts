@@ -949,8 +949,8 @@ function compressVideoThreadArgs(h265: boolean): string[] {
   return cpuThreads > 0 ? ['-threads', String(cpuThreads)] : []
 }
 
-function compressVideoCodecArgs(h265: boolean): string[] {
-  if (!h265) return ['-c:v', 'libx264', '-preset', 'ultrafast']
+function compressVideoCodecArgs(h265: boolean, preset: 'ultrafast' | 'medium' = 'ultrafast'): string[] {
+  if (!h265) return ['-c:v', 'libx264', '-preset', preset]
   return [
     '-c:v', 'libx265',
     '-preset', 'ultrafast',
@@ -1109,7 +1109,13 @@ export async function compressVideo(
 
   const crfMap = h265 ? H265_CRF  : H264_CRF
   const threadArgs = compressVideoThreadArgs(h265)
-  const codecArgs = compressVideoCodecArgs(h265)
+  // Bump libx264 preset when the user is asking for best quality at original
+  // resolution — `medium` gives ~15–25% better perceptual quality at the same
+  // bitrate than `ultrafast` at 3–5x the encode time. Only applies to the
+  // main /compress-video page in High/Maximum mode; target-size sub-pages
+  // stay on ultrafast so they keep matching the user's speed expectation.
+  const highQualityOriginal = !targetSizeMode && resolution === 'original' && (level === 'high' || level === 'maximum')
+  const codecArgs = compressVideoCodecArgs(h265, highQualityOriginal ? 'medium' : 'ultrafast')
 
   const resHeight = RESOLUTION_HEIGHT[resolution]
   const vfArgs: string[] = resHeight
