@@ -631,6 +631,17 @@ export async function tryCompressVideoHevcHardware(
 ): Promise<File | null> {
   if (!canAttemptHevcWebCodecs()) return null
 
+  // iOS Safari's HEVC WebCodecs → mp4-muxer pipeline produces stuttering
+  // playback on iPhone-recorded videos, same failure mode the AVC path hit
+  // (cb35d64). Root cause is analogous: B-frame emission under
+  // latencyMode='realtime' plus mp4-muxer ctts handling for non-monotonic
+  // PTS. Route iOS HEVC to ffmpeg-wasm libx265 for a correct output; slower
+  // but plays smoothly on-device.
+  if (isIOSBrowser()) {
+    console.info('[compress-video] iOS Safari — skipping HEVC WebCodecs, using ffmpeg-wasm libx265 for correct output')
+    return null
+  }
+
   // Progress remap: the fast path emits 12→90. If it bails at, say, 85%,
   // the playback fallback would naïvely restart at 12% — visible regress.
   // Instead we track a `baseline` set at rebasePhase() time and remap the

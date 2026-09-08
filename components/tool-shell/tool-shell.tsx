@@ -231,6 +231,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
       pendingProgress.current.push([fileIndex, pct])
     }
 
+    const streamedIndices = new Set<number>()
     const dispatchResult = (fileIndex: number, r: ConversionResult) => {
       if (r instanceof Error) {
         dispatch({ type: 'SET_ERROR', fileIndex, error: r.message })
@@ -244,7 +245,10 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
     }
 
     const onResult = config.resultMode !== 'combined-output'
-      ? (fileIndex: number, r: ConversionResult) => dispatchResult(fileIndex, r)
+      ? (fileIndex: number, r: ConversionResult) => {
+          streamedIndices.add(fileIndex)
+          dispatchResult(fileIndex, r)
+        }
       : undefined
 
     const wakeLock = await acquireWakeLock()
@@ -261,7 +265,11 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
     // Always apply the return value. onResult is incremental UX only —
     // tools that just return an array (upscaler, background remover, …)
     // were previously dropped here and rendered as a failed empty file.
+    // Skip indices already streamed via onResult so the reducer doesn't
+    // run twice per file (extra renders, and iOS was double-triggering
+    // downloads when the second dispatch landed after the click handler).
     for (const { fileIndex, result } of returnedResultsToDispatch(results)) {
+      if (streamedIndices.has(fileIndex)) continue
       dispatchResult(fileIndex, result)
     }
 
