@@ -150,6 +150,11 @@ export async function pickHevcEncoderConfig(
     { hardwareAcceleration: 'prefer-hardware', hevc: { format } },
     { hevc: { format } },
   ]
+  // iOS Safari's HEVC encoder in realtime mode emits a frame-reorder pattern
+  // the mp4-muxer can't stamp with correct ctts, producing stutter on
+  // playback. `quality` lets the encoder buffer and emit chunks in DTS order
+  // with sane durations. Hypothesis #1 for the iPhone HEVC stutter fix.
+  const latencyMode: 'realtime' | 'quality' = isIOSBrowser() ? 'quality' : 'realtime'
   for (const codec of HEVC_CODECS) {
     for (const extra of extras) {
       const cfg: HevcEncoderConfig = {
@@ -158,7 +163,7 @@ export async function pickHevcEncoderConfig(
         height,
         bitrate,
         framerate: fps,
-        latencyMode: 'realtime',
+        latencyMode,
         ...extra,
       }
       try {
@@ -630,17 +635,6 @@ export async function tryCompressVideoHevcHardware(
   opts: HevcHardwareOpts = {},
 ): Promise<File | null> {
   if (!canAttemptHevcWebCodecs()) return null
-
-  // iOS Safari's HEVC WebCodecs → mp4-muxer pipeline produces stuttering
-  // playback on iPhone-recorded videos, same failure mode the AVC path hit
-  // (cb35d64). Root cause is analogous: B-frame emission under
-  // latencyMode='realtime' plus mp4-muxer ctts handling for non-monotonic
-  // PTS. Route iOS HEVC to ffmpeg-wasm libx265 for a correct output; slower
-  // but plays smoothly on-device.
-  if (isIOSBrowser()) {
-    console.info('[compress-video] iOS Safari — skipping HEVC WebCodecs, using ffmpeg-wasm libx265 for correct output')
-    return null
-  }
 
   // Progress remap: the fast path emits 12→90. If it bails at, say, 85%,
   // the playback fallback would naïvely restart at 12% — visible regress.
