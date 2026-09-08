@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'jpg-to-webp',
   title: 'JPG to WebP Converter',
-  subtitle: 'Convert legacy JPG files to a lossless WebP format, and enjoy (up to) 90%+ savings in file size without sacrificing image quality, based on tests. Users will see the exact savings after each conversion. Nothing uploads to a server, so users can upload confidential photos that they don’t want uploaded to a server, since everything is processed in your browser.',
+  subtitle: 'Convert legacy JPG files to a lossless WebP format, and enjoy (up to) 90%+ savings in file size without sacrificing image quality, based on tests. Users will see the exact savings after each conversion. Nothing uploads to a server, so users can compress private photos without uploading them and risking a data breach, since everything is processed in the browser.',
   bestFor: 'Best for web developers cutting page weight by switching JPG assets to modern WebP.',
   category: 'images',
   accepts: ['image/jpeg'],

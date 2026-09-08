@@ -309,7 +309,9 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
           <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">
             {config.title}
           </h1>
-          <p className="mt-2 text-base text-fg-muted">{config.subtitle}</p>
+          {config.category !== 'images' && (
+            <p className="mt-2 text-base text-fg-muted">{config.subtitle}</p>
+          )}
           {config.bestFor && (
             <p className="mt-1 text-sm text-fg-subtle">{config.bestFor}</p>
           )}
@@ -505,6 +507,10 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
           </div>
         )}
       </div>
+
+      {!embedded && config.category === 'images' && config.subtitle && (
+        <p className="mt-6 text-base text-fg-muted">{config.subtitle}</p>
+      )}
 
       {/* ── How this tool works ──────────────────────────────────────────── */}
       <HowItWorks
