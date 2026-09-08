@@ -706,13 +706,23 @@ export async function tryCompressVideoHevcHardware(
           durationSeconds: duration,
         })
 
-    // Prefer hvcc bitstream so mp4-muxer honours real chunk timestamps.
-    // Falls back to annexb + ffmpeg mux on browsers that reject hvcc output.
-    let encoderConfig = await pickHevcEncoderConfig(width, height, fps, bitrate, 'hevc')
-    let useMp4Muxer = true
+    // iOS: hypothesis 2 for the HEVC stutter. Hypothesis 1 (latencyMode:
+    // 'quality') did not fix it, so bypass mp4-muxer entirely for iOS by
+    // forcing annexb output and letting ffmpeg do the mux. ffmpeg's HEVC
+    // demux/remux reconstructs the ctts table from the raw NAL units,
+    // sidestepping whatever mp4-muxer is getting wrong with Safari's chunk
+    // timestamps. Non-iOS keeps the fast hvcc path.
+    const preferAnnexB = isIOSBrowser()
+    let encoderConfig = preferAnnexB
+      ? await pickHevcEncoderConfig(width, height, fps, bitrate, 'annexb')
+      : await pickHevcEncoderConfig(width, height, fps, bitrate, 'hevc')
+    let useMp4Muxer = !preferAnnexB
     if (!encoderConfig) {
-      encoderConfig = await pickHevcEncoderConfig(width, height, fps, bitrate, 'annexb')
-      useMp4Muxer = false
+      // Fallback to the other bitstream form.
+      encoderConfig = preferAnnexB
+        ? await pickHevcEncoderConfig(width, height, fps, bitrate, 'hevc')
+        : await pickHevcEncoderConfig(width, height, fps, bitrate, 'annexb')
+      useMp4Muxer = preferAnnexB
     }
     if (!encoderConfig) return null
 
