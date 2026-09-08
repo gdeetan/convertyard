@@ -80,13 +80,20 @@ function reducer(state: State, action: Action): State {
     }
     case 'SET_PROGRESS': {
       const entries = [...state.entries]
-      if (entries[action.fileIndex]) {
-        entries[action.fileIndex] = {
-          ...entries[action.fileIndex],
-          progress: action.pct,
+      const current = entries[action.fileIndex]
+      if (current) {
+        // Monotonic clamp: some converters restart internally (e.g. hardware
+        // encoder falls through to wasm) and re-emit progress from a lower
+        // value. Showing the raw dip reads as "started over" and makes the
+        // ETA useless. Never move backward; cap at 99 so SET_RESULT owns 100.
+        const prev = current.progress ?? 0
+        const next = Math.min(99, Math.max(prev, action.pct))
+        if (next !== prev) {
+          entries[action.fileIndex] = { ...current, progress: next }
+          return { ...state, entries }
         }
       }
-      return { ...state, entries }
+      return state
     }
     case 'SET_RESULT': {
       const entries = [...state.entries]
