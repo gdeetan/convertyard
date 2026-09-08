@@ -1360,7 +1360,7 @@ export async function compressVideo(
             presetAudioArgs = ['-c:a', 'copy']
           }
         }
-        const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 85)
+        const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 88)
         ffmpeg.on('progress', beat.handler)
         try {
           const { code, tail } = await execWithReason(ffmpeg, [
@@ -1375,6 +1375,7 @@ export async function compressVideo(
           ])
           if (code !== 0) throw friendlyFfmpegError('Video compression', code, tail)
           data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+          onProgress?.(i, 99)
         } finally {
           beat.stop()
           ffmpeg.off('progress', beat.handler)
@@ -1453,7 +1454,7 @@ export async function compressVideo(
               100_000,
               Math.floor((targetBytes * 8 - audioBitsPerSec * durationSeconds) / durationSeconds)
             )
-            const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 85)
+            const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 88)
             ffmpeg.on('progress', beat.handler)
             try {
               const { code, tail } = await execWithReason(ffmpeg, [
@@ -1470,6 +1471,7 @@ export async function compressVideo(
               ])
               if (code !== 0) throw friendlyFfmpegError('Video compression', code, tail)
               data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+              onProgress?.(i, 99)
             } finally {
               beat.stop()
               ffmpeg.off('progress', beat.handler)
