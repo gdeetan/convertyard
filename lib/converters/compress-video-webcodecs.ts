@@ -150,11 +150,6 @@ export async function pickHevcEncoderConfig(
     { hardwareAcceleration: 'prefer-hardware', hevc: { format } },
     { hevc: { format } },
   ]
-  // iOS Safari's HEVC encoder in realtime mode emits a frame-reorder pattern
-  // the mp4-muxer can't stamp with correct ctts, producing stutter on
-  // playback. `quality` lets the encoder buffer and emit chunks in DTS order
-  // with sane durations. Hypothesis #1 for the iPhone HEVC stutter fix.
-  const latencyMode: 'realtime' | 'quality' = isIOSBrowser() ? 'quality' : 'realtime'
   for (const codec of HEVC_CODECS) {
     for (const extra of extras) {
       const cfg: HevcEncoderConfig = {
@@ -163,7 +158,7 @@ export async function pickHevcEncoderConfig(
         height,
         bitrate,
         framerate: fps,
-        latencyMode,
+        latencyMode: 'realtime',
         ...extra,
       }
       try {
@@ -636,6 +631,17 @@ export async function tryCompressVideoHevcHardware(
 ): Promise<File | null> {
   if (!canAttemptHevcWebCodecs()) return null
 
+  // iOS Safari's HEVC WebCodecs pipeline produces stuttering playback on
+  // iPhone output regardless of encoder config (latencyMode) or muxer
+  // choice (mp4-muxer vs annexb+ffmpeg remux) — same class of failure the
+  // AVC path hit in cb35d64. Two hypotheses tried and failed. Route iOS
+  // HEVC to ffmpeg-wasm libx265 for a correct output. Slower but plays
+  // smoothly on-device.
+  if (isIOSBrowser()) {
+    console.info('[compress-video] iOS Safari — skipping HEVC WebCodecs, using ffmpeg-wasm libx265 for correct output')
+    return null
+  }
+
   // Progress remap: the fast path emits 12→90. If it bails at, say, 85%,
   // the playback fallback would naïvely restart at 12% — visible regress.
   // Instead we track a `baseline` set at rebasePhase() time and remap the
@@ -706,23 +712,13 @@ export async function tryCompressVideoHevcHardware(
           durationSeconds: duration,
         })
 
-    // iOS: hypothesis 2 for the HEVC stutter. Hypothesis 1 (latencyMode:
-    // 'quality') did not fix it, so bypass mp4-muxer entirely for iOS by
-    // forcing annexb output and letting ffmpeg do the mux. ffmpeg's HEVC
-    // demux/remux reconstructs the ctts table from the raw NAL units,
-    // sidestepping whatever mp4-muxer is getting wrong with Safari's chunk
-    // timestamps. Non-iOS keeps the fast hvcc path.
-    const preferAnnexB = isIOSBrowser()
-    let encoderConfig = preferAnnexB
-      ? await pickHevcEncoderConfig(width, height, fps, bitrate, 'annexb')
-      : await pickHevcEncoderConfig(width, height, fps, bitrate, 'hevc')
-    let useMp4Muxer = !preferAnnexB
+    // Prefer hvcc bitstream so mp4-muxer honours real chunk timestamps.
+    // Falls back to annexb + ffmpeg mux on browsers that reject hvcc output.
+    let encoderConfig = await pickHevcEncoderConfig(width, height, fps, bitrate, 'hevc')
+    let useMp4Muxer = true
     if (!encoderConfig) {
-      // Fallback to the other bitstream form.
-      encoderConfig = preferAnnexB
-        ? await pickHevcEncoderConfig(width, height, fps, bitrate, 'hevc')
-        : await pickHevcEncoderConfig(width, height, fps, bitrate, 'annexb')
-      useMp4Muxer = preferAnnexB
+      encoderConfig = await pickHevcEncoderConfig(width, height, fps, bitrate, 'annexb')
+      useMp4Muxer = false
     }
     if (!encoderConfig) return null
 

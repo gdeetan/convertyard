@@ -959,6 +959,43 @@ function compressVideoCodecArgs(h265: boolean, preset: 'ultrafast' | 'medium' = 
   ]
 }
 
+// Wrap an ffmpeg progress handler so the reported pct keeps ticking even
+// when ffmpeg goes quiet — libx265 in single-thread mode can spend many
+// seconds in end-of-stream flush without emitting a `progress` event, and
+// mobile users read that as "stuck at 86%". Real events still drive the
+// number; the heartbeat only nudges when nothing else has for ~2s.
+function withEncodeHeartbeat(
+  onProgress: ((pct: number) => void) | undefined,
+  base: number,
+  span: number,
+): { handler: ({ progress }: { progress: number }) => void; stop: () => void } {
+  let reportedPct = base
+  let lastAdvanceAt = Date.now()
+  const ceiling = base + span - 1
+  const emit = (pct: number) => {
+    if (pct <= reportedPct) return
+    reportedPct = Math.min(ceiling, pct)
+    lastAdvanceAt = Date.now()
+    onProgress?.(reportedPct)
+  }
+  const handler = ({ progress }: { progress: number }) => {
+    emit(base + Math.round(Math.min(1, Math.max(0, progress)) * span))
+  }
+  // Heartbeat fires only when the *displayed* pct hasn't advanced for ~2.5s.
+  // ffmpeg may emit sub-threshold rounding-noise events while libx265 is
+  // actually flushing internal buffers — those keep `progress` firing but
+  // don't move the bar, and users read the frozen pct as "stuck at 86%".
+  const heartbeat = setInterval(() => {
+    if (Date.now() - lastAdvanceAt >= 2500) {
+      emit(reportedPct + 1)
+    }
+  }, 1500)
+  return {
+    handler,
+    stop: () => clearInterval(heartbeat),
+  }
+}
+
 async function tryHardwareHevcCompress(
   file: File,
   opts: {
@@ -1308,10 +1345,8 @@ export async function compressVideo(
             presetAudioArgs = ['-c:a', 'copy']
           }
         }
-        const progressHandler = ({ progress }: { progress: number }) => {
-          onProgress?.(i, Math.round(10 + progress * 85))
-        }
-        ffmpeg.on('progress', progressHandler)
+        const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 85)
+        ffmpeg.on('progress', beat.handler)
         try {
           const { code, tail } = await execWithReason(ffmpeg, [
             ...threadArgs,
@@ -1326,7 +1361,8 @@ export async function compressVideo(
           if (code !== 0) throw friendlyFfmpegError('Video compression', code, tail)
           data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
         } finally {
-          ffmpeg.off('progress', progressHandler)
+          beat.stop()
+          ffmpeg.off('progress', beat.handler)
           await ffmpeg.deleteFile(outputName).catch(() => {})
         }
       } else {
@@ -1402,10 +1438,8 @@ export async function compressVideo(
               100_000,
               Math.floor((targetBytes * 8 - audioBitsPerSec * durationSeconds) / durationSeconds)
             )
-            const progressHandler = ({ progress }: { progress: number }) => {
-              onProgress?.(i, Math.round(10 + progress * 85))
-            }
-            ffmpeg.on('progress', progressHandler)
+            const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 85)
+            ffmpeg.on('progress', beat.handler)
             try {
               const { code, tail } = await execWithReason(ffmpeg, [
                 ...threadArgs,
@@ -1422,7 +1456,8 @@ export async function compressVideo(
               if (code !== 0) throw friendlyFfmpegError('Video compression', code, tail)
               data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
             } finally {
-              ffmpeg.off('progress', progressHandler)
+              beat.stop()
+              ffmpeg.off('progress', beat.handler)
               await ffmpeg.deleteFile(outputName).catch(() => {})
             }
           } else {
@@ -1432,10 +1467,8 @@ export async function compressVideo(
             try {
               for (let pass = 0; pass < MAX_PASSES; pass++) {
                 const pctBase = 10 + pass * 13
-                const progressHandler = ({ progress }: { progress: number }) => {
-                  onProgress?.(i, Math.round(pctBase + progress * 13))
-                }
-                ffmpeg.on('progress', progressHandler)
+                const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), pctBase, 13)
+                ffmpeg.on('progress', beat.handler)
                 try {
                   const { code, tail } = await execWithReason(ffmpeg, [
                     ...threadArgs,
@@ -1449,7 +1482,8 @@ export async function compressVideo(
                   ])
                   if (code !== 0) throw friendlyFfmpegError('Video compression', code, tail)
                 } finally {
-                  ffmpeg.off('progress', progressHandler)
+                  beat.stop()
+                  ffmpeg.off('progress', beat.handler)
                 }
                 const candidate = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
                 if (candidate.byteLength <= targetBytes || pass === MAX_PASSES - 1) {
