@@ -10,6 +10,7 @@ interface BeforeAfterCompareProps {
   afterAlt: string
   afterLabel: string
   aspectRatio?: string
+  caption?: string
 }
 
 export function BeforeAfterCompare({
@@ -20,6 +21,7 @@ export function BeforeAfterCompare({
   afterAlt,
   afterLabel,
   aspectRatio = '4 / 3',
+  caption = 'Drag the slider to compare. Same photo, same 4032 × 3024 resolution — but JPG ends up ~60% larger than the HEIC original.',
 }: BeforeAfterCompareProps) {
   return (
     <div className="my-8 relative left-1/2 right-1/2 -mx-[50vw] w-screen">
@@ -60,7 +62,7 @@ export function BeforeAfterCompare({
           />
         </div>
         <p className="mt-3 text-center text-sm text-fg-subtle">
-          Drag the slider to compare. Same photo, same 4032 × 3024 resolution — but JPG ends up ~60% larger than the HEIC original.
+          {caption}
         </p>
       </div>
     </div>

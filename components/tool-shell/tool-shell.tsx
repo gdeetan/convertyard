@@ -39,6 +39,7 @@ interface ToolShellProps {
   onResults?: (results: File[]) => void
   initialOptions?: ToolOptions
   notice?: React.ReactNode
+  belowToolCard?: React.ReactNode
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -176,7 +177,7 @@ export function ToolShell(props: { config: AnyToolConfig } & Omit<ToolShellProps
   return <ConverterShell {...(props as ToolShellProps)} />
 }
 
-function ConverterShell({ config, embedded = false, onResults, initialOptions, notice }: ToolShellProps) {
+function ConverterShell({ config, embedded = false, onResults, initialOptions, notice, belowToolCard }: ToolShellProps) {
   const [state, dispatch] = useReducer(reducer, {
     entries: [],
     phase: 'idle',
@@ -511,6 +512,8 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
       {!embedded && config.category === 'images' && config.subtitle && (
         <p className="mt-6 text-base text-fg-muted">{config.subtitle}</p>
       )}
+
+      {!embedded && belowToolCard && <div className="mt-8">{belowToolCard}</div>}
 
       {/* ── How this tool works ──────────────────────────────────────────── */}
       <HowItWorks
