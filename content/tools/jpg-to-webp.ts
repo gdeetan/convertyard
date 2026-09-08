@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'jpg-to-webp',
   title: 'JPG to WebP Converter',
-  subtitle: 'WebP files average 25–35% smaller than JPG. Batch convert 1,000 at once — see exact savings per file.',
+  subtitle: 'Convert legacy JPG files to a lossless WebP format, and enjoy (up to) 90%+ savings in file size without sacrificing image quality, based on tests. Users will see the exact savings after each conversion. Nothing uploads to a server, so users can upload confidential photos that they don’t want uploaded to a server, since everything is processed in your browser.',
   bestFor: 'Best for web developers cutting page weight by switching JPG assets to modern WebP.',
   category: 'images',
   accepts: ['image/jpeg'],
@@ -106,8 +106,8 @@ export const config: ToolConfig = {
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'best-webp-quality', 'batch-convert-images'],
 
   meta: {
-    title: 'JPG to WebP Converter in Your Browser — ConvertYard',
+    title: 'Convert JPG to WebP Files in Your Browser for Free, Nothing Uploads',
     description:
-      'Convert JPG to WebP in your browser. Batch up to 1,000 files — no uploads, no account, no watermarks. Includes quality, resize, and metadata controls.',
+      'Convert JPG to WebP images with up to 90%+ file-size savings. Great for optimizing images. Batch convert up to 1,000 files; nothing uploads, so you can compress confidential photos without risk of a data breach. Includes quality, resize, and metadata controls.',
   },
 }
