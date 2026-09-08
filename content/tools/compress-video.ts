@@ -5,8 +5,8 @@ const LARGE_FILE_BYTES = 300 * 1024 * 1024
 
 export const config: ToolConfig = {
   slug: 'compress-video',
-  title: 'Video Compressor',
-  subtitle: 'Compress MP4, MOV, and MKV with CRF controls or hit an exact file size target. Runs in your browser.',
+  title: 'Free Video Compressor',
+  subtitle: 'Compress MP4, MOV, and MKV with CRF controls or target an exact file size. Nothing uploads to a server, so you can compress any unreleased footage or personal videos without risking theft from a data breach.',
   bestFor: 'Good for hitting a file attachment limit before sending or submitting a video.',
   category: 'video-audio',
   accepts: [
