@@ -187,8 +187,8 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-video-without-uploading', 'h264-vs-h265-video-compression', 'batch-compress-videos'],
 
   meta: {
-    title: 'Video Compressor — No Upload — ConvertYard',
+    title: 'Free Video Compressor - Nothing Uploads, Compresses Large Files',
     description:
-      'Compress MP4, MOV, WebM, and more in your browser. No uploads. Drop multiple videos at once — preset compression levels or hit an exact file size target.',
+      'Compress MP4, MOV, WebM, and more in your browser. Nothing uploads, compress unlimited files, compresses even large video files. Preset compression options or target an exact file size.',
   },
 }
