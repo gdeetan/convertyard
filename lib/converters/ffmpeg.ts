@@ -1,5 +1,5 @@
 import { fetchFile } from '@ffmpeg/util'
-import { materializeFile } from '@/lib/utils/materialize-file'
+import { materializeFile, unmarkMaterialized } from '@/lib/utils/materialize-file'
 import { FFFSType } from '@ffmpeg/ffmpeg'
 import { getFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock } from './ffmpeg-client'
 import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware } from './compress-video-webcodecs'
@@ -1300,6 +1300,21 @@ export async function compressVideo(
         mounted = true
       } catch (workerfsErr) {
         console.warn('[compress-video] WORKERFS mount failed — copying source to MEMFS', workerfsErr)
+        // WORKERFS hands the File to the worker via postMessage. On Android
+        // incognito the structured clone may transfer (neuter) the underlying
+        // ArrayBuffer of our materialized File, so a plain fetchFile(file)
+        // here would then throw "File could not be read". Drop the mark and
+        // re-materialize through the layered fallbacks (arrayBuffer → stream
+        // → blob-url + fetch) before reaching for MEMFS.
+        unmarkMaterialized(file)
+        try {
+          file = await materializeFile(file)
+        } catch (rematErr) {
+          console.warn('[compress-video] re-materialize failed after WORKERFS', rematErr)
+          throw new Error(
+            'Could not read this file — Android may have revoked access. Move the file to Downloads or re-select it from Files, then try again.',
+          )
+        }
         try {
           await ffmpeg.writeFile(memfsInputName, await fetchFile(file))
           wroteMemfs = true

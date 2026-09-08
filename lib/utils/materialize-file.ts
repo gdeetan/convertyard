@@ -16,36 +16,88 @@ function markMaterialized(file: File): File {
   Object.defineProperty(file, MATERIALIZED_KEY, {
     value: true,
     enumerable: false,
-    configurable: false,
+    // Keep configurable so a later force-remat can drop the mark if a
+    // downstream step (WORKERFS postMessage transfer, structured clone)
+    // neutered our owned bytes and we need a fresh read.
+    configurable: true,
     writable: false,
   })
   return file
 }
 
+export function unmarkMaterialized(file: File): void {
+  try {
+    Object.defineProperty(file, MATERIALIZED_KEY, {
+      value: false,
+      enumerable: false,
+      configurable: true,
+      writable: false,
+    })
+  } catch {
+    /* mark was frozen — best effort */
+  }
+}
+
 export async function materializeFile(file: File): Promise<File> {
   if (isMaterialized(file)) return file
   const errors: string[] = []
+  // 1) File.arrayBuffer(). Force an explicit byte copy via Uint8Array so
+  //    the returned File owns its bytes independent of anything Chrome
+  //    might do with the source (postMessage transfers, content:// URI
+  //    revocation, cross-tab handle expiry).
   try {
-    const buf = await file.arrayBuffer()
+    const src = new Uint8Array(await file.arrayBuffer())
+    const copy = new Uint8Array(src.byteLength)
+    copy.set(src)
     return markMaterialized(
-      new File([buf], file.name, { type: file.type, lastModified: file.lastModified }),
+      new File([copy], file.name, { type: file.type, lastModified: file.lastModified }),
     )
   } catch (err) {
-    errors.push(err instanceof Error ? err.message : String(err))
+    errors.push(`arrayBuffer: ${err instanceof Error ? err.message : String(err)}`)
   }
+  // 2) Streaming reader. Some Android builds fail arrayBuffer() but let
+  //    a stream walk through.
   try {
     const reader = file.stream().getReader()
-    const chunks: BlobPart[] = []
+    const chunks: Uint8Array[] = []
+    let total = 0
     for (;;) {
       const { done, value } = await reader.read()
       if (done) break
-      if (value) chunks.push(value as unknown as BlobPart)
+      if (value) {
+        chunks.push(value)
+        total += value.byteLength
+      }
+    }
+    const combined = new Uint8Array(total)
+    let offset = 0
+    for (const c of chunks) {
+      combined.set(c, offset)
+      offset += c.byteLength
     }
     return markMaterialized(
-      new File(chunks, file.name, { type: file.type, lastModified: file.lastModified }),
+      new File([combined], file.name, { type: file.type, lastModified: file.lastModified }),
     )
   } catch (err) {
-    errors.push(err instanceof Error ? err.message : String(err))
+    errors.push(`stream: ${err instanceof Error ? err.message : String(err)}`)
+  }
+  // 3) Blob URL + fetch round-trip. Bypasses File-object quirks entirely —
+  //    the browser materializes the underlying storage into a fresh Blob
+  //    via its HTTP fetch pipeline, which survives incognito's tighter
+  //    handle policies on Android Chrome.
+  let url: string | null = null
+  try {
+    url = URL.createObjectURL(file)
+    const resp = await fetch(url)
+    const blob = await resp.blob()
+    const buf = new Uint8Array(await blob.arrayBuffer())
+    return markMaterialized(
+      new File([buf], file.name, { type: file.type || blob.type, lastModified: file.lastModified }),
+    )
+  } catch (err) {
+    errors.push(`blob-url: ${err instanceof Error ? err.message : String(err)}`)
+  } finally {
+    if (url) URL.revokeObjectURL(url)
   }
   console.warn('[materialize] failed:', errors.join(' | '))
   throw new Error(
