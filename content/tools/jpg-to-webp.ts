@@ -78,11 +78,11 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Does converting JPG to WebP reduce quality?',
-      a: 'At the default quality of 80, the difference is invisible to most viewers — WebP is simply more efficient than JPG at the same perceptual quality. If you enable lossless mode, there is zero quality loss. The only scenario where you would notice degradation is at very low quality settings (below 50), which would look bad in any format.',
+      a: 'At the default quality setting of 80%, the difference is negligible to most viewers. WebP is more efficient than JPG at the same quality, especially if you turn on lossless mode. The only scenario where you’ll see a noticeable degradation is using low quality settings (50 or below), which looks bad regardless of format.',
     },
     {
       q: 'How much smaller will my WebP files be?',
-      a: 'On average, 25–35% smaller than the equivalent JPG. Results vary by content: photos with gradients and smooth tones compress best (30–40% savings), while images with sharp edges or text see smaller gains (10–20%). ConvertYard shows you the exact byte savings per file in your results so you can see the difference immediately.',
+      a: "Based on my tests, I'm getting over 70% savings converting JPG to WebP at 80% quality. However, results may vary depending on the content. Check the demo output below and the slider to see the JPG and WebP side by side; you'll hardly notice any change. ConvertYard shows you the exact byte savings per file in your results so you can see the difference immediately.",
     },
     {
       q: 'Does WebP work in all browsers?',
@@ -90,15 +90,15 @@ export const config: ToolConfig = {
     },
     {
       q: "What's the difference between lossy and lossless WebP?",
-      a: 'Lossy WebP (the default) discards some pixel data to shrink file size — at quality 80 this is imperceptible. Lossless WebP preserves every pixel exactly, like a PNG, but uses smarter compression than PNG and is typically 25% smaller than an equivalent PNG. Lossless files are 10–30% larger than lossy equivalents. Use lossless for logos, screenshots, UI assets, or images you plan to edit again.',
+      a: 'Lossy WebP (the default) discards some pixel data to shrink file size — at quality 80, the loss is negligible. Lossless WebP preserves every pixel exactly, like a PNG, but uses smarter compression than PNG and is typically 25% smaller than an equivalent PNG. Lossless files are 10–30% larger than lossy equivalents. Use lossless for logos, screenshots, UI assets, or images you plan to edit again.',
     },
     {
       q: 'Can I convert 1,000 JPGs at once?',
-      a: 'Yes. Drop them all in at once and ConvertYard processes them one at a time in your browser — no uploads, no queues, no server. Speed depends on your device, image dimensions, and the compression effort setting. On a modern laptop, 1,000 average-sized photos typically finishes in 5–15 minutes. Download them all as a single ZIP when done.',
+      a: 'Yes, you can drop all contents of a folder at once, but note that this will take longer than a smaller batch. One advantage of browser conversion is that it reduces the time it takes because it skips the file upload process. Most ‘free’ image converter sites also limit how many files they can process because of storage limits on their servers. Conversion speed depends on several factors: image size and processor speed. Typically, a 1,000-file batch conversion takes about 5 to 15 minutes. After conversion, you can download the batch as a zip file.',
     },
     {
       q: 'Are my files uploaded to your servers?',
-      a: "Never. Conversion runs entirely in your browser using WebAssembly — the same technology behind browser-based tools like Figma. Your files never leave your device. ConvertYard's servers only deliver the tool's code; they never see your images, filenames, or metadata.",
+      a: 'Nothing uploads. The file conversion is done entirely in your browser using WebAssembly. This is the same technology behind browser-based tools like Figma. The image files never leave your device. What our server does is deliver code to your browser, but all the processing happens locally, so there’s no risk of a data breach or people stealing your photos.',
     },
   ],
 

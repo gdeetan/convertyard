@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'heic-to-jpg',
   title: 'HEIC to JPG Converter',
-  subtitle: 'iPhone photos to universal JPGs in your browser. Drop 1,000 at once — no iCloud, no Lightroom needed.',
+  subtitle: 'Convert iPhone’s HEIC format to a universally readable JPG format in your browser. No paywall. Nothing uploads to a server. Everything is converted locally in your browser.',
   bestFor: 'Best for making iPhone photos viewable on Windows PCs, Android devices, and apps that reject HEIC.',
   category: 'images',
   accepts: ['image/heic', 'image/heif'],
@@ -89,8 +89,8 @@ export const config: ToolConfig = {
   relatedArticles: ['what-is-heic', 'heic-to-jpg-on-windows', 'batch-convert-images'],
 
   meta: {
-    title: 'Convert iPhone HEIC to JPG — ConvertYard',
+    title: 'Convert iPhone HEIC to JPG - Unlimited Convertions, Nothing Uploads',
     description:
-      'Convert iPhone HEIC photos to JPG in your browser. Batch up to 1,000 files — no uploads, no account. Auto-orient, quality control, and resize included.',
+      "Convert iPhone HEIC files to JPG file in your browser to view the photo on non-IOS devices. Convert batches up to 1,000 files for free. Nothing uploads and there's no paywall. Auto-orient, resize, and adjust quality filters are included.",
   },
 }
