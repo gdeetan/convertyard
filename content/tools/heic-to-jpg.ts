@@ -61,27 +61,27 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my iPhone photos uploaded to convert them?',
-      a: "No. Conversion runs entirely in your browser using WebAssembly. Your HEIC files never leave your device. ConvertYard's servers only deliver the tool's code; they never see your images, filenames, or GPS data.",
+      a: 'No files are uploaded. The image conversion happens in your browser using WebAssembly. Your HEIC files don’t leave your device since our servers only load the tool’s code in the browser. No one will see your images, filenames, or GPS data.',
     },
     {
       q: 'Why can\'t Windows open HEIC files?',
-      a: 'HEIC uses Apple\'s implementation of the HEIF format, which requires a licensed codec not installed by default on Windows. Windows 10/11 can open HEIC files if you install the free "HEIF Image Extensions" from the Microsoft Store, but most other apps still cannot read them. Converting to JPG works universally.',
+      a: 'HEIC uses Apple\'s HEIF implementation, which is licensed. Windows does not include the required HEIF codec by default. HEIF Image Extensions for Windows 10/11 is available as a free app from the Microsoft Store. However, other Windows-based apps and browsers won’t be able to read or load them. All apps can open HEIC images after you convert them to JPG.',
     },
     {
       q: 'My converted JPG has a greenish or purplish cast. Why?',
-      a: 'This can happen with HDR or wide-gamut HEIC photos taken on newer iPhones. The HEIC is encoded in Display P3 color space, which can be misinterpreted during conversion on non-Apple systems. It affects a small percentage of photos, particularly those shot in bright outdoor light or with Smart HDR enabled.',
+      a: 'HDR or wide-gamut HEIC photos taken with new iPhones may experience this issue. HEIC photos are encoded in the Display P3 color space. However, when these images are converted on non-Apple devices, the encoded image may be misinterpreted. The issue affects only a small number of images. The most affected are very bright images shot outdoors and images that have been edited with Smart HDR.',
     },
     {
       q: 'Does converting HEIC to JPG reduce quality?',
-      a: 'At quality 90, the difference is imperceptible. The re-encoding introduces minimal degradation that is invisible in normal viewing. If you plan to edit the images further, convert at 95–100 to preserve maximum data. For sharing and web use, 85–90 is the sweet spot.',
+      a: 'Converting an image at quality 90 looks nearly indistinguishable from the original. As with any re-encoding of an image, there are some minor degradation points, but you’d have to look very closely at the image to see it. For future editing, it’s better to encode at 95–100, but for sharing the images or putting them up on websites, 85–90 is perfectly fine.',
     },
     {
       q: 'Why is my iPhone photo sideways after converting?',
-      a: 'iPhones store the photo upright but embed the rotation in EXIF metadata rather than rotating the pixels. Some apps respect this metadata; others ignore it. The Auto-orient option (enabled by default) reads the EXIF rotation and bakes it into the output pixels, so the JPG displays correctly everywhere.',
+      a: 'iPhones take photos in upright orientation and store the rotation information in the EXIF data. Most apps honor the rotation information in the EXIF data, but some do not. The option Auto-orient (enabled by default) reads the rotation information from the EXIF data and aligns the pixels accordingly for the output JPG file. This ensures the photo displays correctly in all apps.',
     },
     {
       q: 'Will Live Photos convert correctly?',
-      a: 'Only the still frame converts. The motion component of a Live Photo is stored separately in a video file and is not included in the HEIC. You get the still image, not the video loop.',
+      a: 'Yes, but only the still frame is converted. The motion element of a ‘live photo’ is stored separately in another video file, so it’s not included in the HEIC. The image is available, but not the video loop.',
     },
   ],
 
