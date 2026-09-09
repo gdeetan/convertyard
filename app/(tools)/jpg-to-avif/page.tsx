@@ -1,8 +1,13 @@
 'use client'
 
+import dynamic from 'next/dynamic'
 import { ToolShell } from '@/components/tool-shell/tool-shell'
-import { BeforeAfterCompare } from '@/components/ui/BeforeAfterCompare'
 import { config } from '@/content/tools/jpg-to-avif'
+
+const BeforeAfterCompare = dynamic(
+  () => import('@/components/ui/BeforeAfterCompare').then((m) => m.BeforeAfterCompare),
+  { ssr: false },
+)
 
 export default function Page() {
   return (
