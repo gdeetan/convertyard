@@ -14,6 +14,13 @@ export const config: ToolConfig = {
       libvipsConvert(files, 'avif', opts, onProgress, onResult),
   enablePresets: true,
 
+  howItWorks: [
+    { label: 'Drop your files', desc: 'Drag and drop, click to browse, or paste from clipboard. Up to 1,000 files at once.' },
+    { label: 'Choose settings', desc: 'Adjust the image quality, compression effort, max dimensions, etc., depending on your needs.' },
+    { label: 'Click Convert', desc: 'The JPG converts to AVIF in your browser, so nothing is uploaded.' },
+    { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+  ],
+
   options: [
     {
       type: 'slider',
@@ -92,8 +99,8 @@ export const config: ToolConfig = {
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'avif-browser-support', 'best-webp-quality'],
 
   meta: {
-    title: 'JPG to AVIF Converter — ConvertYard',
+    title: 'JPG to AVIF Converter - No Paywall, No Signup, No Daily Limits',
     description:
-      'Convert JPG to AVIF in your browser. Batch up to 1,000 files — no uploads, no account, no watermarks. Includes quality, effort, resize, and metadata controls.',
+      "Convert JPG to AVIF without uploading your images to a server. Upload batches up to 1,000 files. There's no paywall, no signup, no watermarks. Users can adjust image quality, remove metadata, and resize a whole batch of images.",
   },
 }
