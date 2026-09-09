@@ -24,7 +24,7 @@ export const meta = {
   relatedTools: ['compress-image', 'jpg-to-webp'],
 }
 
-"Compress images without losing quality" is one of the most searched phrases in image processing — and one of the most misunderstood. This guide explains what's actually happening when you compress an image, why the phrase is technically a contradiction, and what it really means in practice.
+One of the most misunderstood topics in the webmasters community is "how to compress images without losing image quality" and this article explains what it actually means. Site owners who want to improve speed often read an article on this, then open Photoshop or another editor, save their image, set the quality to the lowest possible setting, and end up with a smaller file but compromised quality. This is where this article differs from most out there. The phrase "compress images without losing quality" is actually a contradiction, and here's what it really means in practice.
 
 **[Compress images in your browser — no uploads →](/compress-image/)**
 
@@ -32,88 +32,91 @@ export const meta = {
 
 All image compression falls into two categories.
 
-**Lossless compression** reorganizes image data more efficiently without discarding any information. If you decompress a losslessly-compressed image, you get back every original pixel exactly. PNG uses lossless compression. So does WebP in lossless mode, and GIF. The compressed file is smaller, but decompression always yields the original. Think of it like zipping a file — the original is perfectly recoverable.
+To achieve even better compression, an image can be reorganized losslessly to use the available data space more efficiently. This allows the decompressed image to be identical to the original. Images that use lossless compression include PNG, WebP (in lossless mode), and GIF. Just as a zipped file can be unzipped to restore the original file, losslessly compressed images can be decompressed to return to their original form.
 
-**Lossy compression** discards image data permanently — data the compression algorithm predicts you won't notice. JPEG, standard WebP, and AVIF all use lossy compression. The discarded data cannot be recovered. Once you save a JPEG at quality 80, the information that was present at quality 100 is gone.
+A lossy compression method discards parts of the image that it determines the user will not be able to see. If an image has been saved with lossy compression, the lost data can never be recovered. If, for example, you saved an image as a JPEG at 80% quality, then all of the data that would have been saved had the image been saved at 100% quality would have been irreversibly lost.
 
-The key insight is that lossy compression algorithms are designed around the limitations of human vision. Your visual system is:
+Lossy compression aims to remove data that your vision can't detect. In order to do this properly, the algorithm is built around knowing the properties of human vision, specifically:
+
 - More sensitive to brightness changes than color changes
 - Less sensitive to fine detail in high-frequency texture areas (grass, fabric, noise)
 - Less sensitive to subtle color variations in smooth areas (clear skies, skin tones)
 
-JPEG, WebP, and AVIF all exploit these properties. They discard information in the parts of the image your visual system pays the least attention to.
+All of these methods of lossy image compression discard the same information, i.e., information your visual system cannot see anyway.
 
 ## The quality threshold: where the eye stops seeing the difference
 
-Here is the most practically useful insight in image compression: **above roughly quality 75–80, most people cannot distinguish a compressed image from the original, even in direct comparison.**
+The practical limit for image quality that is sufficient for display on the web: images compressed to around 75–80% of their original size look close enough to the original that most people can't tell the difference when viewing the two images side by side.
 
-This has been validated by decades of psychovisual research and is the basis for industry standards. The SSIM (Structural Similarity Index), the most widely used image quality metric, shows diminishing returns above quality 80 for virtually all photographic content.
+Researchers have been studying how we perceive images for decades. They have established several standards for image quality, and many applications use the Structural Similarity Index (SSIM) as the most important measure. For most photographic images, SSIM increases only slightly above quality 80.
 
 What this means in practice:
-- A JPEG at quality 100: ~3.2 MB (for a 12MP phone photo)
-- A JPEG at quality 85: ~750 KB — **77% smaller**, imperceptible difference
-- A JPEG at quality 80: ~520 KB — **84% smaller**, imperceptible for web viewing
-- A JPEG at quality 70: ~380 KB — 88% smaller, visible artifacts on close inspection
 
-Quality 80 is not a compromise. It is the sweet spot where compression is maximized and visual fidelity is fully preserved for display purposes. The industry standard for web image delivery is quality 75–85. Google's PageSpeed Insights targets quality 85 as acceptable for most web images.
+- A JPEG at quality 100 would be roughly 3.2 MB for a 12MP phone image.
+- A JPEG compressed to quality 85 will compress to approximately 750 KB and be imperceptibly worse than the original.
+- A JPEG at quality 80: ~520 KB — 84% smaller, imperceptible for web viewing.
+- A JPEG encoded at quality 70 is about 380 KB, which is 88% smaller than the 3.2 MB full-size JPEG but would show visible artifacts when viewed at full size.
 
-The main exception: images with text, sharp geometric edges, or line art. JPEG's block-based compression handles these poorly. For screenshots, diagrams, or UI mockups, use PNG or WebP lossless — or compress JPEGs containing text at 90+.
+Quality 80 is not a compromise. In fact, Quality 80 is the "sweet spot" of image compression, where we can get maximum compression while still maintaining 100% visual fidelity when the image is displayed. 75–85 is the industry standard for web image delivery. For images that are displayed on the web, Google's PageSpeed Insights considers images compressed to 85 to be acceptable.
+
+Exceptions include images with text, sharp geometric features, or line art. For such images, which JPEG (even at high quality) can not compress well enough, use PNG or lossless WebP, or compress JPEG images containing text at high quality (90+).
 
 ## Format choice is the biggest lever
 
-The quality slider is not the most powerful tool for reducing file size. **Switching formats saves more than any quality setting change.**
+Changing formats instead of using the quality slider saves way more bytes than lowering the quality.
 
-Converting from JPEG to WebP at the same perceived quality typically saves 25–35%. Converting to AVIF saves 40–55%. This is not a quality trade-off — it's a more efficient compression algorithm producing an equivalent-looking result.
+Converting from JPEG to WebP saves around 25–35% bytes at the same perceived quality. Converting to AVIF saves around 40–55% bytes at the same perceived quality. This isn't a quality trade-off; it's a better compression algorithm that produces the same image at a different file size.
 
-Comparison for the same 12-megapixel photo at visually equivalent quality:
+For a 12MP photo, here's the same-quality image (printed at the same size) in different formats, for the same web page:
+
 - JPEG quality 85: 750 KB
 - WebP quality 80: 520 KB (−31%)
 - AVIF quality 70: 370 KB (−51%)
 
-For any image you're serving on the web, switching to WebP is the highest-leverage action you can take — ahead of adjusting quality, ahead of resizing, ahead of any other optimization.
+Switching to WebP for images served on the web will generally have the biggest impact of any change you can make to the image (even before reducing quality, resizing, etc.).
 
 [Convert JPG to WebP in bulk →](/jpg-to-webp/)
 
 ## How to compress in batches without uploading files
 
-Most online compression tools work by uploading your files to a server, compressing them there, and sending them back. For photos, marketing assets, or any professional imagery, this means your files pass through infrastructure you don't control, with retention policies you've probably never read.
+Most online file compression services upload your files and then compress them on their servers. For images like photos, marketing materials, and other business graphics, this can be a huge risk. You have no idea what infrastructure your images pass through or what retention policies are in place.
 
-ConvertYard's image compressor runs entirely in your browser using WebAssembly. The compression library (libvips) executes on your device — no upload, no server-side processing.
+Unlike most online compression tools, ConvertYard runs 100% in the browser using WebAssembly. The image compression library is libvips, which runs locally on your device — no file upload or server-side processing is required.
 
 To compress a batch:
 
 1. Go to [ConvertYard's image compressor](/compress-image/).
-2. Drop all your image files at once — JPG, PNG, and WebP are supported.
+2. Drop all your image files at once (JPG, PNG, WebP).
 3. Set quality to 80 (default) for most use cases.
-4. Enable **Strip metadata** if you don't need EXIF data in the output.
+4. Uncheck the box next to **Strip metadata** if you wish to keep your images' EXIF data.
 5. Click Convert and download the ZIP.
 
-For JPG and WebP files, you can also set a **maximum file size target** in kilobytes. The tool will reduce quality incrementally until the file fits under your target. This is useful for platforms that enforce a specific file size limit per image.
+For JPG and WebP images, you can also set a maximum file size in kilobytes, and ConvertYard will decrease the quality of the image in steps until the resulting file is below the size limit for your use case (e.g. for a web platform that has a file size limit per image).
 
 ## Compression checklist by workflow
 
 **Web developer optimizing a site:**
 - Convert all photos to WebP at quality 80
-- Convert logos and icons with transparency to WebP lossless or keep PNG
-- Target total image payload under 500 KB per page
-- Use `picture` elements with AVIF + WebP + JPEG for maximum browser coverage
+- Convert logos and icons with a background color to WebP lossless, or keep them as PNGs
+- Target a total image payload for the page of under 500 KB
+- Use `picture` elements (AVIF + WebP + JPEG) to cover as many browsers as possible
 
 **E-commerce seller with product photos:**
-- Convert to AVIF (quality 70) with WebP fallback for maximum load speed
+- Convert to AVIF (quality 70) with WebP fallback
 - Keep original JPEGs as master files
-- Strip metadata from output files to reduce size and remove device info
+- Remove metadata (e.g., device info) from output files
 
 **Photographer sharing proofs:**
-- JPEG quality 90–95 for client delivery — maintains editing headroom if clients re-export
+- JPEG quality 90–95 for client delivery — wants to be able to edit later and re-export himself
 - Deliver as ZIP via ConvertYard batch conversion
 
 **Marketing team compressing assets for email:**
 - JPEG quality 75–80 for photos in email campaigns
-- Test at 70 — email clients render at screen resolution, not print
+- Test at 70% — this will render correctly on a screen and not print out of control
 - PNG for graphics with text or flat color
-- Target under 200 KB per image for reliable email rendering
+- Set a limit of 200 KB per image to ensure that they are delivered properly within emails
 
 **Content creator resizing for social media:**
 - Each platform recompresses uploads regardless — don't over-compress before uploading
-- JPEG quality 85–90 is a good target to survive platform recompression without double-compression artifacts
-- Strip GPS metadata before uploading if privacy matters
+- JPEG quality for online purposes is best set around 85–90 to ensure that once uploaded, the file will survive subsequent recompression by the individual platform without suffering from double-compression artifacts
+- Remove GPS metadata before uploading, where necessary
