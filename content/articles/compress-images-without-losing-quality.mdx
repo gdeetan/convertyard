@@ -141,6 +141,8 @@ Measured on the test image:
 - WebP quality 80, metadata stripped: 204 KB (−88%)
 - AVIF quality 70, effort 6, metadata stripped: 216 KB (−87%)
 
+A caveat on these numbers: they're the real output of running the same photo through ConvertYard, not typical-case estimates or figures pulled from a marketing chart. WebP q80 landing slightly under AVIF q70 on this image is a genuine result of this specific photo — a smooth-toned landscape at 1280 px. AVIF usually widens its lead on higher-resolution images and scenes with more fine detail (foliage, textures, noise), where its more expensive coding tools pay off. At web-body dimensions like this, the two formats often finish within a few percent of each other. Point being: your own mileage will vary by content, and the honest answer is to test with your own images.
+
 None of these images were resized — every version is the full 1280 × 854. All the savings come from format and quality settings alone. If the image were also resized to the actual display width (say 800 px for a typical article body), file sizes would drop by another 30–50%.
 
 Switching to WebP for images served on the web will generally have the biggest impact of any change you can make to the image (even before reducing quality, resizing, etc.).
