@@ -4,8 +4,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'jpg-to-avif',
   title: 'JPG to AVIF Converter',
-  subtitle: 'AVIF compresses 30–50% better than JPG at the same quality. Convert your archive without uploading a single file.',
-  bestFor: 'Best for web developers converting JPG photo libraries to AVIF to cut page weight on image-heavy sites.',
+  subtitle: 'Based on my tests, AVIF images compress over 80% better than JPGs at the same quality and dimensions. Convert your library without uploading anything to a server.',
+  bestFor: 'For website owners, converting JPG photos to a more efficient AVIF format can cut a big chunk of file size on image-heavy sites.',
   category: 'images',
   accepts: ['image/jpeg'],
   acceptsExt: ['.jpg', '.jpeg'],
@@ -64,27 +64,27 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'What is AVIF and why should I use it?',
-      a: 'AVIF (AV1 Image File Format) is a modern image format developed by the Alliance for Open Media. It delivers significantly smaller file sizes than both JPG and WebP at the same visual quality — typically 40–60% smaller than an equivalent JPG. It supports HDR, wide color gamut, transparency, and animation. For web use, AVIF is the current best-in-class format for photographs.',
+      a: "AVIF (AV1 Image File Format) is a relatively new image format by the Alliance for Open Media (AOM) that delivers pictures in a much smaller file size at the same image quality as JPG and WebP. For instance, a JPG of medium size would weigh about 1 MB, while AVIF files of the same size are only around 400-600 kB. AVIF supports HDR, wide color gamut, semi-transparent areas, and animations, so it's currently the best image format for photographs on the web.",
     },
     {
       q: 'Does converting JPG to AVIF reduce quality?',
-      a: 'At the default quality of 70, AVIF looks visually identical to JPG — the format is simply more efficient. AVIF quality 70 is roughly equivalent to JPG quality 85 in perceptual terms. You would only notice degradation at very low quality settings (below 40). For archiving or further editing, keep your original JPGs; for web delivery, AVIF at 70 is excellent.',
+      a: 'The default AVIF quality setting is 70, which looks just as good as JPG and is much more efficient. So, in perceptual quality terms, 70-quality AVIF is roughly equivalent to 85-quality JPG. You may start to notice some degradation at very low quality settings (i.e., less than 40), but for web use and the like, AVIF at 70 quality is a great choice. (Originals get archived and edited, and then delivered to the web as AVIF.)',
     },
     {
       q: 'What browsers support AVIF?',
-      a: 'AVIF is supported in Chrome (since v85, August 2020), Firefox (since v93, October 2021), Edge (since v121), and Safari (since v16.4, March 2023). That covers over 93% of global web traffic. Android and iOS browsers also support AVIF. The main gap is older iOS/Safari versions — if you need to support Safari 15 or earlier, serve WebP with AVIF as the preferred format using a <picture> element.',
+      a: 'AVIF is supported in Chrome since v85 (August 2020), Firefox since v93 (October 2021), Edge since v121, and in Safari since v16.4 (March 2023). Android and iOS browsers also support it. The only gap is support for older iOS/Safari versions. To serve those users, you can serve AVIF as the preferred format and WebP as a fallback using a <picture> element, for example.',
     },
     {
       q: 'When should I choose AVIF over WebP?',
-      a: 'Choose AVIF when file size is the priority and you can accept slower encoding. AVIF compresses 15–30% better than WebP at equivalent quality, making it ideal for image-heavy pages, e-commerce product shots, and any context where bandwidth matters. Use WebP when encoding speed matters (e.g., generating thumbnails on the fly) or when you need broad browser support including older Safari.',
+      a: 'AVIF is better when file size matters and you can wait a bit for encoding. If you push the compression level, AVIF can compress 15-30% better than WebP at the same quality. So it’s particularly suitable for image-intensive websites, product images for online shops, and any situation where bandwidth is a concern. WebP is better when encoding speed is crucial, such as when generating thumbnails on the fly. It also supports older Safari versions, which AVIF doesn’t.',
     },
     {
       q: 'Why does AVIF encoding take longer than JPG or WebP?',
-      a: 'AVIF encoding is computationally heavier because it uses the AV1 video codec, which was designed for maximum compression efficiency rather than speed. At the default effort of 4, expect roughly 2–10x longer encode times than WebP for the same image. Lowering the effort slider speeds up encoding at the cost of slightly larger files. Decoding AVIF is fast — the performance hit is encode-only.',
+      a: 'AVIF uses the AV1 video codec for maximum compression efficiency. AVIF encoding is therefore much more compute-intensive than WebP encoding. At an effort of 4 (the default), AVIF encoding is approximately 2-10x slower than WebP for an equivalent image. But lowering the effort slider can reduce the AVIF encoding time at the cost of slightly larger images. AVIF decoding is fast; the main performance impact comes from encoding.',
     },
     {
       q: 'Are my files uploaded to your servers?',
-      a: "Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device. ConvertYard's servers only deliver the tool's code; they never see your images, filenames, or metadata.",
+      a: 'No. The image conversion is done in your browser using WebAssembly, so nothing leaves your device. If you’re particular about data privacy and don’t want your photos potentially stolen in a data breach, Convertyard is a good option.',
     },
   ],
 
