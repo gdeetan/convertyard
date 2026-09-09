@@ -46,16 +46,58 @@ All of these methods of lossy image compression discard the same information, i.
 
 ## The quality threshold: where the eye stops seeing the difference
 
+<figure className="my-8 relative left-1/2 right-1/2 -mx-[50vw] w-screen">
+  <div className="mx-auto max-w-5xl px-4 sm:px-6">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="overflow-hidden rounded-lg border border-border bg-bg-elevated">
+        <img src="/articles/compress-images-without-losing-quality/koruldi-1280-original.jpg" alt="Koruldi Lake, 1280 px, uncompressed" width={1280} height={854} loading="lazy" decoding="async" className="block h-auto w-full" />
+        <div className="border-t border-border px-3 py-2 text-center">
+          <div className="text-xs font-medium text-fg">Original</div>
+          <div className="text-xs text-fg-subtle">1,697 KB</div>
+          <div className="text-[11px] text-fg-subtle">baseline</div>
+        </div>
+      </div>
+      <div className="overflow-hidden rounded-lg border border-border bg-bg-elevated">
+        <img src="/articles/compress-images-without-losing-quality/koruldi-1280-q85.jpg" alt="Same image compressed to JPEG quality 85" width={1280} height={854} loading="lazy" decoding="async" className="block h-auto w-full" />
+        <div className="border-t border-border px-3 py-2 text-center">
+          <div className="text-xs font-medium text-fg">Quality 85</div>
+          <div className="text-xs text-fg-subtle">292 KB</div>
+          <div className="text-[11px] text-fg-subtle">83% smaller</div>
+        </div>
+      </div>
+      <div className="overflow-hidden rounded-lg border border-border bg-bg-elevated">
+        <img src="/articles/compress-images-without-losing-quality/koruldi-1280-q80.jpg" alt="Same image compressed to JPEG quality 80" width={1280} height={854} loading="lazy" decoding="async" className="block h-auto w-full" />
+        <div className="border-t border-border px-3 py-2 text-center">
+          <div className="text-xs font-medium text-fg">Quality 80</div>
+          <div className="text-xs text-fg-subtle">249 KB</div>
+          <div className="text-[11px] text-fg-subtle">85% smaller</div>
+        </div>
+      </div>
+      <div className="overflow-hidden rounded-lg border border-border bg-bg-elevated">
+        <img src="/articles/compress-images-without-losing-quality/koruldi-1280-q70.jpg" alt="Same image compressed to JPEG quality 70" width={1280} height={854} loading="lazy" decoding="async" className="block h-auto w-full" />
+        <div className="border-t border-border px-3 py-2 text-center">
+          <div className="text-xs font-medium text-fg">Quality 70</div>
+          <div className="text-xs text-fg-subtle">198 KB</div>
+          <div className="text-[11px] text-fg-subtle">88% smaller</div>
+        </div>
+      </div>
+    </div>
+    <figcaption className="mt-3 text-center text-sm text-fg-subtle">
+      Same 1280 × 854 landscape at four JPEG quality settings — tested in <a href="/compress-image/" className="underline">ConvertYard's image compressor</a>. Zoom in and look for differences.
+    </figcaption>
+  </div>
+</figure>
+
 The practical limit for image quality that is sufficient for display on the web: images compressed to around 75–80% of their original size look close enough to the original that most people can't tell the difference when viewing the two images side by side.
 
 Researchers have been studying how we perceive images for decades. They have established several standards for image quality, and many applications use the Structural Similarity Index (SSIM) as the most important measure. For most photographic images, SSIM increases only slightly above quality 80.
 
-What this means in practice:
+What this means in practice — the 1280 × 854 landscape above, run through ConvertYard's compressor:
 
-- A JPEG at quality 100 would be roughly 3.2 MB for a 12MP phone image.
-- A JPEG compressed to quality 85 will compress to approximately 750 KB and be imperceptibly worse than the original.
-- A JPEG at quality 80: ~520 KB — 84% smaller, imperceptible for web viewing.
-- A JPEG encoded at quality 70 is about 380 KB, which is 88% smaller than the 3.2 MB full-size JPEG but would show visible artifacts when viewed at full size.
+- Uncompressed JPEG baseline: 1,697 KB.
+- Quality 85: 292 KB — 83% smaller, imperceptibly different from the original.
+- Quality 80: 249 KB — 85% smaller, still imperceptible for web viewing.
+- Quality 70: 198 KB — 88% smaller, but visible artifacts start to appear in the sky gradient and reflections when viewed at full size.
 
 Quality 80 is not a compromise. In fact, Quality 80 is the "sweet spot" of image compression, where we can get maximum compression while still maintaining 100% visual fidelity when the image is displayed. 75–85 is the industry standard for web image delivery. For images that are displayed on the web, Google's PageSpeed Insights considers images compressed to 85 to be acceptable.
 
