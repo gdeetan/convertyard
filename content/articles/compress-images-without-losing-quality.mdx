@@ -111,11 +111,37 @@ Changing formats instead of using the quality slider saves way more bytes than l
 
 Converting from JPEG to WebP saves around 25–35% bytes at the same perceived quality. Converting to AVIF saves around 40–55% bytes at the same perceived quality. This isn't a quality trade-off; it's a better compression algorithm that produces the same image at a different file size.
 
-For a 12MP photo, here's the same-quality image (printed at the same size) in different formats, for the same web page:
+Here's the same 1280 × 854 landscape from earlier, re-encoded straight into WebP and AVIF through ConvertYard. Drag each slider to compare against the JPEG baseline:
 
-- JPEG quality 85: 750 KB
-- WebP quality 80: 520 KB (−31%)
-- AVIF quality 70: 370 KB (−51%)
+<BeforeAfterCompare
+  beforeSrc="/articles/compress-images-without-losing-quality/koruldi-1280-original.jpg"
+  beforeAlt="Original JPEG at 1,697 KB"
+  beforeLabel="JPEG · 1,697 KB"
+  afterSrc="/articles/compress-images-without-losing-quality/koruldi-1280-webp-q80.webp"
+  afterAlt="Same photo re-encoded to WebP quality 80"
+  afterLabel="WebP q80 · 204 KB (−88%)"
+  aspectRatio="1280 / 854"
+  caption="JPEG baseline vs WebP quality 80 (metadata stripped). Same 1280 × 854 pixels — 1,697 KB drops to 204 KB."
+/>
+
+<BeforeAfterCompare
+  beforeSrc="/articles/compress-images-without-losing-quality/koruldi-1280-original.jpg"
+  beforeAlt="Original JPEG at 1,697 KB"
+  beforeLabel="JPEG · 1,697 KB"
+  afterSrc="/articles/compress-images-without-losing-quality/koruldi-1280-avif-q70.avif"
+  afterAlt="Same photo re-encoded to AVIF quality 70"
+  afterLabel="AVIF q70 · 216 KB (−87%)"
+  aspectRatio="1280 / 854"
+  caption="JPEG baseline vs AVIF quality 70, effort 6 (metadata stripped). Same 1280 × 854 pixels — 1,697 KB drops to 216 KB."
+/>
+
+Measured on the test image:
+
+- JPEG (uncompressed reference): 1,697 KB
+- WebP quality 80, metadata stripped: 204 KB (−88%)
+- AVIF quality 70, effort 6, metadata stripped: 216 KB (−87%)
+
+None of these images were resized — every version is the full 1280 × 854. All the savings come from format and quality settings alone. If the image were also resized to the actual display width (say 800 px for a typical article body), file sizes would drop by another 30–50%.
 
 Switching to WebP for images served on the web will generally have the biggest impact of any change you can make to the image (even before reducing quality, resizing, etc.).
 
