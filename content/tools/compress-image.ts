@@ -7,11 +7,11 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'compress-image',
   title: 'Image Compressor',
-  subtitle: 'Compress JPG, PNG, and WebP with a live before/after preview. Set an exact size target per file.',
+  subtitle: 'Compress JPG, PNG, WebP, AVIF, GIF, and SVG with a live before/after preview. Set an exact size target per file.',
   bestFor: 'Best for reducing image weight before publishing to a website, CMS, or email without touching the design team.',
   category: 'image-editing',
-  accepts: ['image/jpeg', 'image/png', 'image/webp'],
-  acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
+  accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/svg+xml'],
+  acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.gif', '.svg'],
   outputExt: '',
   convertFn: (files, opts, onProgress, onResult) => imageCompress(files, opts, onProgress, onResult),
   enablePresets: true,
@@ -173,8 +173,8 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-images-without-losing-quality', 'avif-vs-webp-vs-jpeg-2026', 'best-webp-quality', 'batch-convert-images'],
 
   meta: {
-    title: 'Image Compressor — No Upload — ConvertYard',
+    title: 'Image Compressor - Compress JPG, WebP or AVIF Files for Free',
     description:
-      'Compress JPG, PNG, and WebP images in bulk. Set quality or target file size. Batch up to 1,000 files — all processing in your browser, no uploads, no account.',
+      'Compress JPG, PNG, WebP, AVIF, GIF, or SVG in batches up to 1,000 files in your browser. No signups, no uploads, no paywall.',
   },
 }

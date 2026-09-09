@@ -48,6 +48,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "remark-gfm": "^4.0.1",
+    "svgo": "^4.1.0",
     "tailwind-merge": "^3.3.0",
     "tesseract.js": "^7.0.0",
     "upscaler": "^1.0.0",

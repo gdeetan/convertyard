@@ -27,6 +27,7 @@ function getMimeType(outputFormat: string): string {
   return outputFormat === 'webp' ? 'image/webp'
     : outputFormat === 'avif' ? 'image/avif'
     : outputFormat === 'png' ? 'image/png'
+    : outputFormat === 'gif' ? 'image/gif'
     : outputFormat === 'tiff' || outputFormat === 'tif' ? 'image/tiff'
     : outputFormat === 'bmp' ? 'image/bmp'
     : 'image/jpeg'
@@ -187,6 +188,11 @@ self.onmessage = async (e: MessageEvent) => {
         // Map quality (1-100) to vips compression (0-9, higher = smaller/slower)
         encodeOpts.compression = Math.min(9, Math.round((100 - quality) * 9 / 100))
         if (opts.paletteReduction === true) encodeOpts.palette = true
+      } else if (outputFormat === 'gif') {
+        // gifsave: quality maps to palette bitdepth (2–8). Lower bitdepth = fewer colours, smaller file.
+        encodeOpts.bitdepth = Math.max(2, Math.min(8, Math.round(2 + (quality / 100) * 6)))
+        encodeOpts.effort = typeof opts.effort === 'number' ? opts.effort : 7
+        encodeOpts.dither = typeof opts.gifDither === 'number' ? opts.gifDither : 1
       } else if (outputFormat === 'tiff' || outputFormat === 'tif') {
         const comp = (opts.tiffCompression as string) ?? 'lzw'
         encodeOpts.compression = comp

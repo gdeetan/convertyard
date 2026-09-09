@@ -1,6 +1,7 @@
 import type { ToolOptions, ConversionResult } from '@/lib/types'
 import { convertViaWorker } from './vips-client'
 import { detectSameFormat } from './format-utils'
+import { svgCompress } from './svg-compress'
 
 export async function imageCompress(
   files: File[],
@@ -13,7 +14,7 @@ export async function imageCompress(
     const file = files[i]
     if (
       !file.type.startsWith('image/') &&
-      !file.name.match(/\.(jpe?g|png|webp)$/i)
+      !file.name.match(/\.(jpe?g|png|webp|avif|gif|svg)$/i)
     ) {
       onProgress?.(i, 100)
       const err = new Error(`${file.name}: unsupported file type`)
@@ -23,7 +24,10 @@ export async function imageCompress(
     }
     const fmt = detectSameFormat(file)
     try {
-      const result = await convertViaWorker(file, fmt, opts, (pct) => onProgress?.(i, pct))
+      onProgress?.(i, 10)
+      const result = fmt === 'svg'
+        ? await svgCompress(file, opts)
+        : await convertViaWorker(file, fmt, opts, (pct) => onProgress?.(i, pct))
       onProgress?.(i, 100)
       results.push(result)
       onResult?.(i, result)
