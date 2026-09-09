@@ -6,19 +6,19 @@ export const meta = {
   faq: [
     {
       q: 'What does "without losing quality" actually mean?',
-      a: "It means the compressed image is visually indistinguishable from the original under normal viewing conditions. At quality 80 for JPEG or WebP, most people cannot identify the compressed version in a side-by-side comparison — even on a high-resolution monitor. True lossless compression (PNG, WebP lossless) preserves every pixel exactly, but produces larger files than lossy compression at equivalent perceived quality.",
+      a: "It means you can't tell the difference from the original image. If you compress an image to JPEG/WEBP quality 80, most people won't notice the difference from the original, even on a high-resolution screen. True lossless compression (like PNG or WebP's lossless mode) means that no pixels are ever thrown away and the decompressed image is 100% identical to the original. However, these compressed images are often larger than their lossy counterparts with the same perceived quality.",
     },
     {
       q: "What's the best quality setting for JPEG compression?",
-      a: "For web delivery, 80–85 is the standard range. At 80, file sizes are 40–50% smaller than quality 100 with no visible difference for photos. For images you'll edit again, compress at 95 or keep as PNG to avoid accumulating artifacts. For images with text or sharp edges (screenshots, diagrams), use 85–90 — JPEG handles fine detail worse than smooth tones.",
+      a: "A typical value for web use is between 80 and 85. That's where a 40-50% reduction in file size compared to the highest quality (100) creates images that are indistinguishable from the original photograph. Images that will be reworked (optimized) in the future should be saved at a quality level of 95 (or even better – as PNG). Images with text and sharply defined edges (e.g., screenshots, diagrams) compress better at 85-90. Unlike smooth colors (e.g., gradients, smooth skies), JPEG compression is poor for images with that kind of content.",
     },
     {
       q: 'Is PNG compression lossless?',
-      a: "Yes. PNG uses DEFLATE compression — a lossless algorithm that reorganizes pixel data more efficiently without discarding any information. Changing the PNG compression level (0–9) affects processing time and file size, but the decompressed image is always pixel-for-pixel identical to the original. For significant size reduction of PNG images, switching to WebP (which can do lossless and lossy) is usually more effective.",
+      a: "PNG is a lossless compressed image format. It uses DEFLATE to re-organize the pixel data from the original image in a more space-efficient manner. All levels of PNG compression (0-9) will increase the processing time to write the image and also increase the file size; however, the decompressed image will always be 100% identical to the original image. You can achieve the greatest reduction in PNG file size by converting PNG images to WebP (lossless or compressed).",
     },
     {
       q: 'How do I compress 500 images at once?',
-      a: "Drop all your files into ConvertYard's image compressor at once — it processes them in your browser using WebAssembly. Set quality and your target format once, and it applies the same settings to every file. Download all results as a ZIP. No uploads, no account required.",
+      a: "The easiest bulk image compressor for 500+ images is likely ConvertYard's online image compressor, which compresses images in your browser using WebAssembly. You can add 500+ images to a project, adjust the quality, and choose your desired output image type before downloading the results as a ZIP file. No uploads or account required!",
     },
   ],
   relatedTools: ['compress-image', 'jpg-to-webp'],
