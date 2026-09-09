@@ -310,7 +310,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
           <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">
             {config.title}
           </h1>
-          {config.category !== 'images' && (
+          {config.category !== 'images' && config.subtitlePosition !== 'below-drop' && (
             <p className="mt-2 text-base text-fg-muted">{config.subtitle}</p>
           )}
           {config.bestFor && (
@@ -509,7 +509,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
         )}
       </div>
 
-      {!embedded && config.category === 'images' && config.subtitle && (
+      {!embedded && (config.category === 'images' || config.subtitlePosition === 'below-drop') && config.subtitle && (
         <p className="mt-6 text-base text-fg-muted">{config.subtitle}</p>
       )}
 

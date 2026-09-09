@@ -7,7 +7,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'compress-image',
   title: 'Image Compressor',
-  subtitle: 'Compress JPG, PNG, WebP, AVIF, GIF, and SVG with a live before/after preview. Set an exact size target per file.',
+  subtitle: 'Batch compress JPG, PNG, WebP, AVIF, GIF, and SVG image files with a live before/after slider, showing a real-time comparison of file-size savings and quality differences. Multiple image compression options including quality, auto-orientation, and even an exact-size target per batch.',
+  subtitlePosition: 'below-drop',
   bestFor: 'Best for reducing image weight before publishing to a website, CMS, or email without touching the design team.',
   category: 'image-editing',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/svg+xml'],

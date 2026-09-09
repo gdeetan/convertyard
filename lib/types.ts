@@ -161,6 +161,7 @@ export interface ToolConfig {
   slug: string
   title: string
   subtitle: string
+  subtitlePosition?: 'top' | 'below-drop'  // where to render subtitle in the shell (default 'top')
   bestFor?: string       // one sentence: when to reach for this tool
   category: ToolCategory
   accepts: string[]       // MIME types, e.g. ['image/jpeg']
