@@ -1,4 +1,5 @@
 import { pngToSvgConvert } from '@/lib/converters/png-to-svg-convert'
+import { PngToSvgPreview } from '@/components/png-to-svg/png-to-svg-preview'
 import { PngToSvgReviewPanel } from '@/components/png-to-svg/png-to-svg-review'
 import type { ToolConfig } from '@/lib/types'
 
@@ -13,7 +14,7 @@ export const config: ToolConfig = {
   outputExt: '.svg',
   convertFn: (files, opts, onProgress, onResult) => pngToSvgConvert(files, opts, onProgress, onResult),
   enablePresets: true,
-  autoConvert: true,
+  previewPanel: PngToSvgPreview,
   reviewPanel: PngToSvgReviewPanel,
 
   limitationNote: {

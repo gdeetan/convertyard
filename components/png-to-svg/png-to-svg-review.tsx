@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { X } from 'lucide-react'
-import { ComparisonSlider } from '@/components/ui/ComparisonSlider'
 import { pngToSvgConvert } from '@/lib/converters/png-to-svg-convert'
 import { extractSvgPalette, knockoutSvg, recolorSvg } from '@/lib/converters/svg-palette'
 import type { ConversionResult, ToolOptions } from '@/lib/types'
@@ -10,45 +9,10 @@ import { cn } from '@/lib/utils/cn'
 
 const COLOR_COUNTS = [2, 4, 8, 16, 32] as const
 
-const CHECKERBOARD = {
-  backgroundImage:
-    'linear-gradient(45deg, rgba(120,113,108,.22) 25%, transparent 25%), linear-gradient(-45deg, rgba(120,113,108,.22) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(120,113,108,.22) 75%), linear-gradient(-45deg, transparent 75%, rgba(120,113,108,.22) 75%)',
-  backgroundPosition: '0 0, 0 10px, 10px -10px, -10px 0',
-  backgroundSize: '20px 20px',
-} as const
-
 function resultFile(result: ConversionResult | undefined): File | null {
   if (!result || result instanceof Error) return null
   if (result instanceof File) return result
   return result.file
-}
-
-function useObjectUrl(file: File | null): string | null {
-  const [url, setUrl] = useState<string | null>(null)
-  useEffect(() => {
-    if (!file) {
-      setUrl(null)
-      return
-    }
-    const next = URL.createObjectURL(file)
-    setUrl(next)
-    return () => URL.revokeObjectURL(next)
-  }, [file])
-  return url
-}
-
-function useSvgUrl(svgText: string): string | null {
-  const [url, setUrl] = useState<string | null>(null)
-  useEffect(() => {
-    if (!svgText) {
-      setUrl(null)
-      return
-    }
-    const next = URL.createObjectURL(new Blob([svgText], { type: 'image/svg+xml' }))
-    setUrl(next)
-    return () => URL.revokeObjectURL(next)
-  }, [svgText])
-  return url
 }
 
 interface Props {
@@ -68,8 +32,6 @@ export function PngToSvgReviewPanel({ files, results, onResultEdit, options = {}
   const safeIndex = Math.min(selected, Math.max(0, files.length - 1))
   const source = files[safeIndex]
   const result = resultFile(results[safeIndex])
-  const sourceUrl = useObjectUrl(source ?? null)
-  const svgUrl = useSvgUrl(svgText)
 
   useEffect(() => {
     setColorCount(null)
@@ -140,6 +102,7 @@ export function PngToSvgReviewPanel({ files, results, onResultEdit, options = {}
 
   return (
     <div className="space-y-4 rounded-xl border border-border bg-bg p-4">
+      <p className="text-sm font-medium text-fg">Edit traced colours</p>
       {files.length > 1 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
           {files.map((file, i) => (
@@ -159,38 +122,6 @@ export function PngToSvgReviewPanel({ files, results, onResultEdit, options = {}
           ))}
         </div>
       )}
-
-      <div
-        className="relative h-72 overflow-hidden rounded-lg border border-border"
-        style={CHECKERBOARD}
-      >
-        {sourceUrl && svgUrl && (
-          <ComparisonSlider
-            left={
-              <img
-                src={sourceUrl}
-                alt="Original PNG"
-                className="h-full w-full object-contain"
-                draggable={false}
-              />
-            }
-            right={
-              <img
-                src={svgUrl}
-                alt="Traced SVG"
-                className="h-full w-full object-contain"
-                draggable={false}
-              />
-            }
-          />
-        )}
-        <span className="pointer-events-none absolute left-2 top-2 rounded bg-black/60 px-2 py-0.5 text-xs text-white">
-          Original
-        </span>
-        <span className="pointer-events-none absolute right-2 top-2 rounded bg-black/60 px-2 py-0.5 text-xs text-white">
-          SVG
-        </span>
-      </div>
 
       <div>
         <p className="mb-2 text-xs font-medium text-fg-muted">Number of colours</p>
