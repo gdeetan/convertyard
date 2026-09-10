@@ -7,9 +7,9 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'compress-image',
   title: 'Image Compressor',
-  subtitle: 'Batch compress JPG, PNG, WebP, AVIF, GIF, and SVG image files with a live before/after slider, showing a real-time comparison of file-size savings and quality differences. Multiple image compression options including quality, auto-orientation, and even an exact-size target per batch.',
+  subtitle: 'Batch compress JPG, PNG, WebP, AVIF, GIF, and SVG image files with a live before/after slider that shows real-time comparisons of file-size savings and quality differences. Multiple image compression options, including quality, auto-orientation, and even an exact-size target per batch.',
   subtitlePosition: 'below-drop',
-  bestFor: 'Best for reducing image weight before publishing to a website, CMS, or email without touching the design team.',
+  bestFor: 'Reduce image size before publishing photos on a website, CMS, or email without opening a third-party application or paying for a subscription-based photo editor, saving you time and money.',
   category: 'image-editing',
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/gif', 'image/svg+xml'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.gif', '.svg'],
@@ -138,35 +138,35 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Does compression reduce image dimensions?',
-      a: 'No by default. This tool only changes file size by re-encoding at a lower quality level. Width and height stay the same unless you enable "Limit longest edge" in Advanced settings. For specific pixel dimensions, use the Batch Image Resizer.',
+      a: 'By default, no. Unlike the Batch Image Resizer, this tool changes the file size by re-encoding at a lower quality setting. As long as you do not enable "Limit longest edge" in the Advanced settings, the width and height of the image will remain the same.',
     },
     {
       q: 'What quality setting should I use?',
-      a: 'For web images, 75–85 is the standard range. At 80, most viewers cannot see a difference from the original. Below 60, compression artifacts become visible in photos. For logos, diagrams, and images with text or sharp edges, use 85–95.',
+      a: "For web use, typical values range from 75% to 85%. At 80%, you'll rarely see any difference from the original. Values below 60% will start to show compression artifacts in photographs. Values of 85% to 95% are better for logos, diagrams, and images containing text or hard edges.",
     },
     {
-      q: 'Why does PNG compression look different from JPG?',
-      a: "PNG is a lossless format — it never degrades pixel data. The quality slider for PNGs controls the compression algorithm's effort level, not visual quality. A PNG at \"quality 50\" looks identical to one at \"quality 100\" — only the processing time and file size differ slightly. For significant PNG size reduction, consider converting to WebP.",
+      q: 'Why does PNG compression look different from PNG?',
+      a: "PNG is lossless and never degrades pixel information. Therefore, the quality slider for PNGs only controls how much effort the compression algorithm uses, so processing time and file size change slightly while visual quality stays nearly identical. For significant PNG size reduction, it's often more efficient to convert them to WebP.",
     },
     {
-      q: 'How does target-size compression work?',
-      a: 'When a max file size is set, the tool first reduces quality in steps of 10 (from your chosen quality down to 20). If the file is still over target at quality 20, it then reduces the image dimensions by 10% per step, stopping at 50% of the original size. The smallest file achieved is returned — even if the target could not be fully reached.',
+      q: 'How does target size compression work?',
+      a: 'When a max file size is specified for file generation, the tool starts by reducing the image quality in steps of 10% (e.g. from the quality specified by the user to 20% and then stopping if the generated file is within the size specified by the user, otherwise it continues to reduce the quality in steps of 10% down to 20% quality and then, as long as the generated file is still too large, it reduces the image dimensions in steps of 10% down to 50% of the original size, and returns the smallest file generated even if the size specified by the user could not be exactly reached).',
     },
     {
-      q: 'What is chroma subsampling and should I change it?',
-      a: 'Chroma subsampling reduces colour detail to save space. 4:2:0 (the default) is used in 99% of JPEG images on the web and is invisible to most viewers. 4:4:4 preserves sharper colour edges, which matters for text overlaid on images, logos, or graphics with vivid colour transitions. The difference in file size is typically 15–25%.',
+      q: 'What is chroma subsampling, and should I change it?',
+      a: "Color information can be subsampled to reduce an image's size, as most online images are cached as 4:2:0 JPEGs. The difference is invisible to 99% of online viewers, but for images with overlaid text, logos, or other graphics with sharp color transitions, 4:4:4 chroma subsampling can make a big difference and save an extra 15–25% in file size.",
     },
     {
       q: 'Why is "Strip metadata" on by default?',
-      a: 'Smartphone photos typically embed GPS coordinates, device model, and shooting conditions in EXIF data. When you share images publicly, this metadata travels with the file. Stripping it is the safer default. Turn it off in options if you need to preserve metadata for archival or professional workflows.',
+      a: "Smartphone photos contain the GPS location where they were taken, the phone model, and even the settings used (e.g., whether flash was on) in their EXIF data. It's better to be safe than sorry and remove this when uploading publicly. You can switch this off in the options if you need it for archiving or other professional reasons.",
     },
     {
       q: 'Why does my image look softer at very small targets?',
-      a: 'Very aggressive compression requires both lower quality and smaller dimensions. At quality 20 the encoder introduces visible artifacts, and at 50% dimensions fine detail is lost. If sharpness matters more than file size, raise the target or accept a larger output file.',
+      a: 'Very aggressive compression can also produce low-quality images that are smaller only in file size. This can result in visible artifacts at quality 20 and a loss of fine detail when resized to 50%. You can achieve better results by raising the target quality and accepting a larger output file, or by lowering compression and accepting a larger file size.',
     },
     {
       q: 'Are my images uploaded to your servers?',
-      a: "Never. All compression runs entirely in your browser using WebAssembly. Your files never leave your device. ConvertYard's servers only deliver the tool's code — they never see your images.",
+      a: "No. The image compression runs in the browser, so nothing uploads to the server. Your file never leaves your device. Converyard delivers the tool's code through your browser.",
     },
   ],
 
