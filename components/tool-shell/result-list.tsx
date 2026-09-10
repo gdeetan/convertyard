@@ -344,8 +344,11 @@ function useVideoThumbnail(file?: File) {
     const video = document.createElement('video')
     video.muted = true
     video.playsInline = true
-    video.preload = 'metadata'
-    video.crossOrigin = 'anonymous'
+    video.preload = 'auto'
+    // NOTE: don't set crossOrigin on blob: URLs. Safari treats "anonymous"
+    // on a blob URL as a CORS requirement it can't satisfy and refuses to
+    // decode the video, which is why the thumbnail rendered as a black box
+    // on macOS Safari. Blob URLs share the document origin — no CORS needed.
     video.src = objectUrl
 
     const cleanup = () => {
@@ -380,13 +383,27 @@ function useVideoThumbnail(file?: File) {
       }
     }
 
+    // Safari fires `seeked` before the frame is actually decoded, so drawImage
+    // captures a black frame. requestVideoFrameCallback (Safari 15.4+) is the
+    // reliable signal — it only fires after a frame is presentable. Fall back
+    // to `seeked` on browsers without rVFC (older Safari, some mobile).
+    const scheduleCapture = () => {
+      if (cancelled) return
+      const rVFC = (video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number }).requestVideoFrameCallback
+      if (typeof rVFC === 'function') {
+        rVFC.call(video, () => capture())
+      } else {
+        capture()
+      }
+    }
+
     video.onloadedmetadata = () => {
       if (cancelled) return
       // Seek slightly past the start to skip common all-black intro frames.
       const seekTo = Math.min(0.5, Math.max(0, (video.duration || 0) * 0.1))
       video.currentTime = seekTo
     }
-    video.onseeked = capture
+    video.onseeked = scheduleCapture
     video.onerror = cleanup
 
     return () => {
