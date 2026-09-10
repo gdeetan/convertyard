@@ -53,26 +53,26 @@ hero-banner.png,"Close-up of a hand holding a coffee cup over a wooden table"
 
 ### Option 1: Media Library (manual, small batches)
 
-For fewer than 20 images, the Media Library is fastest:
+For fewer than 20 images, the Media Library is the fastest route:
 
-1. Go to **Media → Library** and switch to list view.
-2. Click an image to open the attachment detail page.
+1. Go to **Media → Library**, change to list view by clicking on the "switch to list view" link at top of page.
+2. Click the image to open the Attachment Details page for that image.
 3. Find the **Alt Text** field on the right side.
-4. Paste the alt text from your spreadsheet and click **Update**.
+4. Paste in the alt text from the relevant row of your spreadsheet, click **Update**.
 
-This works fine for a handful of images. For larger batches, use one of the approaches below.
+This works great for small numbers of images but as you get up into the teens and beyond of images then one of the following methods is likely to be faster.
 
 ### Option 2: WP All Import (plugin, bulk)
 
-[WP All Import](https://www.wpallimport.com/) is a WordPress plugin that can import CSV data to post meta fields, including image alt text stored as `_wp_attachment_image_alt`.
+[WP All Import](https://www.wpallimport.com/) is a powerful WordPress plugin that can be used to import information from CSV files into WordPress post meta fields. It can be used to add the image alt text to each attached image and store it in the `_wp_attachment_image_alt` custom field.
 
 1. Install and activate WP All Import.
-2. Go to **All Import → New Import** and upload your alt text CSV.
+2. Under **All Import**, click **New Import** and upload your alt text CSV.
 3. Set the import type to **Custom Post Type → Attachment**.
-4. In the field mapping step, map `filename` to the attachment identifier (post title or file URL) and `alt_text` to the **Image Alt Text** custom field (`_wp_attachment_image_alt`).
+4. Map the CSV fields to the fields in the WordPress Import process. This would be `filename` to attachment identifier (which is the post title or file URL) and then `alt_text` to the custom field for the image alt text `_wp_attachment_image_alt`.
 5. Run the import.
 
-Note: matching by filename requires that your Media Library filenames match the CSV exactly. If you renamed files when uploading, you'll need to reconcile those differences in the spreadsheet first.
+You must match images by filename in this approach, so you need to ensure that the filenames in your spreadsheet match exactly those in the Media Library. That means you must reconcile any differences in the spreadsheet prior to using this approach if you have changed the filename of any images when uploading them to the WordPress Media Library.
 
 ### Option 3: WP-CLI (developer, any batch size)
 
