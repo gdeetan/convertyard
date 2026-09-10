@@ -8,6 +8,7 @@ interface UpscaleOptions {
   scale: UpscaleScale
   outputFormat: UpscaleOutputFormat
   imageMode: ImageMode
+  photoEnhance?: boolean
 }
 
 export async function upscaleBatch(
@@ -26,14 +27,23 @@ export async function upscaleBatch(
     onModelProgress(100)
     for (let i = 0; i < files.length; i++) onFileProgress(i, 15)
   } else {
-    // Map model loading (0–100%) to per-file bars at 0–15% so users see feedback
-    // during the potentially long model download phase.
-    await loadUpscalerModel(options.scale, (pct) => {
-      onModelProgress(pct)
-      for (let i = 0; i < files.length; i++) {
-        onFileProgress(i, Math.round(pct * 0.15))
-      }
-    })
+    // Best-effort preload of the photo chain. If it fails (WebGPU flaky,
+    // model download blocked, etc.), don't block the batch — auto-detected
+    // illustration files still succeed via the anime model, and photo files
+    // will retry the load lazily inside runInference and surface a per-file
+    // error there instead of failing the whole batch upfront.
+    try {
+      await loadUpscalerModel(options.scale, (pct) => {
+        onModelProgress(pct)
+        for (let i = 0; i < files.length; i++) {
+          onFileProgress(i, Math.round(pct * 0.15))
+        }
+      })
+    } catch (err) {
+      console.warn('Upscaler preload failed; falling through to lazy load:', err)
+      onModelProgress(100)
+      for (let i = 0; i < files.length; i++) onFileProgress(i, 15)
+    }
   }
 
   const results: ConversionResult[] = []
@@ -45,7 +55,8 @@ export async function upscaleBatch(
         options.scale,
         outputFormat,
         (pct) => onFileProgress(i, 15 + Math.round(pct * 0.85)),
-        options.imageMode
+        options.imageMode,
+        options.photoEnhance ?? false
       )
       results.push(result)
       onResult?.(i, result)

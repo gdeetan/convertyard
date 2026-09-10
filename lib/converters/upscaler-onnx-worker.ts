@@ -39,6 +39,7 @@ interface InferMsg {
   mimeType: string
   outputFormat?: string
   imageMode?: ImageMode
+  photoEnhance?: boolean
 }
 type IncomingMsg = LoadMsg | InferMsg
 
@@ -693,6 +694,189 @@ async function graphicScale(
   return out
 }
 
+// ── Photo Enhance: CLAHE + edge-aware unsharp (opt-in) ────────────────────────
+// Adds perceived detail on photos without the halo/noise artifacts plain USM
+// causes. CLAHE lifts local contrast; the sharpen pass is gated by luma
+// gradient so flat skin/sky stay untouched while edges (hair, eyes, weave)
+// get crisper.
+const PHOTO_ENHANCE_CLAHE_TILES = 8
+const PHOTO_ENHANCE_CLAHE_CLIP  = 2.0
+const PHOTO_ENHANCE_USM_RADIUS  = 1.0
+const PHOTO_ENHANCE_USM_AMOUNT  = 0.5
+const PHOTO_ENHANCE_EDGE_LO     = 15
+const PHOTO_ENHANCE_EDGE_HI     = 45
+
+async function enhancePhotoCanvas(canvas: OffscreenCanvas): Promise<OffscreenCanvas> {
+  const w = canvas.width
+  const h = canvas.height
+  const ctx = canvas.getContext('2d')!
+  const img = ctx.getImageData(0, 0, w, h)
+  const data = img.data
+  const n = w * h
+
+  // Step 1: CLAHE on BT.601 luma with bilinear tile-CDF interpolation.
+  const tilesX = PHOTO_ENHANCE_CLAHE_TILES
+  const tilesY = PHOTO_ENHANCE_CLAHE_TILES
+  const tileW = Math.ceil(w / tilesX)
+  const tileH = Math.ceil(h / tilesY)
+  const pixelsPerTile = tileW * tileH
+  const clipLimit = Math.max(1, Math.floor((PHOTO_ENHANCE_CLAHE_CLIP * pixelsPerTile) / 256))
+
+  const luma = new Uint8Array(n)
+  for (let i = 0, p = 0; p < n; i += 4, p++) {
+    const l = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114
+    luma[p] = l | 0
+  }
+
+  const cdfs: Uint8Array[] = new Array(tilesX * tilesY)
+  for (let ty = 0; ty < tilesY; ty++) {
+    for (let tx = 0; tx < tilesX; tx++) {
+      const x0 = tx * tileW
+      const y0 = ty * tileH
+      const x1 = Math.min(w, x0 + tileW)
+      const y1 = Math.min(h, y0 + tileH)
+      const hist = new Uint32Array(256)
+      for (let y = y0; y < y1; y++) {
+        const row = y * w
+        for (let x = x0; x < x1; x++) hist[luma[row + x]]++
+      }
+      let excess = 0
+      for (let b = 0; b < 256; b++) {
+        if (hist[b] > clipLimit) { excess += hist[b] - clipLimit; hist[b] = clipLimit }
+      }
+      const add = Math.floor(excess / 256)
+      let rem = excess - add * 256
+      for (let b = 0; b < 256; b++) {
+        hist[b] += add
+        if (rem > 0) { hist[b]++; rem-- }
+      }
+      const cdf = new Uint8Array(256)
+      const total = (x1 - x0) * (y1 - y0)
+      let sum = 0
+      for (let b = 0; b < 256; b++) {
+        sum += hist[b]
+        cdf[b] = Math.min(255, Math.round((sum / total) * 255))
+      }
+      cdfs[ty * tilesX + tx] = cdf
+    }
+  }
+
+  // Rescale luma via bilinear tile CDF interpolation, then apply gain to RGB.
+  for (let y = 0; y < h; y++) {
+    const gy = (y + 0.5) / tileH - 0.5
+    const ty0 = Math.max(0, Math.floor(gy))
+    const ty1 = Math.min(tilesY - 1, ty0 + 1)
+    const fy = gy <= 0 ? 0 : gy >= tilesY - 1 ? 1 : gy - ty0
+    for (let x = 0; x < w; x++) {
+      const gx = (x + 0.5) / tileW - 0.5
+      const tx0 = Math.max(0, Math.floor(gx))
+      const tx1 = Math.min(tilesX - 1, tx0 + 1)
+      const fx = gx <= 0 ? 0 : gx >= tilesX - 1 ? 1 : gx - tx0
+      const p = y * w + x
+      const l = luma[p]
+      const v00 = cdfs[ty0 * tilesX + tx0][l]
+      const v01 = cdfs[ty0 * tilesX + tx1][l]
+      const v10 = cdfs[ty1 * tilesX + tx0][l]
+      const v11 = cdfs[ty1 * tilesX + tx1][l]
+      const newL = (1 - fx) * (1 - fy) * v00 + fx * (1 - fy) * v01
+                 + (1 - fx) * fy * v10       + fx * fy * v11
+      if (l === 0) continue
+      const gain = newL / l
+      const i = p * 4
+      const r = data[i]     * gain
+      const g = data[i + 1] * gain
+      const b = data[i + 2] * gain
+      data[i]     = r > 255 ? 255 : r < 0 ? 0 : r
+      data[i + 1] = g > 255 ? 255 : g < 0 ? 0 : g
+      data[i + 2] = b > 255 ? 255 : b < 0 ? 0 : b
+    }
+  }
+  ctx.putImageData(img, 0, 0)
+
+  // Step 2: edge-aware USM. Blur the CLAHE-boosted canvas, then blend based on
+  // local luma-gradient magnitude so flat regions get zero sharpening.
+  const blurred = new OffscreenCanvas(w, h)
+  const bctx = blurred.getContext('2d')!
+  bctx.filter = `blur(${PHOTO_ENHANCE_USM_RADIUS}px)`
+  bctx.drawImage(canvas, 0, 0)
+  const orig = ctx.getImageData(0, 0, w, h)
+  const blur = bctx.getImageData(0, 0, w, h)
+  const o = orig.data
+  const bd = blur.data
+
+  const edgeLo = PHOTO_ENHANCE_EDGE_LO
+  const edgeRange = PHOTO_ENHANCE_EDGE_HI - PHOTO_ENHANCE_EDGE_LO
+  const amount = PHOTO_ENHANCE_USM_AMOUNT
+
+  for (let y = 0; y < h; y++) {
+    const yPrev = y > 0 ? y - 1 : 0
+    const yNext = y < h - 1 ? y + 1 : h - 1
+    for (let x = 0; x < w; x++) {
+      const xPrev = x > 0 ? x - 1 : 0
+      const xNext = x < w - 1 ? x + 1 : w - 1
+      const ci = (y * w + x) * 4
+      const lc = o[ci] * 0.299 + o[ci + 1] * 0.587 + o[ci + 2] * 0.114
+      const iL = (y * w + xPrev) * 4
+      const iR = (y * w + xNext) * 4
+      const iT = (yPrev * w + x) * 4
+      const iB = (yNext * w + x) * 4
+      const ll = o[iL] * 0.299 + o[iL + 1] * 0.587 + o[iL + 2] * 0.114
+      const lr = o[iR] * 0.299 + o[iR + 1] * 0.587 + o[iR + 2] * 0.114
+      const lt = o[iT] * 0.299 + o[iT + 1] * 0.587 + o[iT + 2] * 0.114
+      const lb = o[iB] * 0.299 + o[iB + 1] * 0.587 + o[iB + 2] * 0.114
+      const grad = Math.abs(ll - lc) + Math.abs(lr - lc) + Math.abs(lt - lc) + Math.abs(lb - lc)
+      const gate = grad <= edgeLo ? 0 : grad >= edgeLo + edgeRange ? 1 : (grad - edgeLo) / edgeRange
+      const strength = amount * gate
+      if (strength <= 0) continue
+      for (let c = 0; c < 3; c++) {
+        const diff = o[ci + c] - bd[ci + c]
+        const v = o[ci + c] + strength * diff
+        o[ci + c] = v > 255 ? 255 : v < 0 ? 0 : v
+      }
+    }
+  }
+  ctx.putImageData(orig, 0, 0)
+  return canvas
+}
+
+// ── Illustration post-process unsharp mask ────────────────────────────────────
+// Tuned for flat-color / line-art crispness at 4×. Keep values moderate to
+// avoid halos around hard edges — see PROMPT-35 Phase 2 for the rationale.
+const ILLUSTRATION_USM_RADIUS = 1.2
+const ILLUSTRATION_USM_AMOUNT = 0.4
+
+// USM in-place on an OffscreenCanvas via native blur + difference blend.
+// out = clamp(orig + amount * (orig - blur(orig)))
+async function unsharpMaskCanvas(
+  canvas: OffscreenCanvas,
+  radius: number,
+  amount: number
+): Promise<OffscreenCanvas> {
+  const w = canvas.width
+  const h = canvas.height
+  const ctx = canvas.getContext('2d')!
+
+  const blurred = new OffscreenCanvas(w, h)
+  const bctx = blurred.getContext('2d')!
+  bctx.filter = `blur(${radius}px)`
+  bctx.drawImage(canvas, 0, 0)
+
+  const orig = ctx.getImageData(0, 0, w, h)
+  const blur = bctx.getImageData(0, 0, w, h)
+  const o = orig.data
+  const b = blur.data
+
+  for (let i = 0; i < o.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      const diff = o[i + c] - b[i + c]
+      const v = o[i + c] + amount * diff
+      o[i + c] = v < 0 ? 0 : v > 255 ? 255 : v
+    }
+  }
+  ctx.putImageData(orig, 0, 0)
+  return canvas
+}
+
 // ── Tile grid helpers ──────────────────────────────────────────────────────────
 
 function buildStarts(dim: number, tileSize: number): number[] {
@@ -800,14 +984,15 @@ async function runInference(
   buffer: ArrayBuffer,
   mimeType: string,
   outputFormat?: string,
-  imageMode: ImageMode = 'auto'
+  imageMode: ImageMode = 'auto',
+  photoEnhance: boolean = false
 ) {
   // Wait for model device negotiation to complete (webgpu timeout → wasm fallback).
   // Without this, inferTile picks up activeDevice='webgpu' before loadModel finishes,
   // then hangs awaiting the stalled WebGPU pipeline promise.
   const profile = clientProfile()
   const rawMime = outputFormat ?? mimeType
-  const outMime = SAFE_MIMES.has(rawMime) ? rawMime : 'image/png'
+  let outMime = SAFE_MIMES.has(rawMime) ? rawMime : 'image/png'
   const scaleFactor = SCALE_NUM[scale]
 
   // Decode source image
@@ -821,6 +1006,17 @@ async function runInference(
     const detectedEarly = imageMode === 'auto' ? detectImageMode(bitmap) : undefined
     const resolvedMode = resolveImageMode(imageMode, detectedEarly)
     const cap = maxOutputDim(profile, resolvedMode === 'graphic' || !shouldUseOnnxOnClient(profile) ? 'graphic' : 'onnx')
+
+    // Force PNG on the illustration path — flat-color / line-art suffers
+    // visible blockiness through JPEG. Overrides user's outputFormat choice.
+    if (resolvedMode === 'illustration' && outMime !== 'image/png') {
+      self.postMessage({
+        type: 'log',
+        id,
+        message: `Illustration mode: forcing PNG output (was ${outMime})`,
+      })
+      outMime = 'image/png'
+    }
 
     self.postMessage({
       type: 'log',
@@ -901,14 +1097,22 @@ async function runInference(
         )
         const targetW = Math.round(workW * routing.actualScale)
         const targetH = Math.round(workH * routing.actualScale)
+        let finalCanvas: OffscreenCanvas
         if (tileCanvas.width !== targetW || tileCanvas.height !== targetH) {
           const fourX = await createImageBitmap(tileCanvas)
-          const resized = await graphicScale(fourX, targetW, targetH, () => {}, { unsharp: false })
+          finalCanvas = await graphicScale(fourX, targetW, targetH, () => {}, { unsharp: false })
           fourX.close()
-          await emitCanvas(resized)
         } else {
-          await emitCanvas(tileCanvas)
+          finalCanvas = tileCanvas
         }
+        // Phase 2: post-process unsharp for illustration-path crispness.
+        self.postMessage({ type: 'infer-progress', id, progress: 90 })
+        finalCanvas = await unsharpMaskCanvas(
+          finalCanvas,
+          ILLUSTRATION_USM_RADIUS,
+          ILLUSTRATION_USM_AMOUNT
+        )
+        await emitCanvas(finalCanvas)
         return
       } catch (err) {
         self.postMessage({
@@ -969,26 +1173,24 @@ async function runInference(
         currentBitmap = await createImageBitmap(tileCanvas)
       } else {
         // Final step: handle 3× special case (run 4× model then bicubic 0.75× downsample)
+        let finalCanvas: OffscreenCanvas
         if (scale === '3x') {
           const finalW = Math.round(workW * 3)
           const finalH = Math.round(workH * 3)
           const fourX = await createImageBitmap(tileCanvas)
-          const downCanvas = await graphicScale(fourX, finalW, finalH, () => {}, { unsharp: false })
+          finalCanvas = await graphicScale(fourX, finalW, finalH, () => {}, { unsharp: false })
           fourX.close()
-          self.postMessage({ type: 'infer-progress', id, progress: 95 })
-          const resultBlob   = await downCanvas.convertToBlob(blobEncodeOptions(outMime))
-          const resultBuffer = await resultBlob.arrayBuffer()
-          self.postMessage({ type: 'infer-progress', id, progress: 100 })
-          self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
-          return
+        } else {
+          finalCanvas = tileCanvas
         }
 
-        // Normal output
-        self.postMessage({ type: 'infer-progress', id, progress: 95 })
-        const resultBlob   = await tileCanvas.convertToBlob(blobEncodeOptions(outMime))
-        const resultBuffer = await resultBlob.arrayBuffer()
-        self.postMessage({ type: 'infer-progress', id, progress: 100 })
-        self.postMessage({ type: 'infer-result', id, result: resultBuffer, outputMime: outMime }, [resultBuffer])
+        if (photoEnhance) {
+          self.postMessage({ type: 'infer-progress', id, progress: 90 })
+          self.postMessage({ type: 'log', id, message: 'Photo enhance: CLAHE + edge-aware sharpen' })
+          finalCanvas = await enhancePhotoCanvas(finalCanvas)
+        }
+
+        await emitCanvas(finalCanvas)
         return
       }
     }
@@ -1019,9 +1221,9 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
   }
 
   if (msg.type === 'infer') {
-    const { id, scale, buffer, mimeType, outputFormat, imageMode } = msg
+    const { id, scale, buffer, mimeType, outputFormat, imageMode, photoEnhance } = msg
     _inferQueue = _inferQueue.then(() =>
-      runInference(id, scale, buffer, mimeType, outputFormat, imageMode).catch(err => {
+      runInference(id, scale, buffer, mimeType, outputFormat, imageMode, photoEnhance).catch(err => {
         const message = (err as Error).message
         self.postMessage({ type: 'log', id, message: `infer error: ${message}` })
         self.postMessage({ type: 'error', id, message })

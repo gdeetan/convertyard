@@ -97,7 +97,8 @@ export function upscaleImageFile(
   scale: UpscaleScale,
   outputFormat: string | null,
   onProgress?: (pct: number) => void,
-  imageMode: ImageMode = 'auto'
+  imageMode: ImageMode = 'auto',
+  photoEnhance: boolean = false
 ): Promise<File> {
   return new Promise((resolve, reject) => {
     const worker   = getWorker()
@@ -135,7 +136,7 @@ export function upscaleImageFile(
 
     file.arrayBuffer().then((buffer) => {
       worker.postMessage(
-        { type: 'infer', id, scale, buffer, mimeType, outputFormat: outputFormat ?? undefined, imageMode },
+        { type: 'infer', id, scale, buffer, mimeType, outputFormat: outputFormat ?? undefined, imageMode, photoEnhance },
         [buffer]
       )
     }).catch(reject)

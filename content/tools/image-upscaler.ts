@@ -18,9 +18,10 @@ export const config: ToolConfig = {
     const scale = ((options.scale as string) ?? '4x') as UpscaleScale
     const outputFormat = ((options.outputFormat as string) ?? 'match') as UpscaleOutputFormat
     const imageMode = ((options.imageMode as string) ?? 'auto') as ImageMode
+    const photoEnhance = Boolean(options.photoEnhance)
     return upscaleBatch(
       files,
-      { scale, outputFormat, imageMode },
+      { scale, outputFormat, imageMode, photoEnhance },
       () => {},
       (fileIndex: number, pct: number) => onProgress?.(fileIndex, pct),
       onResult
@@ -90,6 +91,13 @@ export const config: ToolConfig = {
         illustration: 'RealESR AnimeVideo v3 on GPU browsers — linework and flat colour. Falls back to Lanczos if WebGPU is unavailable. Can halo small type.',
         graphic: 'Lanczos resize plus light sharpen. No neural net. Use for wordmarks and UI if Illustration looks wrong.',
       },
+    },
+    {
+      type: 'toggle',
+      name: 'photoEnhance',
+      label: 'Enhance (photo)',
+      default: false,
+      hint: 'Adds local contrast and edge-aware sharpening on photos. Skin, sky, and other flat areas stay untouched — only hair, eyes, and other edges get crisper. Slower. Ignored for Illustration and Graphic modes.',
     },
     {
       type: 'dropdown',
