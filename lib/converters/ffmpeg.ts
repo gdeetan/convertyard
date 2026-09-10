@@ -1009,18 +1009,13 @@ async function tryHardwareHevcCompress(
   },
 ): Promise<File | null> {
   let maxHeight = opts.resHeight ?? null
-  if (maxHeight == null && opts.resolution === 'original') {
+  if (maxHeight == null && opts.resolution === 'original' && opts.targetSizeMode) {
     const dims = await probeVideoDimensions(file)
     if (dims) {
-      if (!opts.targetSizeMode && isMobileBrowser() && file.size > 50 * 1024 * 1024) {
-        const mobileCapHeight = file.size > 100 * 1024 * 1024 ? 480 : 720
-        if (dims.height > mobileCapHeight) maxHeight = mobileCapHeight
-      } else if (opts.targetSizeMode) {
-        const autoHeight = isMobileBrowser()
-          ? (opts.targetKB <= 50 * 1024 ? 720 : 1080)
-          : (opts.targetKB <= 10 * 1024 ? 720 : opts.targetKB <= 50 * 1024 ? 1080 : null)
-        if (autoHeight !== null && dims.height > autoHeight) maxHeight = autoHeight
-      }
+      const autoHeight = isMobileBrowser()
+        ? (opts.targetKB <= 50 * 1024 ? 720 : 1080)
+        : (opts.targetKB <= 10 * 1024 ? 720 : opts.targetKB <= 50 * 1024 ? 1080 : null)
+      if (autoHeight !== null && dims.height > autoHeight) maxHeight = autoHeight
     }
   }
 
@@ -1059,18 +1054,13 @@ async function tryHardwareAvcCompress(
   },
 ): Promise<File | null> {
   let maxHeight = opts.resHeight ?? null
-  if (maxHeight == null && opts.resolution === 'original') {
+  if (maxHeight == null && opts.resolution === 'original' && opts.targetSizeMode) {
     const dims = await probeVideoDimensions(file)
     if (dims) {
-      if (!opts.targetSizeMode && isMobileBrowser() && file.size > 50 * 1024 * 1024) {
-        const mobileCapHeight = file.size > 100 * 1024 * 1024 ? 480 : 720
-        if (dims.height > mobileCapHeight) maxHeight = mobileCapHeight
-      } else if (opts.targetSizeMode) {
-        const autoHeight = isMobileBrowser()
-          ? (opts.targetKB <= 50 * 1024 ? 720 : 1080)
-          : (opts.targetKB <= 10 * 1024 ? 720 : opts.targetKB <= 50 * 1024 ? 1080 : null)
-        if (autoHeight !== null && dims.height > autoHeight) maxHeight = autoHeight
-      }
+      const autoHeight = isMobileBrowser()
+        ? (opts.targetKB <= 50 * 1024 ? 720 : 1080)
+        : (opts.targetKB <= 10 * 1024 ? 720 : opts.targetKB <= 50 * 1024 ? 1080 : null)
+      if (autoHeight !== null && dims.height > autoHeight) maxHeight = autoHeight
     }
   }
 
@@ -1340,15 +1330,9 @@ export async function compressVideo(
       try {
       if (!targetSizeMode) {
         const crf = crfMap[level] ?? 23
-        // Mobile: cap at 720p for large files when user didn't set a resolution — prevents OOM tab kill on iOS/Android
-        let effectiveCrfVfArgs = vfArgs
-        if (resolution === 'original' && isMobileBrowser() && file.size > 50 * 1024 * 1024) {
-          const mobileCapHeight = file.size > 100 * 1024 * 1024 ? 480 : 720
-          const dims = await probeVideoDimensions(file)
-          if (dims && dims.height > mobileCapHeight) {
-            effectiveCrfVfArgs = ['-vf', `scale=-2:${mobileCapHeight}`]
-          }
-        }
+        // Respect the user's resolution choice — the UI warns before
+        // Compress when Original is picked on mobile for large files.
+        const effectiveCrfVfArgs = vfArgs
         let presetAudioArgs = audioArgs
         if (!stripAudio) {
           const audioInfo = await probeAudioInfo(ffmpeg, inputName)

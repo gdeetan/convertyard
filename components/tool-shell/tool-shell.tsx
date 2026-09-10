@@ -426,6 +426,16 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
               </div>
             )}
 
+            {(() => {
+              const files = state.entries.map((e) => e.file)
+              const msg = config.optionsWarningFn?.(files, options)
+              return msg ? (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                  {msg}
+                </div>
+              ) : null
+            })()}
+
             <div className="flex items-center justify-between gap-3">
               <button
                 type="button"

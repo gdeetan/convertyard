@@ -22,6 +22,17 @@ export const config: ToolConfig = {
   outputExt: '.mp4',
   convertFn: compressVideo,
   enablePresets: true,
+  optionsWarningFn: (files, options) => {
+    if (typeof navigator === 'undefined') return null
+    const isMobile = navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent)
+    if (!isMobile) return null
+    const resolution = (options.resolution as string) ?? 'original'
+    const targetSizeMode = options.targetSizeMode === true || options.targetSizeMode === 'true'
+    if (targetSizeMode || resolution !== 'original') return null
+    const hasLarge = files.some((f) => f.size > 50 * 1024 * 1024)
+    if (!hasLarge) return null
+    return 'Heads up: encoding at Original resolution on mobile can crash the browser tab for videos over 50 MB (iOS especially). Pick 720p or 480p for a safer run, or continue on a desktop for full quality.'
+  },
   warningFn: (files) => {
     const isMobile = typeof navigator !== 'undefined' &&
       (navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent))
@@ -55,7 +66,7 @@ export const config: ToolConfig = {
   },
   limitationNote: {
     summary: 'Large files take time — keep the tab open',
-    body: 'Video compression runs entirely in your browser. Keep the tab open and active while it runs — closing or switching tabs will stall or stop processing. On iPhone and iPad, iOS limits memory per browser tab: videos over 100 MB may cause the page to restart. The tool automatically reduces resolution to 720p for large files on mobile to lower crash risk, but for batches of 100 MB+ videos a desktop browser is strongly recommended. On Android, Chrome throttles background tabs which can stall long encodes — stay on this tab. On desktop, a 500 MB file can take 5–15 minutes depending on your CPU. High-motion footage (sport, gaming) compresses less than screen recordings. H.265 produces 30–50% smaller files than H.264 but requires a modern device for playback.',
+    body: 'Video compression runs entirely in your browser. Keep the tab open and active while it runs — closing or switching tabs will stall or stop processing. On iPhone and iPad, iOS limits memory per browser tab: videos over 100 MB at Original resolution may cause the page to restart. When you pick Original on mobile with a large file, the tool warns you before you start — choose 720p or 480p for a safer run, or use a desktop browser for full quality on large batches. On Android, Chrome throttles background tabs which can stall long encodes — stay on this tab. On desktop, a 500 MB file can take 5–15 minutes depending on your CPU. High-motion footage (sport, gaming) compresses less than screen recordings. H.265 produces 30–50% smaller files than H.264 but requires a modern device for playback.',
   },
 
   options: [

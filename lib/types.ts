@@ -183,6 +183,9 @@ export interface ToolConfig {
   // computed automatically. Leave undefined to use the shell defaults.
   howItWorks?: Array<{ label: string; desc: string }>
   warningFn?: (files: File[]) => string | null
+  // Warning that depends on both files AND currently-selected options.
+  // Recomputed on every option change and rendered above the Compress button.
+  optionsWarningFn?: (files: File[], options: ToolOptions) => string | null
   previewPanel?: React.ComponentType<{
     files: File[]
     results: (File | null)[]
