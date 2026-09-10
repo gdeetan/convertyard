@@ -24,6 +24,26 @@ export const config: ToolConfig = {
     body: 'Vectorisation works well on logos, icons, line art, QR codes, and signatures. Photographs and complex illustrations produce high-complexity SVGs with many tiny paths — not suitable for web use. For clean results, use images with clear, distinct edges.',
   },
 
+  howItWorks: [
+    {
+      label: 'Open a PNG file you want converted',
+      desc: 'You can open multiple files, but keep it to 5 files max so your computer doesn’t bog down.',
+    },
+    {
+      label: 'Choose a preset',
+      desc: 'Adjust the number of colors, minimum path size, line threshold, and blur before trace options.',
+    },
+    {
+      label: 'Click ‘convert’',
+      desc: 'Transform the PNG to an SVG file. You can still edit the converted file after clicking ‘convert’ until you’re happy with the result.',
+    },
+    {
+      label: 'Download',
+      desc: 'Download files individual or all at once through a ZIP file.',
+    },
+  ],
+
+
   options: [
     {
       type: 'slider',
