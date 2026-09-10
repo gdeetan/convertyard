@@ -78,7 +78,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'PNG to SVG Converter — Trace Logos — ConvertYard',
-    description: 'Trace PNG logos and icons into scalable SVG paths. Works on logos, icons, line art, and QR codes. Runs in your browser — files never leave your device.',
+    title: 'Convert PNG to SVG for Free',
+    description: 'Transform your PNG files into a scalable SVG vector for free without uploading to a server. No signup, no paywall, no conversion limits.',
   },
 }

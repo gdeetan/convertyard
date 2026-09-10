@@ -58,8 +58,8 @@ export const config: ToolConfig = {
   relatedTools: ['csv-to-pdf', 'epub-to-pdf', 'compress-pdf', 'pdf-to-text'],
   relatedArticles: [],
   meta: {
-    title: 'Markdown to PDF Converter — ConvertYard',
+    title: 'Convert MarkDown Files to PDF Locally - Nothing Uploads, 100% Free',
     description:
-      'Convert Markdown files to PDF in your browser. Batch convert up to 1000 .md files at once. No uploads, no account — entirely local.',
+      'Transform MarkDown files (or .md) into styled PDF files locally in your browser. Nothing uploads.',
   },
 }
