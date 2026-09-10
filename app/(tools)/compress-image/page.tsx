@@ -23,7 +23,7 @@ const compareDemo = (
     width={1888}
     height={1653}
     aspectRatio="1888 / 1653"
-    caption="Real PNG compression test with Convertyard's Image Compression: 146 KB PNG → 54 KB PNG (63% smaller) at the same 1888 × 1653 resolution. Drag the slider to compare."
+    caption="Real-word test with Convertyard's image compression tool: 146 KB PNG → 54 KB PNG (63% smaller) at the same 1888 × 1653 resolution. Drag the slider to compare."
   />
 )
 
