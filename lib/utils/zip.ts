@@ -1,4 +1,5 @@
 import { zip } from 'fflate'
+import { isIosInAppBrowser } from './platform'
 
 export async function downloadAsZip(files: File[], zipName = 'convertyard.zip'): Promise<void> {
   const entries: Record<string, Uint8Array> = {}
@@ -29,13 +30,26 @@ export async function downloadAsZip(files: File[], zipName = 'convertyard.zip'):
       }
       const blob = new Blob([data], { type: 'application/zip' })
       const url = URL.createObjectURL(blob)
+      const cleanup = () => setTimeout(() => URL.revokeObjectURL(url), 60_000)
+
+      if (isIosInAppBrowser()) {
+        // WKWebView hosts (Google app, FB, IG, etc.) ignore the `download`
+        // attribute and drop anchor-triggered blob downloads. Open in a new
+        // tab so the user can save from the viewer.
+        window.open(url, '_blank')
+        cleanup()
+        resolve()
+        return
+      }
+
       const a = document.createElement('a')
       a.href = url
       a.download = zipName
+      a.rel = 'noopener'
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
-      URL.revokeObjectURL(url)
+      cleanup()
       resolve()
     })
   })

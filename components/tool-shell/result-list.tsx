@@ -6,6 +6,7 @@ import { Download, Archive, CheckCircle2, XCircle, Loader2, AlertTriangle, FileI
 import { cn } from '@/lib/utils/cn'
 import { downloadFile, formatBytes } from '@/lib/utils/download'
 import { downloadAsZip } from '@/lib/utils/zip'
+import { isIosInAppBrowser } from '@/lib/utils/platform'
 import { ImageLightbox } from './image-lightbox'
 import { resultRowPresentation } from '@/lib/utils/conversion-results'
 import type { FileEntry } from '@/lib/types'
@@ -234,9 +235,9 @@ function CombinedOutputResult({
           download={result.name}
           data-testid="download-combined-output"
           onClick={(event) => {
-            if (objectUrl) return
+            if (objectUrl && !isIosInAppBrowser()) return
             event.preventDefault()
-            downloadFile(result)
+            void downloadFile(result)
           }}
           className={cn(
             'flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5',
