@@ -95,26 +95,27 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'Are my PNG files uploaded to convert them?',
-      a: 'No. Vectorisation runs entirely in your browser using JavaScript. Your PNGs never leave your device.',
+      q: 'Are my PNG files uploaded so I can convert them?',
+      a: 'No. The Vectorization script runs entirely in your browser using JavaScript. Nothing leaves the browser, so you can safely convert client files.',
     },
     {
       q: 'Is PNG-to-SVG conversion lossless?',
-      a: 'No. This is raster-to-vector tracing, not a lossless conversion. The tool approximates the shapes in your PNG as SVG paths. Simple logos and icons trace accurately; photographs and complex illustrations produce messy SVGs with thousands of tiny paths that are not practical for web or print use.',
+      a: 'No. This is a form of raster-to-vector tracing. It attempts to reproduce the PNG as SVG paths. Simple logos and icons trace very well. But photographs and other complex, finely detailed illustrations tend to produce terrible, messy SVGs with thousands of tiny paths, which aren\'t useful for most web or print work.',
     },
     {
-      q: 'Why does my vectorised logo have rough or jagged edges?',
-      a: 'Anti-aliasing in the original PNG creates semi-transparent edge pixels that the tracer interprets as new colours, producing rough outlines. Increase the Line threshold slider to smooth curves, and reduce the Number of colours to force the tracer to treat near-edge pixels as either foreground or background.',
+      q: 'Why does my vectorized logo have rough or jagged edges?',
+      a: 'Anti-aliasing in the original PNG image makes edge pixels near-transparent, leading to rough outlines. You can smooth the rough edges by increasing the Line threshold slider and by forcing the tracer to treat near-edge pixels as either foreground or background by decreasing the Number of colors.',
     },
     {
-      q: 'Will it vectorise a photo?',
-      a: 'It will try, but the result is not useful — photos produce thousands of tiny coloured paths approximating pixel colours, not clean scalable shapes. Use this tool on logos, icons, line art, QR codes, and scanned signatures only.',
+      q: 'Will it vectorize a photo?',
+      a: 'We test this on a range of images, including logos, icons, line artwork, QR codes, and scanned signatures. Photos will attempt to trace the images, but they will produce thousands of tiny colored paths trying to approximate the image\'s pixels. Such traced images are not very useful and generally not scalable.',
     },
     {
       q: 'Is the output SVG editable in Inkscape or a vector editor?',
-      a: 'Yes. The output is standard SVG path data. Open it in Inkscape, Figma, or any vector editor and manipulate the paths normally. Complex traces may have hundreds of overlapping paths, which can make editing tedious — simpler source images produce more workable SVGs.',
+      a: 'Yes. The output is standard SVG path data that you can open in any vector editor (e.g., Inkscape, Figma). However, a complex trace with thousands of small colored lines can create thousands of tiny paths, which can be tedious to edit. Simplifying the input image before tracing it will generally produce easier-to-edit SVGs with fewer paths.',
     },
   ],
+
 
   relatedTools: ['svg-to-png', 'png-to-jpg', 'favicon-generator'],
   relatedArticles: [],
