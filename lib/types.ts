@@ -201,6 +201,7 @@ export interface ToolConfig {
     files: File[]
     results: ConversionResult[]
     onResultEdit: (index: number, newFile: File) => void
+    options?: ToolOptions
   }>
   advancedOptions?: ToolOption[]
   presetBar?: React.ComponentType<{ onApply: (values: ToolOptions) => void }> // hardcoded quick-start presets (renders below OptionsPanel)

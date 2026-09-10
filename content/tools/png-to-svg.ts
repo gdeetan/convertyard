@@ -1,4 +1,5 @@
 import { pngToSvgConvert } from '@/lib/converters/png-to-svg-convert'
+import { PngToSvgReviewPanel } from '@/components/png-to-svg/png-to-svg-review'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -12,6 +13,7 @@ export const config: ToolConfig = {
   outputExt: '.svg',
   convertFn: (files, opts, onProgress, onResult) => pngToSvgConvert(files, opts, onProgress, onResult),
   enablePresets: true,
+  reviewPanel: PngToSvgReviewPanel,
 
   limitationNote: {
     summary: 'Best on simple, high-contrast images',
