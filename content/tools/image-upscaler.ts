@@ -148,8 +148,8 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'Upscale an Image — ConvertYard',
+    title: 'Free AI Image Upscaler - Enlarge Your Photos 2x, 3x, 4x, or 8x',
     description:
-      'Upscale photos and illustrations 2×–8× with on-device Real-ESRGAN. Runs in your browser — no upload, no account. Batch up to 1,000 files. PNG or JPG output.',
+      'Upscale your photos, illustrations, or logos between 2x and 8x without sacrificing image quality. All done in your browser. Nothing uploads.',
   },
 }
