@@ -16,87 +16,94 @@ export default function TermsPage() {
     <div className="mx-auto max-w-2xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
       <Breadcrumb items={[{ label: 'Home', href: '/' }, { label: 'Terms of Service' }]} />
       <h1 className="mb-2 text-3xl font-bold tracking-tight text-fg">Terms of Service</h1>
-      <p className="mb-10 text-sm text-fg-subtle">Last updated: June 6, 2026</p>
+      <p className="mb-10 text-sm text-fg-subtle">Last updated: September 10, 2026</p>
 
       <div className="prose prose-sm sm:prose-base max-w-none text-fg-muted space-y-8">
 
         <section>
           <h2 className="text-lg font-semibold text-fg mb-3">1. The service</h2>
           <p>
-            ConvertYard provides free, browser-based file conversion and transformation tools at
-            convertyard.com. All processing runs client-side via WebAssembly. No files are uploaded
-            to our servers.
+            ConvertYard.com is a completely FREE online converter, made for browsers only. All
+            converters are ONLINE - all processing takes place in your browser (WebAssembly code),
+            no files get uploaded to our servers!
           </p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-fg mb-3">2. Using the service</h2>
-          <p>You may use ConvertYard for any lawful purpose. You agree not to:</p>
+          <p>You may use ConvertYard for any lawful purpose. You will not use ConvertYard for the following:</p>
           <ul className="list-disc pl-5 mt-3 space-y-1">
-            <li>Use the service to convert copyrighted material you don't own or have rights to</li>
-            <li>Attempt to reverse-engineer or extract the WebAssembly binaries for redistribution</li>
-            <li>Automate requests in a way that degrades the experience for other users</li>
-            <li>Use the service in any way that violates applicable law</li>
+            <li>Using the service to convert copyrighted material you don&apos;t own or have rights to.</li>
+            <li>Any attempts to Reverse Engineer the ConvertYard tools or to extract the WebAssembly binaries for redistribution will be denied immediately.</li>
+            <li>Using ConvertYard in a way that would negatively affect other users making requests of the service.</li>
+            <li>Use the service to violate any applicable law or regulation.</li>
           </ul>
           <p className="mt-3">
-            You must be at least 13 years old to use this service. No account is required.
+            We do not allow children under the age of 13 to use the Service. Registration for an
+            account is not required to use the Service.
           </p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-fg mb-3">3. Your files</h2>
           <p>
-            You retain all rights to your files. Because processing is entirely local, we never
-            receive, see, or store your files or their contents. You are responsible for ensuring
-            you have the right to process any file you submit to the tool.
+            You retain the copyright and/or other intellectual property rights in your files. The
+            fact that ConvertYard processes files on your local machine means that ConvertYard NEVER
+            sees, receives, stores or EVER has access to your files and their contents.
           </p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-fg mb-3">4. No warranty</h2>
           <p>
-            The service is provided "as is" without warranty of any kind. We don't guarantee
-            that conversions will be error-free, that every file format or codec will be
-            supported, or that the service will be available without interruption.
+            Our Services are provided “as is” without any kind of warranty. ConvertYard does not
+            guarantee the accuracy or completeness of any conversion, or that our Services will be
+            performed without interruptions or errors.
           </p>
           <p className="mt-3">
-            Always keep a copy of your original files. We cannot recover files — they never
-            leave your device.
+            Be sure to keep back-up copies of your files before using ConvertYard to convert them.
+            ConvertYard does not guarantee any ability to recover files submitted for conversion.
           </p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-fg mb-3">5. Limitation of liability</h2>
           <p>
-            To the fullest extent permitted by law, ConvertYard and its operators are not liable
-            for any indirect, incidental, or consequential damages arising from your use of the
-            service, including data loss, file corruption, or business interruption.
+            The operation of ConvertYard in whatever form or by whatever means is provided &quot;as
+            is&quot; and ConvertYard and its owners and/or employees do not warrant the accuracy or
+            completeness of any conversions or of the service as a whole and disclaim all and any
+            liability to the full extent only for any and all damages, direct and indirect,
+            incidental and/or consequential, including but not limited to loss of data or
+            corruption of data or loss of business or interruption of business.
           </p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-fg mb-3">6. Ads</h2>
           <p>
-            ConvertYard displays minimal display ads to support the free service. Ads appear below
-            tool FAQs and within articles. They do not appear inside conversion flows, above the
-            fold, or in any way that disrupts tool use. Ad networks may set cookies subject to your
-            consent preferences.
+            Display ads (from ad networks like Google AdSense) support the website financially. They
+            are mostly found in the display area below the tool’s FAQ section and within articles.
+            No ads appear within the conversion process itself, and they are always below the fold.
+            To improve user experience, we refrain from displaying any ads above the tool’s preview.
+            In addition, some ad networks (like Google, Facebook, etc.) also set cookies on this
+            website. The use of these cookies depends on your consent settings.
           </p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-fg mb-3">7. Changes to the service</h2>
           <p>
-            We may add, modify, or remove tools at any time. We may also update these terms. If
-            we make material changes, we'll update the date at the top of this page.
+            This agreement is subject to change from time to time without prior notice, and if we
+            make any changes to these terms and conditions, we will post the updated date at the
+            top of this page.
           </p>
         </section>
 
         <section>
           <h2 className="text-lg font-semibold text-fg mb-3">8. Governing law</h2>
           <p>
-            These terms are governed by the laws of the United States. Disputes are subject to
-            the exclusive jurisdiction of the courts in the applicable state.
+            This website is governed by the laws of the United States. Any disputes will be heard
+            in the applicable state courts.
           </p>
         </section>
 
