@@ -376,9 +376,9 @@ async function encodeHevcInWorker(
     const mp4Bytes = finalMuxer.finalize()
     onProgress(97)
     if (opfs) {
-      await opfs.stream.close()
+      await withTimeout(opfs.stream.close(), 15_000, 'hevc: opfs.stream.close()')
       cleanupOpfsOldFiles(opfs.fileName).catch(() => {})
-      const opfsFile = await opfs.handle.getFile()
+      const opfsFile = await withTimeout(opfs.handle.getFile(), 15_000, 'hevc: opfs.handle.getFile()')
       return {
         file: new File([opfsFile], `${baseName}.mp4`, { type: 'video/mp4' }),
         audioDropped,
@@ -623,9 +623,9 @@ async function encodeAvcInWorker(
     const mp4Bytes = finalMuxer.finalize()
     onProgress(97)
     if (opfs) {
-      await opfs.stream.close()
+      await withTimeout(opfs.stream.close(), 15_000, 'avc: opfs.stream.close()')
       cleanupOpfsOldFiles(opfs.fileName).catch(() => {})
-      const opfsFile = await opfs.handle.getFile()
+      const opfsFile = await withTimeout(opfs.handle.getFile(), 15_000, 'avc: opfs.handle.getFile()')
       return {
         file: new File([opfsFile], `${baseName}.mp4`, { type: 'video/mp4' }),
         audioDropped,
