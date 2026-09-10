@@ -765,7 +765,7 @@ export async function tryCompressVideoHevcHardware(
     })
     encoder.configure(encoderConfig)
 
-    opts.onProgress?.(12)
+    opts.onProgress?.(3)
     const rVFC = video.requestVideoFrameCallback.bind(video)
 
     let frameIndex = 0
@@ -872,7 +872,7 @@ export async function tryCompressVideoHevcHardware(
             if (prevFrame) encodePrev(Math.max(0.001, t - prevTsSec))
             prevFrame = frame
             prevTsSec = t
-            opts.onProgress?.(12 + Math.round(Math.min(1, t / duration) * 70))
+            opts.onProgress?.(3 + Math.round(Math.min(1, t / duration) * 87))
             // iOS Safari drops rVFC callbacks when drawImage+encode exceeds
             // the frame budget (16ms at 60fps) — output plays choppy because
             // half the source frames never reach the encoder. Slow playback
@@ -906,7 +906,7 @@ export async function tryCompressVideoHevcHardware(
           encoder.encode(frame, { keyFrame: frameIndex % (fps * 2) === 0 })
           frame.close()
           frameIndex += 1
-          opts.onProgress?.(12 + Math.round(Math.min(1, t / duration) * 70))
+          opts.onProgress?.(3 + Math.round(Math.min(1, t / duration) * 87))
           // Desktop HW encoders sustain 4x realtime on 1080p; Safari caps around 4x.
           // Throttle down when the encoder queue backs up so we don't drop frames.
           if (encoder.encodeQueueSize > 10) video.playbackRate = 1
@@ -935,7 +935,7 @@ export async function tryCompressVideoHevcHardware(
     }
     if (encodeError) throw encodeError
 
-    opts.onProgress?.(84)
+    
     console.info('[compress-video] HEVC via playback path succeeded')
     if (useMp4Muxer) {
       if (capturedChunks.length === 0) return null
@@ -1134,7 +1134,7 @@ export async function tryCompressVideoAvcHardware(
     })
     encoder.configure(encoderConfig)
 
-    opts.onProgress?.(12)
+    opts.onProgress?.(3)
     const rVFC = video.requestVideoFrameCallback.bind(video)
 
     let frameIndex = 0
@@ -1234,7 +1234,7 @@ export async function tryCompressVideoAvcHardware(
             if (prevFrame) encodePrev(Math.max(0.001, t - prevTsSec))
             prevFrame = frame
             prevTsSec = t
-            opts.onProgress?.(12 + Math.round(Math.min(1, t / duration) * 70))
+            opts.onProgress?.(3 + Math.round(Math.min(1, t / duration) * 87))
             // iOS Safari drops rVFC callbacks when drawImage+encode exceeds
             // the frame budget (16ms at 60fps) — output plays choppy because
             // half the source frames never reach the encoder. Slow playback
@@ -1268,7 +1268,7 @@ export async function tryCompressVideoAvcHardware(
           encoder.encode(frame, { keyFrame: frameIndex % (fps * 2) === 0 })
           frame.close()
           frameIndex += 1
-          opts.onProgress?.(12 + Math.round(Math.min(1, t / duration) * 70))
+          opts.onProgress?.(3 + Math.round(Math.min(1, t / duration) * 87))
           // Desktop HW encoders sustain 4x realtime on 1080p; Safari caps around 4x.
           // Throttle down when the encoder queue backs up so we don't drop frames.
           if (encoder.encodeQueueSize > 10) video.playbackRate = 1
@@ -1297,7 +1297,7 @@ export async function tryCompressVideoAvcHardware(
     }
     if (encodeError) throw encodeError
 
-    opts.onProgress?.(84)
+    
     console.info('[compress-video] AVC via playback path succeeded')
     if (useMp4Muxer) {
       if (capturedChunks.length === 0) return null

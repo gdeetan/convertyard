@@ -163,6 +163,7 @@ function ProgressRow({ entry }: { entry: FileEntry }) {
   const isProcessing = status === 'processing'
   const isDone = status === 'done'
   const isError = status === 'error'
+  const rowEta = useEtaLabel(progress, isProcessing)
 
   return (
     <div
@@ -201,6 +202,7 @@ function ProgressRow({ entry }: { entry: FileEntry }) {
           </span>
           <span className="shrink-0 text-xs text-fg-muted tabular-nums">
             {isProcessing || isPending ? `${Math.round(progress)}% · ` : ''}{formatBytes(file.size)}
+            {isProcessing && rowEta && <span className="ml-1">· {rowEta}</span>}
           </span>
         </div>
 

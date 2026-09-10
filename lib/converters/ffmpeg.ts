@@ -1004,9 +1004,11 @@ function withEncodeHeartbeat(
   onProgress: ((pct: number) => void) | undefined,
   base: number,
   span: number,
+  expectedTotalMs?: number,
 ): { handler: ({ progress }: { progress: number }) => void; stop: () => void } {
   let reportedPct = base
   let lastAdvanceAt = Date.now()
+  const startedAt = Date.now()
   const ceiling = base + span - 1
   const emit = (pct: number) => {
     if (pct <= reportedPct) return
@@ -1017,12 +1019,22 @@ function withEncodeHeartbeat(
   const handler = ({ progress }: { progress: number }) => {
     emit(base + Math.round(Math.min(1, Math.max(0, progress)) * span))
   }
-  // Heartbeat fires only when the *displayed* pct hasn't advanced for ~2.5s.
-  // ffmpeg may emit sub-threshold rounding-noise events while libx265 is
-  // actually flushing internal buffers — those keep `progress` firing but
-  // don't move the bar, and users read the frozen pct as "stuck at 86%".
+  // Heartbeat: when ffmpeg is quiet, either extrapolate from expected total
+  // wall-clock (if the caller gave us one) or nudge +1 as a last resort.
+  // ffmpeg may emit sub-threshold events while libx265 flushes internal
+  // buffers — those keep `progress` firing but don't move the bar, so
+  // users read the frozen pct as "stuck at 97%".
   const heartbeat = setInterval(() => {
-    if (Date.now() - lastAdvanceAt >= 2500) {
+    if (Date.now() - lastAdvanceAt < 1500) return
+    if (expectedTotalMs && expectedTotalMs > 0) {
+      const elapsed = Date.now() - startedAt
+      // Cap extrapolation at 95% of the span so ffmpeg's real "done" signal
+      // (or the timeout) is what pushes us to the ceiling.
+      const capped = Math.min(0.95, elapsed / expectedTotalMs)
+      const projected = base + Math.round(capped * span)
+      if (projected > reportedPct) emit(projected)
+      else emit(reportedPct + 1)
+    } else {
       emit(reportedPct + 1)
     }
   }, 1500)
@@ -1030,6 +1042,28 @@ function withEncodeHeartbeat(
     handler,
     stop: () => clearInterval(heartbeat),
   }
+}
+
+// Rough wall-clock estimate for a libx264/libx265 encode in single-threaded
+// ffmpeg-wasm. Numbers calibrated from mid-range desktops; mobile CPUs run
+// 2–4× slower, so pad accordingly. Used only to feed the heartbeat's ETA
+// projection — the real ffmpeg progress event overrides it whenever it
+// fires, so being pessimistic here just means a smoother bar.
+function estimateEncodeWallclockMs(
+  durationSeconds: number,
+  resolutionHeight: number,
+  h265: boolean,
+  preset: 'ultrafast' | 'medium',
+): number {
+  if (!(durationSeconds > 0)) return 0
+  const pixels = resolutionHeight * (resolutionHeight * 16 / 9)
+  const pixelFactor = pixels / (720 * 1280)
+  const baseFactor = h265
+    ? (preset === 'medium' ? 20 : 8)
+    : (preset === 'medium' ? 6 : 1.6)
+  const mobilePad = isMobileBrowser() ? 3 : 1
+  const seconds = durationSeconds * baseFactor * Math.max(0.5, pixelFactor) * mobilePad
+  return Math.round(seconds * 1000)
 }
 
 async function tryHardwareHevcCompress(
@@ -1395,11 +1429,23 @@ export async function compressVideo(
             presetAudioArgs = ['-c:a', 'copy']
           }
         }
-        const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 89)
+        const durationForEstimate = await probeVideoDuration(file)
+        let heightForEstimate = resHeight
+        if (heightForEstimate === undefined) {
+          const dims = await probeVideoDimensions(file)
+          heightForEstimate = dims?.height ?? 720
+        }
+        const expectedWallclockMs = estimateEncodeWallclockMs(
+          durationForEstimate,
+          heightForEstimate,
+          h265,
+          highQualityOriginal ? 'medium' : 'ultrafast',
+        )
+        const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 89, expectedWallclockMs)
         ffmpeg.on('progress', beat.handler)
         const execOpts = h265
           ? {
-              timeoutMs: computeH265TimeoutMs(await probeVideoDuration(file)),
+              timeoutMs: computeH265TimeoutMs(durationForEstimate),
               onTimeout: () => resetSingleThreadFFmpeg(),
             }
           : undefined
@@ -1495,7 +1541,18 @@ export async function compressVideo(
               100_000,
               Math.floor((targetBytes * 8 - audioBitsPerSec * durationSeconds) / durationSeconds)
             )
-            const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 89)
+            let ts_heightForEstimate = resHeight
+            if (ts_heightForEstimate === undefined) {
+              const dims = await probeVideoDimensions(file)
+              ts_heightForEstimate = dims?.height ?? 720
+            }
+            const ts_expectedWallclockMs = estimateEncodeWallclockMs(
+              durationSeconds,
+              ts_heightForEstimate,
+              h265,
+              'ultrafast',
+            )
+            const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 89, ts_expectedWallclockMs)
             ffmpeg.on('progress', beat.handler)
             const execOpts = h265
               ? { timeoutMs: computeH265TimeoutMs(durationSeconds), onTimeout: () => resetSingleThreadFFmpeg() }
