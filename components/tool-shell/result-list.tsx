@@ -496,6 +496,12 @@ function ResultRow({
             </>
           ) : null}
         </span>
+        {entry.notice && (
+          <div className="mt-1 inline-flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
+            <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" aria-hidden="true" />
+            <span>{entry.notice}</span>
+          </div>
+        )}
         {entry.resultMeta && (
           <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-0.5 text-xs text-fg-subtle">
             {entry.resultMeta.isUnchanged ? (

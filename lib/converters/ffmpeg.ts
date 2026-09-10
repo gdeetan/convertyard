@@ -1,7 +1,7 @@
 import { fetchFile } from '@ffmpeg/util'
 import { materializeFile, unmarkMaterialized } from '@/lib/utils/materialize-file'
 import { FFFSType } from '@ffmpeg/ffmpeg'
-import { getFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock } from './ffmpeg-client'
+import { getFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock, resetSingleThreadFFmpeg } from './ffmpeg-client'
 import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware } from './compress-video-webcodecs'
 import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from './media-probe'
 import type { ToolOptions, ConversionResult, CompressionMeta } from '@/lib/types'
@@ -23,6 +23,20 @@ function isMobileBrowser(): boolean {
   return navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent)
 }
 
+function isIosBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent
+  return /iPhone|iPad|iPod/i.test(ua) || (navigator.maxTouchPoints > 1 && /Mac/i.test(ua))
+}
+
+// Timeout for libx265 in single-threaded WASM. Real-world worst case is
+// ~30× realtime; we cap at 20 minutes so users never wait forever on a
+// silent hang (iOS Safari can OOM libx265 mid-flush without erroring).
+function computeH265TimeoutMs(durationSeconds: number): number {
+  const estimate = Math.max(300_000, Math.ceil(durationSeconds * 30_000))
+  return Math.min(estimate, 20 * 60_000)
+}
+
 // Wrap ffmpeg.exec with a rolling log tail so a non-zero exit surfaces the real
 // reason (OOM, invalid data, etc.) instead of the useless "FS error" that
 // bubbles up when the caller then tries to readFile() a missing output.
@@ -30,6 +44,7 @@ async function execWithReason(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ffmpeg: any,
   args: string[],
+  opts?: { timeoutMs?: number; onTimeout?: () => Promise<void> | void },
 ): Promise<{ code: number; tail: string }> {
   const logLines: string[] = []
   const logHandler = ({ message }: { message: string }) => {
@@ -39,8 +54,29 @@ async function execWithReason(
   }
   ffmpeg.on('log', logHandler)
   try {
-    const code = await ffmpeg.exec(args)
-    return { code, tail: logLines.join('\n') }
+    if (!opts?.timeoutMs) {
+      const code = await ffmpeg.exec(args)
+      return { code, tail: logLines.join('\n') }
+    }
+    const timeoutMs = opts.timeoutMs
+    const TIMEOUT = Symbol('timeout')
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timeoutPromise = new Promise<typeof TIMEOUT>((resolve) => {
+      timer = setTimeout(() => resolve(TIMEOUT), timeoutMs)
+    })
+    try {
+      const raced = await Promise.race([ffmpeg.exec(args), timeoutPromise])
+      if (raced === TIMEOUT) {
+        try { await opts.onTimeout?.() } catch { /* teardown best-effort */ }
+        const minutes = Math.max(1, Math.round(timeoutMs / 60_000))
+        throw new Error(
+          `Encoding stalled and was cancelled after ${minutes} minute${minutes === 1 ? '' : 's'}. H.265 in the browser can hang on long or high-resolution clips — try H.264, a lower resolution, or a desktop browser.`,
+        )
+      }
+      return { code: raced as number, tail: logLines.join('\n') }
+    } finally {
+      if (timer) clearTimeout(timer)
+    }
   } finally {
     ffmpeg.off('log', logHandler)
   }
@@ -1130,9 +1166,24 @@ export async function compressVideo(
   const targetSizeMode = options.targetSizeMode === true || options.targetSizeMode === 'true'
   const level         = (options.level      as string)  ?? 'medium'
   const resolution    = (options.resolution as string)  ?? 'original'
-  const h265          = options.h265         === true || options.h265 === 'true'
+  const requestedH265 = options.h265         === true || options.h265 === 'true'
   const stripAudio    = options.stripAudio   === true || options.stripAudio === 'true'
   const targetKB      = typeof options.targetKB === 'number' ? options.targetKB : 51200
+
+  // iOS Safari has no hardware HEVC WebCodecs path — H.265 falls through to
+  // libx265 in single-threaded WASM, which can hang for 5+ minutes at 1080p
+  // or fail entirely with a silent OOM. Silently downshift to H.264 and
+  // attach a per-file notice so the user isn't blindsided.
+  const iosAutoFallback = isIosBrowser() && requestedH265
+  const h265 = iosAutoFallback ? false : requestedH265
+  const H264_FALLBACK_NOTICE =
+    'Encoded as H.264 instead of H.265 — iOS can\'t reliably run H.265 encoding in the browser. Use a desktop browser for real H.265 output.'
+  const wrapNotice = (r: ConversionResult): ConversionResult => {
+    if (!iosAutoFallback) return r
+    if (r instanceof Error) return r
+    if (r instanceof File) return { file: r, notice: H264_FALLBACK_NOTICE }
+    return r
+  }
 
   const crfMap = h265 ? H265_CRF  : H264_CRF
   const threadArgs = compressVideoThreadArgs(h265)
@@ -1346,6 +1397,12 @@ export async function compressVideo(
         }
         const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 89)
         ffmpeg.on('progress', beat.handler)
+        const execOpts = h265
+          ? {
+              timeoutMs: computeH265TimeoutMs(await probeVideoDuration(file)),
+              onTimeout: () => resetSingleThreadFFmpeg(),
+            }
+          : undefined
         try {
           const { code, tail } = await execWithReason(ffmpeg, [
             ...threadArgs,
@@ -1356,7 +1413,7 @@ export async function compressVideo(
             ...playableArgs,
             ...presetAudioArgs,
             outputName,
-          ])
+          ], execOpts)
           if (code !== 0) throw friendlyFfmpegError('Video compression', code, tail)
           data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
           onProgress?.(i, 99)
@@ -1440,6 +1497,9 @@ export async function compressVideo(
             )
             const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 89)
             ffmpeg.on('progress', beat.handler)
+            const execOpts = h265
+              ? { timeoutMs: computeH265TimeoutMs(durationSeconds), onTimeout: () => resetSingleThreadFFmpeg() }
+              : undefined
             try {
               const { code, tail } = await execWithReason(ffmpeg, [
                 ...threadArgs,
@@ -1452,7 +1512,7 @@ export async function compressVideo(
                 ...playableArgs,
                 ...targetAudioArgs,
                 outputName,
-              ])
+              ], execOpts)
               if (code !== 0) throw friendlyFfmpegError('Video compression', code, tail)
               data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
               onProgress?.(i, 99)
@@ -1470,6 +1530,11 @@ export async function compressVideo(
                 const pctBase = 10 + pass * 13
                 const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), pctBase, 13)
                 ffmpeg.on('progress', beat.handler)
+                // Duration probe failed on this file, so cap each libx265
+                // pass at a fixed 10-minute wall-clock ceiling.
+                const execOpts = h265
+                  ? { timeoutMs: 10 * 60_000, onTimeout: () => resetSingleThreadFFmpeg() }
+                  : undefined
                 try {
                   const { code, tail } = await execWithReason(ffmpeg, [
                     ...threadArgs,
@@ -1480,7 +1545,7 @@ export async function compressVideo(
                     ...playableArgs,
                     ...audioArgs,
                     outputName,
-                  ])
+                  ], execOpts)
                   if (code !== 0) throw friendlyFfmpegError('Video compression', code, tail)
                 } finally {
                   beat.stop()
@@ -1537,7 +1602,7 @@ export async function compressVideo(
     while (true) {
       const i = cursor++
       if (i >= files.length) return
-      const result = await processOne(i)
+      const result = wrapNotice(await processOne(i))
       indexed[i] = result
       onResult?.(i, result)
       onProgress?.(i, 100)

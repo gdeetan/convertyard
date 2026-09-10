@@ -31,15 +31,12 @@ export const config: ToolConfig = {
     const targetSizeMode = options.targetSizeMode === true || options.targetSizeMode === 'true'
     const h265 = options.h265 === true || options.h265 === 'true'
 
-    // iOS has no hardware HEVC WebCodecs path — H.265 falls back to libx265
-    // in single-threaded WASM, which is 5–10× slower than H.264 and can hang
-    // on 1080p clips. Warn before the user commits several minutes.
+    // iOS has no hardware HEVC WebCodecs path and libx265 in single-threaded
+    // WASM hangs on longer clips. We auto-encode as H.264 on iOS and tag the
+    // result with a per-file notice; tell the user up front so the option
+    // toggle doesn't feel broken.
     if (isIOS && h265) {
-      const at1080 = resolution === '1080p' || resolution === 'original'
-      if (at1080) {
-        return 'H.265 at 1080p on iPhone/iPad runs a slow software fallback (no hardware support) and can hang for many minutes or fail entirely. Use H.264, drop to 720p, or run this on a desktop for reliable H.265 output.'
-      }
-      return 'H.265 on iPhone/iPad runs a slow software fallback (no hardware support) and takes 3–5× longer than H.264. Consider H.264, or run this on a desktop for a much faster encode.'
+      return 'H.265 encoding isn\'t reliable on iPhone/iPad browsers, so this will be encoded as H.264 instead. Use a desktop browser for real H.265 output.'
     }
 
     if (isMobile && !targetSizeMode && resolution === 'original') {

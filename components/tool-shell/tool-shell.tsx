@@ -47,7 +47,7 @@ interface ToolShellProps {
 type Action =
   | { type: 'ADD_FILES'; files: File[] }
   | { type: 'SET_PROGRESS'; fileIndex: number; pct: number }
-  | { type: 'SET_RESULT'; fileIndex: number; result: File; resultMeta?: CompressionMeta; ocrMeta?: OcrResultMeta }
+  | { type: 'SET_RESULT'; fileIndex: number; result: File; resultMeta?: CompressionMeta; ocrMeta?: OcrResultMeta; notice?: string }
   | { type: 'SET_ERROR'; fileIndex: number; error: string }
   | { type: 'START_CONVERTING' }
   | { type: 'FINISH'; resultMode?: ToolConfig['resultMode'] }
@@ -106,6 +106,7 @@ function reducer(state: State, action: Action): State {
           result: action.result,
           resultMeta: action.resultMeta,
           ocrMeta: action.ocrMeta,
+          notice: action.notice,
         }
       }
       return { ...state, entries }
@@ -247,6 +248,8 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
         dispatch({ type: 'SET_RESULT', fileIndex, result: r })
       } else if ('ocrMeta' in r) {
         dispatch({ type: 'SET_RESULT', fileIndex, result: r.file, ocrMeta: r.ocrMeta })
+      } else if ('notice' in r) {
+        dispatch({ type: 'SET_RESULT', fileIndex, result: r.file, notice: r.notice })
       } else {
         dispatch({ type: 'SET_RESULT', fileIndex, result: r.file, resultMeta: r.meta })
       }

@@ -154,6 +154,7 @@ export type ConversionResult =
   | Error
   | { file: File; meta: CompressionMeta }
   | { file: File; ocrMeta: OcrResultMeta }
+  | { file: File; notice: string }
 
 // ── Tool config ──────────────────────────────────────────────────────────────
 
@@ -226,6 +227,7 @@ export interface FileEntry {
   result?: File
   resultMeta?: CompressionMeta
   ocrMeta?: OcrResultMeta
+  notice?: string
   error?: string
 }
 
