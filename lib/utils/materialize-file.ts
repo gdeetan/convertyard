@@ -100,7 +100,20 @@ export async function materializeFile(file: File): Promise<File> {
     if (url) URL.revokeObjectURL(url)
   }
   console.warn('[materialize] failed:', errors.join(' | '))
-  throw new Error(
-    'Could not read this file. Android sometimes revokes access to videos from apps like Viber or WhatsApp. Try re-sharing the video or save it to Downloads first.',
-  )
+  throw new Error(unreadableFileMessage())
+}
+
+export function unreadableFileMessage(): string {
+  if (typeof navigator === 'undefined') {
+    return 'Could not read this file. The browser blocked access — try re-selecting the file, or open the site in a different browser.'
+  }
+  const ua = navigator.userAgent
+  const isIos = /iPhone|iPad|iPod/i.test(ua) || (navigator.maxTouchPoints > 1 && /Mac/i.test(ua))
+  if (isIos) {
+    return 'Could not read this file on iOS. Common causes: the video isn\'t fully downloaded from iCloud (open it in Photos first so it downloads), the file is too large for the browser tab, or you\'re inside an in-app browser (Google app, Instagram). Open in real Safari and try again.'
+  }
+  if (/Android/i.test(ua)) {
+    return 'Could not read this file. Android sometimes revokes access to videos from apps like Viber or WhatsApp. Try re-sharing the video or save it to Downloads first.'
+  }
+  return 'Could not read this file. The browser blocked access — try re-selecting the file from your Downloads folder, or open the site in a different browser.'
 }

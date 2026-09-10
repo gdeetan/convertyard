@@ -1,5 +1,5 @@
 import { fetchFile } from '@ffmpeg/util'
-import { materializeFile, unmarkMaterialized } from '@/lib/utils/materialize-file'
+import { materializeFile, unmarkMaterialized, unreadableFileMessage } from '@/lib/utils/materialize-file'
 import { FFFSType } from '@ffmpeg/ffmpeg'
 import { getFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock, resetSingleThreadFFmpeg } from './ffmpeg-client'
 import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware } from './compress-video-webcodecs'
@@ -1353,7 +1353,7 @@ export async function compressVideo(
         } catch (rematErr) {
           console.warn('[compress-video] re-materialize failed after WORKERFS', rematErr)
           throw new Error(
-            'Could not read this file — Android may have revoked access. Move the file to Downloads or re-select it from Files, then try again.',
+            unreadableFileMessage(),
           )
         }
         try {
@@ -1368,7 +1368,7 @@ export async function compressVideo(
           // instead of the raw browser error.
           if (/could not be read|permission/i.test(msg)) {
             throw new Error(
-              'Could not read this file — Android may have revoked access. Move the file to Downloads or re-select it from Files, then try again.',
+              unreadableFileMessage(),
             )
           }
           throw memfsErr
