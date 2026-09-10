@@ -16,6 +16,7 @@ import {
   blobEncodeOptions,
   detectUpscalerClientProfile,
   illustrationRouting,
+  isOnnxRunError,
   maxOutputDim,
   modelRouting,
   padToMultiple,
@@ -349,8 +350,35 @@ async function inferTile(
     const pipe = await getPipeline(modelId, scale, device)
     const rawImg = new RawImage(rgbData, extW, extH, 3)
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const result: any = await pipe(rawImg)
+    let result: unknown
+    try {
+      result = await pipe(rawImg)
+    } catch (err) {
+      const message = (err as Error).message
+      if (!isOnnxRunError(message) || deviceIdx + 1 >= deviceOrder.length) throw err
+      const nextDevice = deviceOrder[deviceIdx + 1]
+      self.postMessage({
+        type: 'log',
+        id,
+        message: `Swin2SR run failed on ${device}, retrying with ${nextDevice}: ${message}`,
+      })
+      const cacheKey = `${modelId}::${device}`
+      const oldPipePromise = pipelineCache.get(cacheKey)
+      if (oldPipePromise) {
+        try {
+          const oldPipe = await oldPipePromise
+          if (oldPipe && typeof oldPipe.dispose === 'function') {
+            try { oldPipe.dispose() } catch { /* ignore */ }
+          }
+        } catch { /* ignore rejected promise */ }
+      }
+      pipelineCache.delete(cacheKey)
+      await clearPipelineCache()
+      activeDevice = nextDevice
+      deviceIdx++
+      continue
+    }
+
     const { rgba, width, height } = rawImageToRgba(result)
 
     // Shape validated at caller level using chain.scale
@@ -1172,14 +1200,14 @@ async function runInference(
       if (routing.chains.indexOf(chain) < routing.chains.length - 1) {
         currentBitmap = await createImageBitmap(tileCanvas)
       } else {
-        // Final step: handle 3× special case (run 4× model then bicubic 0.75× downsample)
+        // 3×: 4× model then Lanczos down. 8×: 4× model then Lanczos up.
+        const targetW = Math.round(workW * scaleFactor)
+        const targetH = Math.round(workH * scaleFactor)
         let finalCanvas: OffscreenCanvas
-        if (scale === '3x') {
-          const finalW = Math.round(workW * 3)
-          const finalH = Math.round(workH * 3)
-          const fourX = await createImageBitmap(tileCanvas)
-          finalCanvas = await graphicScale(fourX, finalW, finalH, () => {}, { unsharp: false })
-          fourX.close()
+        if (tileCanvas.width !== targetW || tileCanvas.height !== targetH) {
+          const src = await createImageBitmap(tileCanvas)
+          finalCanvas = await graphicScale(src, targetW, targetH, () => {}, { unsharp: false })
+          src.close()
         } else {
           finalCanvas = tileCanvas
         }

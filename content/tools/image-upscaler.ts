@@ -72,7 +72,7 @@ export const config: ToolConfig = {
         { value: '4x', label: '4× (recommended)' },
         { value: '8x', label: '8× (slowest)' },
       ],
-      hint: '4× is the usual pick. 8× is two model passes and uses much more memory.',
+      hint: '4× is the usual pick. 8× runs the 4× model, then Lanczos to 8×, and uses much more memory.',
     },
     {
       type: 'radio',
@@ -132,7 +132,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Which scale should I pick?',
-      a: 'The best balance would be the 4× option. If you need faster results, use the 2× mode. The 3× is slightly faster than the 4× and yields a similar result, since it uses the 4× model with Lanczos downsampling. The photo upscaler runs on Real-ESRGAN 4×. The illustration upscaler uses AnimeVideo 4×, then Lanczos, which is slower, creates larger files, and is likely to hit browser memory limits (especially on mobile).',
+      a: 'The best balance would be the 4× option. If you need faster results, use the 2× mode. The 3× is slightly faster than the 4× and yields a similar result, since it uses the 4× model with Lanczos downsampling. 8× is the same 4× model, then Lanczos up to 8×. The illustration upscaler uses AnimeVideo 4×, then Lanczos, which is slower, creates larger files, and is likely to hit browser memory limits (especially on mobile).',
     },
     {
       q: 'What types of images produce poor results?',

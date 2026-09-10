@@ -94,6 +94,11 @@ export function padToMultiple(n: number, multiple = 8): number {
   return Math.ceil(n / multiple) * multiple
 }
 
+/** WebGPU ORT aliases input/output when ONNX spatial dim names match. */
+export function isOnnxRunError(message: string): boolean {
+  return /failed to call OrtRun/i.test(message) || /shape mismatch attempting to re-use buffer/i.test(message)
+}
+
 function x2Model(mode: PhotoMode): string {
   return mode === 'photo-compressed' ? SWIN2SR_COMPRESSED_X2 : SWIN2SR_CLASSICAL_X2
 }
@@ -107,13 +112,9 @@ export function modelRouting(scale: UpscaleScale, mode: PhotoMode): ModelRouting
     case '4x':
       return { chains: [{ modelId: REALESRGAN_X4, scale: 4, kind: 'realesrgan' }], actualScale: 4 }
     case '8x':
-      return {
-        chains: [
-          { modelId: REALESRGAN_X4, scale: 4, kind: 'realesrgan' },
-          { modelId: x2Model(mode), scale: 2, kind: 'swin2sr' },
-        ],
-        actualScale: 8,
-      }
+      // Swin2SR x2 on WebGPU tries to reuse the input buffer for a 2× output
+      // ({1,3,H,W} != {1,3,2H,2W}). Same 4× model as illustration 8×, then Lanczos.
+      return { chains: [{ modelId: REALESRGAN_X4, scale: 4, kind: 'realesrgan' }], actualScale: 8 }
   }
 }
 
@@ -149,12 +150,6 @@ export function swin2srFallbackRouting(scale: UpscaleScale, mode: PhotoMode): Mo
     case '4x':
       return { chains: [{ modelId: SWIN2SR_REALWORLD_X4, scale: 4, kind: 'swin2sr' }], actualScale: 4 }
     case '8x':
-      return {
-        chains: [
-          { modelId: SWIN2SR_REALWORLD_X4, scale: 4, kind: 'swin2sr' },
-          { modelId: x2Model(mode), scale: 2, kind: 'swin2sr' },
-        ],
-        actualScale: 8,
-      }
+      return { chains: [{ modelId: SWIN2SR_REALWORLD_X4, scale: 4, kind: 'swin2sr' }], actualScale: 8 }
   }
 }

@@ -12,6 +12,7 @@ import {
   maxOutputDim,
   modelRouting,
   padToMultiple,
+  isOnnxRunError,
   resolveImageMode,
   shouldUseOnnxOnClient,
   swin2srFallbackRouting,
@@ -96,15 +97,24 @@ describe('modelRouting', () => {
     ])
   })
 
-  it('chains Real-ESRGAN 4× then Swin2SR 2× for 8×', () => {
-    expect(modelRouting('8x', 'photo').chains).toEqual([
-      { modelId: REALESRGAN_X4, scale: 4, kind: 'realesrgan' },
-      { modelId: SWIN2SR_CLASSICAL_X2, scale: 2, kind: 'swin2sr' },
-    ])
-    expect(modelRouting('8x', 'photo-compressed').chains).toEqual([
-      { modelId: REALESRGAN_X4, scale: 4, kind: 'realesrgan' },
-      { modelId: SWIN2SR_COMPRESSED_X2, scale: 2, kind: 'swin2sr' },
-    ])
+  it('uses Real-ESRGAN 4× then Lanczos for 8× (Swin2SR 2× reuses the WebGPU input buffer)', () => {
+    expect(modelRouting('8x', 'photo')).toEqual({
+      chains: [{ modelId: REALESRGAN_X4, scale: 4, kind: 'realesrgan' }],
+      actualScale: 8,
+    })
+    expect(modelRouting('8x', 'photo-compressed')).toEqual({
+      chains: [{ modelId: REALESRGAN_X4, scale: 4, kind: 'realesrgan' }],
+      actualScale: 8,
+    })
+  })
+})
+
+describe('isOnnxRunError', () => {
+  it('detects WebGPU OrtRun buffer-reuse failures from 2× Swin2SR', () => {
+    const message =
+      'failed to call OrtRun(). ERROR_CODE: 1, ERROR_MESSAGE: Shape mismatch attempting to re-use buffer. {1,3,272,272} != {1,3,544,544}'
+    expect(isOnnxRunError(message)).toBe(true)
+    expect(isOnnxRunError('Blank tile')).toBe(false)
   })
 })
 
@@ -117,6 +127,13 @@ describe('swin2srFallbackRouting', () => {
   it('still splits 2× clean vs compressed', () => {
     expect(swin2srFallbackRouting('2x', 'photo').chains[0]?.modelId).toBe(SWIN2SR_CLASSICAL_X2)
     expect(swin2srFallbackRouting('2x', 'photo-compressed').chains[0]?.modelId).toBe(SWIN2SR_COMPRESSED_X2)
+  })
+
+  it('uses a single 4× Swin2SR pass for 8×, then Lanczos', () => {
+    expect(swin2srFallbackRouting('8x', 'photo')).toEqual({
+      chains: [{ modelId: SWIN2SR_REALWORLD_X4, scale: 4, kind: 'swin2sr' }],
+      actualScale: 8,
+    })
   })
 })
 
