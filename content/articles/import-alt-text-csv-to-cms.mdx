@@ -28,13 +28,13 @@ export const meta = {
   relatedTools: ['alt-text-generator'],
 }
 
-Once ConvertYard's alt text generator finishes processing your images, you get a CSV with two columns: `filename` and `alt_text`. That CSV is the starting point. This guide walks through how to get those descriptions into your CMS — whether you're on WordPress, Shopify, Contentful, or something else.
+After ConvertYard's alt text generator has processed all the images on your site, you will receive a CSV file with two columns: `filename` and `alt_text`. In this tutorial, we'll explain how you can import these descriptions into your Content Management System (CMS). The tutorial applies to WordPress, Shopify, Contentful, and many other CMS.
 
 **[Generate alt text for 100+ images at once — runs in your browser →](/alt-text-generator/)**
 
 ## The CSV format
 
-Before importing, open the CSV in a spreadsheet and review it:
+Open the exported CSV file in your favorite spreadsheet and review the contents before importing it into your CMS.
 
 ```
 filename,alt_text
@@ -43,11 +43,9 @@ team-photo-2024.jpg,"Seven people standing in an office lobby smiling at the cam
 hero-banner.png,"Close-up of a hand holding a coffee cup over a wooden table"
 ```
 
-Two things to check at this stage:
+**Context – the images the AI does not get.** Be aware that the AI can only describe what it can see and therefore miss the all-important context for the image on your site. For example, an image of a blue hoodie needs the product name added to the description, i.e., `"Eastfield Classic Hoodie in Navy, front view"`. Take 10 minutes to scan through the descriptions for the brand and product context that is obviously missing.
 
-**Review for context gaps.** The AI describes what it sees, not what it means to your site. A product photo of a blue hoodie needs the product name added — `"Eastfield Classic Hoodie in Navy, front view"` is more useful than the generic description. Take 10 minutes to scan the alt_text column and update any entries where brand or product context is missing.
-
-**Check for errors.** Images that are very dark, heavily blurred, or mostly text (screenshots, infographics) sometimes produce inaccurate descriptions. Fix those before importing.
+**Check the generated descriptions for errors.** Very dark, blurred, or mostly text images like screenshots or infographics can generate poor results. Fix these before importing.
 
 ---
 
