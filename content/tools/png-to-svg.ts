@@ -8,7 +8,7 @@ export const config: ToolConfig = {
   slug: 'png-to-svg',
   title: 'PNG to SVG Converter',
   subtitle: 'Trace PNG logos and icons into scalable SVG paths. Works on simple, high-contrast art.',
-  bestFor: 'Best for designers who need an SVG version of a simple logo or icon they only have as a PNG.',
+  bestFor: 'Best for graphic artists who need to convert their PNG logo to a scalable SVG format.',
   category: 'images',
   accepts: ['image/png'],
   acceptsExt: ['.png'],
