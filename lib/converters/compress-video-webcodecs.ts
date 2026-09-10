@@ -15,6 +15,198 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   })
 }
 
+// Codec-tagged milestone log. One line per phase transition so a "stuck at N%"
+// screenshot's console tail identifies both the codec branch AND the phase
+// that failed to advance. Kept intentionally cheap — only fires at boundaries
+// (start of encode, end of flush, splice start/end, result) not per-tick.
+type PhaseCodec = 'hevc' | 'avc' | 'hevc:worker' | 'avc:worker' | 'splice'
+export function logPhase(codec: PhaseCodec, phase: string, pct: number | null = null): void {
+  const suffix = pct == null ? '' : ` pct=${pct}`
+  console.info(`[compress-video][phase] codec=${codec} phase=${phase}${suffix}`)
+}
+
+// Shared playback-path encode loop for the HW HEVC and AVC hardware paths.
+// Extracted from twin implementations that had drifted independently — any
+// bug fix or progress-band tweak now applies to both codecs at once.
+// The caller sets up the <video>, encoder, canvas, and picks the mobile
+// flag / progress callback; this function does the rVFC → encode dance until
+// the source ends, then resolves.
+async function runPlaybackEncodeLoop(params: {
+  codec: 'HEVC' | 'AVC'
+  video: HTMLVideoElement
+  encoder: VideoEncoder
+  ctx: CanvasRenderingContext2D | null
+  canvas: HTMLCanvasElement | null
+  width: number
+  height: number
+  fps: number
+  duration: number
+  mobile: boolean
+  onProgress?: (pct: number) => void
+  getEncodeError: () => Error | null
+}): Promise<void> {
+  const { codec, video, encoder, ctx, canvas, width, height, fps, duration, mobile, onProgress, getEncodeError } = params
+  const codecLower = codec.toLowerCase() as 'hevc' | 'avc'
+  const rVFC = video.requestVideoFrameCallback.bind(video)
+  let frameIndex = 0
+  let lastFrameAt = Date.now()
+  // Probe B: monotonicity of rVFC meta.mediaTime under dynamic playbackRate.
+  let mtRegressCount = 0
+  let mtRepeatCount = 0
+  let mtSampleCount = 0
+  let mtMaxRegressSec = 0
+  let firstTickLogged = false
+  await new Promise<void>((resolve, reject) => {
+    let settled = false
+    // Mobile buffers one frame so each encoded chunk can be stamped with
+    // its true duration (nextT - thisT). Without this, iOS Safari drops
+    // rendered frames but we stamp every chunk with a fixed 1/30s duration,
+    // leaving gaps in the muxed timeline that play back as freezes.
+    let prevFrame: VideoFrame | null = null
+    let prevTsSec = 0
+    const cleanupPrev = () => {
+      if (prevFrame) { try { prevFrame.close() } catch { /* already closed */ } prevFrame = null }
+    }
+    // iOS Safari drops rVFC callbacks when drawImage + encoder.encode exceeds
+    // the source's frame budget — the *observed* gap (t - prevTsSec) then
+    // spans multiple source frames. Duplicate the previous frame at target
+    // cadence to fill the gap so playback stays smooth.
+    const expectedIntervalSec = 1 / fps
+    const encodePrev = (durSec: number) => {
+      if (!prevFrame) return
+      const copies = durSec > expectedIntervalSec * 1.5
+        ? Math.max(1, Math.round(durSec / expectedIntervalSec))
+        : 1
+      const subDurUs = Math.max(1, Math.round((durSec / copies) * 1_000_000))
+      const baseTsUs = Math.round(prevTsSec * 1_000_000)
+      for (let k = 0; k < copies; k++) {
+        const retimed = new VideoFrame(prevFrame, {
+          timestamp: baseTsUs + k * subDurUs,
+          duration: subDurUs,
+        })
+        encoder.encode(retimed, { keyFrame: frameIndex % (fps * 2) === 0 })
+        retimed.close()
+        frameIndex += 1
+      }
+      prevFrame.close()
+      prevFrame = null
+    }
+    const finish = () => {
+      if (settled) return
+      settled = true
+      clearInterval(watchdog)
+      cleanupPrev()
+      video.pause()
+      resolve()
+    }
+    const fail = (err: unknown) => {
+      if (settled) return
+      settled = true
+      clearInterval(watchdog)
+      cleanupPrev()
+      video.pause()
+      reject(err instanceof Error ? err : new Error(String(err)))
+    }
+    const watchdog = window.setInterval(() => {
+      if (Date.now() - lastFrameAt > 8000) {
+        fail(new Error(`Hardware ${codec} stalled — no frames for 8s`))
+      }
+    }, 1000)
+    const onEnded = () => {
+      if (mobile && prevFrame) {
+        try { encodePrev(Math.max(0.001, duration - prevTsSec)) } catch { cleanupPrev() }
+      }
+      console.info(`[compress-video][probe] ${codec} playback finished`, {
+        samples: mtSampleCount, regressions: mtRegressCount, repeats: mtRepeatCount, maxRegressSec: mtMaxRegressSec,
+      })
+      logPhase(codecLower, 'encode-loop-end')
+      finish()
+    }
+    video.addEventListener('ended', onEnded, { once: true })
+    const onFrame = (_now: number, meta: { mediaTime: number }) => {
+      try {
+        const err = getEncodeError()
+        if (err) throw err
+        lastFrameAt = Date.now()
+        const t = meta.mediaTime
+        if (!firstTickLogged) {
+          firstTickLogged = true
+          logPhase(codecLower, 'encode-loop-first-tick')
+        }
+        if (mobile) {
+          mtSampleCount += 1
+          if (mtSampleCount > 1) {
+            if (t < prevTsSec) {
+              mtRegressCount += 1
+              const delta = t - prevTsSec
+              if (delta < mtMaxRegressSec) mtMaxRegressSec = delta
+              if (mtRegressCount <= 10) console.warn(`[compress-video][probe] ${codec} rVFC mediaTime regressed`, { prev: prevTsSec, now: t, deltaSec: delta, playbackRate: video.playbackRate, encodeQ: encoder.encodeQueueSize })
+            } else if (t === prevTsSec) {
+              mtRepeatCount += 1
+              if (mtRepeatCount <= 10) console.warn(`[compress-video][probe] ${codec} rVFC mediaTime repeated`, { t, playbackRate: video.playbackRate, encodeQ: encoder.encodeQueueSize })
+            }
+          }
+          ctx!.drawImage(video, 0, 0, width, height)
+          const frame = new VideoFrame(canvas!, {
+            timestamp: Math.round(t * 1_000_000),
+            duration: Math.round((1 / fps) * 1_000_000),
+          })
+          if (prevFrame) encodePrev(Math.max(0.001, t - prevTsSec))
+          prevFrame = frame
+          prevTsSec = t
+          onProgress?.(3 + Math.round(Math.min(1, t / duration) * 79))
+          if (encoder.encodeQueueSize > 6) video.playbackRate = 0.5
+          else if (encoder.encodeQueueSize > 2) video.playbackRate = 0.75
+          else video.playbackRate = 1
+          if (video.ended || t >= duration - 0.05) {
+            encodePrev(Math.max(0.001, duration - prevTsSec))
+            video.removeEventListener('ended', onEnded)
+            logPhase(codecLower, 'encode-loop-end')
+            finish()
+            return
+          }
+          rVFC(onFrame)
+          return
+        }
+        let frame: VideoFrame
+        if (ctx && canvas) {
+          ctx.drawImage(video, 0, 0, width, height)
+          frame = new VideoFrame(canvas, {
+            timestamp: Math.round(t * 1_000_000),
+            duration: Math.round((1 / fps) * 1_000_000),
+          })
+        } else {
+          frame = new VideoFrame(video, {
+            timestamp: Math.round(t * 1_000_000),
+            duration: Math.round((1 / fps) * 1_000_000),
+          })
+        }
+        encoder.encode(frame, { keyFrame: frameIndex % (fps * 2) === 0 })
+        frame.close()
+        frameIndex += 1
+        onProgress?.(3 + Math.round(Math.min(1, t / duration) * 79))
+        // Desktop HW encoders sustain 4x realtime on 1080p; Safari caps around 4x.
+        // Throttle down when the encoder queue backs up so we don't drop frames.
+        if (encoder.encodeQueueSize > 10) video.playbackRate = 1
+        else if (encoder.encodeQueueSize > 4) video.playbackRate = 2
+        else video.playbackRate = 4
+        if (video.ended || t >= duration - 0.05) {
+          video.removeEventListener('ended', onEnded)
+          logPhase(codecLower, 'encode-loop-end')
+          finish()
+          return
+        }
+        rVFC(onFrame)
+      } catch (err) {
+        video.removeEventListener('ended', onEnded)
+        fail(err)
+      }
+    }
+    video.playbackRate = 1
+    video.play().then(() => rVFC(onFrame)).catch(fail)
+  })
+}
+
 function isMobileBrowser(): boolean {
   if (typeof navigator === 'undefined') return false
   return navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent)
@@ -239,6 +431,7 @@ type PendingEntry = {
   lastActivityAt: number
   heartbeatTimer: ReturnType<typeof setInterval>
   hardTimeoutTimer: ReturnType<typeof setTimeout>
+  codec: 'hevc' | 'avc'
 }
 
 let workerInstance: Worker | null = null
@@ -289,6 +482,7 @@ function getWorker(): Worker {
         const outcome: WorkerOutcome = e.data.file
           ? { file: e.data.file as File, audioDropped: !!e.data.audioDropped }
           : null
+        logPhase(`${handler.codec}:worker`, 'result-received', outcome ? 100 : null)
         handler.onProgress(100)
         handler.resolve(outcome)
       }
@@ -341,13 +535,16 @@ async function dispatchToWorker(
     const hardTimeoutTimer = setTimeout(() => {
       failRequest(id, `hard timeout after ${Math.round(hardTimeoutForFile(file.size) / 1000)}s`)
     }, hardTimeoutForFile(file.size))
+    const codec = type === 'compress-hevc' ? 'hevc' : 'avc'
     pending.set(id, {
       resolve,
       onProgress: (pct: number) => opts.onProgress?.(pct),
       lastActivityAt: now,
       heartbeatTimer,
       hardTimeoutTimer,
+      codec,
     })
+    logPhase(`${codec}:worker`, 'dispatch', 0)
     // Strip the onProgress function before postMessage — functions aren't
     // structured-cloneable. The pending map keeps the live callback around.
     const { onProgress: _drop, ...postOpts } =
@@ -431,6 +628,7 @@ async function spliceSourceAudio(
       onProgress?.(splicePct)
     }
     emit(91)
+    logPhase('splice', 'start', 91)
     const progressHandler = ({ progress }: { progress: number }) => {
       emit(91 + Math.round(Math.min(1, Math.max(0, progress)) * 8))
     }
@@ -513,6 +711,7 @@ async function spliceSourceAudio(
       }
 
       try {
+        logPhase('splice', 'exec-copy-start')
         let code = await runExec([
           '-i', vName,
           '-i', sourceInputPath,
@@ -524,8 +723,10 @@ async function spliceSourceAudio(
           '-movflags', '+faststart',
           oName,
         ])
+        logPhase('splice', `exec-copy-done code=${code}`)
         if (code !== 0 && !coreWedged) {
           await ffmpeg.deleteFile(oName).catch(() => {})
+          logPhase('splice', 'exec-reencode-start')
           code = await runExec([
             '-i', vName,
             '-i', sourceInputPath,
@@ -538,6 +739,7 @@ async function spliceSourceAudio(
             '-movflags', '+faststart',
             oName,
           ])
+          logPhase('splice', `exec-reencode-done code=${code}`)
         }
         if (code !== 0) {
           const tail = logLines.slice(-4).join(' | ')
@@ -562,6 +764,7 @@ async function spliceSourceAudio(
         if (!data?.byteLength) return videoOnly
         const baseName = source.name.replace(/\.[^.]+$/, '')
         emit(99)
+        logPhase('splice', 'done', 99)
         return new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
       } finally {
         try { ffmpeg.off('log', logHandler) } catch { /* ignore */ }
@@ -797,168 +1000,16 @@ export async function tryCompressVideoHevcHardware(
     encoder.configure(encoderConfig)
 
     opts.onProgress?.(3)
-    const rVFC = video.requestVideoFrameCallback.bind(video)
-
-    let frameIndex = 0
-    let lastFrameAt = Date.now()
-    // Probe B: monotonicity of rVFC meta.mediaTime in HEVC playback fallback.
-    let mtRegressCount = 0
-    let mtRepeatCount = 0
-    let mtSampleCount = 0
-    let mtMaxRegressSec = 0
-    await new Promise<void>((resolve, reject) => {
-      let settled = false
-      // Mobile buffers one frame so each encoded chunk can be stamped with
-      // its true duration (nextT - thisT). Without this, iOS Safari drops
-      // rendered frames but we stamp every chunk with a fixed 1/30s duration,
-      // leaving gaps in the muxed timeline that play back as freezes.
-      let prevFrame: VideoFrame | null = null
-      let prevTsSec = 0
-      const cleanupPrev = () => {
-        if (prevFrame) { try { prevFrame.close() } catch { /* already closed */ } prevFrame = null }
-      }
-      // iOS Safari drops rVFC callbacks when drawImage + encoder.encode exceeds
-      // the source's frame budget — the *observed* gap (t - prevTsSec) then
-      // spans multiple source frames. If we stamp that whole gap as one
-      // frame's duration, the muxer's stts entry holds a single image for
-      // 66-100ms while neighboring frames flash by, which plays as visible
-      // stutter / "buffering" pauses. Duplicate the previous frame at target
-      // cadence to fill the gap instead so playback stays smooth.
-      const expectedIntervalSec = 1 / fps
-      const encodePrev = (durSec: number) => {
-        if (!prevFrame) return
-        const copies = durSec > expectedIntervalSec * 1.5
-          ? Math.max(1, Math.round(durSec / expectedIntervalSec))
-          : 1
-        const subDurUs = Math.max(1, Math.round((durSec / copies) * 1_000_000))
-        const baseTsUs = Math.round(prevTsSec * 1_000_000)
-        for (let k = 0; k < copies; k++) {
-          const retimed = new VideoFrame(prevFrame, {
-            timestamp: baseTsUs + k * subDurUs,
-            duration: subDurUs,
-          })
-          encoder.encode(retimed, { keyFrame: frameIndex % (fps * 2) === 0 })
-          retimed.close()
-          frameIndex += 1
-        }
-        prevFrame.close()
-        prevFrame = null
-      }
-      const finish = () => {
-        if (settled) return
-        settled = true
-        clearInterval(watchdog)
-        cleanupPrev()
-        video.pause()
-        resolve()
-      }
-      const fail = (err: unknown) => {
-        if (settled) return
-        settled = true
-        clearInterval(watchdog)
-        cleanupPrev()
-        video.pause()
-        reject(err instanceof Error ? err : new Error(String(err)))
-      }
-      const watchdog = window.setInterval(() => {
-        if (Date.now() - lastFrameAt > 8000) {
-          fail(new Error('Hardware HEVC stalled — no frames for 8s'))
-        }
-      }, 1000)
-      const onEnded = () => {
-        if (mobile && prevFrame) {
-          try { encodePrev(Math.max(0.001, duration - prevTsSec)) } catch { cleanupPrev() }
-        }
-        console.info('[compress-video][probe] HEVC playback finished', {
-          samples: mtSampleCount, regressions: mtRegressCount, repeats: mtRepeatCount, maxRegressSec: mtMaxRegressSec,
-        })
-        finish()
-      }
-      video.addEventListener('ended', onEnded, { once: true })
-      const onFrame = (_now: number, meta: { mediaTime: number }) => {
-        try {
-          if (encodeError) throw encodeError
-          lastFrameAt = Date.now()
-          const t = meta.mediaTime
-          if (mobile) {
-            // Probe B (HEVC): watch for non-monotonic rVFC mediaTime under
-            // dynamic playbackRate on iOS Safari.
-            mtSampleCount += 1
-            if (mtSampleCount > 1) {
-              if (t < prevTsSec) {
-                mtRegressCount += 1
-                const delta = t - prevTsSec
-                if (delta < mtMaxRegressSec) mtMaxRegressSec = delta
-                if (mtRegressCount <= 10) console.warn('[compress-video][probe] HEVC rVFC mediaTime regressed', { prev: prevTsSec, now: t, deltaSec: delta, playbackRate: video.playbackRate, encodeQ: encoder.encodeQueueSize })
-              } else if (t === prevTsSec) {
-                mtRepeatCount += 1
-                if (mtRepeatCount <= 10) console.warn('[compress-video][probe] HEVC rVFC mediaTime repeated', { t, playbackRate: video.playbackRate, encodeQ: encoder.encodeQueueSize })
-              }
-            }
-            ctx!.drawImage(video, 0, 0, width, height)
-            const frame = new VideoFrame(canvas!, {
-              timestamp: Math.round(t * 1_000_000),
-              duration: Math.round((1 / fps) * 1_000_000),
-            })
-            if (prevFrame) encodePrev(Math.max(0.001, t - prevTsSec))
-            prevFrame = frame
-            prevTsSec = t
-            opts.onProgress?.(3 + Math.round(Math.min(1, t / duration) * 79))
-            // iOS Safari drops rVFC callbacks when drawImage+encode exceeds
-            // the frame budget (16ms at 60fps) — output plays choppy because
-            // half the source frames never reach the encoder. Slow playback
-            // when the encoder falls behind so every source frame gets a
-            // full paint interval.
-            if (encoder.encodeQueueSize > 6) video.playbackRate = 0.5
-            else if (encoder.encodeQueueSize > 2) video.playbackRate = 0.75
-            else video.playbackRate = 1
-            if (video.ended || t >= duration - 0.05) {
-              encodePrev(Math.max(0.001, duration - prevTsSec))
-              video.removeEventListener('ended', onEnded)
-              finish()
-              return
-            }
-            rVFC(onFrame)
-            return
-          }
-          let frame: VideoFrame
-          if (ctx && canvas) {
-            ctx.drawImage(video, 0, 0, width, height)
-            frame = new VideoFrame(canvas, {
-              timestamp: Math.round(t * 1_000_000),
-              duration: Math.round((1 / fps) * 1_000_000),
-            })
-          } else {
-            frame = new VideoFrame(video, {
-              timestamp: Math.round(t * 1_000_000),
-              duration: Math.round((1 / fps) * 1_000_000),
-            })
-          }
-          encoder.encode(frame, { keyFrame: frameIndex % (fps * 2) === 0 })
-          frame.close()
-          frameIndex += 1
-          opts.onProgress?.(3 + Math.round(Math.min(1, t / duration) * 79))
-          // Desktop HW encoders sustain 4x realtime on 1080p; Safari caps around 4x.
-          // Throttle down when the encoder queue backs up so we don't drop frames.
-          if (encoder.encodeQueueSize > 10) video.playbackRate = 1
-          else if (encoder.encodeQueueSize > 4) video.playbackRate = 2
-          else video.playbackRate = 4
-          if (video.ended || t >= duration - 0.05) {
-            video.removeEventListener('ended', onEnded)
-            finish()
-            return
-          }
-          rVFC(onFrame)
-        } catch (err) {
-          video.removeEventListener('ended', onEnded)
-          fail(err)
-        }
-      }
-      video.playbackRate = 1
-      video.play().then(() => rVFC(onFrame)).catch(fail)
+    logPhase('hevc', 'encode-start', 3)
+    await runPlaybackEncodeLoop({
+      codec: 'HEVC',
+      video, encoder, ctx, canvas, width, height, fps, duration, mobile,
+      onProgress: opts.onProgress,
+      getEncodeError: () => encodeError,
     })
 
     video.pause()
+    logPhase('hevc', 'flush-start')
     try {
       await encoder.flush()
     } finally {
@@ -970,6 +1021,7 @@ export async function tryCompressVideoHevcHardware(
     // ffmpeg-wasm boot inside spliceSourceAudio) doesn't leave the bar frozen
     // at 90 for many seconds on desktop where encode is fast relative to mux.
     opts.onProgress?.(85)
+    logPhase('hevc', 'flush-done', 85)
     console.info('[compress-video] HEVC via playback path succeeded')
     if (useMp4Muxer) {
       if (capturedChunks.length === 0) return null
@@ -1169,161 +1221,16 @@ export async function tryCompressVideoAvcHardware(
     encoder.configure(encoderConfig)
 
     opts.onProgress?.(3)
-    const rVFC = video.requestVideoFrameCallback.bind(video)
-
-    let frameIndex = 0
-    let lastFrameAt = Date.now()
-    // Probe B: monotonicity of rVFC meta.mediaTime in AVC playback fallback.
-    let mtRegressCount = 0
-    let mtRepeatCount = 0
-    let mtSampleCount = 0
-    let mtMaxRegressSec = 0
-    await new Promise<void>((resolve, reject) => {
-      let settled = false
-      let prevFrame: VideoFrame | null = null
-      let prevTsSec = 0
-      const cleanupPrev = () => {
-        if (prevFrame) { try { prevFrame.close() } catch { /* already closed */ } prevFrame = null }
-      }
-      // See HEVC playback path: iOS Safari's rVFC skips callbacks under load,
-      // so the observed gap can span multiple source frames. Fill the gap with
-      // duplicates at target cadence so the muxed stts table stays uniform
-      // instead of alternating short/long holds (visible as stutter).
-      const expectedIntervalSec = 1 / fps
-      const encodePrev = (durSec: number) => {
-        if (!prevFrame) return
-        const copies = durSec > expectedIntervalSec * 1.5
-          ? Math.max(1, Math.round(durSec / expectedIntervalSec))
-          : 1
-        const subDurUs = Math.max(1, Math.round((durSec / copies) * 1_000_000))
-        const baseTsUs = Math.round(prevTsSec * 1_000_000)
-        for (let k = 0; k < copies; k++) {
-          const retimed = new VideoFrame(prevFrame, {
-            timestamp: baseTsUs + k * subDurUs,
-            duration: subDurUs,
-          })
-          encoder.encode(retimed, { keyFrame: frameIndex % (fps * 2) === 0 })
-          retimed.close()
-          frameIndex += 1
-        }
-        prevFrame.close()
-        prevFrame = null
-      }
-      const finish = () => {
-        if (settled) return
-        settled = true
-        clearInterval(watchdog)
-        cleanupPrev()
-        video.pause()
-        resolve()
-      }
-      const fail = (err: unknown) => {
-        if (settled) return
-        settled = true
-        clearInterval(watchdog)
-        cleanupPrev()
-        video.pause()
-        reject(err instanceof Error ? err : new Error(String(err)))
-      }
-      const watchdog = window.setInterval(() => {
-        if (Date.now() - lastFrameAt > 8000) {
-          fail(new Error('Hardware AVC stalled — no frames for 8s'))
-        }
-      }, 1000)
-      const onEnded = () => {
-        if (mobile && prevFrame) {
-          try { encodePrev(Math.max(0.001, duration - prevTsSec)) } catch { cleanupPrev() }
-        }
-        console.info('[compress-video][probe] AVC playback finished', {
-          samples: mtSampleCount, regressions: mtRegressCount, repeats: mtRepeatCount, maxRegressSec: mtMaxRegressSec,
-        })
-        finish()
-      }
-      video.addEventListener('ended', onEnded, { once: true })
-      const onFrame = (_now: number, meta: { mediaTime: number }) => {
-        try {
-          if (encodeError) throw encodeError
-          lastFrameAt = Date.now()
-          const t = meta.mediaTime
-          if (mobile) {
-            // Probe B (AVC): watch for non-monotonic rVFC mediaTime under
-            // dynamic playbackRate on iOS Safari.
-            mtSampleCount += 1
-            if (mtSampleCount > 1) {
-              if (t < prevTsSec) {
-                mtRegressCount += 1
-                const delta = t - prevTsSec
-                if (delta < mtMaxRegressSec) mtMaxRegressSec = delta
-                if (mtRegressCount <= 10) console.warn('[compress-video][probe] AVC rVFC mediaTime regressed', { prev: prevTsSec, now: t, deltaSec: delta, playbackRate: video.playbackRate, encodeQ: encoder.encodeQueueSize })
-              } else if (t === prevTsSec) {
-                mtRepeatCount += 1
-                if (mtRepeatCount <= 10) console.warn('[compress-video][probe] AVC rVFC mediaTime repeated', { t, playbackRate: video.playbackRate, encodeQ: encoder.encodeQueueSize })
-              }
-            }
-            ctx!.drawImage(video, 0, 0, width, height)
-            const frame = new VideoFrame(canvas!, {
-              timestamp: Math.round(t * 1_000_000),
-              duration: Math.round((1 / fps) * 1_000_000),
-            })
-            if (prevFrame) encodePrev(Math.max(0.001, t - prevTsSec))
-            prevFrame = frame
-            prevTsSec = t
-            opts.onProgress?.(3 + Math.round(Math.min(1, t / duration) * 79))
-            // iOS Safari drops rVFC callbacks when drawImage+encode exceeds
-            // the frame budget (16ms at 60fps) — output plays choppy because
-            // half the source frames never reach the encoder. Slow playback
-            // when the encoder falls behind so every source frame gets a
-            // full paint interval.
-            if (encoder.encodeQueueSize > 6) video.playbackRate = 0.5
-            else if (encoder.encodeQueueSize > 2) video.playbackRate = 0.75
-            else video.playbackRate = 1
-            if (video.ended || t >= duration - 0.05) {
-              encodePrev(Math.max(0.001, duration - prevTsSec))
-              video.removeEventListener('ended', onEnded)
-              finish()
-              return
-            }
-            rVFC(onFrame)
-            return
-          }
-          let frame: VideoFrame
-          if (ctx && canvas) {
-            ctx.drawImage(video, 0, 0, width, height)
-            frame = new VideoFrame(canvas, {
-              timestamp: Math.round(t * 1_000_000),
-              duration: Math.round((1 / fps) * 1_000_000),
-            })
-          } else {
-            frame = new VideoFrame(video, {
-              timestamp: Math.round(t * 1_000_000),
-              duration: Math.round((1 / fps) * 1_000_000),
-            })
-          }
-          encoder.encode(frame, { keyFrame: frameIndex % (fps * 2) === 0 })
-          frame.close()
-          frameIndex += 1
-          opts.onProgress?.(3 + Math.round(Math.min(1, t / duration) * 79))
-          // Desktop HW encoders sustain 4x realtime on 1080p; Safari caps around 4x.
-          // Throttle down when the encoder queue backs up so we don't drop frames.
-          if (encoder.encodeQueueSize > 10) video.playbackRate = 1
-          else if (encoder.encodeQueueSize > 4) video.playbackRate = 2
-          else video.playbackRate = 4
-          if (video.ended || t >= duration - 0.05) {
-            video.removeEventListener('ended', onEnded)
-            finish()
-            return
-          }
-          rVFC(onFrame)
-        } catch (err) {
-          video.removeEventListener('ended', onEnded)
-          fail(err)
-        }
-      }
-      video.playbackRate = 1
-      video.play().then(() => rVFC(onFrame)).catch(fail)
+    logPhase('avc', 'encode-start', 3)
+    await runPlaybackEncodeLoop({
+      codec: 'AVC',
+      video, encoder, ctx, canvas, width, height, fps, duration, mobile,
+      onProgress: opts.onProgress,
+      getEncodeError: () => encodeError,
     })
 
     video.pause()
+    logPhase('avc', 'flush-start')
     try {
       await encoder.flush()
     } finally {
@@ -1335,6 +1242,7 @@ export async function tryCompressVideoAvcHardware(
     // ffmpeg-wasm boot inside spliceSourceAudio) doesn't leave the bar frozen
     // at 90 for many seconds on desktop where encode is fast relative to mux.
     opts.onProgress?.(85)
+    logPhase('avc', 'flush-done', 85)
     console.info('[compress-video] AVC via playback path succeeded')
     if (useMp4Muxer) {
       if (capturedChunks.length === 0) return null
