@@ -1,4 +1,19 @@
-import { getCompressVideoFFmpeg, withFfmpegLock } from './ffmpeg-client'
+import { getCompressVideoFFmpeg, resetSingleThreadFFmpeg, withFfmpegLock } from './ffmpeg-client'
+
+// Race a promise against a timeout. Rejects with a labeled Error if the timer
+// wins. Used to keep spliceSourceAudio from hanging the whole compress-video
+// pipeline when ffmpeg.exec never returns (silent WASM abort / driver hang).
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${ms}ms`))
+    }, ms)
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v) },
+      (e) => { clearTimeout(timer); reject(e) },
+    )
+  })
+}
 
 function isMobileBrowser(): boolean {
   if (typeof navigator === 'undefined') return false
@@ -389,7 +404,7 @@ async function spliceSourceAudio(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let ffmpeg: any
     try {
-      ffmpeg = await getCompressVideoFFmpeg()
+      ffmpeg = await withTimeout(getCompressVideoFFmpeg(), 30_000, 'splice: ffmpeg core load')
     } catch (err) {
       console.warn('[compress-video] splice: ffmpeg core load failed — returning video-only', err)
       return videoOnly
@@ -479,11 +494,20 @@ async function spliceSourceAudio(
       }
       try { ffmpeg.on('log', logHandler) } catch { /* ignore */ }
 
+      // Cap each splice attempt so a silent ffmpeg-wasm hang can't freeze the
+      // whole UI at 99%. -c copy is I/O-bound (skips re-encode), so even a
+      // multi-GB source finishes in seconds on desktop. 90s is a generous
+      // ceiling; a hang beyond that means the core is wedged and we should
+      // fall back to video-only rather than spin forever.
+      const SPLICE_EXEC_TIMEOUT_MS = 90_000
+      let coreWedged = false
       const runExec = async (args: string[]): Promise<number> => {
         try {
-          return await ffmpeg.exec(args)
+          return await withTimeout(ffmpeg.exec(args), SPLICE_EXEC_TIMEOUT_MS, 'splice: ffmpeg.exec')
         } catch (err) {
-          console.warn('[compress-video] splice: ffmpeg.exec threw —', err instanceof Error ? err.message : String(err))
+          const msg = err instanceof Error ? err.message : String(err)
+          console.warn('[compress-video] splice: ffmpeg.exec failed —', msg)
+          if (msg.includes('timed out')) coreWedged = true
           return -1
         }
       }
@@ -500,7 +524,7 @@ async function spliceSourceAudio(
           '-movflags', '+faststart',
           oName,
         ])
-        if (code !== 0) {
+        if (code !== 0 && !coreWedged) {
           await ffmpeg.deleteFile(oName).catch(() => {})
           code = await runExec([
             '-i', vName,
@@ -518,12 +542,19 @@ async function spliceSourceAudio(
         if (code !== 0) {
           const tail = logLines.slice(-4).join(' | ')
           console.warn(`[compress-video] splice: exec failed (code ${code})${tail ? ` — ${tail}` : ''} — returning video-only`)
+          // A wedged core will hang every subsequent encode too. Terminate the
+          // instance so the next tool run gets a fresh one.
+          if (coreWedged) resetSingleThreadFFmpeg().catch(() => {})
           return videoOnly
         }
 
         let data: Uint8Array<ArrayBuffer> | undefined
         try {
-          data = await ffmpeg.readFile(oName) as Uint8Array<ArrayBuffer>
+          data = await withTimeout(
+            ffmpeg.readFile(oName),
+            15_000,
+            'splice: ffmpeg.readFile',
+          ) as Uint8Array<ArrayBuffer>
         } catch (err) {
           console.warn('[compress-video] splice: readFile(output) failed — returning video-only', err)
           return videoOnly
