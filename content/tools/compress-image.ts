@@ -146,7 +146,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Why does PNG compression look different from PNG?',
-      a: "PNG is lossless and never degrades pixel information. Therefore, the quality slider for PNGs only controls how much effort the compression algorithm uses, so processing time and file size change slightly while visual quality stays nearly identical. For significant PNG size reduction, it's often more efficient to convert them to WebP.",
+      a: "Note that PNG is a lossless format, meaning that the image data will never be degraded. Therefore, the quality slider for PNG images only controls how much time and effort the compression algorithm spends processing, with only slight variations in processing time and resulting file size while maintaining identical visual quality. If you need to reduce the size of your PNGs by a lot of bytes, it's often more efficient to just convert them to WebP instead.",
     },
     {
       q: 'How does target size compression work?',
