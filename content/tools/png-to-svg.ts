@@ -13,6 +13,7 @@ export const config: ToolConfig = {
   outputExt: '.svg',
   convertFn: (files, opts, onProgress, onResult) => pngToSvgConvert(files, opts, onProgress, onResult),
   enablePresets: true,
+  autoConvert: true,
   reviewPanel: PngToSvgReviewPanel,
 
   limitationNote: {

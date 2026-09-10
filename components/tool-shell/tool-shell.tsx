@@ -222,6 +222,9 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
     }
   }, [config])
 
+  const autoConvertArmed = useRef(false)
+  const prevFileCount = useRef(0)
+
   const handleReset = useCallback(() => {
     dispatch({ type: 'RESET' })
     setFileWarning(null)
@@ -292,6 +295,19 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
       onResults(successFiles)
     }
   }, [state.entries, config, options, onResults, record])
+
+  useEffect(() => {
+    if (!config.autoConvert) return
+    const count = state.entries.length
+    if (count > prevFileCount.current && state.phase === 'idle') {
+      autoConvertArmed.current = true
+    }
+    prevFileCount.current = count
+    if (!autoConvertArmed.current) return
+    if (state.phase !== 'idle' || count === 0) return
+    autoConvertArmed.current = false
+    void handleConvert()
+  }, [config.autoConvert, state.entries.length, state.phase, handleConvert])
 
   const { entries, phase, announcement } = state
   const hasFiles = entries.length > 0

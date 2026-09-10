@@ -221,7 +221,9 @@ export function PngToSvgReviewPanel({ files, results, onResultEdit, options = {}
         <p className="mb-2 text-xs font-medium text-fg-muted">
           Palette{palette.length ? ` · ${palette.length} colour${palette.length === 1 ? '' : 's'}` : ''}
         </p>
-        {palette.length === 0 ? (
+        {!svgText ? (
+          <p className="text-sm text-fg-muted">Reading SVG…</p>
+        ) : palette.length === 0 ? (
           <p className="text-sm text-fg-muted">No fills in this SVG.</p>
         ) : (
           <div className="flex flex-wrap gap-2">
