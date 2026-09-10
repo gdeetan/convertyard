@@ -8,7 +8,7 @@ export default function Page() {
       config={config}
       notice={
         <p className="rounded-lg border border-border bg-bg-elevated px-4 py-3 text-sm text-fg-muted">
-          Drop a PNG to preview it. Presets and sliders update a draft SVG on the right — click Convert when you want to save it.
+          Open a PNG file to preview. Adjust the presets and sliders to get the desired results in the preview window. Click ‘convert’ to convert the file. Note that even after conversion, you can tweak the presets and download the file with the updated changes.
         </p>
       }
     />
