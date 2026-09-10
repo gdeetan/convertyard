@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ZoomIn, ZoomOut } from 'lucide-react'
+import { PREVIEW_MAX_EDGE, pngToSvgConvert } from '@/lib/converters/png-to-svg-convert'
 import { cn } from '@/lib/utils/cn'
 
 const CHECKERBOARD = {
@@ -79,27 +80,69 @@ interface Props {
   options: Record<string, unknown>
 }
 
-export function PngToSvgPreview({ files, results }: Props) {
+function optionsKey(options: Record<string, unknown>): string {
+  return [
+    options.numberofcolors,
+    options.pathomit,
+    options.ltres,
+    options.qtres,
+    options.blurradius,
+  ].join('|')
+}
+
+export function PngToSvgPreview({ files, results, options }: Props) {
   const [selected, setSelected] = useState(0)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [divider, setDivider] = useState(50)
+  const [draft, setDraft] = useState<File | null>(null)
+  const [draftStatus, setDraftStatus] = useState<'idle' | 'updating' | 'error'>('idle')
   const containerRef = useRef<HTMLDivElement>(null)
   const dividerDragging = useRef(false)
   const panDragging = useRef(false)
   const panStart = useRef({ clientX: 0, clientY: 0, panX: 0, panY: 0 })
+  const traceGen = useRef(0)
 
   const safeIndex = Math.min(selected, Math.max(0, files.length - 1))
   const source = files[safeIndex] ?? null
   const result = results[safeIndex] ?? null
+  const displaySvg = result ?? draft
   const sourceUrl = useObjectUrl(source)
-  const svgUrl = useObjectUrl(result)
+  const svgUrl = useObjectUrl(displaySvg)
+  const isDraft = !result && !!draft
+  const filterKey = optionsKey(options)
+
+  useEffect(() => {
+    if (!source || result) return
+    const gen = ++traceGen.current
+    setDraftStatus('updating')
+    const timer = window.setTimeout(() => {
+      void pngToSvgConvert([source], { ...options, previewMaxEdge: PREVIEW_MAX_EDGE }).then((out) => {
+        if (gen !== traceGen.current) return
+        const file = out[0]
+        if (file instanceof File) {
+          setDraft(file)
+          setDraftStatus('idle')
+        } else {
+          setDraftStatus('error')
+        }
+      }).catch(() => {
+        if (gen !== traceGen.current) return
+        setDraftStatus('error')
+      })
+    }, 300)
+    return () => {
+      window.clearTimeout(timer)
+      traceGen.current += 1
+    }
+  }, [source, result, filterKey, options])
 
   useEffect(() => {
     setZoom(1)
     setPan({ x: 0, y: 0 })
     setDivider(50)
-  }, [source, result])
+    setDraft(null)
+  }, [source])
 
   const fit = () => {
     setZoom(1)
@@ -136,7 +179,10 @@ export function PngToSvgPreview({ files, results }: Props) {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm font-medium text-fg">
-          {result ? 'Original vs SVG' : 'Preview'}
+          {result ? 'Original vs SVG' : isDraft ? 'Original vs preview' : 'Preview'}
+          {draftStatus === 'updating' && (
+            <span className="ml-2 text-xs font-normal text-fg-muted">Updating preview…</span>
+          )}
         </p>
         <ZoomToolbar zoom={zoom} onZoom={setZoom} onFit={fit} />
       </div>
@@ -166,7 +212,7 @@ export function PngToSvgPreview({ files, results }: Props) {
         className="relative h-80 overflow-hidden rounded-lg border border-border"
         style={CHECKERBOARD}
       >
-        {result && svgUrl ? (
+        {displaySvg && svgUrl ? (
           <>
             <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - divider}% 0 0)` }}>
               <img
@@ -235,8 +281,13 @@ export function PngToSvgPreview({ files, results }: Props) {
               Original
             </span>
             <span className="pointer-events-none absolute right-2 top-2 z-30 rounded bg-black/60 px-2 py-0.5 text-xs text-white">
-              SVG
+              {result ? 'SVG' : 'Preview'}
             </span>
+            {isDraft && (
+              <span className="pointer-events-none absolute bottom-2 left-2 right-2 z-30 rounded bg-black/70 px-2 py-1 text-center text-xs text-white">
+                Draft preview — click Convert below to save
+              </span>
+            )}
           </>
         ) : (
           <>
@@ -267,7 +318,11 @@ export function PngToSvgPreview({ files, results }: Props) {
               Original
             </span>
             <span className="pointer-events-none absolute bottom-2 left-2 right-2 rounded bg-black/70 px-2 py-1 text-center text-xs text-white">
-              Not converted yet — click Convert below to trace the SVG
+              {draftStatus === 'updating'
+                ? 'Tracing a draft preview…'
+                : draftStatus === 'error'
+                  ? 'Preview failed — try Convert below'
+                  : 'Click Convert below to save the SVG'}
             </span>
           </>
         )}
