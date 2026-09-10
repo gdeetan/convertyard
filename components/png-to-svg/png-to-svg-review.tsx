@@ -7,7 +7,7 @@ import { extractSvgPalette, knockoutSvg, recolorSvg } from '@/lib/converters/svg
 import type { ConversionResult, ToolOptions } from '@/lib/types'
 import { cn } from '@/lib/utils/cn'
 
-const COLOR_COUNTS = [2, 4, 8, 16, 32] as const
+const COLOR_COUNTS = [2, 4, 8, 16, 32, 64] as const
 
 function resultFile(result: ConversionResult | undefined): File | null {
   if (!result || result instanceof Error) return null

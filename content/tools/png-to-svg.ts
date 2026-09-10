@@ -30,10 +30,10 @@ export const config: ToolConfig = {
       name: 'numberofcolors',
       label: 'Number of colours',
       min: 2,
-      max: 32,
+      max: 64,
       step: 2,
       default: 16,
-      hint: 'Fewer colours = simpler SVG. For logos, 4–8 is usually enough.',
+      hint: 'Fewer colours = simpler SVG. Logos: 4–8. Illustrations: up to 64. Higher is slower and makes larger files.',
     },
     {
       type: 'slider',
