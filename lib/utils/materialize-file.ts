@@ -38,8 +38,21 @@ export function unmarkMaterialized(file: File): void {
   }
 }
 
+function isIos(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent
+  return /iPhone|iPad|iPod/i.test(ua) || (navigator.maxTouchPoints > 1 && /Mac/i.test(ua))
+}
+
 export async function materializeFile(file: File): Promise<File> {
   if (isMaterialized(file)) return file
+  // iOS has no content:// permission revocation window and iOS Safari has
+  // a hard ~1–1.5 GB tab memory ceiling. Copying the whole file into a JS
+  // buffer costs peak memory for zero safety gain, and outright fails for
+  // large clips or iCloud placeholders that haven't fully downloaded.
+  // Pass the picker's File straight through — WORKERFS reads via
+  // Blob.slice(), which streams without materialization.
+  if (isIos()) return file
   const errors: string[] = []
   // 1) File.arrayBuffer(). Force an explicit byte copy via Uint8Array so
   //    the returned File owns its bytes independent of anything Chrome
