@@ -209,7 +209,12 @@ async function runPlaybackEncodeLoop(params: {
 
 function isMobileBrowser(): boolean {
   if (typeof navigator === 'undefined') return false
-  return navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent)
+  const ua = navigator.userAgent
+  if (/Android|iPhone|iPod|iPad/i.test(ua)) return true
+  // iPadOS 13+ reports as "Macintosh"; distinguish via touch input.
+  // Windows touchscreen laptops keep a Windows UA so they stay desktop.
+  if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return true
+  return false
 }
 
 function isIOSBrowser(): boolean {

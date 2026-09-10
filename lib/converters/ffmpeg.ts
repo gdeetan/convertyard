@@ -20,7 +20,16 @@ function toError(err: unknown): Error {
 
 function isMobileBrowser(): boolean {
   if (typeof navigator === 'undefined') return false
-  return navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent)
+  const ua = navigator.userAgent
+  // Explicit mobile UA — Android phones, iPhones, iPods, and older iPads
+  // (pre-iPadOS 13) still identify themselves.
+  if (/Android|iPhone|iPod|iPad/i.test(ua)) return true
+  // iPadOS 13+ reports as "Macintosh". Narrow: a Mac UA with real touch
+  // input is an iPad. Plain macOS reports maxTouchPoints=0, and a Windows
+  // touchscreen laptop reports a Windows UA — both stay on the desktop
+  // code path (and thus bypass the mobile 500 MB size gate).
+  if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return true
+  return false
 }
 
 function isIosBrowser(): boolean {
