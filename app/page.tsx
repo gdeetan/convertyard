@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   description:
     'Batch convert or compress images, videos, audio, pdf files,  up to 1,000 images in one go. All done in your browser. Nothing uploads. No Paywall or sign ups. 100% free.',
   openGraph: {
-    title: 'ConvertYard — Local-first conversion, built for batches',
+    title: 'Convertyard - Batch Image, Video, Audio, PDF File Coverter. All Local. Nothing Uploads.',
     description:
       `Convert thousands of images, PDFs, videos, and audio files entirely in your browser. No uploads, no accounts. ${liveToolCount} free tools.`,
     url: 'https://convertyard.com/',
