@@ -17,14 +17,24 @@ export async function upscaleBatch(
   onFileProgress: (fileIndex: number, pct: number) => void,
   onResult?: (fileIndex: number, result: ConversionResult) => void
 ): Promise<ConversionResult[]> {
-  // Map model loading (0–100%) to per-file bars at 0–15% so users see feedback
-  // during the potentially long model download phase.
-  await loadUpscalerModel(options.scale, (pct) => {
-    onModelProgress(pct)
-    for (let i = 0; i < files.length; i++) {
-      onFileProgress(i, Math.round(pct * 0.15))
-    }
-  })
+  // Illustration and Graphic modes don't use the photo Real-ESRGAN/Swin2SR chain
+  // — illustration loads its own anime model lazily inside the worker, and
+  // graphic is pure Lanczos. Skipping the photo preload here avoids a hard
+  // failure when the photo chain can't initialize on the user's device.
+  const skipPreload = options.imageMode === 'illustration' || options.imageMode === 'graphic'
+  if (skipPreload) {
+    onModelProgress(100)
+    for (let i = 0; i < files.length; i++) onFileProgress(i, 15)
+  } else {
+    // Map model loading (0–100%) to per-file bars at 0–15% so users see feedback
+    // during the potentially long model download phase.
+    await loadUpscalerModel(options.scale, (pct) => {
+      onModelProgress(pct)
+      for (let i = 0; i < files.length; i++) {
+        onFileProgress(i, Math.round(pct * 0.15))
+      }
+    })
+  }
 
   const results: ConversionResult[] = []
   for (let i = 0; i < files.length; i++) {

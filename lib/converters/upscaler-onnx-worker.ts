@@ -209,7 +209,10 @@ function ensureModel(scale: UpscaleScale): Promise<void> {
   if (modelLoadingMap.has(scale)) return modelLoadingMap.get(scale)!
   const p = loadModel(scale)
   modelLoadingMap.set(scale, p)
-  p.finally(() => modelLoadingMap.delete(scale))
+  // Swallow rejections on the finally-chain so a failed load doesn't produce an
+  // unhandled promise rejection; the original `p` is still returned and awaited
+  // by callers, which handle the error.
+  p.finally(() => modelLoadingMap.delete(scale)).catch(() => {})
   return p
 }
 
