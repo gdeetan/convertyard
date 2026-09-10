@@ -1197,12 +1197,15 @@ export async function tryCompressVideoAvcHardware(
     }
     if (!encoderConfig) return null
 
-    // See HEVC playback path: route mobile through canvas so drawImage()
-    // bakes in the display orientation, and buffer one frame so each
-    // encoded chunk gets its true (nextT - thisT) duration.
+    // AVC (H.264) hardware encoders can't accept HDR frames — iPhone HEVC MOVs
+    // are BT.2020 / HDR and feeding those to new VideoFrame(video) throws
+    // OperationError: "Encoding error" from the encoder. drawImage() tone-maps
+    // HDR→SDR at draw time, so new VideoFrame(canvas) always yields an SDR
+    // frame the H.264 encoder accepts. Force canvas on every AVC encode; the
+    // one extra draw per frame is cheap compared to falling all the way to
+    // libx264-wasm (minutes on iPhone-sized clips).
     const mobile = isMobileBrowser()
-    const needsScale = width !== even(srcW) || height !== even(srcH)
-    const useCanvas = mobile || needsScale
+    const useCanvas = true
     let canvas: HTMLCanvasElement | null = null
     let ctx: CanvasRenderingContext2D | null = null
     if (useCanvas) {
