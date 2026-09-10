@@ -59,8 +59,8 @@ export const config: ToolConfig = {
   relatedArticles: ['how-browser-based-file-conversion-works', 'compress-images-without-losing-quality'],
 
   meta: {
-    title: 'PNG to ICO Favicon Converter — ConvertYard',
+    title: 'Convert PNG to ICO - Transform PNG files to ICONS for Free',
     description:
-      'Pack a PNG into a multi-size ICO favicon — 16, 32, 48, 64, and 128 px in one file. Batch convert in your browser — nothing is uploaded. Site-ready icons.',
+      'Convert PNG to ICO without uploading anything online. Batch conversion is available, up to 1000 files per batch.',
   },
 }
