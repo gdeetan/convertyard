@@ -98,6 +98,25 @@ async function cleanupOldOpfs(currentFileName: string): Promise<void> {
   } catch { /* absent dir / api variance — best-effort */ }
 }
 
+// Race a promise against a timeout so an OPFS hang can't freeze the whole
+// pipeline at 99%. Same shape as compress-video-worker's helper.
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${ms}ms`))
+    }, ms)
+    promise.then(
+      (v) => { clearTimeout(timer); resolve(v) },
+      (e) => { clearTimeout(timer); reject(e) },
+    )
+  })
+}
+
+function logPhase(phase: string, pct: number | null = null): void {
+  const suffix = pct == null ? '' : ` pct=${pct}`
+  console.info(`[compress-video][phase] codec=mediabunny phase=${phase}${suffix}`)
+}
+
 export async function compressVideoWithMediabunny(
   file: File,
   options: ToolOptions,
@@ -227,23 +246,38 @@ export async function compressVideoWithMediabunny(
       throw new Error(`Streaming compression not supported for this file${reasons ? ` (${reasons})` : ''}.`)
     }
 
+    let firstProgressLogged = false
     conversion.onProgress = (progress: number) => {
+      if (!firstProgressLogged) {
+        firstProgressLogged = true
+        logPhase('execute-first-progress', 5 + Math.round(progress * 90))
+      }
       // Reserve 5–95 for the encode; 96–99 for finalize/OPFS close.
       onProgress(5 + Math.round(progress * 90))
     }
 
+    logPhase('execute-start', 5)
     await conversion.execute()
+    logPhase('execute-done', 95)
 
     onProgress(96)
-    await opfs.stream.close()
+    // OPFS stream close can hang silently on 5 GB+ outputs (Chromium OPFS
+    // has occasional "waiting on writes" hangs after huge sequential writes).
+    // Cap at 60s — that's ~10x normal for a multi-GB flush.
+    logPhase('opfs-close-start', 96)
+    await withTimeout(opfs.stream.close(), 60_000, 'mediabunny: opfs.stream.close()')
+    logPhase('opfs-close-done', 96)
     onProgress(98)
 
-    const opfsFile = await opfs.handle.getFile()
+    logPhase('opfs-getFile-start', 98)
+    const opfsFile = await withTimeout(opfs.handle.getFile(), 30_000, 'mediabunny: opfs.handle.getFile()')
+    logPhase('opfs-getFile-done', 98)
     cleanupOldOpfs(opfs.fileName).catch(() => {})
 
     // Rename via wrapping. new File() shares the underlying blob reference
     // in Chromium so this doesn't copy the bytes.
     onProgress(100)
+    logPhase('done', 100)
     return new File([opfsFile], `${baseName}.mp4`, { type: 'video/mp4' })
   } catch (err) {
     // Cleanup on failure — leaving partial files in OPFS wastes quota.
