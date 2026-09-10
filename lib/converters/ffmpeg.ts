@@ -1279,6 +1279,32 @@ export async function compressVideo(
         return new Error('This file has no video track. Video Compressor only works on video files, not audio-only files.')
       }
 
+      // Desktop >2 GB: skip the hardware playback path entirely — it can't
+      // deliver a first frame within the 8s watchdog on a multi-GB <video>,
+      // and libx264-wasm's MEMFS copy OOMs past V8's ~2 GB Uint8Array cap.
+      // Route straight to mediabunny (streaming source reads + OPFS output)
+      // which is the only path built for this size class.
+      if (!isMobileBrowser() && file.size > 2 * 1024 * 1024 * 1024) {
+        try {
+          const { isMediabunnySupported, compressVideoWithMediabunny } =
+            await import('./compress-video-mediabunny')
+          if (isMediabunnySupported()) {
+            console.info(`[compress-video] file >2 GB — routing to mediabunny streaming path (${file.size} bytes)`)
+            return await compressVideoWithMediabunny(
+              file,
+              options,
+              (pct) => onProgress?.(i, pct),
+            )
+          }
+          console.info('[compress-video] mediabunny unsupported on this browser — falling through to 2 GB error')
+        } catch (err) {
+          console.warn('[compress-video] mediabunny path threw — falling through to 2 GB error', err)
+        }
+        return new Error(
+          'Files over 2 GB need Chrome or Edge on desktop for the extended engine. Try Chrome/Edge, trim the video first, or install ConvertYard as a desktop app for the best large-file experience.',
+        )
+      }
+
       const alreadyFitsTarget = targetSizeMode && file.size <= targetKB * 1024
       if (h265 && !alreadyFitsTarget) {
         const hwFile = await tryHardwareHevcCompress(file, {
@@ -1323,34 +1349,6 @@ export async function compressVideo(
           return file
         }
         console.info('[compress-video] AVC hardware path returned null — using ffmpeg-wasm libx264')
-      }
-
-      // Desktop >2 GB: the classic ffmpeg-wasm path OOMs (v8 ~2 GB
-      // Uint8Array cap + WASM heap ceiling). Try the mediabunny streaming
-      // pipeline first — it reads via Blob.slice and writes to OPFS, so
-      // neither the source nor the output ever lives entirely in memory.
-      // Loaded on demand (dynamic import) so <2 GB users don't pay the
-      // ~70 KB bundle cost.
-      if (!isMobileBrowser() && file.size > 2 * 1024 * 1024 * 1024) {
-        try {
-          const { isMediabunnySupported, compressVideoWithMediabunny } =
-            await import('./compress-video-mediabunny')
-          if (isMediabunnySupported()) {
-            console.info(`[compress-video] file >2 GB — routing to mediabunny streaming path (${file.size} bytes)`)
-            const result = await compressVideoWithMediabunny(
-              file,
-              options,
-              (pct) => onProgress?.(i, pct),
-            )
-            return result
-          }
-          console.info('[compress-video] mediabunny unsupported on this browser — falling through to 2 GB error')
-        } catch (err) {
-          console.warn('[compress-video] mediabunny path threw — falling through to 2 GB error', err)
-        }
-        return new Error(
-          'Files over 2 GB need Chrome or Edge on desktop for the extended engine. Try Chrome/Edge, trim the video first, or install ConvertYard as a desktop app for the best large-file experience.',
-        )
       }
 
       // wasm fallback: serialize on the shared ffmpeg instance so parallel workers
