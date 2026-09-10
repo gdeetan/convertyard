@@ -26,7 +26,7 @@ export const config: ToolConfig = {
 
   howItWorks: [
     {
-      label: 'Open a PNG file you want converted',
+      label: 'Open the PNG file you want to convert',
       desc: 'You can open multiple files, but keep it to 5 files max so your computer doesn’t bog down.',
     },
     {
@@ -39,7 +39,7 @@ export const config: ToolConfig = {
     },
     {
       label: 'Download',
-      desc: 'Download files individual or all at once through a ZIP file.',
+      desc: 'Download files individually or all at once through a ZIP file.',
     },
   ],
 
