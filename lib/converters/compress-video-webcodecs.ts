@@ -816,17 +816,24 @@ async function buildVideoOnlyMp4(
     hasAudio: false,
     videoDecoderConfig: { codec: firstMeta.decoderConfig.codec, description: descBytes },
   })
+  // mp4-muxer requires the first video chunk to have timestamp=0. Videos with
+  // an initial edit list (or any container where the first rVFC mediaTime is
+  // not exactly 0) produce a first chunk whose ts is e.g. 41000µs, which the
+  // muxer rejects with "first chunk for any media track must have a timestamp
+  // of 0". Subtract the first chunk's ts from every chunk so the timeline is
+  // zero-based — playback still starts at t=0, which is what viewers expect.
+  const tsOffsetUs = chunks[0]?.timestamp ?? 0
   const last = chunks[chunks.length - 1]
-  const encodedEndUs = last.timestamp + last.duration
+  const encodedEndUs = last.timestamp - tsOffsetUs + last.duration
   const extraUs = Math.max(0, sourceDurationUs - encodedEndUs)
   for (let i = 0; i < chunks.length - 1; i++) {
     const c = chunks[i]
     muxer.addVideoChunk(new EncodedVideoChunk({
-      type: c.type, timestamp: c.timestamp, duration: c.duration, data: c.data,
+      type: c.type, timestamp: c.timestamp - tsOffsetUs, duration: c.duration, data: c.data,
     }))
   }
   muxer.addVideoChunk(new EncodedVideoChunk({
-    type: last.type, timestamp: last.timestamp, duration: last.duration + extraUs, data: last.data,
+    type: last.type, timestamp: last.timestamp - tsOffsetUs, duration: last.duration + extraUs, data: last.data,
   }))
   const bytes = muxer.finalize()
   return new File([bytes as BlobPart], filename, { type: 'video/mp4' })

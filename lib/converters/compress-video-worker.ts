@@ -214,10 +214,15 @@ async function encodeHevcInWorker(
   // position — otherwise B-frame sources (iOS HEVC in particular) produce a
   // non-monotonic output timeline and the muxed file plays "back and forth".
   const ptsOrder = [...demuxed.samples].sort((a, b) => a.timestampUs - b.timestampUs)
+  // Normalize timestamps to a zero base. Containers with an initial edit list
+  // (or any non-zero first-sample PTS) otherwise feed the muxer a first chunk
+  // with ts=41000µs etc., and mp4-muxer rejects it: "first chunk for any media
+  // track must have a timestamp of 0". Playback still starts at t=0.
+  const startOffsetUs = ptsOrder.length > 0 ? ptsOrder[0].timestampUs : 0
   const sourceStartsUs = new Array<number>(ptsOrder.length)
   const sourceDursUs = new Array<number>(ptsOrder.length)
   for (let i = 0; i < ptsOrder.length; i++) {
-    sourceStartsUs[i] = ptsOrder[i].timestampUs
+    sourceStartsUs[i] = ptsOrder[i].timestampUs - startOffsetUs
     const nextPts = i + 1 < ptsOrder.length ? ptsOrder[i + 1].timestampUs : null
     const gapUs = nextPts !== null ? nextPts - ptsOrder[i].timestampUs : 0
     sourceDursUs[i] = gapUs > 0
@@ -362,10 +367,13 @@ async function encodeHevcInWorker(
 
     const finalMuxer = muxer as MuxerHandle
     if (audio) {
+      // Same zero-base offset as the video track — muxer rejects any first
+      // chunk with a non-zero timestamp, so audio must be shifted too so it
+      // still aligns with video after the video normalization above.
       for (const s of audio.samples) {
         finalMuxer.addAudioChunk(new EncodedAudioChunk({
           type: 'key',
-          timestamp: s.timestampUs,
+          timestamp: Math.max(0, s.timestampUs - startOffsetUs),
           duration: s.durationUs,
           data: s.data,
         }))
@@ -467,10 +475,15 @@ async function encodeAvcInWorker(
   // ctts parsing); VideoDecoder emits frames in PTS order, so sourceStartsUs
   // must be indexed by PTS-order position, not decode order.
   const ptsOrder = [...demuxed.samples].sort((a, b) => a.timestampUs - b.timestampUs)
+  // Normalize timestamps to a zero base. Containers with an initial edit list
+  // (or any non-zero first-sample PTS) otherwise feed the muxer a first chunk
+  // with ts=41000µs etc., and mp4-muxer rejects it: "first chunk for any media
+  // track must have a timestamp of 0". Playback still starts at t=0.
+  const startOffsetUs = ptsOrder.length > 0 ? ptsOrder[0].timestampUs : 0
   const sourceStartsUs = new Array<number>(ptsOrder.length)
   const sourceDursUs = new Array<number>(ptsOrder.length)
   for (let i = 0; i < ptsOrder.length; i++) {
-    sourceStartsUs[i] = ptsOrder[i].timestampUs
+    sourceStartsUs[i] = ptsOrder[i].timestampUs - startOffsetUs
     const nextPts = i + 1 < ptsOrder.length ? ptsOrder[i + 1].timestampUs : null
     const gapUs = nextPts !== null ? nextPts - ptsOrder[i].timestampUs : 0
     sourceDursUs[i] = gapUs > 0
