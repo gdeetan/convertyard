@@ -206,6 +206,8 @@ export interface ToolConfig {
   advancedOptions?: ToolOption[]
   presetBar?: React.ComponentType<{ onApply: (values: ToolOptions) => void }> // hardcoded quick-start presets (renders below OptionsPanel)
   enablePresets?: true // user-saved presets via localStorage (renders above OptionsPanel); safe to combine with presetBar
+  // Start conversion as soon as files are added (no extra Convert click).
+  autoConvert?: true
   faq: FAQItem[]
   relatedTools: string[]    // tool slugs, 3-5
   relatedArticles: string[] // article slugs, 2-3
