@@ -8,7 +8,7 @@ export default function Page() {
       config={config}
       notice={
         <p className="rounded-lg border border-border bg-bg-elevated px-4 py-3 text-sm text-fg-muted">
-          Drop a PNG to trace it. A live original vs SVG preview, colour palette, and knockout controls appear as soon as tracing finishes — no extra Convert click.
+          Drop a PNG to preview it. Zoom in to inspect edges, then click Convert to trace the SVG.
         </p>
       }
     />
