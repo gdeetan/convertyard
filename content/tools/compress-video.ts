@@ -24,14 +24,32 @@ export const config: ToolConfig = {
   enablePresets: true,
   optionsWarningFn: (files, options) => {
     if (typeof navigator === 'undefined') return null
-    const isMobile = navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(navigator.userAgent)
-    if (!isMobile) return null
+    const ua = navigator.userAgent
+    const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.maxTouchPoints > 1 && /Mac/.test(ua))
+    const isMobile = navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(ua)
     const resolution = (options.resolution as string) ?? 'original'
     const targetSizeMode = options.targetSizeMode === true || options.targetSizeMode === 'true'
-    if (targetSizeMode || resolution !== 'original') return null
-    const hasLarge = files.some((f) => f.size > 50 * 1024 * 1024)
-    if (!hasLarge) return null
-    return 'Heads up: encoding at Original resolution on mobile can crash the browser tab for videos over 50 MB (iOS especially). Pick 720p or 480p for a safer run, or continue on a desktop for full quality.'
+    const h265 = options.h265 === true || options.h265 === 'true'
+
+    // iOS has no hardware HEVC WebCodecs path — H.265 falls back to libx265
+    // in single-threaded WASM, which is 5–10× slower than H.264 and can hang
+    // on 1080p clips. Warn before the user commits several minutes.
+    if (isIOS && h265) {
+      const at1080 = resolution === '1080p' || resolution === 'original'
+      if (at1080) {
+        return 'H.265 at 1080p on iPhone/iPad runs a slow software fallback (no hardware support) and can hang for many minutes or fail entirely. Use H.264, drop to 720p, or run this on a desktop for reliable H.265 output.'
+      }
+      return 'H.265 on iPhone/iPad runs a slow software fallback (no hardware support) and takes 3–5× longer than H.264. Consider H.264, or run this on a desktop for a much faster encode.'
+    }
+
+    if (isMobile && !targetSizeMode && resolution === 'original') {
+      const hasLarge = files.some((f) => f.size > 50 * 1024 * 1024)
+      if (hasLarge) {
+        return 'Heads up: encoding at Original resolution on mobile can crash the browser tab for videos over 50 MB (iOS especially). Pick 720p or 480p for a safer run, or continue on a desktop for full quality.'
+      }
+    }
+
+    return null
   },
   warningFn: (files) => {
     const isMobile = typeof navigator !== 'undefined' &&

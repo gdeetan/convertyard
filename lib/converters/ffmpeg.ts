@@ -1344,7 +1344,7 @@ export async function compressVideo(
             presetAudioArgs = ['-c:a', 'copy']
           }
         }
-        const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 88)
+        const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 89)
         ffmpeg.on('progress', beat.handler)
         try {
           const { code, tail } = await execWithReason(ffmpeg, [
@@ -1438,7 +1438,7 @@ export async function compressVideo(
               100_000,
               Math.floor((targetBytes * 8 - audioBitsPerSec * durationSeconds) / durationSeconds)
             )
-            const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 88)
+            const beat = withEncodeHeartbeat((pct) => onProgress?.(i, pct), 10, 89)
             ffmpeg.on('progress', beat.handler)
             try {
               const { code, tail } = await execWithReason(ffmpeg, [
