@@ -1243,6 +1243,7 @@ export async function compressVideo(
     : ['-pix_fmt', 'yuv420p', '-movflags', '+faststart']
 
   const processOne = async (i: number): Promise<ConversionResult> => {
+    console.info(`[compress-video][phase] codec=orchestrator phase=processOne-start i=${i} sizeMB=${Math.round((files[i]?.size ?? 0) / 1024 / 1024)} h265=${h265} resolution=${resolution}`)
     onProgress?.(i, 5)
     try {
       let file = files[i]
@@ -1280,6 +1281,7 @@ export async function compressVideo(
           level,
           onProgress: (pct) => onProgress?.(i, pct),
         })
+        console.info(`[compress-video][phase] codec=orchestrator phase=tryHardwareHevcCompress-returned hwFile=${hwFile ? `size=${hwFile.size}` : 'null'}`)
         if (hwFile) {
           if (hwFile.size < file.size) {
             console.info('[compress-video] hardware HEVC encoder')
@@ -1302,6 +1304,7 @@ export async function compressVideo(
           level,
           onProgress: (pct) => onProgress?.(i, pct),
         })
+        console.info(`[compress-video][phase] codec=orchestrator phase=tryHardwareAvcCompress-returned hwFile=${hwFile ? `size=${hwFile.size}` : 'null'}`)
         if (hwFile) {
           if (hwFile.size < file.size) {
             console.info(`[compress-video] hardware AVC encoder — ${file.size} → ${hwFile.size} bytes`)
@@ -1660,8 +1663,10 @@ export async function compressVideo(
       const i = cursor++
       if (i >= files.length) return
       const result = wrapNotice(await processOne(i))
+      console.info(`[compress-video][phase] codec=orchestrator phase=processOne-returned i=${i} kind=${result instanceof Error ? `Error:${result.message.slice(0,60)}` : result instanceof File ? `File:${result.size}` : 'wrapper'}`)
       indexed[i] = result
       onResult?.(i, result)
+      console.info(`[compress-video][phase] codec=orchestrator phase=onResult-fired i=${i}`)
       onProgress?.(i, 100)
     }
   })

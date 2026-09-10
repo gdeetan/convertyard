@@ -902,6 +902,7 @@ export async function tryCompressVideoHevcHardware(
       console.info('[compress-video] HEVC via VideoDecoder fast path')
       if (decoded.audioDropped) {
         console.info('[compress-video] source audio not parseable as AAC — splicing via ffmpeg')
+        logPhase('splice', 'invoke-from-fastpath')
         return await spliceSourceAudio(decoded.file, file, opts.onProgress)
       }
       return decoded.file
@@ -1027,9 +1028,12 @@ export async function tryCompressVideoHevcHardware(
       if (capturedChunks.length === 0) return null
       const sourceDurationUs = Math.round(duration * 1_000_000)
       const baseName = file.name.replace(/\.[^.]+$/, '')
+      logPhase('hevc', 'mux-start')
       const videoOnly = await buildVideoOnlyMp4('hevc', width, height, capturedChunks, firstMeta, sourceDurationUs, `${baseName}.mp4`)
+      logPhase('hevc', `mux-done videoOnly=${videoOnly ? videoOnly.size : 'null'}`)
       if (!videoOnly) return null
       if (opts.stripAudio === true) return videoOnly
+      logPhase('splice', 'invoke-from-playback-hevc')
       return await spliceSourceAudio(videoOnly, file, opts.onProgress)
     }
     if (rawChunks.length === 0) return null
@@ -1124,6 +1128,7 @@ export async function tryCompressVideoAvcHardware(
       console.info('[compress-video] AVC via VideoDecoder fast path')
       if (decoded.audioDropped) {
         console.info('[compress-video] source audio not parseable as AAC — splicing via ffmpeg')
+        logPhase('splice', 'invoke-from-fastpath')
         return await spliceSourceAudio(decoded.file, file, opts.onProgress)
       }
       return decoded.file
@@ -1248,9 +1253,12 @@ export async function tryCompressVideoAvcHardware(
       if (capturedChunks.length === 0) return null
       const sourceDurationUs = Math.round(duration * 1_000_000)
       const baseName = file.name.replace(/\.[^.]+$/, '')
+      logPhase('avc', 'mux-start')
       const videoOnly = await buildVideoOnlyMp4('avc', width, height, capturedChunks, firstMeta, sourceDurationUs, `${baseName}.mp4`)
+      logPhase('avc', `mux-done videoOnly=${videoOnly ? videoOnly.size : 'null'}`)
       if (!videoOnly) return null
       if (opts.stripAudio === true) return videoOnly
+      logPhase('splice', 'invoke-from-playback-avc')
       return await spliceSourceAudio(videoOnly, file, opts.onProgress)
     }
     if (rawChunks.length === 0) return null
