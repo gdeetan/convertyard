@@ -1,4 +1,5 @@
 import { pngToSvgConvert } from '@/lib/converters/png-to-svg-convert'
+import { PngToSvgPresetBar } from '@/components/png-to-svg/png-to-svg-presets'
 import { PngToSvgPreview } from '@/components/png-to-svg/png-to-svg-preview'
 import { PngToSvgReviewPanel } from '@/components/png-to-svg/png-to-svg-review'
 import type { ToolConfig } from '@/lib/types'
@@ -14,6 +15,7 @@ export const config: ToolConfig = {
   outputExt: '.svg',
   convertFn: (files, opts, onProgress, onResult) => pngToSvgConvert(files, opts, onProgress, onResult),
   enablePresets: true,
+  interactivePanel: PngToSvgPresetBar,
   previewPanel: PngToSvgPreview,
   reviewPanel: PngToSvgReviewPanel,
 
@@ -52,6 +54,22 @@ export const config: ToolConfig = {
       step: 0.1,
       default: 1,
       hint: 'Higher = straighter lines, fewer nodes. Lower = more accurate curves.',
+    },
+    {
+      type: 'radio',
+      name: 'blurradius',
+      label: 'Blur before trace',
+      default: 'off',
+      choices: [
+        { value: 'off', label: 'Off' },
+        { value: 'low', label: 'Low' },
+        { value: 'medium', label: 'Medium' },
+      ],
+      conditionalHints: {
+        off: 'Best for already-clean logos.',
+        low: 'Softens anti-aliased edges a little.',
+        medium: 'Stronger cleanup on noisy or compressed PNGs.',
+      },
     },
   ],
 
