@@ -499,6 +499,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
                     ? { file: e.result!, ocrMeta: e.ocrMeta }
                     : e.result ?? new Error(e.error ?? 'unknown error')
                 )}
+                options={options}
                 onResultEdit={(index, newFile) =>
                   dispatch({ type: 'EDIT_RESULT', fileIndex: index, newFile })
                 }
