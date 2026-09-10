@@ -274,6 +274,7 @@ function getWorker(): Worker {
         const outcome: WorkerOutcome = e.data.file
           ? { file: e.data.file as File, audioDropped: !!e.data.audioDropped }
           : null
+        handler.onProgress(100)
         handler.resolve(outcome)
       }
       else if (type === 'error') {
