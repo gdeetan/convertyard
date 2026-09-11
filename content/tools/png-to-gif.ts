@@ -5,7 +5,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'png-to-gif',
   title: 'PNG or (Animated) APNG to GIF Converter',
-  subtitle: 'Convert static PNG files, Animated PNG files (or APNG) to more web friendly GIF format. It auto-detects animation and previews before conversion.',
+  subtitle: 'Convert static PNG files, Animated PNG files (or APNG) to a more webfriendly GIF format. It auto-detects animation and previews before conversion.',
   bestFor: 'Best for converting PNG or Animated PNG (or APNG) to more shareable GIF files. It auto-detects the animation before conversion.',
   category: 'images',
   accepts: ['image/png', 'image/apng', 'image/vnd.mozilla.apng'],
