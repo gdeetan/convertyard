@@ -424,7 +424,6 @@ function Timeline({
 }) {
   const trackRef = useRef<HTMLDivElement>(null)
   const dragRef = useRef<'start' | 'end' | null>(null)
-  const movedRef = useRef(false)
 
   const timeFromX = (clientX: number) => {
     const el = trackRef.current
@@ -437,9 +436,7 @@ function Timeline({
   useEffect(() => {
     if (!dragging) return
     dragRef.current = dragging
-    movedRef.current = false
     const onMove = (e: PointerEvent) => {
-      movedRef.current = true
       const t = timeFromX(e.clientX)
       if (dragRef.current === 'start') onStartChange(t)
       else if (dragRef.current === 'end') onEndChange(t)
@@ -469,7 +466,6 @@ function Timeline({
         className="relative h-8 cursor-pointer"
         onPointerDown={(e) => {
           if ((e.target as HTMLElement).dataset.handle) return
-          movedRef.current = false
           onSeek(timeFromX(e.clientX))
         }}
         role="slider"
