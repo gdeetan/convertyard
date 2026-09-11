@@ -65,8 +65,8 @@ export const config: ToolConfig = {
   relatedTools: ['markdown-to-pdf', 'pdf-to-csv', 'compress-pdf', 'pdf-to-excel'],
   relatedArticles: [],
   meta: {
-    title: 'CSV to PDF Converter — ConvertYard',
+    title: 'Convert CSV Files to PDF without Uploading Anything to a Server. No Conversion Limits.',
     description:
-      'Convert CSV files to PDF tables in your browser. Batch convert 1000 files at once — no uploads, no account, entirely local.',
+      'Free CSV to PDF converter. Nothing uploads to a server, so you can convert even confidential documents without risk of a data breach.',
   },
 }
