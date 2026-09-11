@@ -124,43 +124,43 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my images uploaded to run the upscaler?',
-      a: 'No. Files are upscaled in your browser. Nothing is sent to a server. Photos download Real-ESRGAN v3 (~5 MB) on GPU browsers, with Swin2SR as a fallback. Illustrations download Real-ESRGAN anime 6B (~18 MB) and run on WebGPU or WASM. Restore faces downloads GFPGAN the first time you turn it on. Models are cached after the first load.',
+      a: 'Nope, files aren’t uploaded to a third-party server; images are upscaled in the browser. This tool uses the Real-ESRGAN v3 script (around 5 MB cost on GPU) for upscaling photos, with Swin2SR as a backup. For illustrations, it uses Real-ESRGAN anime 6B (around 18 MB) and runs on WebGPU or WASM. For portrait images, it utilizes the GFPGAN script. Once the page loads, these models are cached in the browser, so you can upscale images even without an internet connection.',
     },
     {
       q: 'What do the Photo, Illustration, and Graphic actually do?',
-      a: 'Photo: Runs Real-ESRGAN v3 at 4× resolution (Swin2SR 2× as a fallback). Illustration: Runs Real-ESRGAN anime 6B for still line art, badges, and comics, on WebGPU or WASM. Graphic / logo: Lanczos resampling + a tiny amount of unsharp masking. Auto-detect: Sends few-color / flat-patch images to Illustration. Restore faces is an extra GFPGAN pass on photos only.',
+      a: 'Photo: Uses Real-ESRGAN v3 (4× resolution) for photos, falling back to Swin2SR 2× if needed. Illustration: Uses Real-ESRGAN anime 6B for rendering still line art, badges, and comic pages on WebGPU or WASM. Graphic / logo: Simply uses Lanczos resampling and a tiny amount of unsharp masking. Auto-detect: Sends images with few colors / flat patches to the Illustration codepath. Restore faces is an additional pass with GFPGAN on photos only.',
     },
     {
       q: 'Is this better than a standard resize?',
-      a: 'Short answer: yes. Standard upscaling will result in blurry images without the additional processing. An image upscaler reconstructs the edges. It won’t be as sharp as desktop tools that use larger models and don’t have face-recovery passes or noise-stripping.',
+      a: 'In short: yes. Standard upscaling will yield heavily blurred images, whereas an image upscaler will first reconstruct the image’s edges again. While still not being able to hold a candle to a corresponding desktop application (using even larger models and additional processing passes, e.g. for face restore or for noise stripping), it’s certainly much better than just upscaling.',
     },
     {
       q: 'How does this compare to Topaz or other desktop upscalers?',
-      a: 'Honestly, it won’t match Topaz or any desktop upscaler, but based on my testing, it does a decent job at upscaling images and graphics without stretching and blurring them. It does not match them. Topaz Photo AI and Gigapixel run several full-precision models on your GPU — denoise, sharpen, face recovery, then upscale. Run this tool on a desktop for the best results; the mobile version has a memory limit.',
+      a: 'To be honest, this won’t match Topaz or any desktop upscaler since those use AI to regenerate blurry sections of the image. Topaz Photo AI and Gigapixel run full-precision models on your GPU - denoise, sharpen, face recovery, and then upsample. However, it works well to upscale a 600-pixel landscape image to a 2,400-pixel version without blurring it. I’ve tested it extensively on various photos and illustrations, and it matches other paid image upscaling websites. It works best for upscaling illustrations or graphics without stretching or pixelating the image.',
     },
     {
       q: 'Which scale should I pick?',
-      a: 'The best balance would be the 4× option. If you need faster results, use the 2× mode. The 3× is slightly faster than the 4× and yields a similar result, since it uses the 4× model with Lanczos downsampling. 8× is the same 4× model, then Lanczos up to 8×. Illustration always runs the 4× still-art model, then Lanczos to 2×/3×/8×.',
+      a: '4× is best balance of quality and speed, followed by 2× (faster) and 3× (slightly faster than 4×, uses same 4× model, then Lanczos downsampled to 3×). 8× mode runs the 4× model followed by Lanczos upsampling to 8×. The illustration uses the 4× still-art model, then upsamples to 2×/3×/8× using Lanczos.',
     },
     {
       q: 'What types of images produce poor results?',
-      a: 'Noisy or low-light photographs, and portraits with Restore faces turned off. Illustration can halo small type and logos — switch those to Graphic / logo. Tall or wide files over 8,192 pixels are pre-shrunk to fit the browser canvas, resulting in a blurred output.',
+      a: 'Noisy or low-light images, and portraits with Restore faces disabled. Small text and logos in illustration mode can create halos – switch to Graphic/logo mode. Tall and wide images larger than 8,192 pixels in either dimension will be pre-shrunk to fit the browser’s canvas, resulting in a soft and blurry image.',
     },
     {
       q: 'Can I upscale a long infographic or full-page screenshot?',
-      a: 'Depends on the infographic’s size. Anything larger than 8,192 pixels will be pre-shrunk. Use images under 2,048 pixels for the best results.',
+      a: 'This depends on the infographic’s size. It pre-shrinks anything over 8,192 pixels. For best results, use an infographic smaller than 2,048 pixels.',
     },
     {
       q: 'What scale should I use for printing?',
-      a: 'A 500 × 500-pixel image upscaled at 4× becomes 2,000 × 2,000 pixels, or around 6 × 6 inches at 300 DPI, which is good enough for a small print. This upscaler will not produce Topaz-level outputs, but I try to max out the output to get as close as possible. Let me know what your results are by emailing me at hello@convertyard.com; I’d love to hear from you.',
+      a: 'For example, a 500×500 pixel image scaled up 4× would result in a 2,000×2,000 pixel image, about 6×6 inches at 300 DPI, which is suitable for low-quantity printing. Please note that this upscaler will not be as good as what you get with Topaz tools. I’ve tried to make this upscaler as good as possible, but please let me know how it performs for you and any ideas for improvement. Email me here: hello @ convertyard . com.',
     },
     {
       q: 'What does Restore faces do?',
-      a: 'It is an extra pass after a photo upscale. A small detector finds faces, then GFPGAN rebuilds eyes, skin, and mouth on each crop. Turn it on for selfies, ID photos, and old portraits. Leave it off for already-sharp photos — it can look plastic. Illustration and Graphic modes ignore it. The first use downloads GFPGAN (~340 MB) into your browser cache; later runs reuse it. Nothing is uploaded.',
+      a: 'This setting runs an extra pass after photo upscaling, uses a small detector to find faces in the image, and then GFPGAN refines the eyes, skin, and mouth in each crop. It’s great for recent selfies, ID photos, and old, worn portraits. The only images where you’d disable this and let the image upscale as-is are already very sharp images, and this feature can make them look very plastic and fake. See also: Illustration/Graphic Modes. The first use of this feature downloads and caches a ~340MB file to the browser cache (which is then reused for subsequent uses of this feature—no images are uploaded).',
     },
     {
       q: 'How many files can I process at once?',
-      a: 'Technically, you can do up to 1,000 files. But for the best results, and to reduce waiting time, do a batch of 10 images per to see how it comes out.',
+      a: 'For the best results, do a batch of no more than 5 for the smaller 2x to 4x upscales. If you’re upscaling 8x, it’s best to do one image at a time.',
     },
   ],
 
@@ -168,8 +168,8 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'Free AI Image Upscaler - Enlarge Your Photos 2x, 3x, 4x, or 8x',
+    title: 'AI Image Upscaler - Enlarge, Sharpen & Restore Images 2x-8x',
     description:
-      'Upscale your photos, illustrations, or logos between 2x and 8x without sacrificing image quality. All done in your browser. Nothing uploads.',
+      'Upscale images 2x, 3x, 4x, or 8x and sharpen edges in photos or illustrations. Optional face restore for portraits. Nothing Uploads. No signups.',
   },
 }
