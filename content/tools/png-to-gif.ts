@@ -4,7 +4,7 @@ import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
   slug: 'png-to-gif',
-  title: 'Convert PNG or (Animated) APNG files to GIF',
+  title: 'PNG or (Animated) APNG to GIF Converter',
   subtitle: 'Convert static PNGs, animated PNG (APNG) files, or PNG frame sequences to GIF. Auto-detects animation and previews before you export.',
   bestFor: 'Best for turning animated PNGs (APNG) into shareable GIFs, or assembling PNG frame sequences into an animation.',
   category: 'images',
@@ -86,7 +86,7 @@ export const config: ToolConfig = {
   relatedTools: ['jpg-to-gif', 'webp-to-gif', 'png-to-webp'],
   relatedArticles: [],
   meta: {
-    title: 'Convert PNG or Animated APNG to GIF — ConvertYard',
+    title: 'Convert PNG or (Animated) APNG files to GIF - Nothing Uploads',
     description: 'Convert static PNGs or animated APNG files to GIF in your browser. Auto-detects animation, live preview, batch up to 1000 files. Nothing uploads.',
   },
 }
