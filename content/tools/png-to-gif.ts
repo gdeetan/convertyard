@@ -74,7 +74,7 @@ export const config: ToolConfig = {
   relatedTools: ['jpg-to-gif', 'webp-to-gif', 'png-to-webp'],
   relatedArticles: [],
   meta: {
-    title: 'PNG to GIF — Animate a Sequence — ConvertYard',
-    description: 'Convert a PNG to GIF, or animate a sequence of PNGs. Binary transparency and a two-pass palette. Batch convert in your browser — no uploads. Simple motion.',
+    title: 'Convert Animated PNGs to GIFs - Nothing Uploads, 100% Free',
+    description: 'Convert static or animated PNGs to GIFs to use on your website. Batch convert up to 1000 files per session. Nothing uploads',
   },
 }
