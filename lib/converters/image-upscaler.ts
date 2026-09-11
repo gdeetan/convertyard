@@ -9,6 +9,7 @@ interface UpscaleOptions {
   outputFormat: UpscaleOutputFormat
   imageMode: ImageMode
   photoEnhance?: boolean
+  restoreFaces?: boolean
 }
 
 export async function upscaleBatch(
@@ -19,7 +20,7 @@ export async function upscaleBatch(
   onResult?: (fileIndex: number, result: ConversionResult) => void
 ): Promise<ConversionResult[]> {
   // Illustration and Graphic modes don't use the photo Real-ESRGAN/Swin2SR chain
-  // — illustration loads its own anime model lazily inside the worker, and
+  // — illustration loads its own still-art model lazily inside the worker, and
   // graphic is pure Lanczos. Skipping the photo preload here avoids a hard
   // failure when the photo chain can't initialize on the user's device.
   const skipPreload = options.imageMode === 'illustration' || options.imageMode === 'graphic'
@@ -29,7 +30,7 @@ export async function upscaleBatch(
   } else {
     // Best-effort preload of the photo chain. If it fails (WebGPU flaky,
     // model download blocked, etc.), don't block the batch — auto-detected
-    // illustration files still succeed via the anime model, and photo files
+    // illustration files still succeed via the still-art model, and photo files
     // will retry the load lazily inside runInference and surface a per-file
     // error there instead of failing the whole batch upfront.
     try {
@@ -56,7 +57,8 @@ export async function upscaleBatch(
         outputFormat,
         (pct) => onFileProgress(i, 15 + Math.round(pct * 0.85)),
         options.imageMode,
-        options.photoEnhance ?? false
+        options.photoEnhance ?? false,
+        options.restoreFaces ?? false
       )
       results.push(result)
       onResult?.(i, result)

@@ -19,9 +19,10 @@ export const config: ToolConfig = {
     const outputFormat = ((options.outputFormat as string) ?? 'match') as UpscaleOutputFormat
     const imageMode = ((options.imageMode as string) ?? 'auto') as ImageMode
     const photoEnhance = Boolean(options.photoEnhance)
+    const restoreFaces = Boolean(options.restoreFaces)
     return upscaleBatch(
       files,
-      { scale, outputFormat, imageMode, photoEnhance },
+      { scale, outputFormat, imageMode, photoEnhance, restoreFaces },
       () => {},
       (fileIndex: number, pct: number) => onProgress?.(fileIndex, pct),
       onResult
@@ -57,7 +58,7 @@ export const config: ToolConfig = {
 
   limitationNote: {
     summary: 'Sharper than a normal resize — not a desktop upscaler',
-    body: 'On GPU browsers, photos at 4× run Real-ESRGAN general v3 (~5 MB). Illustrations, badges, and line art use RealESR AnimeVideo v3 (~2.5 MB). Other browsers use Swin2SR for photos and Lanczos for illustrations. 2× photos always use Swin2SR. It does not denoise, recover faces, or match desktop tools such as Topaz Photo AI. Graphic / logo mode is Lanczos resize plus light sharpen — no neural net. A 4× result cannot exceed 8,192 px on a side. A 1,000×13,000 infographic is shrunk before upscaling — export those from the design file, or split them into shorter sections.',
+    body: 'On GPU browsers, photos at 4× run Real-ESRGAN general v3 (~5 MB). Illustrations, badges, and line art use Real-ESRGAN anime 6B (~18 MB) on WebGPU or WASM. Other browsers use Swin2SR for photos if WebGPU is unavailable. 2× photos always use Swin2SR. Optional Restore faces runs GFPGAN on detected faces after the upscale. Graphic / logo mode is Lanczos resize plus light sharpen — no neural net. A 4× result cannot exceed 8,192 px on a side. A 1,000×13,000 infographic is shrunk before upscaling — export those from the design file, or split them into shorter sections.',
   },
 
   options: [
@@ -88,7 +89,7 @@ export const config: ToolConfig = {
       conditionalHints: {
         auto: 'Photos use the photo model. Icons, badges, comics, and other 2D files use Illustration. Override if it guesses wrong.',
         photo: '4× uses Real-ESRGAN v3 on GPU browsers, Swin2SR otherwise. 2× always uses Swin2SR. Compressed JPEGs get a different 2× model when auto-detected.',
-        illustration: 'RealESR AnimeVideo v3 on GPU browsers — linework and flat colour. Falls back to Lanczos if WebGPU is unavailable. Can halo small type.',
+        illustration: 'Real-ESRGAN anime 6B — still line art, badges, comics. WebGPU first, WASM if the GPU path is missing. Can halo small type; use Graphic / logo if that happens.',
         graphic: 'Lanczos resize plus light sharpen. No neural net. Use for wordmarks and UI if Illustration looks wrong.',
       },
     },
@@ -98,6 +99,13 @@ export const config: ToolConfig = {
       label: 'Enhance (photo)',
       default: false,
       hint: 'Adds local contrast and edge-aware sharpening on photos. Skin, sky, and other flat areas stay untouched — only hair, eyes, and other edges get crisper. Slower. Ignored for Illustration and Graphic modes.',
+    },
+    {
+      type: 'toggle',
+      name: 'restoreFaces',
+      label: 'Restore faces (photo)',
+      default: false,
+      hint: 'After the upscale, detects faces and runs GFPGAN on each one. Helps selfies, IDs, and old portraits. First use downloads a large extra face model (~340 MB), then caches it. Can look plastic on already-sharp photos. Ignored for Illustration and Graphic modes.',
     },
     {
       type: 'dropdown',
@@ -116,11 +124,11 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my images uploaded to run the upscaler?',
-      a: 'No. Files are upscaled in your browser. Nothing is sent to a server. GPU browsers download Real-ESRGAN v3 (~5 MB) for photos and AnimeVideo v3 (~2.5 MB) for illustrations; other browsers use Swin2SR for photos and Lanczos for illustrations. Models are cached after the first load.',
+      a: 'No. Files are upscaled in your browser. Nothing is sent to a server. Photos download Real-ESRGAN v3 (~5 MB) on GPU browsers, with Swin2SR as a fallback. Illustrations download Real-ESRGAN anime 6B (~18 MB) and run on WebGPU or WASM. Restore faces downloads GFPGAN the first time you turn it on. Models are cached after the first load.',
     },
     {
       q: 'What do the Photo, Illustration, and Graphic actually do?',
-      a: 'Photo: Runs Real-ESRGAN v3 at 4× resolution (Swin2SR 2× as a fallback). Illustration: Runs Real-ESR AnimeVideo v3 to better handle line art, badges, comics, etc. Graphic / logo: Lanczos resampling + a tiny amount of unsharp masking. Auto-detect: Sends few-color / flat-patch images to be handled by Illustration.',
+      a: 'Photo: Runs Real-ESRGAN v3 at 4× resolution (Swin2SR 2× as a fallback). Illustration: Runs Real-ESRGAN anime 6B for still line art, badges, and comics, on WebGPU or WASM. Graphic / logo: Lanczos resampling + a tiny amount of unsharp masking. Auto-detect: Sends few-color / flat-patch images to Illustration. Restore faces is an extra GFPGAN pass on photos only.',
     },
     {
       q: 'Is this better than a standard resize?',
@@ -132,11 +140,11 @@ export const config: ToolConfig = {
     },
     {
       q: 'Which scale should I pick?',
-      a: 'The best balance would be the 4× option. If you need faster results, use the 2× mode. The 3× is slightly faster than the 4× and yields a similar result, since it uses the 4× model with Lanczos downsampling. 8× is the same 4× model, then Lanczos up to 8×. The illustration upscaler uses AnimeVideo 4×, then Lanczos, which is slower, creates larger files, and is likely to hit browser memory limits (especially on mobile).',
+      a: 'The best balance would be the 4× option. If you need faster results, use the 2× mode. The 3× is slightly faster than the 4× and yields a similar result, since it uses the 4× model with Lanczos downsampling. 8× is the same 4× model, then Lanczos up to 8×. Illustration always runs the 4× still-art model, then Lanczos to 2×/3×/8×.',
     },
     {
       q: 'What types of images produce poor results?',
-      a: 'Typically portraits that have no recovery pass, noisy (or low-light) photographs, or old scanned pictures. Using the Illustration mode can result in a halo around logos. If that happens, switch to the graphic/logo option. Tall or wide photos or illustrations over 8,192 pixels are pre-shrunk to fit the browser canvas, resulting in a blurred output.',
+      a: 'Noisy or low-light photographs, and portraits with Restore faces turned off. Illustration can halo small type and logos — switch those to Graphic / logo. Tall or wide files over 8,192 pixels are pre-shrunk to fit the browser canvas, resulting in a blurred output.',
     },
     {
       q: 'Can I upscale a long infographic or full-page screenshot?',
@@ -145,6 +153,10 @@ export const config: ToolConfig = {
     {
       q: 'What scale should I use for printing?',
       a: 'A 500 × 500-pixel image upscaled at 4× becomes 2,000 × 2,000 pixels, or around 6 × 6 inches at 300 DPI, which is good enough for a small print. This upscaler will not produce Topaz-level outputs, but I try to max out the output to get as close as possible. Let me know what your results are by emailing me at hello@convertyard.com; I’d love to hear from you.',
+    },
+    {
+      q: 'What does Restore faces do?',
+      a: 'It is an extra pass after a photo upscale. A small detector finds faces, then GFPGAN rebuilds eyes, skin, and mouth on each crop. Turn it on for selfies, ID photos, and old portraits. Leave it off for already-sharp photos — it can look plastic. Illustration and Graphic modes ignore it. The first use downloads GFPGAN (~340 MB) into your browser cache; later runs reuse it. Nothing is uploaded.',
     },
     {
       q: 'How many files can I process at once?',

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  REALESRGAN_ANIME_STILL_X4,
   REALESRGAN_ANIME_X4,
   REALESRGAN_X4,
   SWIN2SR_CLASSICAL_X2,
@@ -10,6 +11,7 @@ import {
   detectUpscalerClientProfile,
   illustrationRouting,
   maxOutputDim,
+  realesrganDeviceOrder,
   modelRouting,
   padToMultiple,
   isOnnxRunError,
@@ -152,14 +154,25 @@ describe('resolveImageMode', () => {
 })
 
 describe('illustrationRouting', () => {
-  it('uses AnimeVideo v3 at 4× for every scale; extra scale is Lanczos after', () => {
+  it('uses the still-art anime 6B model at 4× for every scale; extra scale is Lanczos after', () => {
     for (const scale of ['2x', '3x', '4x', '8x'] as const) {
       expect(illustrationRouting(scale).chains).toEqual([
-        { modelId: REALESRGAN_ANIME_X4, scale: 4, kind: 'realesrgan' },
+        { modelId: REALESRGAN_ANIME_STILL_X4, scale: 4, kind: 'realesrgan' },
       ])
     }
     expect(illustrationRouting('2x').actualScale).toBe(2)
     expect(illustrationRouting('4x').actualScale).toBe(4)
     expect(illustrationRouting('8x').actualScale).toBe(8)
+    expect(REALESRGAN_ANIME_X4).toBe('realesr-animevideov3')
+  })
+})
+
+describe('realesrganDeviceOrder', () => {
+  it('tries WebGPU first and falls through to WASM', () => {
+    expect(realesrganDeviceOrder(true)).toEqual(['webgpu', 'wasm'])
+  })
+
+  it('uses WASM when WebGPU is missing instead of giving up', () => {
+    expect(realesrganDeviceOrder(false)).toEqual(['wasm'])
   })
 })
