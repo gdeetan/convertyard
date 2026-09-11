@@ -1,5 +1,10 @@
 import React from 'react'
-import { DevToolsMockup } from './devtools-mockup'
+import dynamic from 'next/dynamic'
+
+const DevToolsLive = dynamic(
+  () => import('./devtools-live').then((m) => m.DevToolsLive),
+  { ssr: false },
+)
 
 export function DevToolsProof() {
   return (
@@ -43,8 +48,8 @@ export function DevToolsProof() {
             </ol>
           </div>
 
-          {/* Animated DevTools mockup */}
-          <DevToolsMockup />
+          {/* Live DevTools demo */}
+          <DevToolsLive />
 
         </div>
       </div>
