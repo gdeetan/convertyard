@@ -226,30 +226,30 @@ Install the SDK with `npm install contentful-management`, replace the token and 
 
 ## Webflow
 
-Webflow doesn't support bulk alt text import via CSV as of mid-2025. Your options:
+Webflow does not currently support a bulk import of alt text via a CSV file. This is something that the team is exploring but as of mid-2025 there is no way to achieve this.
 
-- **Manual:** In the Designer, select each image element, open the Settings panel, and update the Alt Text field.
-- **CMS items:** If images are in CMS collections, export the collection as CSV, add/update the alt text field, and re-import.
-- **Webflow API:** Use the [Webflow Data API](https://developers.webflow.com/) to update CMS item fields programmatically. The approach is similar to the Contentful API example above.
+- **Manual:** Select each image element in the Designer and update the Alt Text field in the Settings panel.
+- **CMS Items in Collections:** You can first export a CSV file from CMS items in Collections. Then add or modify the required info in the corresponding CSV column, and import the updated file back into Webflow.
+- **Webflow API:** Similar as with the Contentful API above, update the CMS item fields programmatically using the [Webflow Data API](https://developers.webflow.com/).
 
 ---
 
 ## Squarespace
 
-Squarespace image alt text is set per image block in the page editor:
+You can add alt text to individual images in Squarespace by editing the image in the Page Editor for a specific page where that image appears and updating the **Filename / Alt text** field.
 
 1. Click an image block to select it.
 2. Click the pencil icon to edit.
 3. Under the image, find the **Filename / Alt text** field.
 4. Update it with your CSV value.
 
-There is no bulk import path in Squarespace's standard interface. For large sites, consider migrating to a platform with better bulk editing support, or contact Squarespace support about API access.
+For large Squarespace sites, importing alt text via CSV is not currently possible. To help manage your images, you may wish to move to another web design platform or website builder that offers more flexibility for making bulk changes to images, and then see if their API can be used by yourself or your developer to update the images' alt text, or contact the Support Team to inquire about using the Webflow API.
 
 ---
 
 ## Custom CMS or database
 
-If you run a custom CMS backed by a database, the import is a SQL operation. The exact query depends on your schema. A common pattern (WordPress-compatible):
+This will typically be a one off SQL command that will update the images in your custom CMS or database. The SQL command will depend on the schema of your CMS, and the following example is for a typical WordPress install:
 
 ```sql
 -- Update image alt text in a custom attachments table
