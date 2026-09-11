@@ -316,6 +316,7 @@ export interface ViewerToolConfig<T = AnalyzeResult> {
     files: File[]
     results: T[]
     exportActions: ViewerExportAction<T>[]
+    onReset?: () => void
   }>
   extraInput?: React.ComponentType<{
     onFiles: (files: File[]) => void

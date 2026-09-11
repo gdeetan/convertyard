@@ -12,8 +12,8 @@ export const config: ViewerToolConfig = {
   subtitle: 'Local-first EXIF metadata reader. Built for batches.',
   bestFor: 'Best for checking GPS, camera info, and AI-generation markers before sharing or archiving a photo.',
   category: 'image-editing',
-  accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif', 'image/tiff', 'image/x-canon-cr2', 'image/x-nikon-nef', 'image/x-sony-arw', 'image/x-adobe-dng'],
-  acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.heic', '.heif', '.tif', '.tiff', '.cr2', '.cr3', '.nef', '.arw', '.dng', '.raf', '.orf', '.rw2'],
+  accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/heic', 'image/heif', 'image/tiff', 'image/x-canon-cr2', 'image/x-nikon-nef', 'image/x-sony-arw', 'image/x-adobe-dng', 'application/pdf', 'video/mp4', 'video/quicktime', 'video/x-m4v', 'video/3gpp'],
+  acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.heic', '.heif', '.tif', '.tiff', '.cr2', '.cr3', '.nef', '.arw', '.dng', '.raf', '.orf', '.rw2', '.pdf', '.mp4', '.mov', '.m4v', '.3gp'],
   analyzeFn: analyzeFiles,
   renderResults: ViewerRoot,
   extraInput: UrlInput,
@@ -51,7 +51,7 @@ export const config: ViewerToolConfig = {
   relatedTools: ['ai-image-detector', 'edit-metadata', 'alt-text-generator', 'compress-image', 'background-remover'],
   relatedArticles: [],
   meta: {
-    title: 'Free EXIF Viewer — Batch HEIC, RAW & JPG | ConvertYard',
-    description: 'Free EXIF viewer for JPG, HEIC, RAW, PNG, and WebP. Check GPS, camera, IPTC, and AI-generation tags for up to 1,000 files at once — all in your browser. No uploads.',
+    title: 'Free EXIF Metadata Viewer - Images, PDFs & Videos',
+    description: 'Access EXIF data on your photos, PDF, or video files with this free tool and remove it before uploading to any site. Nothing uploads so your data is safe.',
   },
 }

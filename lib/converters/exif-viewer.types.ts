@@ -10,6 +10,8 @@ export type TagGroupKey =
   | 'aiProvenance'
   | 'iptc'
   | 'color'
+  | 'document'
+  | 'video'
   | 'raw'
 
 export interface TagRow {

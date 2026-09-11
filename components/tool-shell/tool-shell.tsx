@@ -718,7 +718,12 @@ function ViewerShell({ config }: { config: ViewerToolConfig<any> }) {
 
         {phase !== 'idle' && (
           <section className="mt-6">
-            <Results files={files} results={results} exportActions={config.exportActions ?? []} />
+            <Results
+              files={files}
+              results={results}
+              exportActions={config.exportActions ?? []}
+              onReset={() => { setFiles([]); setResults([]); setPhase('idle') }}
+            />
           </section>
         )}
       </div>

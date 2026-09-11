@@ -1,8 +1,19 @@
 import type { AnalyzeResult, AnalyzeSuccess, TagGroup, TagRow, GpsFix } from './exif-viewer.types'
 import { auditPrivacy } from './exif-viewer-privacy'
 import { detectAiSignatures } from './exif-viewer-ai'
+import { analyzePdf } from './exif-viewer-pdf'
+import { analyzeVideo } from './exif-viewer-video'
 
 const NO_EXIF_MIME = new Set(['image/gif', 'image/bmp', 'image/svg+xml'])
+const PDF_EXT = /\.pdf$/i
+const VIDEO_EXT = /\.(mp4|mov|m4v|m4a|3gp|3g2)$/i
+
+function isPdf(f: File): boolean {
+  return f.type === 'application/pdf' || PDF_EXT.test(f.name)
+}
+function isVideo(f: File): boolean {
+  return f.type.startsWith('video/') || VIDEO_EXT.test(f.name)
+}
 
 /**
  * Reads metadata from a batch of image files using exifr. Sequential on the
@@ -19,6 +30,15 @@ export async function analyzeFiles(
   for (let i = 0; i < files.length; i++) {
     const f = files[i]
     onProgress?.(i, 10)
+
+    if (isPdf(f)) {
+      const r = await analyzePdf(f)
+      results.push(r); onResult?.(i, r); onProgress?.(i, 100); continue
+    }
+    if (isVideo(f)) {
+      const r = await analyzeVideo(f)
+      results.push(r); onResult?.(i, r); onProgress?.(i, 100); continue
+    }
 
     if (NO_EXIF_MIME.has(f.type)) {
       const r: AnalyzeResult = {
