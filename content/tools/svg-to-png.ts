@@ -66,7 +66,7 @@ export const config: ToolConfig = {
   relatedTools: ['png-to-svg', 'svg-to-jpg', 'svg-to-webp'],
   relatedArticles: [],
   meta: {
-    title: 'SVG to PNG Converter — ConvertYard',
-    description: 'Rasterise SVG to PNG at 1×, 2×, 4×, or any custom pixel size. Batch convert icon sets in your browser. Transparency kept. Files stay on your device. No blur.',
+    title: 'Convert SVG to PNG for Free - Nothing Uploads',
+    description: 'Transform SVG files into high-resolution PNG for print. Customize scale, custom width, and transparent background. Nothing is uploaded.',
   },
 }
