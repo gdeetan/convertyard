@@ -54,7 +54,7 @@ async function singleToGif(
 
   // Animated PNGs (APNG) need bounded frame count and cheaper palette stats,
   // otherwise palettegen=full over hundreds of full-res frames takes hours in wasm.
-  const animated = ext === 'png' && await isAnimatedPng(file)
+  const animated = (ext === 'png' || ext === 'apng') && await isAnimatedPng(file)
   const inputArgs = animated ? ['-f', 'apng', '-i', inputName] : ['-i', inputName]
 
   // Order matters: fps + scale go BEFORE split so palettegen sees a bounded stream.
