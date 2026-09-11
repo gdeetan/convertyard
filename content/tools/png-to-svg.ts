@@ -104,8 +104,8 @@ export const config: ToolConfig = {
       ],
       conditionalHints: {
         off: 'No smoothing — traces the PNG at native resolution.',
-        low: 'Snaps anti-aliased edge pixels and filters noisy segments. Same size.',
-        medium: 'Snaps edges plus 2× resolution trace for smoother curves. Slightly larger SVG.',
+        low: 'Snaps edge pixels, filters noise, and optimizes the SVG output. Same size.',
+        medium: 'Also runs a median filter and 2× resolution trace for smoother curves.',
         high: 'Aggressive edge snap, 2× resolution, and stronger curve fitting. Best for jagged logos.',
       },
     },

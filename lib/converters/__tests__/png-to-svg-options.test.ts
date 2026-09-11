@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   buildTracerOptions,
   edgeSmoothingProfile,
+  medianFilter3x3,
   normalizeSupersampledSvg,
+  optimizeSvg,
   scaledSize,
   snapAlphaEdges,
 } from '../png-to-svg-convert'
@@ -47,16 +49,73 @@ describe('edgeSmoothingProfile', () => {
       supersample: 1,
       minBlur: 0,
       snapAlpha: 0,
+      median: false,
+      optimize: false,
     })
   })
 
-  it('escalates qtres, linefilter, supersample, and snapAlpha as level rises', () => {
+  it('escalates qtres, linefilter, supersample, snapAlpha, median, and optimize as level rises', () => {
     expect(edgeSmoothingProfile('low').linefilter).toBe(true)
     expect(edgeSmoothingProfile('low').snapAlpha).toBe(128)
+    expect(edgeSmoothingProfile('low').median).toBe(false)
+    expect(edgeSmoothingProfile('low').optimize).toBe(true)
     expect(edgeSmoothingProfile('medium').supersample).toBe(2)
+    expect(edgeSmoothingProfile('medium').median).toBe(true)
     expect(edgeSmoothingProfile('high').qtres).toBe(3)
     expect(edgeSmoothingProfile('high').minBlur).toBe(2)
     expect(edgeSmoothingProfile('high').snapAlpha).toBe(160)
+    expect(edgeSmoothingProfile('high').optimize).toBe(true)
+  })
+
+  it('leaves median and optimize disabled when off', () => {
+    expect(edgeSmoothingProfile('off').median).toBe(false)
+    expect(edgeSmoothingProfile('off').optimize).toBe(false)
+  })
+})
+
+describe('medianFilter3x3', () => {
+  const makeGrid = (rgb: number[][]): ImageData => {
+    const side = Math.sqrt(rgb.length)
+    const data = new Uint8ClampedArray(rgb.length * 4)
+    rgb.forEach(([r, g, b], i) => {
+      data[i * 4] = r
+      data[i * 4 + 1] = g
+      data[i * 4 + 2] = b
+      data[i * 4 + 3] = 255
+    })
+    return { data, width: side, height: side, colorSpace: 'srgb' } as unknown as ImageData
+  }
+
+  it('replaces a single noisy center pixel with the surrounding median', () => {
+    const grid = makeGrid([
+      [10, 10, 10], [10, 10, 10], [10, 10, 10],
+      [10, 10, 10], [200, 200, 200], [10, 10, 10],
+      [10, 10, 10], [10, 10, 10], [10, 10, 10],
+    ])
+    medianFilter3x3(grid)
+    expect(grid.data[4 * 4]).toBe(10)
+    expect(grid.data[4 * 4 + 1]).toBe(10)
+    expect(grid.data[4 * 4 + 2]).toBe(10)
+  })
+})
+
+describe('optimizeSvg', () => {
+  it('returns a valid svg string and typically shrinks it', async () => {
+    const input =
+      '<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">' +
+      '<path d="M 10.0000 10.0000 L 20.0000 20.0000 L 30.0000 30.0000 Z" fill="#ff0000"/>' +
+      '<path d="M 40.0000 40.0000 L 50.0000 50.0000 Z" fill="#ff0000"/>' +
+      '</svg>'
+    const out = await optimizeSvg(input)
+    expect(out).toContain('<svg')
+    expect(out).toContain('viewBox="0 0 100 100"')
+    expect(out.length).toBeLessThan(input.length)
+  })
+
+  it('returns the original string when svgo fails', async () => {
+    const bad = '<not-svg>'
+    const out = await optimizeSvg(bad)
+    expect(typeof out).toBe('string')
   })
 })
 
