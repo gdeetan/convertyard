@@ -7,7 +7,7 @@ const LARGE_FILE_BYTES = 250 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'video-to-gif',
   title: 'Video to GIF Converter',
-  subtitle: 'Convert MP4, MOV, WebM, AVI, MKV, FLV, or M4V to a looping GIF. Set start/end times, frame rate, width before converting.',
+  subtitle: 'Convert any video clip (MP4, MOV, WEBM, AVI, MKV, FLV, M4V) to a looping GIF. Set start/end times, frame rate, width before converting.',
   bestFor: 'Good for turning a 3-second clip into a GIF to drop in Slack or a GitHub issue.',
   category: 'video-audio',
   accepts: [
@@ -111,8 +111,8 @@ export const config: ToolConfig = {
   relatedTools: ['mp4-to-webp', 'gif-to-mp4', 'webp-to-gif', 'mp4-to-mp3'],
   relatedArticles: ['how-browser-based-file-conversion-works', 'batch-convert-images'],
   meta: {
-    title: 'Video to GIF Converter - Convert MP4 or MOV to GIF',
+    title: 'Video to GIF Converter - Convert MP4, MOV, WEBM, AVI, MKV, FLV or M4V to GIF',
     description:
-      'Convert a short video clip (MP4, MOV, MKV, etc.) to an animated GIF. Set the start/stop time, frame rate, and width before converting.',
+      'Convert a short video clip (MP4, MOV, WEBM, AVI, MKV, FLV, M4V, etc.) to an animated GIF. Set the start/stop time, frame rate, and width before converting.',
   },
 }
