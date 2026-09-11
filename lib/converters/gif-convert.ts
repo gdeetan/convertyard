@@ -1,6 +1,23 @@
 import { getFFmpeg } from './ffmpeg-client'
 import type { ConversionResult, ToolOptions } from '@/lib/types'
 
+// Detect APNG by scanning for an acTL chunk before the first IDAT.
+// PNG signature is 8 bytes, then a sequence of length(4) + type(4) + data + crc(4) chunks.
+async function isAnimatedPng(file: File): Promise<boolean> {
+  const head = new Uint8Array(await file.slice(0, Math.min(file.size, 65536)).arrayBuffer())
+  if (head.length < 8 || head[0] !== 0x89 || head[1] !== 0x50 || head[2] !== 0x4e || head[3] !== 0x47) return false
+  let off = 8
+  const dv = new DataView(head.buffer, head.byteOffset, head.byteLength)
+  while (off + 8 <= head.length) {
+    const len = dv.getUint32(off)
+    const type = String.fromCharCode(head[off + 4], head[off + 5], head[off + 6], head[off + 7])
+    if (type === 'acTL') return true
+    if (type === 'IDAT') return false
+    off += 8 + len + 4
+  }
+  return false
+}
+
 // Single file → GIF. Uses a one-pass split-palette filtergraph.
 // Two-pass with a separate palette.png file is unreliable for static images
 // in ffmpeg.wasm: the palette pass can silently produce 0 frames (static PNG
@@ -19,13 +36,21 @@ async function singleToGif(file: File, opts: ToolOptions): Promise<File> {
 
   const outputWidth = typeof opts.outputWidth === 'number' ? opts.outputWidth : 0
   const loop = typeof opts.loop === 'number' ? opts.loop : 0
+  const fps = typeof opts.framerate === 'number' ? opts.framerate : 10
 
-  // split[s0][s1] copies the input stream — s0 feeds palettegen, s1 feeds
-  // paletteuse. One pass, no intermediate file, works for any frame count.
+  // Animated PNGs (APNG) need bounded frame count and cheaper palette stats,
+  // otherwise palettegen=full over hundreds of full-res frames takes hours in wasm.
+  const animated = ext === 'png' && await isAnimatedPng(file)
+  const inputArgs = animated ? ['-f', 'apng', '-i', inputName] : ['-i', inputName]
+
+  // Order matters: fps + scale go BEFORE split so palettegen sees a bounded stream.
+  // stats_mode=diff is far cheaper than full and visually equivalent for most APNGs.
   const scale = outputWidth > 0 ? `scale=${outputWidth}:-2:flags=lanczos,` : ''
-  const vf = `${scale}split[s0][s1];[s0]palettegen=stats_mode=full[p];[s1][p]paletteuse=dither=bayer`
+  const rate = animated ? `fps=${fps},` : ''
+  const statsMode = animated ? 'diff' : 'full'
+  const vf = `${rate}${scale}split[s0][s1];[s0]palettegen=stats_mode=${statsMode}[p];[s1][p]paletteuse=dither=bayer`
 
-  const ret = await ffmpeg.exec(['-i', inputName, '-vf', vf, '-loop', String(loop), outputName])
+  const ret = await ffmpeg.exec([...inputArgs, '-vf', vf, '-loop', String(loop), outputName])
   if (ret !== 0) throw new Error(`FFmpeg exited with code ${ret}`)
 
   const raw = await ffmpeg.readFile(outputName)
