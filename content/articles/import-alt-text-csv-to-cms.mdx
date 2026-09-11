@@ -280,9 +280,9 @@ For systems using an ORM, write a migration script that reads the CSV and iterat
 
 Run through this before pushing alt text to production:
 
-- [ ] **Product names included** — AI doesn't know "Eastfield Classic Hoodie"; add product names to product images.
-- [ ] **Branded terms correct** — Company names, proper nouns, and product model numbers are often wrong or missing in AI descriptions.
-- [ ] **No "Image of" prefix** — Screen readers announce "image" automatically; starting alt text with "Image of" is redundant. Edit these out.
-- [ ] **Text-in-image handled** — If images contain important text (price tags, labels, signs), the alt text should include that text. AI may miss it.
-- [ ] **Decorative images marked** — Images that are purely decorative should have `alt=""` in HTML, not a description. If any images in your batch are decorative, remove their alt text from the CSV before importing.
-- [ ] **Spot-check 10 entries** — Manually verify at least 10 descriptions against the actual images before importing the full batch.
+- [x] **Product names included** — AI doesn't know "Eastfield Classic Hoodie" (add in the product name to the product images).
+- [x] **Branded terms correct** — Company names, proper nouns, and product model numbers often are missing or incorrect in generated descriptions.
+- [ ] **"Image of" is redundant** — Screen readers automatically announce the word "image". Remove this from your import list.
+- [x] **Text-in-image handled** — This ensures that any important text within images (such as price tags, product labels or signs) is included within the generated alt text and may help the AI avoid missing key information.
+- [ ] **Decorative images marked** — Decorative images in the batch of images to be uploaded need to be marked in the CSV for uploading so that no description is added to these images, i.e., these images need to have `alt=""` in HTML.
+- [ ] **Spot-check 10 entries** — Manually verify 10 descriptions against their corresponding images before uploading the rest of your batch.
