@@ -108,6 +108,12 @@ export const config: ToolConfig = {
       a: 'GIF supports only 256 colors — footage with gradients, skin tones, or complex backgrounds will show visible banding or dithering. Long clips at high frame rates produce huge files that may crash the browser tab. Keep clips under 10 seconds and set width to 480 px or less for reliable results.',
     },
   ],
+  howItWorks: [
+    { label: 'Drop your files', desc: 'Drag and drop, click to browse, or paste from clipboard. Up to 1,000 files at once.' },
+    { label: 'Choose settings', desc: 'Adjust start time/end time, frame rate, output width (in pixels), or loop count.' },
+    { label: 'Click Convert', desc: 'Video clip(s) are converted in the browser via WebAssembly. No files are uploaded.' },
+    { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+  ],
   relatedTools: ['mp4-to-webp', 'gif-to-mp4', 'webp-to-gif', 'mp4-to-mp3'],
   relatedArticles: ['how-browser-based-file-conversion-works', 'batch-convert-images'],
   meta: {
