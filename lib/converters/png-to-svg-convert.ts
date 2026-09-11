@@ -21,14 +21,26 @@ interface EdgeSmoothingProfile {
   linefilter: boolean
   supersample: number
   minBlur: number
+  snapAlpha: number
 }
 
 export function edgeSmoothingProfile(value: unknown): EdgeSmoothingProfile {
   const v = value as EdgeSmoothingLevel
-  if (v === 'low') return { qtres: 1.5, linefilter: true, supersample: 1, minBlur: 0 }
-  if (v === 'medium') return { qtres: 2, linefilter: true, supersample: 2, minBlur: 1 }
-  if (v === 'high') return { qtres: 3, linefilter: true, supersample: 2, minBlur: 2 }
-  return { qtres: 1, linefilter: false, supersample: 1, minBlur: 0 }
+  if (v === 'low') return { qtres: 1.5, linefilter: true, supersample: 1, minBlur: 0, snapAlpha: 128 }
+  if (v === 'medium') return { qtres: 2, linefilter: true, supersample: 2, minBlur: 1, snapAlpha: 128 }
+  if (v === 'high') return { qtres: 3, linefilter: true, supersample: 2, minBlur: 2, snapAlpha: 160 }
+  return { qtres: 1, linefilter: false, supersample: 1, minBlur: 0, snapAlpha: 0 }
+}
+
+export function snapAlphaEdges(imageData: ImageData, threshold: number): ImageData {
+  if (threshold <= 0) return imageData
+  const data = imageData.data
+  for (let i = 3; i < data.length; i += 4) {
+    const a = data[i]
+    if (a === 0 || a === 255) continue
+    data[i] = a >= threshold ? 255 : 0
+  }
+  return imageData
 }
 
 export function buildTracerOptions(opts: ToolOptions): Record<string, unknown> {
@@ -111,6 +123,10 @@ async function traceImage(file: File, opts: ToolOptions): Promise<File> {
   bitmap.close()
 
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+  const smoothing = edgeSmoothingProfile(opts.edgesmoothing)
+  if (smoothing.snapAlpha > 0) {
+    snapAlphaEdges(imageData, smoothing.snapAlpha)
+  }
   let svgStr: string = ImageTracer.imagedataToSVG(imageData, buildTracerOptions(opts))
 
   if (factor !== 1) {

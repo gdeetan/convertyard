@@ -4,6 +4,7 @@ import {
   edgeSmoothingProfile,
   normalizeSupersampledSvg,
   scaledSize,
+  snapAlphaEdges,
 } from '../png-to-svg-convert'
 
 describe('buildTracerOptions', () => {
@@ -39,15 +40,48 @@ describe('buildTracerOptions', () => {
 })
 
 describe('edgeSmoothingProfile', () => {
-  it('returns off defaults', () => {
-    expect(edgeSmoothingProfile('off')).toEqual({ qtres: 1, linefilter: false, supersample: 1, minBlur: 0 })
+  it('returns off defaults with no alpha snap', () => {
+    expect(edgeSmoothingProfile('off')).toEqual({
+      qtres: 1,
+      linefilter: false,
+      supersample: 1,
+      minBlur: 0,
+      snapAlpha: 0,
+    })
   })
 
-  it('escalates qtres, linefilter, and supersample as level rises', () => {
+  it('escalates qtres, linefilter, supersample, and snapAlpha as level rises', () => {
     expect(edgeSmoothingProfile('low').linefilter).toBe(true)
+    expect(edgeSmoothingProfile('low').snapAlpha).toBe(128)
     expect(edgeSmoothingProfile('medium').supersample).toBe(2)
     expect(edgeSmoothingProfile('high').qtres).toBe(3)
     expect(edgeSmoothingProfile('high').minBlur).toBe(2)
+    expect(edgeSmoothingProfile('high').snapAlpha).toBe(160)
+  })
+})
+
+describe('snapAlphaEdges', () => {
+  const makePixels = (alphas: number[]): ImageData => {
+    const data = new Uint8ClampedArray(alphas.length * 4)
+    alphas.forEach((a, i) => {
+      data[i * 4 + 0] = 100
+      data[i * 4 + 1] = 100
+      data[i * 4 + 2] = 100
+      data[i * 4 + 3] = a
+    })
+    return { data, width: alphas.length, height: 1, colorSpace: 'srgb' } as unknown as ImageData
+  }
+
+  it('snaps partial alpha to 0 or 255 based on threshold', () => {
+    const img = makePixels([0, 40, 128, 200, 255])
+    snapAlphaEdges(img, 128)
+    expect(Array.from(img.data.filter((_, i) => i % 4 === 3))).toEqual([0, 0, 255, 255, 255])
+  })
+
+  it('is a no-op when threshold is 0', () => {
+    const img = makePixels([50, 100, 200])
+    snapAlphaEdges(img, 0)
+    expect(Array.from(img.data.filter((_, i) => i % 4 === 3))).toEqual([50, 100, 200])
   })
 })
 
