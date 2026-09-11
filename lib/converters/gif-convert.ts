@@ -1,4 +1,4 @@
-import { getFFmpeg } from './ffmpeg-client'
+import { getSingleThreadFFmpeg } from './ffmpeg-client'
 import type { ConversionResult, ToolOptions } from '@/lib/types'
 
 // Detect APNG by scanning for an acTL chunk before the first IDAT.
@@ -25,7 +25,7 @@ async function isAnimatedPng(file: File): Promise<boolean> {
 // throws on non-zero exit — it resolves with the return code, leaving an empty
 // output.gif with no error raised.
 async function singleToGif(file: File, opts: ToolOptions): Promise<File> {
-  const ffmpeg = await getFFmpeg()
+  const ffmpeg = await getSingleThreadFFmpeg()
   const { fetchFile } = await import('@ffmpeg/util')
 
   const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png'
@@ -70,7 +70,7 @@ async function singleToGif(file: File, opts: ToolOptions): Promise<File> {
 // static PNGs have near-zero implicit duration: concat cannot offset frames
 // correctly and the -r flag at output conflicts with PTS-based GIF frame delays.
 async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
-  const ffmpeg = await getFFmpeg()
+  const ffmpeg = await getSingleThreadFFmpeg()
   const { fetchFile } = await import('@ffmpeg/util')
 
   const fps = typeof opts.framerate === 'number' ? opts.framerate : 10
