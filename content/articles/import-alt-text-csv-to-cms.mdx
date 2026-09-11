@@ -5,24 +5,24 @@ export const meta = {
   lastUpdated: '2026-06-08',
   faq: [
     {
-      q: 'What format is the alt text CSV from ConvertYard?',
-      a: 'Two columns: filename and alt_text. The filename column contains the original image filename (e.g., product-shot.jpg). The alt_text column contains the generated description. Open it in Excel or Google Sheets to review and edit before importing.',
+      q: 'Is the exported CSV from ConvertYard in the correct format?',
+      a: 'Two columns: filename and alt_text. The filename column contains the original image filename (e.g., product-shot.jpg). The alt_text column contains the generated description. As always, open the exported CSV in Excel or Google Sheets to review and edit it before importing it into your CMS.',
     },
     {
-      q: 'Can I bulk import alt text to WordPress without a plugin?',
-      a: "Without a plugin, WordPress has no built-in bulk alt text import. You can update alt text one image at a time via the Media Library, or use WP-CLI if you have server access. For batches of 50+ images, a plugin like WP All Import is faster.",
+      q: 'Can you add alt text to images on WordPress sites without a plugin?',
+      a: 'No. You can update each image one at a time in the Media Library or all at once via WP-CLI. For sites with 50+ images to update, though, a plugin such as WP All Import would be much faster.',
     },
     {
       q: 'Does Shopify support bulk alt text import via CSV?',
-      a: "Yes. Shopify's product CSV includes an Image Alt Text column. Export your products CSV, add or update the alt text column using the ConvertYard CSV as a reference, then re-import via Products → Import.",
+      a: 'Yes, Shopify supports bulk image alt text import via a CSV file. When you export your products as a CSV file from Shopify, you can include a column for image alt text. Then, you can add your own alt text to that column and re-import the file back into your Shopify store using the Products -> Import function.',
     },
     {
       q: 'How do I import alt text to Contentful?',
-      a: "Contentful doesn't have a native CSV import for asset alt text. The most efficient approach is the Contentful Management API or the contentful-import CLI tool. For small batches, you can update the Description field on each asset directly in the web app.",
+      a: "Importing alt text to Contentful via CSV isn't possible natively. The most efficient way is to use the Contentful Management API or, even better, the contentful-import CLI tool. If you only have a small batch of items, you can even update the Description field of each asset in the Contentful web app individually.",
     },
     {
       q: 'Should I review AI-generated alt text before importing?',
-      a: "Yes. AI-generated alt text describes what's visually present but doesn't know your brand terms, product names, or context. For product images, review each entry to add the product name and key attributes. For editorial images, check that the description matches the intent of the image in context.",
+      a: "Most importantly, yes, you should review the results. The AI-generated text will correctly identify what it can see in the image, but will have no knowledge of your brand's terms, product names, or specific context. You will likely need to add the product name and relevant attributes to the generated text for product images. Editorial images will need review to ensure the generated description matches the image's intended use in your context.",
     },
   ],
   relatedTools: ['alt-text-generator'],
