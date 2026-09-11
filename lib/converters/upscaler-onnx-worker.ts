@@ -667,8 +667,9 @@ async function graphicScale(
     const nSrcRows = sy1 - sy0 + 1
 
     const srcStrip = new OffscreenCanvas(srcW, nSrcRows)
-    srcStrip.getContext('2d')!.drawImage(bitmap, 0, sy0, srcW, nSrcRows, 0, 0, srcW, nSrcRows)
-    const srcData = srcStrip.getContext('2d')!.getImageData(0, 0, srcW, nSrcRows).data
+    const srcStripCtx = srcStrip.getContext('2d', { willReadFrequently: true })!
+    srcStripCtx.drawImage(bitmap, 0, sy0, srcW, nSrcRows, 0, 0, srcW, nSrcRows)
+    const srcData = srcStripCtx.getImageData(0, 0, srcW, nSrcRows).data
 
     const inter = new Float32Array(targetW * nSrcRows * 4)
     for (let ry = 0; ry < nSrcRows; ry++) {
@@ -977,8 +978,9 @@ async function runOnnxTiling(
       const extH = th + padT + padB
 
       const tileCanvas = new OffscreenCanvas(extW, extH)
-      tileCanvas.getContext('2d')!.drawImage(bitmap, extX, extY, extW, extH, 0, 0, extW, extH)
-      const tileData = tileCanvas.getContext('2d')!.getImageData(0, 0, extW, extH)
+      const tileCtx = tileCanvas.getContext('2d', { willReadFrequently: true })!
+      tileCtx.drawImage(bitmap, extX, extY, extW, extH, 0, 0, extW, extH)
+      const tileData = tileCtx.getImageData(0, 0, extW, extH)
 
       const result = chain.kind === 'realesrgan'
         ? await inferRealesrganTile(extW, extH, tileData.data, id, chain.modelId)
@@ -1047,8 +1049,9 @@ async function restoreFacesOnCanvas(canvas: OffscreenCanvas, id: string): Promis
   const detW = 640
   const detH = 640
   const detCanvas = new OffscreenCanvas(detW, detH)
-  detCanvas.getContext('2d')!.drawImage(canvas, 0, 0, detW, detH)
-  const detRgba = detCanvas.getContext('2d')!.getImageData(0, 0, detW, detH).data
+  const detCtx = detCanvas.getContext('2d', { willReadFrequently: true })!
+  detCtx.drawImage(canvas, 0, 0, detW, detH)
+  const detRgba = detCtx.getImageData(0, 0, detW, detH).data
 
   const ort = await getOrt()
   const yunet = await ensureRealesrgan(device, '4x', YUNET_FACE_ID)
@@ -1090,8 +1093,9 @@ async function restoreFacesOnCanvas(canvas: OffscreenCanvas, id: string): Promis
     const srcFace = new OffscreenCanvas(box.w, box.h)
     srcFace.getContext('2d')!.putImageData(new ImageData(crop, box.w, box.h), 0, 0)
     const aligned = new OffscreenCanvas(GFPGAN_SIZE, GFPGAN_SIZE)
-    aligned.getContext('2d')!.drawImage(srcFace, 0, 0, GFPGAN_SIZE, GFPGAN_SIZE)
-    const faceRgba = aligned.getContext('2d')!.getImageData(0, 0, GFPGAN_SIZE, GFPGAN_SIZE).data
+    const alignedCtx = aligned.getContext('2d', { willReadFrequently: true })!
+    alignedCtx.drawImage(srcFace, 0, 0, GFPGAN_SIZE, GFPGAN_SIZE)
+    const faceRgba = alignedCtx.getImageData(0, 0, GFPGAN_SIZE, GFPGAN_SIZE).data
     try {
       const tensor = new ort.Tensor('float32', rgbaToGfpganNchw(faceRgba, GFPGAN_SIZE, GFPGAN_SIZE), [1, 3, GFPGAN_SIZE, GFPGAN_SIZE])
       const restored = await withTimeout(gfpgan.run({ [gIn]: tensor }), 60_000, `gfpgan-${i}`)

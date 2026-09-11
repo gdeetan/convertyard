@@ -261,8 +261,9 @@ async function graphicScale(
 
     // Extract only the needed source rows (cheap canvas crop — no full-image read).
     const srcStrip = new OffscreenCanvas(srcW, nSrcRows)
-    srcStrip.getContext('2d')!.drawImage(bitmap, 0, sy0, srcW, nSrcRows, 0, 0, srcW, nSrcRows)
-    const srcData = srcStrip.getContext('2d')!.getImageData(0, 0, srcW, nSrcRows).data
+    const srcStripCtx = srcStrip.getContext('2d', { willReadFrequently: true })!
+    srcStripCtx.drawImage(bitmap, 0, sy0, srcW, nSrcRows, 0, 0, srcW, nSrcRows)
+    const srcData = srcStripCtx.getImageData(0, 0, srcW, nSrcRows).data
 
     // ── H-pass: srcW × nSrcRows → targetW × nSrcRows ────────────────────
     // Float32 avoids precision loss from clamping between passes.
@@ -444,8 +445,9 @@ async function runInference(
 
       // Extract overlapping tile as ImageData
       const tileCanvas = new OffscreenCanvas(extW, extH)
-      tileCanvas.getContext('2d')!.drawImage(workBitmap, extX, extY, extW, extH, 0, 0, extW, extH)
-      const tileData = tileCanvas.getContext('2d')!.getImageData(0, 0, extW, extH)
+      const tileCtx = tileCanvas.getContext('2d', { willReadFrequently: true })!
+      tileCtx.drawImage(workBitmap, extX, extY, extW, extH, 0, 0, extW, extH)
+      const tileData = tileCtx.getImageData(0, 0, extW, extH)
 
       let rendered = await upscaleTileToRgba(scale, tileData)
       if (detectFlatOutputMismatch(tileData.data, rendered.rgba)) {
