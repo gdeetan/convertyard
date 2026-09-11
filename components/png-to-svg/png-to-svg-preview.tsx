@@ -87,6 +87,7 @@ function optionsKey(options: Record<string, unknown>): string {
     options.ltres,
     options.qtres,
     options.blurradius,
+    options.edgesmoothing,
   ].join('|')
 }
 

@@ -91,6 +91,24 @@ export const config: ToolConfig = {
         medium: 'Stronger cleanup on noisy or compressed PNGs.',
       },
     },
+    {
+      type: 'radio',
+      name: 'edgesmoothing',
+      label: 'Edge smoothing',
+      default: 'off',
+      choices: [
+        { value: 'off', label: 'Off' },
+        { value: 'low', label: 'Low' },
+        { value: 'medium', label: 'Medium' },
+        { value: 'high', label: 'High' },
+      ],
+      conditionalHints: {
+        off: 'No smoothing — traces the PNG at native resolution.',
+        low: 'Filters noisy segments for cleaner outlines. Same size.',
+        medium: 'Traces at 2× resolution for smoother curves. Slightly larger SVG.',
+        high: 'Maximum smoothing — 2× resolution with stronger curve fitting. Best for jagged logos.',
+      },
+    },
   ],
 
   faq: [
@@ -104,7 +122,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Why does my vectorized logo have rough or jagged edges?',
-      a: 'Anti-aliasing in the original PNG image makes edge pixels near-transparent, leading to rough outlines. You can smooth the rough edges by increasing the Line threshold slider and by forcing the tracer to treat near-edge pixels as either foreground or background by decreasing the Number of colors.',
+      a: 'Anti-aliasing in the original PNG image makes edge pixels near-transparent, leading to rough outlines. Try the Edge smoothing option — Medium or High traces the image at 2× resolution and fits smoother curves. You can also increase the Line threshold slider and decrease the Number of colors so the tracer treats near-edge pixels as either foreground or background.',
     },
     {
       q: 'Will it vectorize a photo?',

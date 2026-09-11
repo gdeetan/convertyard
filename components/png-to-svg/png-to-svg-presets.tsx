@@ -7,17 +7,17 @@ const PRESETS: Array<{ name: string; hint: string; values: ToolOptions }> = [
   {
     name: 'Logo',
     hint: '8 colours, sharp corners — brand marks and icons with flat fills',
-    values: { numberofcolors: 8, pathomit: 8, ltres: 1, qtres: 1, blurradius: 'off' },
+    values: { numberofcolors: 8, pathomit: 8, ltres: 1, qtres: 1, blurradius: 'off', edgesmoothing: 'off' },
   },
   {
     name: 'Line art',
     hint: '2 colours — silhouettes, stamps, and black-and-white drawings',
-    values: { numberofcolors: 2, pathomit: 8, ltres: 0.5, qtres: 1, blurradius: 'off' },
+    values: { numberofcolors: 2, pathomit: 8, ltres: 0.5, qtres: 1, blurradius: 'off', edgesmoothing: 'off' },
   },
   {
     name: 'Detailed',
     hint: '24 colours, keep small paths — illustrations with more shading',
-    values: { numberofcolors: 24, pathomit: 2, ltres: 0.5, qtres: 0.5, blurradius: 'off' },
+    values: { numberofcolors: 24, pathomit: 2, ltres: 0.5, qtres: 0.5, blurradius: 'off', edgesmoothing: 'off' },
   },
 ]
 
