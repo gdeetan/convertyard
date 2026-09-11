@@ -196,6 +196,11 @@ export interface ToolConfig {
     files: File[]
     options: ToolOptions
     onChange: (name: string, value: unknown) => void
+    onReorder?: (from: number, to: number) => void
+    onRemove?: (index: number) => void
+    onRotate?: (index: number) => void
+    onReplaceFiles?: (files: File[]) => void
+    rotations?: number[]
   }>
   reviewPanel?: React.ComponentType<{
     files: File[]
@@ -225,6 +230,7 @@ export interface FileEntry {
   file: File
   status: FileStatus
   progress: number  // 0-100
+  rotation?: number
   result?: File
   resultMeta?: CompressionMeta
   ocrMeta?: OcrResultMeta

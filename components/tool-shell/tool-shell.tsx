@@ -54,6 +54,11 @@ type Action =
   | { type: 'FINISH'; resultMode?: ToolConfig['resultMode'] }
   | { type: 'RESET' }
   | { type: 'EDIT_RESULT'; fileIndex: number; newFile: File }
+  | { type: 'REMOVE_FILE'; index: number }
+  | { type: 'REORDER_FILES'; from: number; to: number }
+  | { type: 'ROTATE_FILE'; index: number }
+  | { type: 'REPLACE_FILES'; files: File[] }
+  | { type: 'KEEP_FIRST_RESULT' }
 
 interface State {
   entries: FileEntry[]
@@ -122,6 +127,44 @@ function reducer(state: State, action: Action): State {
         }
       }
       return { ...state, entries }
+    }
+    case 'REMOVE_FILE': {
+      if (action.index < 0 || action.index >= state.entries.length) return state
+      return { ...state, entries: state.entries.filter((_, i) => i !== action.index) }
+    }
+    case 'REORDER_FILES': {
+      const { from, to } = action
+      if (from === to || from < 0 || to < 0 || from >= state.entries.length || to >= state.entries.length) {
+        return state
+      }
+      const entries = [...state.entries]
+      const [moved] = entries.splice(from, 1)
+      entries.splice(to, 0, moved)
+      return { ...state, entries }
+    }
+    case 'ROTATE_FILE': {
+      const entries = [...state.entries]
+      const current = entries[action.index]
+      if (!current) return state
+      entries[action.index] = { ...current, rotation: ((current.rotation ?? 0) + 90) % 360 }
+      return { ...state, entries }
+    }
+    case 'REPLACE_FILES': {
+      const byFile = new Map(state.entries.map((e) => [e.file, e]))
+      const entries = action.files.map((file) => {
+        const existing = byFile.get(file)
+        return existing ?? {
+          id: crypto.randomUUID(),
+          file,
+          status: 'pending' as const,
+          progress: 0,
+        }
+      })
+      return { ...state, entries }
+    }
+    case 'KEEP_FIRST_RESULT': {
+      const first = state.entries[0]
+      return first ? { ...state, entries: [first] } : state
     }
     case 'SET_ERROR': {
       const entries = [...state.entries]
@@ -240,6 +283,8 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
     dispatch({ type: 'START_CONVERTING' })
 
     const files = state.entries.map((e) => e.file)
+    const pageRotations = state.entries.map((e) => e.rotation ?? 0)
+    const convertOptions = { ...options, pageRotations }
     const onProgress = (fileIndex: number, pct: number) => {
       progressGate.push(progressGen, fileIndex, pct)
     }
@@ -269,7 +314,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
     const wakeLock = await acquireWakeLock()
     let results: ConversionResult[]
     try {
-      results = await config.convertFn(files, options, onProgress, onResult)
+      results = await config.convertFn(files, convertOptions, onProgress, onResult)
     } catch (err) {
       diagError('tool-shell-convert-fail', err)
       results = files.map(() => new Error(err instanceof Error ? err.message : 'Conversion failed'))
@@ -286,6 +331,10 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
     for (const { fileIndex, result } of returnedResultsToDispatch(results)) {
       if (streamedIndices.has(fileIndex)) continue
       dispatchResult(fileIndex, result)
+    }
+
+    if (files.length > 1 && results.length === 1 && results[0] && !(results[0] instanceof Error)) {
+      dispatch({ type: 'KEEP_FIRST_RESULT' })
     }
 
     dispatch({ type: 'FINISH', resultMode: config.resultMode })
@@ -381,6 +430,11 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
                 files={entries.map(e => e.file)}
                 options={options}
                 onChange={handleOptionChange}
+                rotations={entries.map((e) => e.rotation ?? 0)}
+                onReorder={(from, to) => dispatch({ type: 'REORDER_FILES', from, to })}
+                onRemove={(index) => dispatch({ type: 'REMOVE_FILE', index })}
+                onRotate={(index) => dispatch({ type: 'ROTATE_FILE', index })}
+                onReplaceFiles={(files) => dispatch({ type: 'REPLACE_FILES', files })}
               />
             )}
 
