@@ -11,4 +11,10 @@ describe('Real-ESRGAN ONNX shape metadata', () => {
     expect(text).toContain('height_x4')
     expect(text).toContain('width_x4')
   })
+
+  it('marks anime 6B output spatial dims as 4× so WebGPU does not reuse the input buffer', () => {
+    const text = ascii(readFileSync('public/models/realesrgan-x4plus-anime-6b.onnx'))
+    expect(text).toContain('height_x4')
+    expect(text).toContain('width_x4')
+  })
 })

@@ -6,9 +6,11 @@
 
 import { GaussianAccumulator, cropRgba, detectFlatOutputMismatch, rgbaToNchwFloat01, srFloatsToRgba } from './upscaler-render'
 import {
-  REALESRGAN_ANIME_X4,
+  GFPGAN_FACE_ID,
+  REALESRGAN_ANIME_STILL_X4,
   REALESRGAN_SOURCES,
   REALESRGAN_X4,
+  YUNET_FACE_ID,
   type ModelChain,
   type OnnxDevice,
   type PhotoMode,
@@ -20,11 +22,20 @@ import {
   maxOutputDim,
   modelRouting,
   padToMultiple,
+  realesrganDeviceOrder,
   resolveImageMode,
   shouldUseOnnxOnClient,
   swin2srFallbackRouting,
   tileSettings,
 } from './upscaler-settings'
+import {
+  GFPGAN_SIZE,
+  decodeYunetHeads,
+  expandFaceBox,
+  gfpganNchwToRgba,
+  pasteFace,
+  rgbaToGfpganNchw,
+} from './upscaler-face'
 
 declare const __HF_TOKEN__: string
 
@@ -41,6 +52,7 @@ interface InferMsg {
   outputFormat?: string
   imageMode?: ImageMode
   photoEnhance?: boolean
+  restoreFaces?: boolean
 }
 type IncomingMsg = LoadMsg | InferMsg
 
@@ -121,13 +133,14 @@ function uniqueChains(chains: ModelChain[]): ModelChain[] {
 }
 
 async function getOrt() {
-  await import('@huggingface/transformers')
+  // Do not import transformers.js here. A second ORT wasm runtime in this
+  // worker deadlocks Real-ESRGAN session.run. Swin2SR still loads transformers
+  // on its own path; illustration/photo Real-ESRGAN uses this ORT only.
   const mod = await import('onnxruntime-web/webgpu')
   const api = (mod as { default?: typeof mod }).default ?? mod
   if (!api.Tensor || !api.InferenceSession) {
     throw new Error('onnxruntime-web/webgpu is missing Tensor or InferenceSession')
   }
-  // A second ORT wasm proxy inside this worker deadlocks session.run.
   if (api.env?.wasm) {
     api.env.wasm.proxy = false
     api.env.wasm.numThreads = 1
@@ -434,7 +447,9 @@ async function inferRealesrganTile(
 ): Promise<{ rgba: Uint8ClampedArray; width: number; height: number }> {
   const ort = await getOrt()
 
-  const deviceOrder: OnnxDevice[] = ['webgpu']
+  const deviceOrder: OnnxDevice[] = activeDevice === 'wasm'
+    ? ['wasm']
+    : realesrganDeviceOrder(true)
   let deviceIdx = 0
 
   while (deviceIdx < deviceOrder.length) {
@@ -1004,6 +1019,99 @@ async function runOnnxTiling(
   return out
 }
 
+function rgbaToBgrNchw255(rgba: Uint8ClampedArray, width: number, height: number): Float32Array {
+  const plane = width * height
+  const nchw = new Float32Array(3 * plane)
+  for (let i = 0; i < plane; i++) {
+    nchw[i] = rgba[i * 4 + 2]
+    nchw[plane + i] = rgba[i * 4 + 1]
+    nchw[2 * plane + i] = rgba[i * 4]
+  }
+  return nchw
+}
+
+async function restoreFacesOnCanvas(canvas: OffscreenCanvas, id: string): Promise<OffscreenCanvas> {
+  const w = canvas.width
+  const h = canvas.height
+  const ctx = canvas.getContext('2d')!
+  const img = ctx.getImageData(0, 0, w, h)
+  const device: OnnxDevice = activeDevice === 'webgpu' ? 'webgpu' : 'wasm'
+
+  try {
+    await ensureRealesrgan(device, '4x', YUNET_FACE_ID)
+  } catch (err) {
+    self.postMessage({ type: 'log', id, message: `Face detector skipped: ${(err as Error).message}` })
+    return canvas
+  }
+
+  const detW = 640
+  const detH = 640
+  const detCanvas = new OffscreenCanvas(detW, detH)
+  detCanvas.getContext('2d')!.drawImage(canvas, 0, 0, detW, detH)
+  const detRgba = detCanvas.getContext('2d')!.getImageData(0, 0, detW, detH).data
+
+  const ort = await getOrt()
+  const yunet = await ensureRealesrgan(device, '4x', YUNET_FACE_ID)
+  const yIn = yunet.inputNames[0] as string
+  let yunetOut: Record<string, { data: ArrayLike<number>; dims?: number[] }>
+  try {
+    const tensor = new ort.Tensor('float32', rgbaToBgrNchw255(detRgba, detW, detH), [1, 3, detH, detW])
+    yunetOut = await withTimeout(yunet.run({ [yIn]: tensor }), 30_000, 'yunet-run')
+  } catch (err) {
+    self.postMessage({ type: 'log', id, message: `Face detector run failed: ${(err as Error).message}` })
+    return canvas
+  }
+
+  const heads: Record<string, { data: ArrayLike<number>; dims?: number[] }> = {}
+  for (const name of yunet.outputNames as string[]) {
+    heads[name] = yunetOut[name]
+  }
+  const boxes = decodeYunetHeads(heads, detW, detH, w, h)
+  if (boxes.length === 0) {
+    self.postMessage({ type: 'log', id, message: 'Face restore: no faces detected' })
+    return canvas
+  }
+
+  try {
+    await ensureRealesrgan(device, '4x', GFPGAN_FACE_ID)
+  } catch (err) {
+    self.postMessage({ type: 'log', id, message: `Face restore model skipped: ${(err as Error).message}` })
+    return canvas
+  }
+
+  const gfpgan = await ensureRealesrgan(device, '4x', GFPGAN_FACE_ID)
+  const gIn = gfpgan.inputNames[0] as string
+  const gOut = gfpgan.outputNames[0] as string
+  let rgba = img.data
+
+  for (let i = 0; i < boxes.length; i++) {
+    const box = expandFaceBox(boxes[i], w, h, 0.3)
+    const crop = cropRgba(rgba, w, h, box.x, box.y, box.w, box.h)
+    const srcFace = new OffscreenCanvas(box.w, box.h)
+    srcFace.getContext('2d')!.putImageData(new ImageData(crop, box.w, box.h), 0, 0)
+    const aligned = new OffscreenCanvas(GFPGAN_SIZE, GFPGAN_SIZE)
+    aligned.getContext('2d')!.drawImage(srcFace, 0, 0, GFPGAN_SIZE, GFPGAN_SIZE)
+    const faceRgba = aligned.getContext('2d')!.getImageData(0, 0, GFPGAN_SIZE, GFPGAN_SIZE).data
+    try {
+      const tensor = new ort.Tensor('float32', rgbaToGfpganNchw(faceRgba, GFPGAN_SIZE, GFPGAN_SIZE), [1, 3, GFPGAN_SIZE, GFPGAN_SIZE])
+      const restored = await withTimeout(gfpgan.run({ [gIn]: tensor }), 60_000, `gfpgan-${i}`)
+      const outT = restored[gOut]
+      const outData = outT.data instanceof Float32Array ? outT.data : Float32Array.from(outT.data as ArrayLike<number>)
+      const outDims = (outT as { dims?: number[] }).dims
+      const restoredRgba = (outDims && outDims.length === 4 && outDims[3] === 3)
+        ? srFloatsToRgba(outData, GFPGAN_SIZE, GFPGAN_SIZE, outDims)
+        : gfpganNchwToRgba(outData, GFPGAN_SIZE, GFPGAN_SIZE)
+      rgba = pasteFace(rgba, w, h, restoredRgba, GFPGAN_SIZE, GFPGAN_SIZE, box)
+    } catch (err) {
+      self.postMessage({ type: 'log', id, message: `GFPGAN face ${i} failed: ${(err as Error).message}` })
+    }
+  }
+
+  ctx.putImageData(new ImageData(rgba, w, h), 0, 0)
+  self.postMessage({ type: 'log', id, message: `Face restore: ${boxes.length} face(s)` })
+  return canvas
+}
+
 // ── Main inference ─────────────────────────────────────────────────────────────
 
 async function runInference(
@@ -1013,7 +1121,8 @@ async function runInference(
   mimeType: string,
   outputFormat?: string,
   imageMode: ImageMode = 'auto',
-  photoEnhance: boolean = false
+  photoEnhance: boolean = false,
+  restoreFaces: boolean = false
 ) {
   // Wait for model device negotiation to complete (webgpu timeout → wasm fallback).
   // Without this, inferTile picks up activeDevice='webgpu' before loadModel finishes,
@@ -1102,16 +1211,35 @@ async function runInference(
       })
     }
 
-    // ── Illustration path (2D model; Lanczos if WebGPU/model fails) ───────────
+    // ── Illustration path (still-art 4× model; WASM if WebGPU is missing) ──
     if (resolvedMode === 'illustration') {
       try {
-        if (!(await webgpuUsable())) throw new Error('No WebGPU for illustration model')
-        await withTimeout(
-          ensureRealesrgan('webgpu', scale, REALESRGAN_ANIME_X4),
-          15_000,
-          'illustration-webgpu'
-        )
-        activeDevice = 'webgpu'
+        const illoDevices = realesrganDeviceOrder(await webgpuUsable())
+        let illoReady = false
+        for (const device of illoDevices) {
+          try {
+            await withTimeout(
+              ensureRealesrgan(device, scale, REALESRGAN_ANIME_STILL_X4),
+              device === 'webgpu' ? 15_000 : 60_000,
+              `illustration-${device}`
+            )
+            activeDevice = device
+            illoReady = true
+            self.postMessage({
+              type: 'log',
+              id,
+              message: `Illustration model ready on ${device} (anime 6B still-art)`,
+            })
+            break
+          } catch (err) {
+            self.postMessage({
+              type: 'log',
+              id,
+              message: `Illustration ${device} failed: ${(err as Error).message}`,
+            })
+          }
+        }
+        if (!illoReady) throw new Error('Illustration model failed on WebGPU and WASM')
         self.postMessage({ type: 'infer-progress', id, progress: 10 })
         const routing = illustrationRouting(scale)
         const tileCanvas = await runOnnxTiling(
@@ -1213,9 +1341,15 @@ async function runInference(
         }
 
         if (photoEnhance) {
-          self.postMessage({ type: 'infer-progress', id, progress: 90 })
+          self.postMessage({ type: 'infer-progress', id, progress: 88 })
           self.postMessage({ type: 'log', id, message: 'Photo enhance: CLAHE + edge-aware sharpen' })
           finalCanvas = await enhancePhotoCanvas(finalCanvas)
+        }
+
+        if (restoreFaces) {
+          self.postMessage({ type: 'infer-progress', id, progress: 90 })
+          self.postMessage({ type: 'log', id, message: 'Face restore: YuNet + GFPGAN' })
+          finalCanvas = await restoreFacesOnCanvas(finalCanvas, id)
         }
 
         await emitCanvas(finalCanvas)
@@ -1249,9 +1383,9 @@ self.addEventListener('message', async (e: MessageEvent<IncomingMsg>) => {
   }
 
   if (msg.type === 'infer') {
-    const { id, scale, buffer, mimeType, outputFormat, imageMode, photoEnhance } = msg
+    const { id, scale, buffer, mimeType, outputFormat, imageMode, photoEnhance, restoreFaces } = msg
     _inferQueue = _inferQueue.then(() =>
-      runInference(id, scale, buffer, mimeType, outputFormat, imageMode, photoEnhance).catch(err => {
+      runInference(id, scale, buffer, mimeType, outputFormat, imageMode, photoEnhance, restoreFaces).catch(err => {
         const message = (err as Error).message
         self.postMessage({ type: 'log', id, message: `infer error: ${message}` })
         self.postMessage({ type: 'error', id, message })

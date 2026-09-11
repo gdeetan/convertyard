@@ -11,6 +11,9 @@ export const SWIN2SR_COMPRESSED_X2 = 'Xenova/swin2SR-compressed-sr-x2-48'
 export const SWIN2SR_REALWORLD_X4 = 'Xenova/swin2SR-realworld-sr-x4-64-bsrgan-psnr'
 export const REALESRGAN_X4 = 'realesr-general-x4v3'
 export const REALESRGAN_ANIME_X4 = 'realesr-animevideov3'
+export const REALESRGAN_ANIME_STILL_X4 = 'realesrgan-x4plus-anime-6b'
+export const YUNET_FACE_ID = 'yunet-face'
+export const GFPGAN_FACE_ID = 'gfpgan-v1.4'
 
 export const REALESRGAN_LOCAL_URL = '/models/realesr-general-x4v3.onnx'
 export const REALESRGAN_HF_URL =
@@ -18,6 +21,15 @@ export const REALESRGAN_HF_URL =
 export const REALESRGAN_ANIME_LOCAL_URL = '/models/realesr-animevideov3.onnx'
 export const REALESRGAN_ANIME_HF_URL =
   'https://huggingface.co/tidus2102/Real-ESRGAN/resolve/main/RealESR-AnimeVideo-v3_x4.onnx'
+export const REALESRGAN_ANIME_STILL_LOCAL_URL = '/models/realesrgan-x4plus-anime-6b.onnx'
+export const REALESRGAN_ANIME_STILL_HF_URL =
+  'https://huggingface.co/deepghs/imgutils-models/resolve/main/real_esrgan/RealESRGAN_x4plus_anime_6B.onnx'
+export const YUNET_LOCAL_URL = '/models/face-detection-yunet.onnx'
+export const YUNET_REMOTE_URL =
+  'https://github.com/opencv/opencv_zoo/raw/main/models/face_detection_yunet/face_detection_yunet_2023mar.onnx'
+export const GFPGAN_LOCAL_URL = '/models/gfpgan-v1.4.onnx'
+export const GFPGAN_REMOTE_URL =
+  'https://huggingface.co/facefusion/models-3.0.0/resolve/main/gfpgan_1.4.onnx'
 
 export const REALESRGAN_SOURCES: Record<string, { local: string; remote: string; fail: string }> = {
   [REALESRGAN_X4]: {
@@ -29,6 +41,21 @@ export const REALESRGAN_SOURCES: Record<string, { local: string; remote: string;
     local: REALESRGAN_ANIME_LOCAL_URL,
     remote: REALESRGAN_ANIME_HF_URL,
     fail: 'Failed to download illustration upscaler model',
+  },
+  [REALESRGAN_ANIME_STILL_X4]: {
+    local: REALESRGAN_ANIME_STILL_LOCAL_URL,
+    remote: REALESRGAN_ANIME_STILL_HF_URL,
+    fail: 'Failed to download illustration upscaler model',
+  },
+  [YUNET_FACE_ID]: {
+    local: YUNET_LOCAL_URL,
+    remote: YUNET_REMOTE_URL,
+    fail: 'Failed to download face detector',
+  },
+  [GFPGAN_FACE_ID]: {
+    local: GFPGAN_LOCAL_URL,
+    remote: GFPGAN_REMOTE_URL,
+    fail: 'Failed to download face restore model',
   },
 }
 
@@ -137,9 +164,14 @@ export function resolveImageMode(imageMode: ImageMode, detected?: DetectedMode):
 export function illustrationRouting(scale: UpscaleScale): ModelRouting {
   const actualScale = { '2x': 2, '3x': 3, '4x': 4, '8x': 8 }[scale]
   return {
-    chains: [{ modelId: REALESRGAN_ANIME_X4, scale: 4, kind: 'realesrgan' }],
+    chains: [{ modelId: REALESRGAN_ANIME_STILL_X4, scale: 4, kind: 'realesrgan' }],
     actualScale,
   }
+}
+
+/** Real-ESRGAN ONNX sessions: WebGPU when present, WASM otherwise. Never skip AI just because WebGPU is missing. */
+export function realesrganDeviceOrder(webgpu: boolean): OnnxDevice[] {
+  return webgpu ? ['webgpu', 'wasm'] : ['wasm']
 }
 
 export function swin2srFallbackRouting(scale: UpscaleScale, mode: PhotoMode): ModelRouting {
