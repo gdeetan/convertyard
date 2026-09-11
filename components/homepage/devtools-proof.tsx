@@ -1,10 +1,5 @@
 import React from 'react'
-import dynamic from 'next/dynamic'
-
-const DevToolsLive = dynamic(
-  () => import('./devtools-live').then((m) => m.DevToolsLive),
-  { ssr: false },
-)
+import { DevToolsLive } from './devtools-live'
 
 export function DevToolsProof() {
   return (
