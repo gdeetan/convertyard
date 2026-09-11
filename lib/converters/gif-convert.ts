@@ -1,5 +1,22 @@
-import { getFFmpeg } from './ffmpeg-client'
+import { getSingleThreadFFmpeg, withFfmpegLock } from './ffmpeg-client'
 import type { ConversionResult, ToolOptions } from '@/lib/types'
+
+// Detect APNG by scanning for an acTL chunk before the first IDAT.
+// PNG signature is 8 bytes, then a sequence of length(4) + type(4) + data + crc(4) chunks.
+export async function isAnimatedPng(file: File): Promise<boolean> {
+  const head = new Uint8Array(await file.slice(0, Math.min(file.size, 65536)).arrayBuffer())
+  if (head.length < 8 || head[0] !== 0x89 || head[1] !== 0x50 || head[2] !== 0x4e || head[3] !== 0x47) return false
+  let off = 8
+  const dv = new DataView(head.buffer, head.byteOffset, head.byteLength)
+  while (off + 8 <= head.length) {
+    const len = dv.getUint32(off)
+    const type = String.fromCharCode(head[off + 4], head[off + 5], head[off + 6], head[off + 7])
+    if (type === 'acTL') return true
+    if (type === 'IDAT') return false
+    off += 8 + len + 4
+  }
+  return false
+}
 
 // Single file → GIF. Uses a one-pass split-palette filtergraph.
 // Two-pass with a separate palette.png file is unreliable for static images
@@ -7,25 +24,41 @@ import type { ConversionResult, ToolOptions } from '@/lib/types'
 // has ~0.04s implicit duration, so fps=N yields <1 frame), and exec() never
 // throws on non-zero exit — it resolves with the return code, leaving an empty
 // output.gif with no error raised.
-async function singleToGif(file: File, opts: ToolOptions): Promise<File> {
-  const ffmpeg = await getFFmpeg()
+let jobCounter = 0
+
+async function singleToGif(
+  file: File,
+  opts: ToolOptions,
+  previewMaxFrames?: number,
+): Promise<File> {
+  const jobId = ++jobCounter
+  const ffmpeg = await getSingleThreadFFmpeg()
   const { fetchFile } = await import('@ffmpeg/util')
 
   const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png'
-  const inputName = `input.${ext}`
-  const outputName = 'output.gif'
+  const inputName = `input_${jobId}.${ext}`
+  const outputName = `output_${jobId}.gif`
 
   await ffmpeg.writeFile(inputName, await fetchFile(file))
 
   const outputWidth = typeof opts.outputWidth === 'number' ? opts.outputWidth : 0
   const loop = typeof opts.loop === 'number' ? opts.loop : 0
+  const fps = typeof opts.framerate === 'number' ? opts.framerate : 10
 
-  // split[s0][s1] copies the input stream — s0 feeds palettegen, s1 feeds
-  // paletteuse. One pass, no intermediate file, works for any frame count.
+  // Animated PNGs (APNG) need bounded frame count and cheaper palette stats,
+  // otherwise palettegen=full over hundreds of full-res frames takes hours in wasm.
+  const animated = ext === 'png' && await isAnimatedPng(file)
+  const inputArgs = animated ? ['-f', 'apng', '-i', inputName] : ['-i', inputName]
+
+  // Order matters: fps + scale go BEFORE split so palettegen sees a bounded stream.
+  // stats_mode=diff is far cheaper than full and visually equivalent for most APNGs.
   const scale = outputWidth > 0 ? `scale=${outputWidth}:-2:flags=lanczos,` : ''
-  const vf = `${scale}split[s0][s1];[s0]palettegen=stats_mode=full[p];[s1][p]paletteuse=dither=bayer`
+  const rate = animated ? `fps=${fps},` : ''
+  const statsMode = animated ? 'diff' : 'full'
+  const vf = `${rate}${scale}split[s0][s1];[s0]palettegen=stats_mode=${statsMode}[p];[s1][p]paletteuse=dither=bayer`
 
-  const ret = await ffmpeg.exec(['-i', inputName, '-vf', vf, '-loop', String(loop), outputName])
+  const frameCap = previewMaxFrames && animated ? ['-frames:v', String(previewMaxFrames)] : []
+  const ret = await ffmpeg.exec([...inputArgs, '-vf', vf, '-loop', String(loop), ...frameCap, outputName])
   if (ret !== 0) throw new Error(`FFmpeg exited with code ${ret}`)
 
   const raw = await ffmpeg.readFile(outputName)
@@ -39,13 +72,24 @@ async function singleToGif(file: File, opts: ToolOptions): Promise<File> {
   return new File([blob], file.name.replace(/\.[^.]+$/, '.gif'), { type: 'image/gif' })
 }
 
+// Fast APNG→GIF sample for the live preview UI. Encodes only the first N frames
+// at current settings so users can eyeball dither/fps/scale without waiting for
+// the full animation. Serialized against the real convert via withFfmpegLock.
+export async function gifPreview(
+  file: File,
+  opts: ToolOptions,
+  maxFrames = 12,
+): Promise<File> {
+  return withFfmpegLock(() => singleToGif(file, opts, maxFrames))
+}
+
 // Multiple static images → one animated GIF (each file = one frame in order).
 // Uses the concat demuxer (a text list with explicit per-frame duration) so every
 // frame gets a proper PTS. A per-input filter_complex concat approach fails because
 // static PNGs have near-zero implicit duration: concat cannot offset frames
 // correctly and the -r flag at output conflicts with PTS-based GIF frame delays.
 async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
-  const ffmpeg = await getFFmpeg()
+  const ffmpeg = await getSingleThreadFFmpeg()
   const { fetchFile } = await import('@ffmpeg/util')
 
   const fps = typeof opts.framerate === 'number' ? opts.framerate : 10
@@ -115,7 +159,7 @@ export async function gifConvert(
   if (files.length > 1) {
     onProgress?.(0, 10)
     try {
-      const out = await sequenceToGif(files, opts)
+      const out = await withFfmpegLock(() => sequenceToGif(files, opts))
       for (let i = 0; i < files.length; i++) onProgress?.(i, 100)
       onResult?.(0, out)
       return [out]
@@ -129,7 +173,7 @@ export async function gifConvert(
 
   onProgress?.(0, 10)
   try {
-    const out = await singleToGif(files[0], opts)
+    const out = await withFfmpegLock(() => singleToGif(files[0], opts))
     onProgress?.(0, 100)
     onResult?.(0, out)
     return [out]
