@@ -91,7 +91,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'extract-images',    title: 'Extract Images',     description: 'Pull embedded images or render pages as PNG.',           category: 'pdf', status: 'live' },
   { slug: 'markdown-to-pdf',  title: 'Markdown to PDF',  description: 'Convert .md files to text-searchable PDFs — headings, lists, code blocks.',  category: 'pdf', status: 'live' },
   { slug: 'csv-to-pdf',       title: 'CSV to PDF',        description: 'Turn CSV data into a formatted table PDF with grid lines.',                     category: 'pdf', status: 'live' },
-  { slug: 'heic-to-pdf',      title: 'HEIC to PDF',       description: 'Convert iPhone HEIC photos to PDF — one per image or all combined.',           category: 'pdf', status: 'live' },
+  { slug: 'heic-to-pdf',      title: 'HEIC to PDF',       description: 'Convert iPhone HEIC photos to PDF — combine, reorder, and pick print or email size.',           category: 'pdf', status: 'live' },
   { slug: 'extract-tables',   title: 'Extract Tables',    description: 'Pull tables out of PDFs as CSV files — one CSV per detected table.',           category: 'pdf', status: 'live' },
   { slug: 'epub-to-pdf',      title: 'EPUB to PDF',       description: 'Convert ebooks to text-searchable PDFs — chapters in reading order.',         category: 'pdf', status: 'live' },
   { slug: 'header-footer',  title: 'Header & Footer',   description: 'Stamp headers and footers on every page — date, page number, custom text.', category: 'pdf', status: 'live' },
