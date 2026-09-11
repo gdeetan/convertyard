@@ -21,6 +21,7 @@ import { useRecentTools } from '@/lib/hooks/use-recent-tools'
 import { diagLog, diagError } from '@/lib/debug/mobile-diagnostics'
 import { acquireWakeLock } from '@/lib/utils/wake-lock'
 import { returnedResultsToDispatch } from '@/lib/utils/conversion-results'
+import { createConversionProgressGate, nextProcessingProgress } from '@/lib/utils/conversion-progress'
 
 const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
   images:           { label: 'Image Converters',     href: '/images' },
@@ -87,9 +88,10 @@ function reducer(state: State, action: Action): State {
         // encoder falls through to wasm) and re-emit progress from a lower
         // value. Showing the raw dip reads as "started over" and makes the
         // ETA useless. Never move backward; cap at 99 so SET_RESULT owns 100.
-        const prev = current.progress ?? 0
-        const next = Math.min(99, Math.max(prev, action.pct))
-        if (next !== prev) {
+        // Ignore ticks after SET_RESULT — a trailing 100% would otherwise
+        // rewind a done file to 99%.
+        const next = nextProcessingProgress(current.status, current.progress ?? 0, action.pct)
+        if (next != null) {
           entries[action.fileIndex] = { ...current, progress: next }
           return { ...state, entries }
         }
@@ -197,22 +199,22 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
     setAdvancedOpen(true)
   }, [])
 
-  // Batch progress updates via RAF to avoid flooding React
-  const pendingProgress = useRef<Array<[number, number]>>([])
+  // Batch progress updates via RAF to avoid flooding React. Generation-gated
+  // so a leftover 100% from the previous run cannot pin the next run at 99%.
+  const progressGate = useRef(createConversionProgressGate()).current
 
   useEffect(() => {
     if (state.phase !== 'converting') return
     let rafId: number
     const flush = () => {
-      const updates = pendingProgress.current.splice(0)
-      for (const [idx, pct] of updates) {
+      for (const [idx, pct] of progressGate.drain()) {
         dispatch({ type: 'SET_PROGRESS', fileIndex: idx, pct })
       }
       rafId = requestAnimationFrame(flush)
     }
     rafId = requestAnimationFrame(flush)
     return () => cancelAnimationFrame(rafId)
-  }, [state.phase])
+  }, [state.phase, progressGate])
 
   const handleAdd = useCallback((files: File[]) => {
     dispatch({ type: 'ADD_FILES', files })
@@ -223,9 +225,10 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
   }, [config])
 
   const handleReset = useCallback(() => {
+    progressGate.invalidate()
     dispatch({ type: 'RESET' })
     setFileWarning(null)
-  }, [])
+  }, [progressGate])
 
   const handleOptionChange = useCallback((name: string, value: unknown) => {
     setOptions((prev) => ({ ...prev, [name]: value }))
@@ -233,11 +236,12 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
 
   const handleConvert = useCallback(async () => {
     if (state.entries.length === 0) return
+    const progressGen = progressGate.begin()
     dispatch({ type: 'START_CONVERTING' })
 
     const files = state.entries.map((e) => e.file)
     const onProgress = (fileIndex: number, pct: number) => {
-      pendingProgress.current.push([fileIndex, pct])
+      progressGate.push(progressGen, fileIndex, pct)
     }
 
     const streamedIndices = new Set<number>()
@@ -291,7 +295,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
       const successFiles = results.filter((r): r is File => r instanceof File)
       onResults(successFiles)
     }
-  }, [state.entries, config, options, onResults, record])
+  }, [state.entries, config, options, onResults, record, progressGate])
 
   const { entries, phase, announcement } = state
   const hasFiles = entries.length > 0

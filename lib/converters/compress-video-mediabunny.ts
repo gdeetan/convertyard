@@ -34,6 +34,16 @@ const RESOLUTION_HEIGHT: Record<string, number> = {
   '360p': 360,
 }
 
+/** Height-only resize so mediabunny keeps display aspect ratio and rotation. */
+export function mediabunnyVideoTarget(
+  resolution: string,
+  displayHeight: number,
+): { height: number; fit: 'contain' } | undefined {
+  const targetHeight = RESOLUTION_HEIGHT[resolution]
+  if (!targetHeight || !(displayHeight > targetHeight)) return undefined
+  return { height: targetHeight, fit: 'contain' }
+}
+
 // Same bits-per-pixel table as compress-video-webcodecs.ts so quality levels
 // feel consistent regardless of which pipeline handled the file.
 const AVC_BPP: Record<string, number> = {
@@ -152,26 +162,34 @@ export async function compressVideoWithMediabunny(
   // level or target size. Mediabunny reads only the moov via BlobSource,
   // so this is fast even on multi-GB inputs.
   const probeInput = new Input({ source: new BlobSource(file), formats: ALL_FORMATS })
-  const videoTrack = await probeInput.getPrimaryVideoTrack()
-  if (!videoTrack) {
-    return new Error('This file has no video track. Video Compressor only works on video files.')
+  let durationSeconds: number
+  let srcW: number
+  let srcH: number
+  let fps: number
+  try {
+    const videoTrack = await probeInput.getPrimaryVideoTrack()
+    if (!videoTrack) {
+      return new Error('This file has no video track. Video Compressor only works on video files.')
+    }
+    durationSeconds = await probeInput.computeDuration()
+    srcW = await (videoTrack.getDisplayWidth?.() ?? videoTrack.getCodedWidth())
+    srcH = await (videoTrack.getDisplayHeight?.() ?? videoTrack.getCodedHeight())
+    const packetStats = await videoTrack.computePacketStats().catch(() => null)
+    fps = packetStats?.averagePacketRate && packetStats.averagePacketRate > 0
+      ? Math.min(60, Math.max(1, Math.round(packetStats.averagePacketRate)))
+      : 30
+  } finally {
+    probeInput.dispose()
   }
-  const durationSeconds = await probeInput.computeDuration()
-  const srcW = await videoTrack.getCodedWidth()
-  const srcH = await videoTrack.getCodedHeight()
-  const packetStats = await videoTrack.computePacketStats().catch(() => null)
-  const fps = packetStats?.averagePacketRate && packetStats.averagePacketRate > 0
-    ? Math.min(60, Math.max(1, Math.round(packetStats.averagePacketRate)))
-    : 30
 
-  // Compute target dimensions. Mediabunny handles the actual resize.
-  const targetHeight = RESOLUTION_HEIGHT[resolution]
+  // Height-only resize. Passing both coded width and height with fit:contain
+  // letterboxes when the track is rotated or has non-square pixels.
+  const resize = mediabunnyVideoTarget(resolution, srcH)
   let outW = srcW
   let outH = srcH
-  if (targetHeight && srcH > targetHeight) {
-    outH = targetHeight
+  if (resize) {
+    outH = resize.height
     outW = Math.round(srcW * (outH / srcH))
-    // Even dims — WebCodecs encoders reject odd values for 4:2:0 subsampling.
     if (outW % 2) outW -= 1
     if (outH % 2) outH -= 1
   }
@@ -229,9 +247,7 @@ export async function compressVideoWithMediabunny(
       input,
       output,
       video: {
-        width: outW,
-        height: outH,
-        fit: 'contain',
+        ...resize,
         codec: h265 ? 'hevc' : 'avc',
         bitrate,
         hardwareAcceleration: 'prefer-hardware',
@@ -256,7 +272,7 @@ export async function compressVideoWithMediabunny(
       onProgress(5 + Math.round(progress * 90))
     }
 
-    logPhase('execute-start', 5)
+    logPhase(resize ? `execute-start-${resolution}` : 'execute-start', 5)
     await conversion.execute()
     logPhase('execute-done', 95)
 
