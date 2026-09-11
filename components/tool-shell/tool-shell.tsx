@@ -216,12 +216,20 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
     return () => cancelAnimationFrame(rafId)
   }, [state.phase, progressGate])
 
+  const toolCardRef = useRef<HTMLDivElement>(null)
+
   const handleAdd = useCallback((files: File[]) => {
     dispatch({ type: 'ADD_FILES', files })
     diagLog('files-added', `${files.length} files total=${files.reduce((s, f) => s + f.size, 0)} bytes`)
     if (config.warningFn) {
       setFileWarning(config.warningFn(files))
     }
+    // After the compact dropzone collapses, the shorter tool card can leave
+    // the user scrolled down on the How-it-works section. Pull the card back
+    // into view so the file list and options are visible.
+    requestAnimationFrame(() => {
+      toolCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }, [config])
 
   const handleReset = useCallback(() => {
@@ -346,7 +354,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
       {notice && <div className="mb-4">{notice}</div>}
 
       {/* ── Main tool card ───────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-border bg-bg-elevated p-6 shadow-sm">
+      <div ref={toolCardRef} className="scroll-mt-4 rounded-2xl border border-border bg-bg-elevated p-6 shadow-sm">
         {/* Idle: no files */}
         {phase === 'idle' && !hasFiles && (
           <Dropzone

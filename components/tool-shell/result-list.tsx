@@ -399,9 +399,14 @@ function useVideoThumbnail(file?: File) {
 
     video.onloadedmetadata = () => {
       if (cancelled) return
-      // Seek slightly past the start to skip common all-black intro frames.
-      const seekTo = Math.min(0.5, Math.max(0, (video.duration || 0) * 0.1))
-      video.currentTime = seekTo
+      // Seek past common all-black intro frames. Aim for 10% of duration but
+      // land no earlier than 1s and no later than 3s so short clips still get
+      // a real frame and long clips don't wait forever for a deep seek.
+      const duration = video.duration || 0
+      const seekTo = duration > 0
+        ? Math.min(3, Math.max(1, duration * 0.1))
+        : 1
+      video.currentTime = Math.min(seekTo, Math.max(0, duration - 0.1))
     }
     video.onseeked = scheduleCapture
     video.onerror = cleanup
