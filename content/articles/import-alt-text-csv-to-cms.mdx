@@ -176,14 +176,14 @@ Loop over your CSV rows, look up the image ID by filename using the `GET /produc
 
 ## Contentful
 
-Contentful stores images as Assets. Each Asset has a `description` field that serves as alt text when you reference the asset in your templates.
+All images in Contentful are stored as Assets. An asset has a `description` field. When you then include an asset in a template, this description field is used as alt text for the images in the templates.
 
 ### Via the web app (small batches)
 
 1. Go to **Content → Media**.
 2. Find the asset by name (use the search bar).
 3. Click the asset to open it.
-4. Update the **Description** field with the alt text from your CSV.
+4. Update the **Description** field with the corresponding alt text from the CSV file.
 5. Click **Publish**.
 
 ### Via the Contentful Management API
