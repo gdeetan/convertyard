@@ -1,9 +1,9 @@
 import type { Metadata } from 'next'
 import { breadcrumbSchema, BASE_URL } from '@/lib/seo/schema'
 
-const title = 'Make a CSS Gradient — ConvertYard'
+const title = 'CSS Gradient Generator - Generates CSS, Image Background, w/ Presets'
 const description =
-  'Build a CSS gradient with a live preview. Add color stops, pick linear or radial, copy the CSS or export a PNG. Runs in your browser — nothing is uploaded.'
+  'Generate colorfull CSS gradient background with this tool. It has gradient presets (linear, radial, or conic), and you can export the background as a PNG file.'
 
 export const metadata: Metadata = {
   title: { absolute: title },
