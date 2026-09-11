@@ -1,4 +1,5 @@
 import { gifConvert } from '@/lib/converters/gif-convert'
+import { PngToGifPreview } from '@/components/tools/png-to-gif-preview'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -12,6 +13,7 @@ export const config: ToolConfig = {
   outputExt: '.gif',
   resultMode: 'combined-output',
   convertFn: (files, opts, onProgress, onResult) => gifConvert(files, opts, onProgress, onResult),
+  interactivePanel: PngToGifPreview,
   enablePresets: true,
   limitationNote: {
     summary: 'PNG transparency becomes binary in GIF',
