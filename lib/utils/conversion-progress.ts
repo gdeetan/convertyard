@@ -19,7 +19,9 @@ export function createConversionProgressGate() {
       pending.push([fileIndex, pct])
     },
     drain(): Array<[number, number]> {
-      return pending.splice(0)
+      const latest = new Map<number, number>()
+      for (const [i, pct] of pending.splice(0)) latest.set(i, pct)
+      return [...latest.entries()]
     },
     invalidate(): void {
       generation += 1
@@ -35,6 +37,11 @@ export function nextProcessingProgress(
   pct: number,
 ): number | null {
   if (status !== 'processing') return null
+  // A finished run queues onProgress(100). If that tick lands after
+  // START_CONVERTING (progress 0), the monotonic cap would pin the new
+  // bar at 99% and hide the ETA for the whole encode.
+  if (prev < 1 && pct >= 99) return null
   const next = Math.min(99, Math.max(prev, pct))
-  return next === prev ? null : next
+  const rounded = Math.round(next * 10) / 10
+  return rounded === prev ? null : rounded
 }

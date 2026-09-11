@@ -25,6 +25,14 @@ describe('createConversionProgressGate', () => {
     gate.push(gen, 0, 100)
     expect(gate.drain()).toEqual([])
   })
+
+  it('keeps the latest tick per file so a leftover 100% cannot win over a new 5%', () => {
+    const gate = createConversionProgressGate()
+    const gen = gate.begin()
+    gate.push(gen, 0, 100)
+    gate.push(gen, 0, 5)
+    expect(gate.drain()).toEqual([[0, 5]])
+  })
 })
 
 describe('nextProcessingProgress', () => {
@@ -32,11 +40,19 @@ describe('nextProcessingProgress', () => {
     expect(nextProcessingProgress('done', 100, 100)).toBeNull()
   })
 
+  it('ignores a leftover 100% tick at the start of a new run so the bar does not jump to 99%', () => {
+    expect(nextProcessingProgress('processing', 0, 100)).toBeNull()
+  })
+
   it('caps in-flight progress at 99 so SET_RESULT owns 100', () => {
-    expect(nextProcessingProgress('processing', 0, 100)).toBe(99)
+    expect(nextProcessingProgress('processing', 80, 100)).toBe(99)
   })
 
   it('never moves backward while a file is still processing', () => {
     expect(nextProcessingProgress('processing', 99, 5)).toBeNull()
+  })
+
+  it('keeps tenth-percent updates so a long encode can move the bar', () => {
+    expect(nextProcessingProgress('processing', 5, 5.14)).toBe(5.1)
   })
 })

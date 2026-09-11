@@ -263,13 +263,21 @@ export async function compressVideoWithMediabunny(
     }
 
     let firstProgressLogged = false
+    let lastLoggedBand = -1
     conversion.onProgress = (progress: number) => {
+      // Reserve 5–95 for the encode; keep tenths so a multi-GB 360p/480p
+      // run can move the bar instead of sitting on a rounded 5%.
+      const mapped = 5 + Math.min(1, Math.max(0, progress)) * 90
       if (!firstProgressLogged) {
         firstProgressLogged = true
-        logPhase('execute-first-progress', 5 + Math.round(progress * 90))
+        logPhase('execute-first-progress', mapped)
       }
-      // Reserve 5–95 for the encode; 96–99 for finalize/OPFS close.
-      onProgress(5 + Math.round(progress * 90))
+      const band = Math.floor(mapped / 10)
+      if (band !== lastLoggedBand && band >= 1) {
+        lastLoggedBand = band
+        logPhase('execute-progress', Math.round(mapped))
+      }
+      onProgress(mapped)
     }
 
     logPhase(resize ? `execute-start-${resolution}` : 'execute-start', 5)
