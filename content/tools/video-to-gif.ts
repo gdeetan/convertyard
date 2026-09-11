@@ -1,4 +1,5 @@
 import { videoToGif } from '@/lib/converters/ffmpeg'
+import { VideoToGifPreview } from '@/components/video-to-gif-preview/video-to-gif-preview'
 import type { ToolConfig } from '@/lib/types'
 
 const LARGE_FILE_BYTES = 250 * 1024 * 1024
@@ -13,6 +14,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.mp4', '.webm', '.mov'],
   outputExt: '.gif',
   convertFn: videoToGif,
+  interactivePanel: VideoToGifPreview,
   enablePresets: true,
   limitationNote: {
     summary: 'Best for short clips',
