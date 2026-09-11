@@ -26,6 +26,12 @@ export async function isAnimatedPng(file: File): Promise<boolean> {
 // output.gif with no error raised.
 let jobCounter = 0
 
+// GIF max palette is 256; palettegen requires min 4.
+function clampColors(v: unknown): number {
+  const n = typeof v === 'number' && Number.isFinite(v) ? Math.round(v) : 256
+  return Math.max(4, Math.min(256, n))
+}
+
 async function singleToGif(
   file: File,
   opts: ToolOptions,
@@ -44,6 +50,7 @@ async function singleToGif(
   const outputWidth = typeof opts.outputWidth === 'number' ? opts.outputWidth : 0
   const loop = typeof opts.loop === 'number' ? opts.loop : 0
   const fps = typeof opts.framerate === 'number' ? opts.framerate : 10
+  const maxColors = clampColors(opts.maxColors)
 
   // Animated PNGs (APNG) need bounded frame count and cheaper palette stats,
   // otherwise palettegen=full over hundreds of full-res frames takes hours in wasm.
@@ -55,7 +62,7 @@ async function singleToGif(
   const scale = outputWidth > 0 ? `scale=${outputWidth}:-2:flags=lanczos,` : ''
   const rate = animated ? `fps=${fps},` : ''
   const statsMode = animated ? 'diff' : 'full'
-  const vf = `${rate}${scale}split[s0][s1];[s0]palettegen=stats_mode=${statsMode}[p];[s1][p]paletteuse=dither=bayer`
+  const vf = `${rate}${scale}split[s0][s1];[s0]palettegen=max_colors=${maxColors}:stats_mode=${statsMode}[p];[s1][p]paletteuse=dither=bayer`
 
   const frameCap = previewMaxFrames && animated ? ['-frames:v', String(previewMaxFrames)] : []
   const ret = await ffmpeg.exec([...inputArgs, '-vf', vf, '-loop', String(loop), ...frameCap, outputName])
@@ -95,6 +102,7 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
   const fps = typeof opts.framerate === 'number' ? opts.framerate : 10
   const outputWidth = typeof opts.outputWidth === 'number' ? opts.outputWidth : 0
   const loop = typeof opts.loop === 'number' ? opts.loop : 0
+  const maxColors = clampColors(opts.maxColors)
 
   // Get first frame dimensions for target canvas size.
   const bmp = await createImageBitmap(files[0])
@@ -128,9 +136,10 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
   // palettegen/paletteuse via filter_complex fails in ffmpeg.wasm (two-input sync
   // issues, split buffering problems). Direct encoding is reliable and produces
   // correct animated output.
+  const vf = `scale=${targetW}:${targetH}:flags=lanczos,split[s0][s1];[s0]palettegen=max_colors=${maxColors}:stats_mode=full[p];[s1][p]paletteuse=dither=bayer`
   const ret = await ffmpeg.exec([
     '-f', 'concat', '-safe', '0', '-i', 'concat.txt',
-    '-vf', `scale=${targetW}:${targetH}:flags=lanczos`,
+    '-vf', vf,
     '-loop', String(loop),
     'output.gif',
   ])

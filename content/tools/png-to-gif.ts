@@ -4,9 +4,9 @@ import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
   slug: 'png-to-gif',
-  title: 'PNG to GIF Converter',
-  subtitle: 'Animate PNG sequences or convert single PNGs to GIF. 256-colour palette with dithering.',
-  bestFor: 'Best for animators assembling PNG frame sequences into a shareable GIF.',
+  title: 'Convert PNG or (Animated) APNG files to GIF',
+  subtitle: 'Convert static PNGs, animated PNG (APNG) files, or PNG frame sequences to GIF. Auto-detects animation and previews before you export.',
+  bestFor: 'Best for turning animated PNGs (APNG) into shareable GIFs, or assembling PNG frame sequences into an animation.',
   category: 'images',
   accepts: ['image/png'],
   acceptsExt: ['.png'],
@@ -50,6 +50,16 @@ export const config: ToolConfig = {
       default: 0,
       hint: '0 = infinite loop.',
     },
+    {
+      type: 'slider',
+      name: 'maxColors',
+      label: 'Number of colours',
+      min: 4,
+      max: 256,
+      step: 4,
+      default: 256,
+      hint: 'Smaller palette = smaller file, more banding. GIF max is 256.',
+    },
   ],
   faq: [
     {
@@ -76,7 +86,7 @@ export const config: ToolConfig = {
   relatedTools: ['jpg-to-gif', 'webp-to-gif', 'png-to-webp'],
   relatedArticles: [],
   meta: {
-    title: 'Convert Animated PNGs to GIFs - Nothing Uploads, 100% Free',
-    description: 'Convert static or animated PNGs to GIFs to use on your website. Batch convert up to 1000 files per session. Nothing uploads',
+    title: 'Convert PNG or Animated APNG to GIF — ConvertYard',
+    description: 'Convert static PNGs or animated APNG files to GIF in your browser. Auto-detects animation, live preview, batch up to 1000 files. Nothing uploads.',
   },
 }
