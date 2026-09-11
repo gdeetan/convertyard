@@ -119,24 +119,35 @@ Run it with: `bash update-alt-text.sh alt-text.csv`
 
 ## Shopify
 
-Shopify product images have an alt text field that maps to the `Image Alt Text` column in the product CSV.
+Alt text for Shopify product images is stored in a field that is mapped to the `Image Alt Text` column in the product CSV.
 
 ### Via product CSV import
 
-1. Go to **Products → Export** and export all products as a CSV.
-2. Open the CSV in Excel or Google Sheets. Find the columns: `Image Src` and `Image Alt Text`.
-3. Open your alt text CSV from ConvertYard alongside it.
+1. Export all the products from the **Products** page in Shopify using the **Export** feature and choose **CSV** as the file type. Open this CSV in Excel or Google Sheets.
+2. Open your CSV in Excel or Google Sheets. Locate the columns `Image Src` and `Image Alt Text`.
+3. Open your alt text CSV from ConvertYard alongside this file.
 4. Match rows by filename: the `Image Src` column contains the full URL — the filename is the last segment (e.g., `https://cdn.shopify.com/.../product-blue-hoodie.jpg`).
-5. Paste the corresponding `alt_text` value into the `Image Alt Text` column.
-6. Save the CSV and go to **Products → Import**, then upload the updated file.
+5. Paste the corresponding text from the `alt_text` CSV file into the `Image Alt Text` column.
+6. Save that CSV and then go to **Products → Import** and upload that file.
 
-**Tip:** Use a VLOOKUP or XLOOKUP formula in Google Sheets to match filenames automatically rather than copying each value manually.
+**Note:** This tip uses VLOOKUP / XLOOKUP to match filename in Shopify CSV with corresponding alt text in your ConvertYard CSV.
 
 ```
-=IFERROR(VLOOKUP(RIGHT(B2,LEN(B2)-FIND("✦",SUBSTITUTE(B2,"/","✦",LEN(B2)-LEN(SUBSTITUTE(B2,"/",""))))), AltTextSheet!A:B, 2, 0), "")
+=IFERROR(
+  VLOOKUP(
+    RIGHT(
+      B2,
+      LEN(B2) - FIND("✦", SUBSTITUTE(B2, "/", "✦", LEN(B2) - LEN(SUBSTITUTE(B2, "/", ""))))
+    ),
+    AltTextSheet!A:B,
+    2,
+    0
+  ),
+  ""
+)
 ```
 
-(This extracts the filename from the full Shopify CDN URL and looks it up in your alt text sheet.)
+(This code snippet extracts the filename from the full URL of a Shopify CDN hosted image, and looks that up in your alt text sheet.)
 
 ### Via Shopify Admin API
 
