@@ -100,25 +100,25 @@ Quality settings below 70 will start to exhibit noticeable artifacts in the outp
 
 ## Lossless WebP: when to use it
 
-WebP lossless is not a quality setting — it's a different encoding mode that preserves every pixel exactly. Use it for:
+WebP lossless isn't a quality setting; it's a completely different encoding mode. It encodes the image so every pixel is saved 100% exactly as it was in the original image. The following types of images benefit from WebP lossless encoding:
 
 - **Screenshots** and UI captures
 - **Logos and icons** (if not using SVG)
-- **Images you'll edit again** — re-compressing a lossy image introduces additional quality loss each round trip
+- **Images you'll re-edit / re-tweak** before sending off to final compression — each re-compression of a lossy image degrades quality further.
 - **Source images** that will be served at multiple sizes
 
-Lossless WebP files are typically 15–25% smaller than equivalent PNGs for photographic content, but larger than lossy WebP. For display-only images, lossy quality 90 is visually equivalent to lossless at half the file size.
+Lossless WebP files typically save 15%–25% over corresponding PNG files for photographs, but are generally larger than their lossy counterparts. For display images, a quality of 90 (lossy) will generally look identical to the lossless version at half the file size.
 
 ## Comparing WebP to JPEG: quality numbers don't match
 
-A common mistake: comparing WebP quality 80 to JPEG quality 80 and expecting equivalent output. Quality numbers are format-specific — the encoders use them differently.
+People new to WebP will often compare quality 80 to JPEG quality 80, expecting similar results. Encoders use them differently for different formats.
 
-In practice, **WebP quality 80 is roughly equivalent to JPEG quality 85–90** in perceptual terms, at a smaller file size. WebP's compression is simply more efficient. If your tool defaults to WebP quality 80 and you're comparing it to a reference JPEG at quality 85, you should see a smaller WebP file that looks the same or better.
+In practice, **WebP quality 80 encodes at roughly the same perceptual quality as JPEG quality 85–90** at a smaller encoded size. This means that if your tool encodes to WebP quality 80 and you compare the encoded files to a reference JPEG encoded at JPEG quality 85, the WebP file will likely be smaller and look the same or even better.
 
 ## The practical recommendation
 
-**Default: quality 80.** For the vast majority of web images — photos, product shots, illustrations — quality 80 produces files 25–35% smaller than JPEGs at the same perceptual quality.
+**Default: quality 80.** This setting makes most web images (photos, product images, cartoons, etc.) about 25–35% (actually 60% or more in my tests just with the compression) smaller than equivalent-quality JPEG images.
 
-**Fine detail or large display: quality 85–90.** Screenshots, diagrams, hero images displayed at large sizes.
+**Fine detail or large display: quality 85–90.** This setting is useful for screenshots, diagrams, and hero images that will be viewed at very large sizes and need every last bit of detail.
 
-**Editing source: lossless.** Anything that will be re-processed or edited.
+**Editing source: lossless.** This will be reprocessed or edited.
