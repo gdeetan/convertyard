@@ -20,13 +20,25 @@ describe('canAttemptHevcWebCodecs', () => {
 })
 
 describe('hevcBitrateForLevel', () => {
-  it('caps quality-mode bitrate at 60% of the source bitrate', () => {
-    const uncapped = hevcBitrateForLevel(1920, 1080, 30, 'medium')
-    const sourceBytes = 4.5 * 1024 * 1024
+  it('caps quality-mode bitrate at 60% of the source bitrate, subject to the resolution floor', () => {
+    // Higher source bitrate keeps the 60% cap comfortably above the 1080p
+    // floor (~1.0 Mbps), so the cap is the binding constraint here.
+    const sourceBytes = 30 * 1024 * 1024
     const duration = 60
+    const uncapped = hevcBitrateForLevel(1920, 1080, 30, 'medium')
     const capped = hevcBitrateForLevel(1920, 1080, 30, 'medium', { sourceBytes, durationSeconds: duration })
     expect(capped).toBeLessThan(uncapped)
     expect(capped).toBe(Math.max(100_000, Math.floor((sourceBytes * 8 / duration) * 0.6)))
+  })
+
+  it('never dips below the resolution-scaled bitrate floor', () => {
+    // 60s × 4.5 MB source → ~600 kbps × 0.6 cap = ~360 kbps, well below the
+    // 1080p floor. The floor should win.
+    const bps = hevcBitrateForLevel(1920, 1080, 30, 'medium', {
+      sourceBytes: 4.5 * 1024 * 1024,
+      durationSeconds: 60,
+    })
+    expect(bps).toBeGreaterThan(800_000)
   })
 })
 

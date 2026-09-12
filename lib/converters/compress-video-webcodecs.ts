@@ -1,4 +1,5 @@
 import { getCompressVideoFFmpeg, resetSingleThreadFFmpeg, withFfmpegLock } from './ffmpeg-client'
+import { applyBitrateFloor } from './compress-video-calibration'
 
 // Race a promise against a timeout. Rejects with a labeled Error if the timer
 // wins. Used to keep spliceSourceAudio from hanging the whole compress-video
@@ -341,9 +342,10 @@ export function avcBitrateForLevel(
 ): number {
   const bpp = AVC_BPP[level] ?? AVC_BPP.medium
   const qualityBps = Math.max(100_000, Math.round(width * height * fps * bpp))
-  if (!source || !(source.durationSeconds > 0) || !(source.sourceBytes > 0)) return qualityBps
-  const sourceBps = (source.sourceBytes * 8) / source.durationSeconds
-  return Math.max(100_000, Math.min(qualityBps, Math.floor(sourceBps * 0.7)))
+  const computed = !source || !(source.durationSeconds > 0) || !(source.sourceBytes > 0)
+    ? qualityBps
+    : Math.max(100_000, Math.min(qualityBps, Math.floor((source.sourceBytes * 8) / source.durationSeconds * 0.7)))
+  return applyBitrateFloor({ bps: computed, width, height })
 }
 
 export type AvcHardwareOpts = {
@@ -412,9 +414,10 @@ export function hevcBitrateForLevel(
 ): number {
   const bpp = HEVC_BPP[level] ?? HEVC_BPP.medium
   const qualityBps = Math.max(100_000, Math.round(width * height * fps * bpp))
-  if (!source || !(source.durationSeconds > 0) || !(source.sourceBytes > 0)) return qualityBps
-  const sourceBps = (source.sourceBytes * 8) / source.durationSeconds
-  return Math.max(100_000, Math.min(qualityBps, Math.floor(sourceBps * 0.6)))
+  const computed = !source || !(source.durationSeconds > 0) || !(source.sourceBytes > 0)
+    ? qualityBps
+    : Math.max(100_000, Math.min(qualityBps, Math.floor((source.sourceBytes * 8) / source.durationSeconds * 0.6)))
+  return applyBitrateFloor({ bps: computed, width, height })
 }
 
 export type HevcHardwareOpts = {
