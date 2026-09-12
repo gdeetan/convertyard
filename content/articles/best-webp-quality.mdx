@@ -75,18 +75,18 @@ Quality 80 is the right choice for:
 - **Automated pipelines** where you want a consistent "safe" default
 - **Batch conversion** where you don't want to tune per-image
 
-This is what most image CDNs and optimization tools use internally. Google's recommended range for WebP is 75–85. Quality 80 sits in the middle of that range.
+This is how most image CDNs and image optimization services work: quality 80 is the internal default for WebP, which, according to Google's benchmarks for optimal viewing quality, should be set between 75 and 85.
 
 ## When to go higher than 80
 
 Use quality **85–90** when:
 
-- Images contain **fine text or sharp edges** (screenshots, UI mockups, diagrams). WebP's compression handles these less well than smooth photo tones, and quality 80 can produce noticeable softness at edges.
-- You're **displaying images at large sizes** (hero images, full-width banners) where viewers look closely.
-- Images will be **printed or professionally reproduced** — in this case, use lossless or export to TIFF instead.
+- The images contain **fine text or sharp edges** (e.g., screenshots, UI mockups, diagrams). Here WebP's compression is worse than for smooth photo tones. At quality 80, you may already notice some softness in the edges.
+- Your images will be **displayed at large sizes** (e.g., hero images, full-width banners).
+- Images will be **printed or otherwise professionally handicraft-recreated**: opt for lossless, and export to TIFF where appropriate instead.
 
 Use **quality 95–100** only if:
-- You're creating a **web delivery source** that will be further processed — but at this point, using WebP lossless or PNG is more appropriate.
+- The above comments about using high-quality levels apply only when creating a **web delivery source that will be processed** (e.g., by content delivery networks); in that case, WebP lossless or even PNG would be more appropriate.
 
 ## When to go lower than 80
 
@@ -96,7 +96,7 @@ Use quality **70–75** for:
 - **Background images** behind text or UI elements where the image is decorative
 - **High-volume pipelines** where every KB matters (millions of images, CDN cost reduction)
 
-Below quality 70, artifacts become visible in most images — ringing around edges, banding in smooth color gradients, and visible block structure. For most use cases, the file size saving below 75 is not worth the quality loss.
+Quality settings below 70 will start to exhibit noticeable artifacts in the output images, such as ringing on edges, banding in smooth gradients, and the blocky structure of the compression. Below 75, the file-size savings from such small reductions are generally not worth the decreased image quality.
 
 ## Lossless WebP: when to use it
 
