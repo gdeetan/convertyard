@@ -75,8 +75,8 @@ export const config: ToolConfig = {
   relatedTools: ['compress-mp3', 'wav-to-mp3', 'audio-trimmer', 'extract-audio', 'mp4-to-mp3'],
   relatedArticles: ['audio-bitrate-explained', 'extract-audio-from-mp4', 'browser-video-editing-2026'],
   meta: {
-    title: 'FLAC to MP3 Converter — ConvertYard',
+    title: 'Convert FLAC to MP3 for Free',
     description:
-      'Convert FLAC to MP3 in your browser. Shrink lossless audio files for phones and streaming — choose bitrate up to 320 kbps, batch convert, no uploads.',
+      'Convert lossless FLAC audio files to a more efficient MP3 format and save storage space. Convert up to 1,000 files per batch for free.',
   },
 }
