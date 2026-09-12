@@ -38,7 +38,7 @@ export const config: ToolConfig = {
   relatedTools: ['compress-pdf', 'watermark-pdf'],
   relatedArticles: [],
   meta: {
-    title: 'Flatten PDF — Lock Form Fields — ConvertYard',
-    description: 'Flatten PDF form fields and annotations into static content in your browser. Lock filled forms before sharing. Batch 1,000 files — no uploads.',
+    title: 'Flatten PDF for Submitting Forms Online',
+    description: 'Flatten your PDF File without uploading to a server. Merges all layers into one layer. Great for submitting documents online.',
   },
 }
