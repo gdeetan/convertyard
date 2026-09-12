@@ -1213,16 +1213,17 @@ export async function compressVideo(
   const stripAudio    = options.stripAudio   === true || options.stripAudio === 'true'
   const targetKB      = typeof options.targetKB === 'number' ? options.targetKB : 51200
 
-  // iOS Safari has no hardware HEVC WebCodecs path — H.265 falls through to
-  // libx265 in single-threaded WASM, which can hang for 5+ minutes at 1080p
-  // or fail entirely with a silent OOM. Silently downshift to H.264 and
-  // attach a per-file notice so the user isn't blindsided.
-  const iosAutoFallback = isIosBrowser() && requestedH265
-  const h265 = iosAutoFallback ? false : requestedH265
+  // Mobile browsers (both iOS Safari and Android) cannot reliably encode H.265:
+  // iOS has no HEVC WebCodecs path and libx265 in single-threaded WASM can hang
+  // for 5+ minutes or silent-OOM; Android WebCodecs HEVC is inconsistent across
+  // devices and burning memory on a doomed HEVC attempt destabilizes AVC too.
+  // Silently downshift to H.264 on all mobile and attach a per-file notice.
+  const mobileAutoFallback = isMobileBrowser() && requestedH265
+  const h265 = mobileAutoFallback ? false : requestedH265
   const H264_FALLBACK_NOTICE =
-    'Encoded as H.264 instead of H.265 — iOS can\'t reliably run H.265 encoding in the browser. Use a desktop browser for real H.265 output.'
+    'Encoded as H.264 instead of H.265 — mobile browsers can\'t reliably run H.265 encoding. Use a desktop browser for real H.265 output.'
   const wrapNotice = (r: ConversionResult): ConversionResult => {
-    if (!iosAutoFallback) return r
+    if (!mobileAutoFallback) return r
     if (r instanceof Error) return r
     if (r instanceof File) return { file: r, notice: H264_FALLBACK_NOTICE }
     return r
