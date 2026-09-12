@@ -26,7 +26,18 @@ function even(n: number): number {
 // Uint8Array ceiling, stream muxer output to an OPFS-backed writable stream
 // instead of accumulating chunks in memory. Only lights up when the platform
 // supports it (Chromium desktop, some Firefox).
-const OPFS_MIN_BYTES = 400 * 1024 * 1024
+// iOS Safari tabs hit the MEMFS ceiling well before Android does — 250 MB
+// pushes the streaming path earlier so large mobile encodes never accumulate
+// in memory. Android + desktop keep the old 400 MB threshold.
+const OPFS_MIN_BYTES_IOS = 250 * 1024 * 1024
+const OPFS_MIN_BYTES_DEFAULT = 400 * 1024 * 1024
+
+function opfsMinBytes(): number {
+  if (typeof navigator === 'undefined') return OPFS_MIN_BYTES_DEFAULT
+  const ua = navigator.userAgent
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.maxTouchPoints > 1 && /Mac/i.test(ua))
+  return isIOS ? OPFS_MIN_BYTES_IOS : OPFS_MIN_BYTES_DEFAULT
+}
 
 type OpfsHandle = {
   stream: FileSystemWritableFileStream
@@ -75,6 +86,23 @@ function logBail(reason: string): void {
     (self as unknown as { postMessage: (m: unknown) => void }).postMessage({
       type: 'log',
       message: `fast-path bail: ${reason}`,
+    })
+  } catch { /* worker without postMessage — impossible in practice */ }
+}
+
+export type CalibrationMessagePayload = {
+  measuredBps: number
+  measuredFps: number
+  calibFrames: number
+  calibBytes: number
+  calibSeconds: number
+}
+
+function postCalibrationMessage(sample: CalibrationMessagePayload): void {
+  try {
+    (self as unknown as { postMessage: (m: unknown) => void }).postMessage({
+      type: 'calibration',
+      sample,
     })
   } catch { /* worker without postMessage — impossible in practice */ }
 }
@@ -234,7 +262,7 @@ async function encodeHevcInWorker(
     : 0
 
   const baseName = file.name.replace(/\.[^.]+$/, '')
-  const opfs = file.size > OPFS_MIN_BYTES ? await openOpfsWritable(baseName) : null
+  const opfs = file.size > opfsMinBytes() ? await openOpfsWritable(baseName) : null
 
   let muxer: MuxerHandle | null = null
   let muxError: Error | null = null
@@ -495,13 +523,22 @@ async function encodeAvcInWorker(
     : 0
 
   const baseName = file.name.replace(/\.[^.]+$/, '')
-  const opfs = file.size > OPFS_MIN_BYTES ? await openOpfsWritable(baseName) : null
+  const opfs = file.size > opfsMinBytes() ? await openOpfsWritable(baseName) : null
 
   let muxer: MuxerHandle | null = null
   let muxError: Error | null = null
   let encodeError: Error | null = null
   let decodeError: Error | null = null
   const pending: VideoFrame[] = []
+
+  // Calibration: sample the first ~2 seconds of encoded output to measure real
+  // bitrate + encoder fps, then post a `calibration` message. Main thread uses
+  // this to replace the static bits-per-pixel estimate with a real number.
+  const CALIBRATION_SECONDS_US = 2_000_000
+  let calibStartWallMs = 0
+  let calibBytes = 0
+  let calibFrames = 0
+  let calibrationSent = false
 
   type PendingChunk = { type: 'key' | 'delta', timestamp: number, duration: number, data: Uint8Array }
   const chunkBuf: { last: PendingChunk | null } = { last: null }
@@ -548,6 +585,22 @@ async function encodeAvcInWorker(
             streamTarget: opfs?.stream,
           })
         }
+        if (!calibrationSent) {
+          calibFrames += 1
+          calibBytes += chunk.byteLength
+          if (chunk.timestamp >= CALIBRATION_SECONDS_US) {
+            const sourceSeconds = chunk.timestamp / 1_000_000
+            const wallMs = performance.now() - calibStartWallMs
+            postCalibrationMessage({
+              measuredBps: sourceSeconds > 0 ? (calibBytes * 8) / sourceSeconds : 0,
+              measuredFps: wallMs > 0 ? (calibFrames * 1000) / wallMs : 0,
+              calibFrames,
+              calibBytes,
+              calibSeconds: sourceSeconds,
+            })
+            calibrationSent = true
+          }
+        }
         flushLastChunk()
         const buf = new Uint8Array(chunk.byteLength)
         chunk.copyTo(buf)
@@ -564,6 +617,7 @@ async function encodeAvcInWorker(
     error: (err) => { encodeError = err instanceof Error ? err : new Error(String(err)) },
   })
   encoder.configure(encoderConfig)
+  calibStartWallMs = performance.now()
 
   const decoder = new VideoDecoder({
     output: (frame) => { pending.push(frame) },

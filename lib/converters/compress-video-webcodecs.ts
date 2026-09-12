@@ -1,4 +1,5 @@
 import { getCompressVideoFFmpeg, resetSingleThreadFFmpeg, withFfmpegLock } from './ffmpeg-client'
+import { applyBitrateFloor } from './compress-video-calibration'
 
 // Race a promise against a timeout. Rejects with a labeled Error if the timer
 // wins. Used to keep spliceSourceAudio from hanging the whole compress-video
@@ -217,6 +218,10 @@ function isMobileBrowser(): boolean {
   return false
 }
 
+export function mobileAllowsHevc(): boolean {
+  return !isMobileBrowser()
+}
+
 function isIOSBrowser(): boolean {
   if (typeof navigator === 'undefined') return false
   return /iPhone|iPad|iPod/i.test(navigator.userAgent)
@@ -337,9 +342,10 @@ export function avcBitrateForLevel(
 ): number {
   const bpp = AVC_BPP[level] ?? AVC_BPP.medium
   const qualityBps = Math.max(100_000, Math.round(width * height * fps * bpp))
-  if (!source || !(source.durationSeconds > 0) || !(source.sourceBytes > 0)) return qualityBps
-  const sourceBps = (source.sourceBytes * 8) / source.durationSeconds
-  return Math.max(100_000, Math.min(qualityBps, Math.floor(sourceBps * 0.7)))
+  const computed = !source || !(source.durationSeconds > 0) || !(source.sourceBytes > 0)
+    ? qualityBps
+    : Math.max(100_000, Math.min(qualityBps, Math.floor((source.sourceBytes * 8) / source.durationSeconds * 0.7)))
+  return applyBitrateFloor({ bps: computed, width, height })
 }
 
 export type AvcHardwareOpts = {
@@ -348,6 +354,16 @@ export type AvcHardwareOpts = {
   level?: string
   stripAudio?: boolean
   onProgress?: (pct: number) => void
+  // Optional: fires once the worker has measured ~2s of real encode. Enables
+  // a live "estimated output size / ETA" readout in the UI.
+  onCalibration?: (estimate: CalibrationEstimate) => void
+  // Optional: identity of the source file (name|size|lastModified) so the
+  // main-thread cache can reuse a prior calibration for identical re-runs.
+  calibrationFileId?: string
+  // Optional: source duration and total-frame count, used to convert the raw
+  // calibration sample into a size estimate + ETA on the main thread.
+  durationSeconds?: number
+  totalFrames?: number
 }
 
 export async function pickHevcEncoderConfig(
@@ -408,9 +424,10 @@ export function hevcBitrateForLevel(
 ): number {
   const bpp = HEVC_BPP[level] ?? HEVC_BPP.medium
   const qualityBps = Math.max(100_000, Math.round(width * height * fps * bpp))
-  if (!source || !(source.durationSeconds > 0) || !(source.sourceBytes > 0)) return qualityBps
-  const sourceBps = (source.sourceBytes * 8) / source.durationSeconds
-  return Math.max(100_000, Math.min(qualityBps, Math.floor(sourceBps * 0.6)))
+  const computed = !source || !(source.durationSeconds > 0) || !(source.sourceBytes > 0)
+    ? qualityBps
+    : Math.max(100_000, Math.min(qualityBps, Math.floor((source.sourceBytes * 8) / source.durationSeconds * 0.6)))
+  return applyBitrateFloor({ bps: computed, width, height })
 }
 
 export type HevcHardwareOpts = {
@@ -430,9 +447,20 @@ type WorkerRequestType = 'compress-avc' | 'compress-hevc'
 
 type WorkerOutcome = { file: File; audioDropped: boolean } | null
 
+export type CalibrationEstimate = {
+  measuredBps: number
+  measuredFps: number
+  estimatedOutputBytes: number
+  etaSeconds: number
+}
+
 type PendingEntry = {
   resolve: (outcome: WorkerOutcome) => void
   onProgress: (pct: number) => void
+  onCalibration?: (estimate: CalibrationEstimate) => void
+  durationSeconds: number
+  totalFrames: number
+  cacheKey: string | null
   lastActivityAt: number
   heartbeatTimer: ReturnType<typeof setInterval>
   hardTimeoutTimer: ReturnType<typeof setTimeout>
@@ -442,6 +470,26 @@ type PendingEntry = {
 let workerInstance: Worker | null = null
 let requestSeq = 0
 const pending = new Map<number, PendingEntry>()
+
+// Calibration cache: keyed by file identity + settings. Reusing the same
+// measurement across identical repeated compressions avoids repeating the
+// 2-second calibration window every time the user re-runs at the same
+// settings (e.g. switching in and out of target-size mode).
+const calibrationCache = new Map<string, CalibrationEstimate>()
+
+function calibrationCacheKey(
+  fileId: string,
+  codec: 'avc' | 'hevc',
+  width: number,
+  height: number,
+  level: string,
+): string {
+  return `${fileId}|${codec}|${width}x${height}|${level}`
+}
+
+export function fileCalibrationId(file: File): string {
+  return `${file.name}|${file.size}|${file.lastModified}`
+}
 
 // Fail a hung request: clear timers, drop it from pending, terminate the
 // worker so subsequent files don't inherit a wedged state, and resolve null
@@ -480,6 +528,32 @@ function getWorker(): Worker {
       if (!handler) return
       handler.lastActivityAt = Date.now()
       if (type === 'progress') handler.onProgress(e.data.pct)
+      else if (type === 'calibration') {
+        const sample = e.data.sample as {
+          measuredBps: number; measuredFps: number
+          calibFrames: number; calibBytes: number; calibSeconds: number
+        }
+        const estimatedOutputBytes = handler.durationSeconds > 0
+          ? Math.round((sample.measuredBps * handler.durationSeconds) / 8)
+          : 0
+        const framesRemaining = Math.max(0, handler.totalFrames - sample.calibFrames)
+        const etaSeconds = sample.measuredFps > 0
+          ? framesRemaining / sample.measuredFps
+          : Infinity
+        const estimate: CalibrationEstimate = {
+          measuredBps: sample.measuredBps,
+          measuredFps: sample.measuredFps,
+          estimatedOutputBytes,
+          etaSeconds,
+        }
+        if (handler.cacheKey) calibrationCache.set(handler.cacheKey, estimate)
+        console.info(
+          `[compress-video] calibration: ${Math.round(sample.measuredBps / 1000)} kbps, ` +
+          `${sample.measuredFps.toFixed(1)} fps → est ${(estimatedOutputBytes / 1024 / 1024).toFixed(1)} MB, ` +
+          `ETA ${Number.isFinite(etaSeconds) ? Math.round(etaSeconds) + 's' : '?'}`
+        )
+        handler.onCalibration?.(estimate)
+      }
       else if (type === 'result') {
         clearInterval(handler.heartbeatTimer)
         clearTimeout(handler.hardTimeoutTimer)
@@ -541,20 +615,43 @@ async function dispatchToWorker(
       failRequest(id, `hard timeout after ${Math.round(hardTimeoutForFile(file.size) / 1000)}s`)
     }, hardTimeoutForFile(file.size))
     const codec = type === 'compress-hevc' ? 'hevc' : 'avc'
+    const avcOpts = opts as AvcHardwareOpts
+    const durationSeconds = avcOpts.durationSeconds ?? 0
+    const totalFrames = avcOpts.totalFrames ?? 0
+    const cacheKey = avcOpts.calibrationFileId && avcOpts.maxHeight != null
+      ? calibrationCacheKey(avcOpts.calibrationFileId, codec, 0, avcOpts.maxHeight, avcOpts.level ?? 'medium')
+      : null
+    // Cache hit: fire onCalibration immediately with the prior estimate. The
+    // worker still runs a fresh calibration pass — the cached value just
+    // avoids a visible "unknown" period in the UI.
+    if (cacheKey) {
+      const cached = calibrationCache.get(cacheKey)
+      if (cached && avcOpts.onCalibration) {
+        try { avcOpts.onCalibration(cached) } catch { /* consumer error — ignore */ }
+      }
+    }
     pending.set(id, {
       resolve,
       onProgress: (pct: number) => opts.onProgress?.(pct),
+      onCalibration: avcOpts.onCalibration,
+      durationSeconds,
+      totalFrames,
+      cacheKey,
       lastActivityAt: now,
       heartbeatTimer,
       hardTimeoutTimer,
       codec,
     })
     logPhase(`${codec}:worker`, 'dispatch', 0)
-    // Strip the onProgress function before postMessage — functions aren't
-    // structured-cloneable. The pending map keeps the live callback around.
-    const { onProgress: _drop, ...postOpts } =
-      opts as { onProgress?: unknown; [k: string]: unknown }
-    void _drop
+    // Strip non-structured-cloneable fields before postMessage. Functions
+    // aren't cloneable; calibration metadata stays on the main-thread entry.
+    const { onProgress: _drop, onCalibration: _drop2, calibrationFileId: _drop3, durationSeconds: _drop4, totalFrames: _drop5, ...postOpts } =
+      opts as {
+        onProgress?: unknown; onCalibration?: unknown
+        calibrationFileId?: unknown; durationSeconds?: unknown; totalFrames?: unknown
+        [k: string]: unknown
+      }
+    void _drop; void _drop2; void _drop3; void _drop4; void _drop5
     try {
       getWorker().postMessage({ id, type, file, opts: postOpts })
     } catch (err) {

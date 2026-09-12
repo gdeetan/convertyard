@@ -4,6 +4,7 @@ import { FFFSType } from '@ffmpeg/ffmpeg'
 import { getFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock, resetSingleThreadFFmpeg } from './ffmpeg-client'
 import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware } from './compress-video-webcodecs'
 import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from './media-probe'
+import { applyBitrateFloor } from './compress-video-calibration'
 import type { ToolOptions, ConversionResult, CompressionMeta } from '@/lib/types'
 
 function toError(err: unknown): Error {
@@ -1088,8 +1089,8 @@ async function tryHardwareHevcCompress(
   },
 ): Promise<File | null> {
   let maxHeight = opts.resHeight ?? null
+  const dims = opts.targetSizeMode ? await probeVideoDimensions(file) : null
   if (maxHeight == null && opts.resolution === 'original' && opts.targetSizeMode) {
-    const dims = await probeVideoDimensions(file)
     if (dims) {
       const autoHeight = isMobileBrowser()
         ? (opts.targetKB <= 50 * 1024 ? 720 : 1080)
@@ -1104,10 +1105,19 @@ async function tryHardwareHevcCompress(
     if (durationSeconds > 0) {
       const adaptiveAudioKbps = opts.targetKB <= 10 * 1024 ? 64 : opts.targetKB <= 50 * 1024 ? 96 : 128
       const audioBitsPerSec = opts.stripAudio ? 0 : adaptiveAudioKbps * 1000
-      bitrate = Math.max(
+      const rawBps = Math.max(
         100_000,
         Math.floor((opts.targetKB * 1024 * 8 - audioBitsPerSec * durationSeconds) / durationSeconds),
       )
+      // Floor: don't let a small-target math push HEVC below the level where
+      // motion content blocks visibly. The user warning in compress-video's
+      // optionsWarningFn tells them to expect an output larger than target
+      // when the request crosses this line.
+      const encodedH = maxHeight ?? dims?.height ?? 1080
+      const encodedW = dims && dims.height > 0
+        ? Math.round(dims.width * (encodedH / dims.height))
+        : Math.round((encodedH * 16) / 9)
+      bitrate = applyBitrateFloor({ bps: rawBps, width: encodedW, height: encodedH })
     }
   }
 
@@ -1133,8 +1143,8 @@ async function tryHardwareAvcCompress(
   },
 ): Promise<File | null> {
   let maxHeight = opts.resHeight ?? null
+  const dims = opts.targetSizeMode ? await probeVideoDimensions(file) : null
   if (maxHeight == null && opts.resolution === 'original' && opts.targetSizeMode) {
-    const dims = await probeVideoDimensions(file)
     if (dims) {
       const autoHeight = isMobileBrowser()
         ? (opts.targetKB <= 50 * 1024 ? 720 : 1080)
@@ -1149,10 +1159,18 @@ async function tryHardwareAvcCompress(
     if (durationSeconds > 0) {
       const adaptiveAudioKbps = opts.targetKB <= 10 * 1024 ? 64 : opts.targetKB <= 50 * 1024 ? 96 : 128
       const audioBitsPerSec = opts.stripAudio ? 0 : adaptiveAudioKbps * 1000
-      bitrate = Math.max(
+      const rawBps = Math.max(
         100_000,
         Math.floor((opts.targetKB * 1024 * 8 - audioBitsPerSec * durationSeconds) / durationSeconds),
       )
+      // Floor: prevent target-size math from producing a bitrate below the
+      // level where motion content blocks visibly. Sibling HEVC path does
+      // the same. The user gets an up-front warning via optionsWarningFn.
+      const encodedH = maxHeight ?? dims?.height ?? 1080
+      const encodedW = dims && dims.height > 0
+        ? Math.round(dims.width * (encodedH / dims.height))
+        : Math.round((encodedH * 16) / 9)
+      bitrate = applyBitrateFloor({ bps: rawBps, width: encodedW, height: encodedH })
     }
   }
 
@@ -1213,16 +1231,17 @@ export async function compressVideo(
   const stripAudio    = options.stripAudio   === true || options.stripAudio === 'true'
   const targetKB      = typeof options.targetKB === 'number' ? options.targetKB : 51200
 
-  // iOS Safari has no hardware HEVC WebCodecs path — H.265 falls through to
-  // libx265 in single-threaded WASM, which can hang for 5+ minutes at 1080p
-  // or fail entirely with a silent OOM. Silently downshift to H.264 and
-  // attach a per-file notice so the user isn't blindsided.
-  const iosAutoFallback = isIosBrowser() && requestedH265
-  const h265 = iosAutoFallback ? false : requestedH265
+  // Mobile browsers (both iOS Safari and Android) cannot reliably encode H.265:
+  // iOS has no HEVC WebCodecs path and libx265 in single-threaded WASM can hang
+  // for 5+ minutes or silent-OOM; Android WebCodecs HEVC is inconsistent across
+  // devices and burning memory on a doomed HEVC attempt destabilizes AVC too.
+  // Silently downshift to H.264 on all mobile and attach a per-file notice.
+  const mobileAutoFallback = isMobileBrowser() && requestedH265
+  const h265 = mobileAutoFallback ? false : requestedH265
   const H264_FALLBACK_NOTICE =
-    'Encoded as H.264 instead of H.265 — iOS can\'t reliably run H.265 encoding in the browser. Use a desktop browser for real H.265 output.'
+    'Encoded as H.264 instead of H.265 — mobile browsers can\'t reliably run H.265 encoding. Use a desktop browser for real H.265 output.'
   const wrapNotice = (r: ConversionResult): ConversionResult => {
-    if (!iosAutoFallback) return r
+    if (!mobileAutoFallback) return r
     if (r instanceof Error) return r
     if (r instanceof File) return { file: r, notice: H264_FALLBACK_NOTICE }
     return r
@@ -1263,6 +1282,20 @@ export async function compressVideo(
       // iOS over the edge.
       if (isMobileBrowser() && file.size > 500 * 1024 * 1024) {
         return new Error('This file is too large for mobile browsers (over 500 MB may crash the tab). Please use a desktop browser for large videos.')
+      }
+      // Mobile pre-flight: reject containers the mobile pipeline can't decode
+      // reliably before loading ffmpeg-wasm. MKV/AVI/WMV/TS need libavformat
+      // demuxers that only exist in the wasm fallback, which mobile now
+      // avoids entirely. Fail fast with a specific message instead of the
+      // generic "too large" or a mid-encode WebCodecs error.
+      if (isMobileBrowser()) {
+        const ext = (file.name.split('.').pop() ?? '').toLowerCase()
+        const mobileOk = ['mp4', 'mov', 'm4v'].includes(ext)
+        if (!mobileOk) {
+          return new Error(
+            `The mobile encoder can't decode .${ext} files reliably. Try again on desktop, or convert to MP4 first on this device.`,
+          )
+        }
       }
       // Android shared files (Viber/WhatsApp/Google Photos come through as
       // content:// URIs) can have their read permission revoked between the
