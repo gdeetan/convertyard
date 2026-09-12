@@ -90,6 +90,23 @@ function logBail(reason: string): void {
   } catch { /* worker without postMessage — impossible in practice */ }
 }
 
+export type CalibrationMessagePayload = {
+  measuredBps: number
+  measuredFps: number
+  calibFrames: number
+  calibBytes: number
+  calibSeconds: number
+}
+
+function postCalibrationMessage(sample: CalibrationMessagePayload): void {
+  try {
+    (self as unknown as { postMessage: (m: unknown) => void }).postMessage({
+      type: 'calibration',
+      sample,
+    })
+  } catch { /* worker without postMessage — impossible in practice */ }
+}
+
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -514,6 +531,15 @@ async function encodeAvcInWorker(
   let decodeError: Error | null = null
   const pending: VideoFrame[] = []
 
+  // Calibration: sample the first ~2 seconds of encoded output to measure real
+  // bitrate + encoder fps, then post a `calibration` message. Main thread uses
+  // this to replace the static bits-per-pixel estimate with a real number.
+  const CALIBRATION_SECONDS_US = 2_000_000
+  let calibStartWallMs = 0
+  let calibBytes = 0
+  let calibFrames = 0
+  let calibrationSent = false
+
   type PendingChunk = { type: 'key' | 'delta', timestamp: number, duration: number, data: Uint8Array }
   const chunkBuf: { last: PendingChunk | null } = { last: null }
   const flushLastChunk = (extraDurUs = 0) => {
@@ -559,6 +585,22 @@ async function encodeAvcInWorker(
             streamTarget: opfs?.stream,
           })
         }
+        if (!calibrationSent) {
+          calibFrames += 1
+          calibBytes += chunk.byteLength
+          if (chunk.timestamp >= CALIBRATION_SECONDS_US) {
+            const sourceSeconds = chunk.timestamp / 1_000_000
+            const wallMs = performance.now() - calibStartWallMs
+            postCalibrationMessage({
+              measuredBps: sourceSeconds > 0 ? (calibBytes * 8) / sourceSeconds : 0,
+              measuredFps: wallMs > 0 ? (calibFrames * 1000) / wallMs : 0,
+              calibFrames,
+              calibBytes,
+              calibSeconds: sourceSeconds,
+            })
+            calibrationSent = true
+          }
+        }
         flushLastChunk()
         const buf = new Uint8Array(chunk.byteLength)
         chunk.copyTo(buf)
@@ -575,6 +617,7 @@ async function encodeAvcInWorker(
     error: (err) => { encodeError = err instanceof Error ? err : new Error(String(err)) },
   })
   encoder.configure(encoderConfig)
+  calibStartWallMs = performance.now()
 
   const decoder = new VideoDecoder({
     output: (frame) => { pending.push(frame) },
