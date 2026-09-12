@@ -75,8 +75,8 @@ export const config: ToolConfig = {
   relatedTools: ['compress-mp3', 'ogg-to-mp3', 'opus-to-mp3', 'm4a-to-mp3', 'audio-trimmer'],
   relatedArticles: ['audio-bitrate-explained', 'extract-audio-from-mp4', 'browser-video-editing-2026'],
   meta: {
-    title: 'AMR to MP3 — Android Voice Notes — ConvertYard',
+    title: 'AMR to MP3 Converter - Nothing Uploads',
     description:
-      'Convert AMR voice recordings to MP3 in your browser. Open AMR files from Android phones and older voice messages — batch convert, no uploads, no account.',
+      'Convert your AMR voice recordings on your old Nokia or Android phones to a modern MP3 format that has better compatibility across different platforms.',
   },
 }
