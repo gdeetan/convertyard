@@ -165,6 +165,16 @@ self.onmessage = async (e: MessageEvent) => {
         encodeOpts.Q = quality
         encodeOpts.lossless = opts.lossless === true
         encodeOpts.effort = typeof opts.method === 'number' ? opts.method : 4
+        // WebP format spec caps width/height at 16383. libwebp's lossless VP8L
+        // encoder additionally OOMs on very large photos inside the WASM heap
+        // (surfaces as "wbuffer_write: write failed"). Cap lossless tighter.
+        const WEBP_MAX_DIM = opts.lossless === true ? 8192 : 16383
+        if (image.width > WEBP_MAX_DIM || image.height > WEBP_MAX_DIM) {
+          const scale = WEBP_MAX_DIM / Math.max(image.width, image.height)
+          const scaled = image.resize(scale)
+          image.delete()
+          image = scaled
+        }
       } else if (outputFormat === 'jpg' || outputFormat === 'jpeg') {
         encodeOpts.Q = quality
         // Chroma subsampling: VipsForeignSubsample OFF=2 (4:4:4), ON=1 (4:2:0), AUTO=0
@@ -247,7 +257,30 @@ self.onmessage = async (e: MessageEvent) => {
       }
 
       if (!outBuffer) {
-        outBuffer = image.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
+        try {
+          outBuffer = image.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
+        } catch (err) {
+          // Lossless WebP can OOM the WASM heap ("wbuffer_write: write failed")
+          // on large detailed photos even below the 8192px cap. Retry with
+          // progressively smaller dimensions before giving up.
+          const msg = err instanceof Error ? err.message : ''
+          const isWebpOom =
+            outputFormat === 'webp' &&
+            opts.lossless === true &&
+            /wbuffer_write|write failed|unable to encode/i.test(msg)
+          if (!isWebpOom) throw err
+          for (const scale of [0.75, 0.5, 0.35]) {
+            const resized = image.resize(scale)
+            try {
+              outBuffer = resized.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
+              resized.delete()
+              break
+            } catch (retryErr) {
+              resized.delete()
+              if (scale === 0.35) throw retryErr
+            }
+          }
+        }
       }
 
       self.postMessage(
