@@ -48,6 +48,20 @@ export const config: ToolConfig = {
       }
     }
 
+    // Target-size sanity check: if the requested target is under ~2% of the
+    // smallest source, the required bitrate is almost certainly below the
+    // visual-quality floor. The dispatch layer will raise it to the floor
+    // and attach a per-file notice, but flag it up front so the user isn't
+    // surprised when the output ends up larger than their target.
+    if (targetSizeMode) {
+      const targetKB = typeof options.targetKB === 'number' ? options.targetKB : 51200
+      const targetBytes = targetKB * 1024
+      const smallest = files.reduce((min, f) => Math.min(min, f.size), Infinity)
+      if (Number.isFinite(smallest) && targetBytes < smallest * 0.02) {
+        return `That target is very aggressive for this source. The compressor will raise it to whatever preserves basic viewability — expect the actual output to be larger than ${(targetBytes / 1024 / 1024).toFixed(1)} MB.`
+      }
+    }
+
     return null
   },
   warningFn: (files) => {

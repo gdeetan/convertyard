@@ -4,6 +4,7 @@ import { FFFSType } from '@ffmpeg/ffmpeg'
 import { getFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock, resetSingleThreadFFmpeg } from './ffmpeg-client'
 import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware } from './compress-video-webcodecs'
 import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from './media-probe'
+import { applyBitrateFloor } from './compress-video-calibration'
 import type { ToolOptions, ConversionResult, CompressionMeta } from '@/lib/types'
 
 function toError(err: unknown): Error {
@@ -1088,8 +1089,8 @@ async function tryHardwareHevcCompress(
   },
 ): Promise<File | null> {
   let maxHeight = opts.resHeight ?? null
+  const dims = opts.targetSizeMode ? await probeVideoDimensions(file) : null
   if (maxHeight == null && opts.resolution === 'original' && opts.targetSizeMode) {
-    const dims = await probeVideoDimensions(file)
     if (dims) {
       const autoHeight = isMobileBrowser()
         ? (opts.targetKB <= 50 * 1024 ? 720 : 1080)
@@ -1104,10 +1105,19 @@ async function tryHardwareHevcCompress(
     if (durationSeconds > 0) {
       const adaptiveAudioKbps = opts.targetKB <= 10 * 1024 ? 64 : opts.targetKB <= 50 * 1024 ? 96 : 128
       const audioBitsPerSec = opts.stripAudio ? 0 : adaptiveAudioKbps * 1000
-      bitrate = Math.max(
+      const rawBps = Math.max(
         100_000,
         Math.floor((opts.targetKB * 1024 * 8 - audioBitsPerSec * durationSeconds) / durationSeconds),
       )
+      // Floor: don't let a small-target math push HEVC below the level where
+      // motion content blocks visibly. The user warning in compress-video's
+      // optionsWarningFn tells them to expect an output larger than target
+      // when the request crosses this line.
+      const encodedH = maxHeight ?? dims?.height ?? 1080
+      const encodedW = dims && dims.height > 0
+        ? Math.round(dims.width * (encodedH / dims.height))
+        : Math.round((encodedH * 16) / 9)
+      bitrate = applyBitrateFloor({ bps: rawBps, width: encodedW, height: encodedH })
     }
   }
 
@@ -1133,8 +1143,8 @@ async function tryHardwareAvcCompress(
   },
 ): Promise<File | null> {
   let maxHeight = opts.resHeight ?? null
+  const dims = opts.targetSizeMode ? await probeVideoDimensions(file) : null
   if (maxHeight == null && opts.resolution === 'original' && opts.targetSizeMode) {
-    const dims = await probeVideoDimensions(file)
     if (dims) {
       const autoHeight = isMobileBrowser()
         ? (opts.targetKB <= 50 * 1024 ? 720 : 1080)
@@ -1149,10 +1159,18 @@ async function tryHardwareAvcCompress(
     if (durationSeconds > 0) {
       const adaptiveAudioKbps = opts.targetKB <= 10 * 1024 ? 64 : opts.targetKB <= 50 * 1024 ? 96 : 128
       const audioBitsPerSec = opts.stripAudio ? 0 : adaptiveAudioKbps * 1000
-      bitrate = Math.max(
+      const rawBps = Math.max(
         100_000,
         Math.floor((opts.targetKB * 1024 * 8 - audioBitsPerSec * durationSeconds) / durationSeconds),
       )
+      // Floor: prevent target-size math from producing a bitrate below the
+      // level where motion content blocks visibly. Sibling HEVC path does
+      // the same. The user gets an up-front warning via optionsWarningFn.
+      const encodedH = maxHeight ?? dims?.height ?? 1080
+      const encodedW = dims && dims.height > 0
+        ? Math.round(dims.width * (encodedH / dims.height))
+        : Math.round((encodedH * 16) / 9)
+      bitrate = applyBitrateFloor({ bps: rawBps, width: encodedW, height: encodedH })
     }
   }
 
