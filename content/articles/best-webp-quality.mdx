@@ -6,19 +6,19 @@ export const meta = {
   faq: [
     {
       q: 'Is WebP quality 80 good enough?',
-      a: 'For almost all web images, yes. At quality 80, WebP produces files 25–35% smaller than equivalent JPEGs with no perceptible visual difference under normal viewing conditions. The WebP encoder is specifically designed so that quality 80 falls in the range where human vision cannot detect the compression.',
+      a: "Yes, it's more than enough for most images. At 80%, there's no visual difference from the original photo at the same dimensions, but the file-size savings at 60% (based on my test) are significant.",
     },
     {
       q: 'What quality should I use for WebP thumbnails?',
-      a: 'Quality 70–75 works well for small thumbnails (under 300px) where fine detail is less visible. For larger thumbnails and preview images, use 80. The file size savings from going below 75 are modest, and artifacts become more visible at smaller sizes.',
+      a: 'A quality of 70 to 75% will work for most thumbnails, even 1980 thumbnails for YouTube. If you have a detailed image, you could ramp it up to 80% to improve quality. However, tests show the difference between 70% and 80% is around 10%.',
     },
     {
       q: 'Does WebP lossless give better quality than quality 100?',
-      a: 'Lossless WebP is pixel-perfect — every bit of the original is preserved. Quality 100 lossy WebP is visually excellent but technically discards some data. For images you will edit again or composite with other elements, use lossless. For display-only images, quality 90–95 is indistinguishable from lossless at significantly smaller file sizes.',
+      a: "A lossless WebP image is pixel-perfect because it preserves every bit of the original image quality, but at the cost of a bigger file size. A 100% lossy WebP file at 100% quality looks the same, but technically it discards some data you won't see. If you need to edit the image later, or need a larger version of it for print, choose a lossless option. For images to be displayed on the website or social media, use a lossy WebP quality between 60 and 80%.",
     },
     {
       q: 'Why does my WebP file look worse than my JPEG at the same quality number?',
-      a: "Quality numbers are not comparable between formats. WebP quality 80 and JPEG quality 80 are not the same — WebP's compression is more efficient, so quality 80 WebP typically looks better than quality 80 JPEG at a smaller file size. If your WebP looks worse, check that you're not comparing quality 80 WebP to quality 85 or 90 JPEG.",
+      a: "WebP will not look worse than a JPG file at the same quality and resolution because WebP's encoder is more efficient at constructing the file, so at quality 80, the WebP file is not only smaller but retains the quality of the JPG file. One reason why your WebP looks worse is upscaling - encoding a smaller JPG into a larger WebP, which forces the encoder to expand pixels, making it look pixelated. A better way to upscale photos is to use [ConvertYard's image upscaler](/image-upscaler/), which preserves image quality during the process.",
     },
   ],
   relatedTools: ['jpg-to-webp', 'png-to-webp', 'compress-image'],

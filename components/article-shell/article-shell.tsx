@@ -10,6 +10,28 @@ import {
 } from '@/lib/seo/schema'
 import { articleIllustrations } from '@/components/article-illustrations'
 
+function renderFaqAnswer(text: string): React.ReactNode {
+  const parts: React.ReactNode[] = []
+  const re = /\[([^\]]+)\]\(([^)]+)\)/g
+  let last = 0
+  let m: RegExpExecArray | null
+  let i = 0
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index))
+    const isInternal = m[2].startsWith('/')
+    parts.push(
+      isInternal ? (
+        <Link key={i++} href={m[2]} className="underline">{m[1]}</Link>
+      ) : (
+        <a key={i++} href={m[2]} className="underline" rel="noopener">{m[1]}</a>
+      )
+    )
+    last = m.index + m[0].length
+  }
+  if (last < text.length) parts.push(text.slice(last))
+  return parts.length ? parts : text
+}
+
 interface FAQItem {
   q: string
   a: string
@@ -45,7 +67,9 @@ export function ArticleShell({
     dateModified: lastUpdated,
   })
 
-  const faqJson = faqPageSchema(faq)
+  const faqJson = faqPageSchema(
+    faq.map((f) => ({ ...f, a: f.a.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') }))
+  )
 
   const crumbJson = breadcrumbSchema([
     { name: 'Home', url: BASE_URL },
@@ -147,7 +171,7 @@ export function ArticleShell({
                 >
                   <dt className="font-semibold text-fg">{item.q}</dt>
                   <dd className="mt-2 text-sm leading-relaxed text-fg-subtle">
-                    {item.a}
+                    {renderFaqAnswer(item.a)}
                   </dd>
                 </div>
               ))}
