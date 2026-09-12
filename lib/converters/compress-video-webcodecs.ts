@@ -217,6 +217,10 @@ function isMobileBrowser(): boolean {
   return false
 }
 
+export function mobileAllowsHevc(): boolean {
+  return !isMobileBrowser()
+}
+
 function isIOSBrowser(): boolean {
   if (typeof navigator === 'undefined') return false
   return /iPhone|iPad|iPod/i.test(navigator.userAgent)
