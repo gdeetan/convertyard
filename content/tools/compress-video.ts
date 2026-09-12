@@ -1,4 +1,5 @@
 import { compressVideo } from '@/lib/converters/ffmpeg'
+import { CompressVideoPreview } from '@/components/tool-shell/compress-video-preview'
 import type { ToolConfig } from '@/lib/types'
 
 const LARGE_FILE_BYTES = 300 * 1024 * 1024
@@ -21,6 +22,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.mp4', '.mov', '.webm', '.avi', '.mkv', '.wmv', '.ts'],
   outputExt: '.mp4',
   convertFn: compressVideo,
+  previewPanel: CompressVideoPreview,
   enablePresets: true,
   optionsWarningFn: (files, options) => {
     if (typeof navigator === 'undefined') return null
