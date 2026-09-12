@@ -24,19 +24,21 @@ export const meta = {
   relatedTools: ['jpg-to-webp', 'png-to-webp', 'compress-image'],
 }
 
-The most common question when converting images to WebP: what quality setting should I use? The short answer is **80 for web images, 85–90 for images where fine detail matters, and lossless for anything you'll edit again**. Here's why.
+One common question most website owners ask when it comes to image optimization, specifically converting images to WebP is 'what quality setting should I use? The short answer is **80% for web images, 85 to 90% for detailed images, and lossless for any image you want to edit later.**
 
 **[Convert images to WebP in your browser — no uploads →](/jpg-to-webp/)**
 
 ## How WebP quality works
 
-WebP uses a quality scale from 0 to 100, where 0 is maximum compression (smallest file, worst quality) and 100 is minimum compression (largest file, best quality). Unlike PNG's compression level — which is lossless at all settings — WebP quality above 0 is lossy by default. The encoder permanently discards image data that its algorithm predicts you won't notice.
-
-The key insight: the relationship between quality number and perceived quality is not linear. There is a threshold — around quality 75–80 for most images — below which most people can detect compression artifacts, and above which the image is indistinguishable from the original under normal viewing conditions.
+WebP's quality setting ranges from 0 to 100, similar to PNG's compression level. However, while PNG's compression level is always lossless, WebP's quality setting above 0 is lossy by default. This means the encoder discards image data it believes you will not be able to see to create the smallest file possible.
 
 ## The quality–size tradeoff: real numbers
 
-For a 12MP DSLR photo converted to WebP:
+A real-world example of a 26-megapixel Canon EOS RP Photo converted to WebP. The only thing I changed is the quality, with the default compression effort of 4. I did not resize the image or remove the EXIF data. I used the same settings for all conversions to remove other variables.
+
+<div className="my-6 flex justify-center">
+  <img src="/articles/best-webp-quality/jpg-to-webp-settings.png" alt="JPG to WebP conversion settings used for this test" width={1440} height={1694} loading="lazy" decoding="async" className="max-w-full h-auto" />
+</div>
 
 | Quality | File size | Perceptual quality |
 |---------|-----------|-------------------|
