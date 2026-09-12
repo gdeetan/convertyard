@@ -54,18 +54,17 @@ A real-world example of a 26-megapixel Canon EOS RP Photo converted to WebP. The
   caption="Converting this 26 Megapixel stock photo to WebP at 60%. Original size (9.8 MB), size after conversion (2.6 MB) — 75% savings without resizing it."
 />
 
-| Quality | File size | Perceptual quality |
-|---------|-----------|-------------------|
-| 60 | ~180 KB | Visible artifacts on close inspection |
-| 70 | ~260 KB | Acceptable, minor artifacts in fine detail |
-| 75 | ~330 KB | Good — artifacts barely detectable |
-| **80** | **~420 KB** | **Excellent — visually indistinguishable for most images** |
-| 85 | ~580 KB | Excellent — imperceptible difference from 80 for photos |
-| 90 | ~900 KB | Excellent — noticeably better for images with fine lines |
-| 95 | ~1.5 MB | Near-perfect |
-| 100 | ~2.8 MB | Lossy maximum — minimal perceptible gain vs. 95 |
+| Quality | Original File Size | Compressed File Size | Compression |
+|---------|--------------------|----------------------|-------------|
+| 60 | 9.8 MB | 2.6 MB | 73% |
+| 70 | 9.8 MB | 2.9 MB | 70% |
+| 75 | 9.8 MB | 3.2 MB | 68% |
+| **80** | **9.8 MB** | **3.9 MB** | **60%** |
+| 85 | 9.8 MB | 5 MB | 49% |
+| 90 | 9.8 MB | 6.9 MB | 30% |
+| 95 | 9.8 MB | 9.5 MB | 5% |
 
-The original JPEG at quality 85 might be ~750 KB. WebP quality 80 achieves the same perceptual quality at ~420 KB — a 44% reduction.
+Honestly, there isn't much difference with the visual quality of the compressed images, even if I zoom it over 300%. The advice you will see below is industry standard practice, but the results above show that with WebP, you can compress further without sacrificing quality. Note that this is a landscape photo and the degradation will depend on the type of image. But the results above show what's possible with WebP.
 
 ## When to use quality 80 (the default)
 
