@@ -1265,6 +1265,20 @@ export async function compressVideo(
       if (isMobileBrowser() && file.size > 500 * 1024 * 1024) {
         return new Error('This file is too large for mobile browsers (over 500 MB may crash the tab). Please use a desktop browser for large videos.')
       }
+      // Mobile pre-flight: reject containers the mobile pipeline can't decode
+      // reliably before loading ffmpeg-wasm. MKV/AVI/WMV/TS need libavformat
+      // demuxers that only exist in the wasm fallback, which mobile now
+      // avoids entirely. Fail fast with a specific message instead of the
+      // generic "too large" or a mid-encode WebCodecs error.
+      if (isMobileBrowser()) {
+        const ext = (file.name.split('.').pop() ?? '').toLowerCase()
+        const mobileOk = ['mp4', 'mov', 'm4v'].includes(ext)
+        if (!mobileOk) {
+          return new Error(
+            `The mobile encoder can't decode .${ext} files reliably. Try again on desktop, or convert to MP4 first on this device.`,
+          )
+        }
+      }
       // Android shared files (Viber/WhatsApp/Google Photos come through as
       // content:// URIs) can have their read permission revoked between the
       // pick and any later read. Materialize the bytes into a JS-owned Blob
