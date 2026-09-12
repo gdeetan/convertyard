@@ -31,12 +31,14 @@ export const config: ToolConfig = {
     const targetSizeMode = options.targetSizeMode === true || options.targetSizeMode === 'true'
     const h265 = options.h265 === true || options.h265 === 'true'
 
-    // iOS has no hardware HEVC WebCodecs path and libx265 in single-threaded
-    // WASM hangs on longer clips. We auto-encode as H.264 on iOS and tag the
-    // result with a per-file notice; tell the user up front so the option
-    // toggle doesn't feel broken.
-    if (isIOS && h265) {
-      return 'H.265 encoding isn\'t reliable on iPhone/iPad browsers, so this will be encoded as H.264 instead. Use a desktop browser for real H.265 output.'
+    // H.265 on desktop for maximum compression. H.264 on mobile for speed
+    // and battery life. Mobile browsers can't reliably encode HEVC — iOS has
+    // no hardware HEVC WebCodecs path, and Android WebCodecs HEVC is
+    // inconsistent — so the orchestrator silently encodes mobile as H.264
+    // regardless of this toggle. Surface that up front so the toggle doesn't
+    // feel broken.
+    if (isMobile && h265) {
+      return 'H.265 on desktop for maximum compression. H.264 on mobile for speed and battery life — this video will be encoded as H.264.'
     }
 
     if (isMobile && !targetSizeMode && resolution === 'original') {
@@ -146,8 +148,8 @@ export const config: ToolConfig = {
     {
       type: 'toggle',
       name: 'h265',
-      label: 'H.265 output (HEVC)',
-      hint: 'Produces 30–50% smaller files than H.264 at the same visual quality. Requires a modern device or browser for playback.',
+      label: 'H.265 output (HEVC) — desktop only',
+      hint: 'Desktop only: produces 30–50% smaller files than H.264 at the same visual quality. On mobile the toggle is ignored and the encoder uses H.264 for speed and battery life.',
       default: false,
     },
     {
