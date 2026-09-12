@@ -1,20 +1,34 @@
-import { libvipsConvert } from '@/lib/converters/libvips'
+import { gifToJpgConvert } from '@/lib/converters/gif-frames'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
   slug: 'gif-to-jpg',
   title: 'GIF to JPG Converter',
-  subtitle: 'Extracts the first frame of animated GIFs or converts static GIFs to JPG. Drop 1,000 at once.',
-  bestFor: 'Best for pulling a static thumbnail from an animated GIF to use as a preview or social share image.',
+  subtitle: 'Convert static or animated GIFs to JPG. Extract the first frame or every frame. Drop 1,000 at once.',
+  bestFor: 'Best for pulling a static thumbnail from an animated GIF, or extracting every frame as JPG stills.',
   category: 'images',
   accepts: ['image/gif'],
   acceptsExt: ['.gif'],
   outputExt: '.jpg',
   convertFn: (files, opts, onProgress, onResult) =>
-      libvipsConvert(files, 'jpg', opts, onProgress, onResult),
+      gifToJpgConvert(files, opts, onProgress, onResult),
   enablePresets: true,
 
   options: [
+    {
+      type: 'radio',
+      name: 'frameMode',
+      label: 'Frames to extract',
+      choices: [
+        { value: 'first', label: 'First frame only' },
+        { value: 'all', label: 'All frames' },
+      ],
+      default: 'first',
+      conditionalHints: {
+        first: 'Outputs one JPG per GIF using the first frame. Static GIFs behave the same way.',
+        all: 'Outputs every frame as a separate JPG, packaged as a ZIP per GIF (e.g. dance-frames.zip → frame-001.jpg, frame-002.jpg…).',
+      },
+    },
     {
       type: 'slider',
       name: 'quality',
@@ -58,7 +72,15 @@ export const config: ToolConfig = {
     },
     {
       q: 'Does this convert the whole animation or just one frame?',
-      a: 'This tool extracts the first frame of the GIF and saves it as a static JPG. The animation is not preserved — all subsequent frames are discarded. If you need to keep the animation, use the GIF to WebP tool instead.',
+      a: 'Both — you choose. "First frame only" outputs one JPG per GIF. "All frames" extracts every frame as a separate JPG and packages them into a ZIP per GIF (named like dance-frames.zip). JPG cannot store animation, so if you want the animation preserved as a single file, use the GIF to WebP tool instead.',
+    },
+    {
+      q: 'How are the extracted frames named?',
+      a: 'Each frame is saved as frame-001.jpg, frame-002.jpg, and so on inside a ZIP named after the source GIF (e.g. dance.gif produces dance-frames.zip). The numbers are zero-padded so the files sort in playback order in any file manager.',
+    },
+    {
+      q: 'If I convert multiple GIFs with "All frames", how do I download the results?',
+      a: 'Each GIF produces its own ZIP of frames. When you click Download all, ConvertYard bundles those per-GIF ZIPs into one master ZIP. Unzip the master to see one ZIP per source GIF, then unzip each to reach the individual JPG frames.',
     },
     {
       q: 'What happens to GIF transparency in the JPG output?',
@@ -78,8 +100,8 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-images-without-losing-quality', 'exif-data-whats-hiding-in-your-photo'],
 
   meta: {
-    title: 'GIF to JPG — First Frame Only — ConvertYard',
+    title: 'Convert  GIF to JPG - Batch up to 1,000 Files for Free',
     description:
-      'Extract the first frame of a GIF as a static JPG. Batch up to 1,000 GIFs in your browser. Set quality. Files never leave your device — no account needed.',
+      'Convert static or animated GIF to JPG file. Extract one frame or all the frames. Nothing uploads. No Signups. No Paywall.',
   },
 }

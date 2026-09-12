@@ -41,8 +41,9 @@ function hexToRgb(hex: string): [number, number, number] {
 }
 
 self.onmessage = async (e: MessageEvent) => {
-  const { id, fileBuffer, outputFormat, opts, fileName } = e.data as {
+  const { id, action, fileBuffer, outputFormat, opts, fileName } = e.data as {
     id: string
+    action?: 'convert' | 'extract-gif-frames'
     fileBuffer: ArrayBuffer
     outputFormat: string
     opts: ToolOptions
@@ -51,8 +52,12 @@ self.onmessage = async (e: MessageEvent) => {
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const vips: any = await getVips()
+
+    if (action === 'extract-gif-frames') {
+      await handleExtractGifFrames(vips, id, fileBuffer, opts)
+      return
+    }
 
     self.postMessage({ id, type: 'progress', pct: 10 })
 
@@ -296,5 +301,69 @@ self.onmessage = async (e: MessageEvent) => {
       type: 'error',
       message: err instanceof Error ? err.message : 'conversion failed',
     })
+  }
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function handleExtractGifFrames(vips: any, id: string, fileBuffer: ArrayBuffer, opts: ToolOptions) {
+  const uint8 = new Uint8Array(fileBuffer)
+  self.postMessage({ id, type: 'progress', pct: 5 })
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const image: any = vips.Image.newFromBuffer(uint8, { n: -1 })
+  try {
+    let pageHeight: number
+    try {
+      pageHeight = image.getInt('page-height')
+    } catch {
+      pageHeight = image.height
+    }
+    const totalH = image.height
+    const width = image.width
+    const nPages = Math.max(1, Math.floor(totalH / pageHeight))
+
+    const quality = typeof opts.quality === 'number' ? opts.quality : 85
+    const strip = opts.stripMetadata === true
+    const bg = hexToRgb(typeof opts.bgColor === 'string' ? opts.bgColor : '#ffffff')
+    const maxDimRaw = opts.maxDimension
+    const maxDim = typeof maxDimRaw === 'number' ? maxDimRaw
+      : typeof maxDimRaw === 'string' ? parseInt(maxDimRaw, 10) || 0
+      : 0
+
+    self.postMessage({ id, type: 'meta', totalFrames: nPages })
+
+    const transferables: ArrayBuffer[] = []
+    const frames: Array<{ index: number; data: ArrayBuffer }> = []
+
+    for (let i = 0; i < nPages; i++) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      let frame: any = image.extractArea(0, i * pageHeight, width, pageHeight)
+      try {
+        if (frame.hasAlpha()) {
+          const flat = frame.flatten({ background: bg })
+          frame.delete()
+          frame = flat
+        }
+        if (maxDim > 0) {
+          const longer = Math.max(frame.width, frame.height)
+          if (longer > maxDim) {
+            const resized = frame.resize(maxDim / longer)
+            frame.delete()
+            frame = resized
+          }
+        }
+        const buf = frame.writeToBuffer('.jpg', { Q: quality, strip }) as Uint8Array<ArrayBuffer>
+        frames.push({ index: i, data: buf.buffer })
+        transferables.push(buf.buffer)
+      } finally {
+        frame.delete()
+      }
+      const pct = 5 + Math.round(((i + 1) / nPages) * 95)
+      self.postMessage({ id, type: 'progress', pct })
+    }
+
+    self.postMessage({ id, type: 'frames', frames }, transferables)
+  } finally {
+    image.delete()
   }
 }

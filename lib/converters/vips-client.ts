@@ -55,3 +55,36 @@ export function convertViaWorker(
     }).catch(reject)
   })
 }
+
+export function extractGifFramesViaWorker(
+  file: File,
+  opts: ToolOptions,
+  onProgress?: (pct: number, totalFrames?: number) => void
+): Promise<Array<{ index: number; data: ArrayBuffer }>> {
+  return new Promise((resolve, reject) => {
+    const worker = getWorker()
+    const id = crypto.randomUUID()
+
+    const handler = (e: MessageEvent) => {
+      if (e.data.id !== id) return
+
+      if (e.data.type === 'progress') {
+        onProgress?.(e.data.pct)
+      } else if (e.data.type === 'meta') {
+        onProgress?.(0, e.data.totalFrames)
+      } else if (e.data.type === 'frames') {
+        worker.removeEventListener('message', handler)
+        resolve(e.data.frames)
+      } else if (e.data.type === 'error') {
+        worker.removeEventListener('message', handler)
+        reject(new Error(e.data.message))
+      }
+    }
+
+    worker.addEventListener('message', handler)
+
+    file.arrayBuffer().then((buffer) => {
+      worker.postMessage({ id, action: 'extract-gif-frames', fileBuffer: buffer, opts }, [buffer])
+    }).catch(reject)
+  })
+}
