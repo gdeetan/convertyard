@@ -26,7 +26,18 @@ function even(n: number): number {
 // Uint8Array ceiling, stream muxer output to an OPFS-backed writable stream
 // instead of accumulating chunks in memory. Only lights up when the platform
 // supports it (Chromium desktop, some Firefox).
-const OPFS_MIN_BYTES = 400 * 1024 * 1024
+// iOS Safari tabs hit the MEMFS ceiling well before Android does — 250 MB
+// pushes the streaming path earlier so large mobile encodes never accumulate
+// in memory. Android + desktop keep the old 400 MB threshold.
+const OPFS_MIN_BYTES_IOS = 250 * 1024 * 1024
+const OPFS_MIN_BYTES_DEFAULT = 400 * 1024 * 1024
+
+function opfsMinBytes(): number {
+  if (typeof navigator === 'undefined') return OPFS_MIN_BYTES_DEFAULT
+  const ua = navigator.userAgent
+  const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.maxTouchPoints > 1 && /Mac/i.test(ua))
+  return isIOS ? OPFS_MIN_BYTES_IOS : OPFS_MIN_BYTES_DEFAULT
+}
 
 type OpfsHandle = {
   stream: FileSystemWritableFileStream
@@ -234,7 +245,7 @@ async function encodeHevcInWorker(
     : 0
 
   const baseName = file.name.replace(/\.[^.]+$/, '')
-  const opfs = file.size > OPFS_MIN_BYTES ? await openOpfsWritable(baseName) : null
+  const opfs = file.size > opfsMinBytes() ? await openOpfsWritable(baseName) : null
 
   let muxer: MuxerHandle | null = null
   let muxError: Error | null = null
@@ -495,7 +506,7 @@ async function encodeAvcInWorker(
     : 0
 
   const baseName = file.name.replace(/\.[^.]+$/, '')
-  const opfs = file.size > OPFS_MIN_BYTES ? await openOpfsWritable(baseName) : null
+  const opfs = file.size > opfsMinBytes() ? await openOpfsWritable(baseName) : null
 
   let muxer: MuxerHandle | null = null
   let muxError: Error | null = null
