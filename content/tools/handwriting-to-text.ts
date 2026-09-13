@@ -144,7 +144,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'Handwriting to Text Converter — ConvertYard',
-    description: 'Transcribe handwritten notes, forms, and letters into digital text. AI-Enhanced mode handles cursive and mixed styles. Browser-based — no uploads.',
+    title: 'Convert Handwriting to Text - Documents or Letters in an Editable Format',
+    description: 'Convert screenshots or handwritten notes to an editable text format, cursive or printed notes using this tool using this web-based tool. 100% Free. Nothing uploads.',
   },
 }
