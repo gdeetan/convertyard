@@ -143,7 +143,19 @@ function estimateOutputBytes(args: {
     durationSeconds: meta.durationSeconds,
   })
   const audioBps = stripAudio ? 0 : 128_000
-  return Math.round(((bps + audioBps) * meta.durationSeconds) / 8)
+  const rawBytes = Math.round(((bps + audioBps) * meta.durationSeconds) / 8)
+  // Mobile encoders (WebCodecs playback capture on Android, ffmpeg-wasm libx264
+  // via CRF on iOS) systematically overshoot the target bitrate the estimate
+  // formula assumes. Field data (PROMPT-40): iOS actual/est = 2.4×,
+  // Android actual/est = 3.65×. Apply an empirical mobile-only inflation
+  // (~2.7×) so users don't see a wildly optimistic number. Desktop tracks the
+  // formula and stays uncorrected.
+  const isMobile = typeof navigator !== 'undefined' && (
+    /Android|iPhone|iPod|iPad/i.test(navigator.userAgent)
+    || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
+  )
+  const corrected = isMobile ? Math.round(rawBytes * 2.7) : rawBytes
+  return Math.min(corrected, file.size)
 }
 
 export function CompressVideoPreview({ files, options }: CompressVideoPreviewProps) {

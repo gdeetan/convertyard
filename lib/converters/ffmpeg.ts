@@ -1347,13 +1347,23 @@ export async function compressVideo(
     const result: ConversionResult = await (async (): Promise<ConversionResult> => {
     try {
       let file = files[i]
-      // iOS Safari kills tabs around ~1GB resident. The wasm compressVideo
-      // path now mounts the source via WORKERFS (no JS/MEMFS copy), which
-      // roughly halves peak memory vs the old fetchFile+writeFile flow.
-      // 500MB is the empirical ceiling before working buffers still push
-      // iOS over the edge.
-      if (isMobileBrowser() && file.size > 500 * 1024 * 1024) {
-        return new Error('This file is too large for mobile browsers (over 500 MB may crash the tab). Please use a desktop browser for large videos.')
+      // Per-platform size gates. iOS Safari has a ~1 GB per-tab budget and
+      // OOMs libx264 wasm plus its own decode buffers well before that; 500 MB
+      // is the empirical ceiling. Android Chrome has a 2–4 GB per-tab budget
+      // and the WebCodecs path (workerfs mount + hardware AVC encode) has
+      // handled files up through the low-GB range in testing; 1.5 GB gives
+      // headroom without inviting the OOMs we see past ~2 GB.
+      if (isMobileBrowser()) {
+        const iosCap = 500 * 1024 * 1024
+        const androidCap = 1500 * 1024 * 1024
+        const cap = isIosBrowser() ? iosCap : androidCap
+        if (file.size > cap) {
+          const capMB = Math.round(cap / (1024 * 1024))
+          const platform = isIosBrowser() ? 'iOS' : 'mobile'
+          return new Error(
+            `This file is too large for ${platform} browsers (over ${capMB} MB may crash the tab). Please use a desktop browser for larger videos.`,
+          )
+        }
       }
       // Mobile pre-flight: reject containers the mobile pipeline can't decode
       // reliably before loading ffmpeg-wasm. MKV/AVI/WMV/TS need libavformat
