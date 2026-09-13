@@ -26,6 +26,35 @@ export function logPhase(codec: PhaseCodec, phase: string, pct: number | null = 
   console.info(`[compress-video][phase] codec=${codec} phase=${phase}${suffix}`)
 }
 
+// PROMPT-40 investigation-only: cross-module diag capture.
+// Each stage of the pipeline writes into this bag; the orchestrator drains it
+// after every file to emit one [compress-video][diag] summary line. No
+// production behavior change — pure telemetry read by ?debug=video-diag panel.
+export type VideoDiag = {
+  encoderCodec?: string
+  encoderWidth?: number
+  encoderHeight?: number
+  encoderFps?: number
+  targetBitrateBps?: number
+  hardwareAcceleration?: string
+  calibrationMeasuredBps?: number
+  calibrationMeasuredFps?: number
+  calibrationEstimatedOutputBytes?: number
+  mtSampleCount?: number
+  mtRegressCount?: number
+  mtRepeatCount?: number
+  mtMaxRegressSec?: number
+}
+let _videoDiag: VideoDiag = {}
+export function recordVideoDiag(partial: Partial<VideoDiag>): void {
+  _videoDiag = { ..._videoDiag, ...partial }
+}
+export function consumeVideoDiag(): VideoDiag {
+  const snapshot = _videoDiag
+  _videoDiag = {}
+  return snapshot
+}
+
 // Shared playback-path encode loop for the HW HEVC and AVC hardware paths.
 // Extracted from twin implementations that had drifted independently — any
 // bug fix or progress-band tweak now applies to both codecs at once.
@@ -98,6 +127,14 @@ async function runPlaybackEncodeLoop(params: {
       clearInterval(watchdog)
       cleanupPrev()
       video.pause()
+      if (mobile) {
+        recordVideoDiag({
+          mtSampleCount,
+          mtRegressCount,
+          mtRepeatCount,
+          mtMaxRegressSec,
+        })
+      }
       resolve()
     }
     const fail = (err: unknown) => {
@@ -324,7 +361,18 @@ export async function pickAvcEncoderConfig(
       }
       try {
         const support = await VideoEncoder.isConfigSupported(cfg)
-        if (support.supported) return (support.config ?? cfg) as AvcEncoderConfig
+        if (support.supported) {
+          const chosen = (support.config ?? cfg) as AvcEncoderConfig
+          recordVideoDiag({
+            encoderCodec: chosen.codec,
+            encoderWidth: chosen.width,
+            encoderHeight: chosen.height,
+            encoderFps: chosen.framerate,
+            targetBitrateBps: chosen.bitrate,
+            hardwareAcceleration: (chosen as { hardwareAcceleration?: string }).hardwareAcceleration ?? 'no-preference',
+          })
+          return chosen
+        }
       } catch {
         /* try next */
       }
@@ -391,7 +439,18 @@ export async function pickHevcEncoderConfig(
       }
       try {
         const support = await VideoEncoder.isConfigSupported(cfg)
-        if (support.supported) return (support.config ?? cfg) as HevcEncoderConfig
+        if (support.supported) {
+          const chosen = (support.config ?? cfg) as HevcEncoderConfig
+          recordVideoDiag({
+            encoderCodec: chosen.codec,
+            encoderWidth: chosen.width,
+            encoderHeight: chosen.height,
+            encoderFps: chosen.framerate,
+            targetBitrateBps: chosen.bitrate,
+            hardwareAcceleration: (chosen as { hardwareAcceleration?: string }).hardwareAcceleration ?? 'no-preference',
+          })
+          return chosen
+        }
       } catch {
         /* try next */
       }
@@ -552,6 +611,11 @@ function getWorker(): Worker {
           `${sample.measuredFps.toFixed(1)} fps → est ${(estimatedOutputBytes / 1024 / 1024).toFixed(1)} MB, ` +
           `ETA ${Number.isFinite(etaSeconds) ? Math.round(etaSeconds) + 's' : '?'}`
         )
+        recordVideoDiag({
+          calibrationMeasuredBps: sample.measuredBps,
+          calibrationMeasuredFps: sample.measuredFps,
+          calibrationEstimatedOutputBytes: estimatedOutputBytes,
+        })
         handler.onCalibration?.(estimate)
       }
       else if (type === 'result') {

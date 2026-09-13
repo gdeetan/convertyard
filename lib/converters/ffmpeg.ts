@@ -2,7 +2,7 @@ import { fetchFile } from '@ffmpeg/util'
 import { materializeFile, unmarkMaterialized, unreadableFileMessage } from '@/lib/utils/materialize-file'
 import { FFFSType } from '@ffmpeg/ffmpeg'
 import { getFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock, resetSingleThreadFFmpeg } from './ffmpeg-client'
-import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware } from './compress-video-webcodecs'
+import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware, consumeVideoDiag } from './compress-video-webcodecs'
 import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from './media-probe'
 import { applyBitrateFloor } from './compress-video-calibration'
 import type { ToolOptions, ConversionResult, CompressionMeta } from '@/lib/types'
@@ -1270,9 +1270,81 @@ export async function compressVideo(
     ? ['-pix_fmt', 'yuv420p', '-tag:v', 'hvc1', '-movflags', '+faststart']
     : ['-pix_fmt', 'yuv420p', '-movflags', '+faststart']
 
+  // PROMPT-40 investigation: single structured diag line per file. Reads
+  // whatever the encode path recorded via recordVideoDiag (encoder config,
+  // calibration, mediaTime probes), computes actual output metrics, guesses
+  // pathTaken, and emits both a console line and a window CustomEvent for
+  // the on-screen debug panel gated by ?debug=video-diag.
+  const emitVideoCompressDiag = async (
+    source: File,
+    result: ConversionResult,
+    elapsedMs: number,
+    idx: number,
+  ): Promise<void> => {
+    const diag = consumeVideoDiag()
+    const isFile = result instanceof File
+    const isError = result instanceof Error
+    const outputFile = isFile
+      ? result
+      : (!isError && typeof result === 'object' && result && 'file' in result ? (result as { file: File }).file : null)
+    const actualOutputBytes = outputFile ? outputFile.size : null
+    let durationSeconds = 0
+    try { durationSeconds = await probeVideoDuration(source) } catch { /* best-effort */ }
+    const sourceBitrateBps = durationSeconds > 0 ? Math.round((source.size * 8) / durationSeconds) : null
+    const actualBitrateBps = actualOutputBytes != null && durationSeconds > 0
+      ? Math.round((actualOutputBytes * 8) / durationSeconds)
+      : null
+    const estimated = diag.calibrationEstimatedOutputBytes ?? null
+    const estimateVsActualRatio = actualOutputBytes != null && estimated ? +(actualOutputBytes / estimated).toFixed(3) : null
+    let pathTaken: string
+    if (isError) pathTaken = 'error'
+    else if (outputFile && outputFile === source) pathTaken = 'source-passthrough'
+    else if (diag.encoderCodec?.startsWith('hev') || diag.encoderCodec?.startsWith('hvc')) pathTaken = 'webcodecs-hevc'
+    else if (diag.encoderCodec?.startsWith('avc')) pathTaken = 'webcodecs-avc'
+    else pathTaken = 'ffmpeg-wasm-or-mediabunny'
+    const ua = typeof navigator !== 'undefined' ? navigator.userAgent : ''
+    const platform = isMobileBrowser() ? (isIosBrowser() ? 'ios' : 'android') : 'desktop'
+    const payload = {
+      idx,
+      platform,
+      ua,
+      sourceName: source.name,
+      sourceType: source.type,
+      sourceBytes: source.size,
+      durationSeconds,
+      sourceBitrateBps,
+      pathTaken,
+      encoderCodec: diag.encoderCodec ?? null,
+      encoderWidth: diag.encoderWidth ?? null,
+      encoderHeight: diag.encoderHeight ?? null,
+      encoderFps: diag.encoderFps ?? null,
+      hardwareAcceleration: diag.hardwareAcceleration ?? null,
+      targetBitrateBps: diag.targetBitrateBps ?? null,
+      calibrationMeasuredBps: diag.calibrationMeasuredBps ?? null,
+      calibrationMeasuredFps: diag.calibrationMeasuredFps ?? null,
+      calibrationEstimatedOutputBytes: estimated,
+      actualOutputBytes,
+      actualBitrateBps,
+      estimateVsActualRatio,
+      mtSampleCount: diag.mtSampleCount ?? null,
+      mtRegressCount: diag.mtRegressCount ?? null,
+      mtRepeatCount: diag.mtRepeatCount ?? null,
+      mtMaxRegressSec: diag.mtMaxRegressSec ?? null,
+      elapsedMs,
+      errorMessage: isError ? (result as Error).message : null,
+    }
+    console.info('[compress-video][diag]', payload)
+    if (typeof window !== 'undefined') {
+      try { window.dispatchEvent(new CustomEvent('convertyard:video-diag', { detail: payload })) } catch { /* ignore */ }
+    }
+  }
+
   const processOne = async (i: number): Promise<ConversionResult> => {
     console.info(`[compress-video][phase] codec=orchestrator phase=processOne-start i=${i} sizeMB=${Math.round((files[i]?.size ?? 0) / 1024 / 1024)} h265=${h265} resolution=${resolution}`)
     onProgress?.(i, 5)
+    const source = files[i]
+    const t0 = Date.now()
+    const result: ConversionResult = await (async (): Promise<ConversionResult> => {
     try {
       let file = files[i]
       // iOS Safari kills tabs around ~1GB resident. The wasm compressVideo
@@ -1687,6 +1759,9 @@ export async function compressVideo(
     } catch (err) {
       return explainCompressVideoError(toError(err))
     }
+    })()
+    try { emitVideoCompressDiag(source, result, Date.now() - t0, i) } catch { /* diag must never throw */ }
+    return result
   }
 
   // Concurrency: pair up files on desktop with ≥4 cores. Mobile stays serial
