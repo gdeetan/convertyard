@@ -1344,6 +1344,7 @@ export async function compressVideo(
     onProgress?.(i, 5)
     const source = files[i]
     const t0 = Date.now()
+    let iosDownshiftedFlag = false
     const result: ConversionResult = await (async (): Promise<ConversionResult> => {
     try {
       let file = files[i]
@@ -1393,6 +1394,24 @@ export async function compressVideo(
       if (hasVideoTrack === false) {
         return new Error('This file has no video track. Video Compressor only works on video files, not audio-only files.')
       }
+
+      // iOS Safari auto-downshift. iOS routes to ffmpeg-wasm libx264 (the
+      // WebCodecs hardware AVC path is disabled here — see
+      // compress-video-webcodecs.ts:1277). libx264-wasm's MEMFS output + the
+      // readFile Uint8Array copy briefly doubles the output size in memory,
+      // and Safari's ~1 GB per-tab budget then stalls or silent-OOMs during
+      // the final `new File([data])` allocation for 1080p+ outputs. Force
+      // 720p on iOS whenever the source is large enough that the output
+      // would land in the danger zone. 720p libx264 output typically stays
+      // under 100 MB and finishes cleanly.
+      const iosLargeSource = isIosBrowser() && file.size > 150 * 1024 * 1024
+      const iosAutoDownshift = iosLargeSource && (resolution === 'original' || resolution === '1080p')
+      if (iosAutoDownshift) {
+        console.info(`[compress-video] iOS auto-downshift to 720p — source ${Math.round(file.size / 1024 / 1024)}MB, selected ${resolution} (avoids Safari heap stall at 99%)`)
+        iosDownshiftedFlag = true
+      }
+      const effectiveVfArgs: string[] = iosAutoDownshift ? ['-vf', 'scale=-2:720'] : vfArgs
+      const effectiveResHeight: number | undefined = iosAutoDownshift ? 720 : resHeight
 
       // Desktop >2 GB: skip the hardware playback path entirely — it can't
       // deliver a first frame within the 8s watchdog on a multi-GB <video>,
@@ -1542,7 +1561,8 @@ export async function compressVideo(
         const crf = crfMap[level] ?? 23
         // Respect the user's resolution choice — the UI warns before
         // Compress when Original is picked on mobile for large files.
-        const effectiveCrfVfArgs = vfArgs
+        // iOS large-source auto-downshift applied above overrides vfArgs.
+        const effectiveCrfVfArgs = effectiveVfArgs
         let presetAudioArgs = audioArgs
         if (!stripAudio) {
           const audioInfo = await probeAudioInfo(ffmpeg, inputName)
@@ -1555,7 +1575,7 @@ export async function compressVideo(
           }
         }
         const durationForEstimate = await probeVideoDuration(file)
-        let heightForEstimate = resHeight
+        let heightForEstimate = effectiveResHeight
         if (heightForEstimate === undefined) {
           const dims = await probeVideoDimensions(file)
           heightForEstimate = dims?.height ?? 720
@@ -1628,16 +1648,20 @@ export async function compressVideo(
             await ffmpeg.deleteFile(outputName).catch(() => {})
           }
         } else {
-          // Compute effective vf args — auto-scale when user didn't set a resolution
-          let effectiveVfArgs = vfArgs
-          if (resolution === 'original') {
+          // Compute effective vf args — auto-scale when user didn't set a resolution.
+          // iOS large-source auto-downshift (computed above) already forced 720p
+          // when applicable; those cases start from that override instead of vfArgs.
+          let targetSizeVfArgs = effectiveVfArgs
+          if (!iosAutoDownshift && resolution === 'original') {
             const dims = await probeVideoDimensions(file)
             if (dims) {
-              const autoHeight = isMobileBrowser()
-                ? (targetKB <= 50 * 1024 ? 720 : 1080)
-                : (targetKB <= 10 * 1024 ? 720 : targetKB <= 50 * 1024 ? 1080 : null)
+              const autoHeight = isIosBrowser()
+                ? 720
+                : isMobileBrowser()
+                  ? (targetKB <= 50 * 1024 ? 720 : 1080)
+                  : (targetKB <= 10 * 1024 ? 720 : targetKB <= 50 * 1024 ? 1080 : null)
               if (autoHeight !== null && dims.height > autoHeight) {
-                effectiveVfArgs = ['-vf', `scale=-2:${autoHeight}`]
+                targetSizeVfArgs = ['-vf', `scale=-2:${autoHeight}`]
               }
             }
           }
@@ -1666,7 +1690,7 @@ export async function compressVideo(
               100_000,
               Math.floor((targetBytes * 8 - audioBitsPerSec * durationSeconds) / durationSeconds)
             )
-            let ts_heightForEstimate = resHeight
+            let ts_heightForEstimate = effectiveResHeight
             if (ts_heightForEstimate === undefined) {
               const dims = await probeVideoDimensions(file)
               ts_heightForEstimate = dims?.height ?? 720
@@ -1686,7 +1710,7 @@ export async function compressVideo(
               const { code, tail } = await execWithReason(ffmpeg, [
                 ...threadArgs,
                 '-i', inputName,
-                ...effectiveVfArgs,
+                ...targetSizeVfArgs,
                 ...codecArgs,
                 '-b:v', String(videoBitsPerSec),
                 '-maxrate', String(Math.floor(videoBitsPerSec * 1.5)),
@@ -1771,6 +1795,21 @@ export async function compressVideo(
     }
     })()
     try { emitVideoCompressDiag(source, result, Date.now() - t0, i) } catch { /* diag must never throw */ }
+    // Attach the iOS auto-downshift notice if that override fired and we
+    // produced an actual File. Preserves any existing notice (e.g., the
+    // H.265→H.264 mobile fallback wrapper adds its own upstream).
+    if (iosDownshiftedFlag && result instanceof File) {
+      return {
+        file: result,
+        notice: 'Encoded at 720p — iOS Safari can\'t reliably finish 1080p or higher for videos this size (memory stall around 99%). Use a desktop browser if you need 1080p.',
+      }
+    }
+    if (iosDownshiftedFlag && !(result instanceof Error) && typeof result === 'object' && result && 'file' in result && !('notice' in result && (result as { notice?: string }).notice)) {
+      return {
+        ...(result as { file: File }),
+        notice: 'Encoded at 720p — iOS Safari can\'t reliably finish 1080p or higher for videos this size (memory stall around 99%). Use a desktop browser if you need 1080p.',
+      }
+    }
     return result
   }
 
