@@ -3,9 +3,9 @@ import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
   slug: 'heic-to-jpg',
-  title: 'HEIC to JPG Converter',
-  subtitle: 'Convert iPhone’s HEIC format to a universally readable JPG format in your browser. No paywall. Nothing uploads to a server. Everything is converted locally in your browser.',
-  bestFor: 'Best for making iPhone photos viewable on Windows PCs, Android devices, and apps that reject HEIC.',
+  title: 'HEIC & HEIF to JPG Converter',
+  subtitle: 'Convert iPhone HEIC and HEIF photos to a universally readable JPG format in your browser. No paywall. Nothing uploads to a server. Everything is converted locally in your browser.',
+  bestFor: 'Best for making iPhone HEIC and HEIF photos viewable on Windows PCs, Android devices, and apps that reject them.',
   category: 'images',
   accepts: ['image/heic', 'image/heif'],
   acceptsExt: ['.heic', '.heif'],
@@ -64,6 +64,10 @@ export const config: ToolConfig = {
       a: 'No files are uploaded. The image conversion happens in your browser using WebAssembly. Your HEIC files don’t leave your device since our servers only load the tool’s code in the browser. No one will see your images, filenames, or GPS data.',
     },
     {
+      q: 'What\'s the difference between HEIC and HEIF?',
+      a: 'HEIF (High Efficiency Image Format) is the container. HEIC is Apple\'s name for a HEIF file that stores HEVC-encoded image data — the variant iPhones save by default. Some cameras and apps write .heif files that use the same container with slightly different encoding. This tool accepts both extensions and converts them to JPG the same way.',
+    },
+    {
       q: 'Why can\'t Windows open HEIC files?',
       a: 'HEIC uses Apple\'s HEIF implementation, which is licensed. Windows does not include the required HEIF codec by default. HEIF Image Extensions for Windows 10/11 is available as a free app from the Microsoft Store. However, other Windows-based apps and browsers won’t be able to read or load them. All apps can open HEIC images after you convert them to JPG.',
     },
@@ -89,8 +93,8 @@ export const config: ToolConfig = {
   relatedArticles: ['what-is-heic', 'heic-to-jpg-on-windows', 'batch-convert-images'],
 
   meta: {
-    title: 'Convert iPhone HEIC to JPG - Unlimited Convertions, Nothing Uploads',
+    title: 'Convert HEIC & HEIF to JPG - Unlimited Conversions, Nothing Uploads',
     description:
-      "Convert iPhone HEIC files to JPG file in your browser to view the photo on non-IOS devices. Convert batches up to 1,000 files for free. Nothing uploads and there's no paywall. Auto-orient, resize, and adjust quality filters are included.",
+      "Convert iPhone HEIC and HEIF files to JPG in your browser to view the photo on non-iOS devices. Convert batches up to 1,000 files for free. Nothing uploads and there's no paywall. Auto-orient, resize, and adjust quality filters are included.",
   },
 }
