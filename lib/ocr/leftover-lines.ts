@@ -279,15 +279,14 @@ export function mergeTruncatedLine(florenceLine: string, trocrLine: string): str
   const f = florenceLine.replace(/\s+/g, ' ').trim()
   const t = trocrLine.replace(/\s+/g, ' ').trim()
   if (!t) return florenceLine
-  const fTok = tokens(f)
-  const tTok = tokens(t)
-  if (tTok.length === 0) return florenceLine
-  const tSet = new Set(tTok)
-  const hits = fTok.filter(w => tSet.has(w) || [...tSet].some(x => x.includes(w) || w.includes(x)))
-  const covered = fTok.length === 0 ? 0 : hits.length / fTok.length
-  const trocrLooksComplete = /^[A-Z]/.test(t) || tTok.length >= fTok.length
-  if (covered >= 0.5 && trocrLooksComplete && t.length >= f.length * 0.8) return t
-  if (t.toLowerCase().includes(f.toLowerCase()) && t.length > f.length) return t
+  const fN = f.toLowerCase()
+  const tN = t.toLowerCase()
+  // Only replace a whole Florence line when TrOCR clearly contains it.
+  // A 50% token overlap let worse TrOCR overwrite a good Florence read.
+  if (tN.includes(fN) && t.length > f.length) return t
+  const fCompact = fN.replace(/\s+/g, '')
+  const tCompact = tN.replace(/\s+/g, '')
+  if (tCompact.includes(fCompact) && t.length > f.length) return t
   return florenceLine
 }
 

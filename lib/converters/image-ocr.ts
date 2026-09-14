@@ -1023,11 +1023,6 @@ export async function imageOcrConvert(
                 appendRemainderToOverlappingRow,
                 attachRemainderToOverlappingRow,
                 insertTextAtY,
-                looksLeftTruncated,
-                looksRightTruncated,
-                mergeTruncatedLine,
-                overlappingLineBox,
-                replaceOverlappingRowText,
                 belowBlockBox,
               } = await import('@/lib/ocr/leftover-lines')
               const leftover = leftoverLineBoxes(lineBoxes, florence.quadBoxes, imageHeight).slice(0, 6)
@@ -1038,19 +1033,18 @@ export async function imageOcrConvert(
                 labels: florence.labels,
                 quad_boxes: florence.quadBoxes,
               })
-              const truncatedRows = rows.filter(r => looksLeftTruncated(r.text) || looksRightTruncated(r.text))
               const pageBmp = await createImageBitmap(grayBlob)
               const imgW = pageBmp.width
               const imgH = pageBmp.height
               pageBmp.close()
               const below = belowBlockBox(florence.quadBoxes, imgW, imgH)
-              if (leftover.length > 0 || rightRemainders.length > 0 || leftRemainders.length > 0 || truncatedRows.length > 0 || below) {
+              if (leftover.length > 0 || rightRemainders.length > 0 || leftRemainders.length > 0 || below) {
                 diagLog(
                   'florence-gapfill-start',
-                  `left=${leftRemainders.length} right=${rightRemainders.length} leftover=${leftover.length} truncated=${truncatedRows.length} below=${below ? 1 : 0}`,
+                  `left=${leftRemainders.length} right=${rightRemainders.length} leftover=${leftover.length} below=${below ? 1 : 0}`,
                 )
                 const { recognizeWithTrOCR } = await import('@/lib/ocr/trocr-client')
-                const extraInk = 0.008
+                const extraInk = 0.03
                 const brownLuma = 210
 
                 for (const box of leftRemainders) {
@@ -1091,22 +1085,8 @@ export async function imageOcrConvert(
                   }
                 }
 
-                for (const row of truncatedRows) {
-                  const box = overlappingLineBox(lineBoxes, row)
-                  const band = box
-                    ? { x: 0, y: box.y, w: imgW, h: Math.max(box.h, 28) }
-                    : { x: 0, y: row.y0, w: imgW, h: Math.max(row.y1 - row.y0, 28) }
-                  const blobs = await cropLinesToBlobs(binBlob, grayBlob, [band], extraInk, brownLuma)
-                  if (blobs.length === 0) continue
-                  const extra = await recognizeWithTrOCR(blobs, undefined, quality)
-                  const merged = mergeTruncatedLine(row.text, extra.text)
-                  if (merged === row.text) continue
-                  text = replaceOverlappingRowText(text, rows, row, merged)
-                  diagLog('florence-truncated-repaired', merged.slice(0, 60))
-                }
-
-                if (below) {
-                  const belowBlobs = await cropLinesToBlobs(binBlob, grayBlob, [below], extraInk, brownLuma)
+                if (below && leftover.length === 0) {
+                  const belowBlobs = await cropLinesToBlobs(binBlob, grayBlob, [below], 0.008, brownLuma)
                   if (belowBlobs.length > 0) {
                     const extra = await recognizeWithTrOCR(belowBlobs, undefined, quality)
                     const unique = leftoverTextNotInBody(text, extra.text)

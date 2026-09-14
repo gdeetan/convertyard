@@ -203,18 +203,18 @@ describe('truncated line repair', () => {
     expect(looksRightTruncated('of your future be')).toBe(false)
   })
 
-  it('replaces a clipped Florence line with a complete TrOCR line', () => {
+  it('only replaces a Florence line when TrOCR contains that line', () => {
     expect(
       mergeTruncatedLine(
-        'orse than the happiest day ofyour',
+        'May the saddest day of your future be',
+        'worse than the happiest day of your past.',
+      ),
+    ).toBe('May the saddest day of your future be')
+    expect(
+      mergeTruncatedLine(
+        'orse than the happiest',
         'worse than the happiest day of your past.',
       ),
     ).toBe('worse than the happiest day of your past.')
-    expect(
-      mergeTruncatedLine(
-        'd may the most you wish for be th',
-        'And may the most you wish for be the least',
-      ),
-    ).toBe('And may the most you wish for be the least')
   })
 })
