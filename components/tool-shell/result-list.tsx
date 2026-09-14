@@ -562,8 +562,8 @@ function ResultRow({
           ) : null}
         </span>
         {entry.notice && (
-          <div className="mt-1 inline-flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300">
-            <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" aria-hidden="true" />
+          <div className="mt-1 flex items-start gap-1.5 text-xs text-fg-muted">
+            <span aria-hidden="true" className="mt-0.5 shrink-0">ⓘ</span>
             <span>{entry.notice}</span>
           </div>
         )}
