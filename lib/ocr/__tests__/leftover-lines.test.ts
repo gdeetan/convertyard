@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { leftoverLineBoxes, leftoverTextNotInBody } from '../leftover-lines'
+import {
+  leftoverLineBoxes,
+  leftoverTextNotInBody,
+  rightRemainderBoxes,
+  appendRemainderToOverlappingRow,
+} from '../leftover-lines'
 
 describe('leftoverLineBoxes', () => {
   it('returns a caption line below Florence boxes', () => {
@@ -79,5 +84,43 @@ describe('leftoverTextNotInBody', () => {
     expect(
       leftoverTextNotInBody('May the saddest day of your future', 'saddest day'),
     ).toBe('')
+  })
+
+  it('drops long leftover lines that look like hallucination', () => {
+    expect(
+      leftoverTextNotInBody(
+        'Hope everyone is having a good day.',
+        'to establish the Government of Australia Print export',
+      ),
+    ).toBe('')
+  })
+})
+
+describe('rightRemainderBoxes', () => {
+  it('returns the uncovered right edge of a truncated line', () => {
+    const lines = [{ x: 10, y: 20, w: 200, h: 24 }]
+    const quads = [[10, 20, 140, 20, 140, 44, 10, 44]]
+    expect(rightRemainderBoxes(lines, quads)).toEqual([
+      { x: 140, y: 20, w: 70, h: 24 },
+    ])
+  })
+
+  it('returns nothing when Florence already covers the ink', () => {
+    const lines = [{ x: 10, y: 20, w: 200, h: 24 }]
+    const quads = [[8, 18, 214, 18, 214, 46, 8, 46]]
+    expect(rightRemainderBoxes(lines, quads)).toEqual([])
+  })
+})
+
+describe('appendRemainderToOverlappingRow', () => {
+  it('appends missing end words onto the overlapping Florence line', () => {
+    const body = 'This is a handwriting test to see how it lo\non lined paper. For the past two weeks I hav'
+    const rows = [
+      { y0: 10, y1: 40 },
+      { y0: 42, y1: 70 },
+    ]
+    expect(
+      appendRemainderToOverlappingRow(body, rows, { x: 180, y: 12, w: 40, h: 22 }, 'looks'),
+    ).toBe('This is a handwriting test to see how it lo looks\non lined paper. For the past two weeks I hav')
   })
 })

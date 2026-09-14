@@ -480,7 +480,8 @@ function gridToExcel(grid: string[][], sheetName: string): Uint8Array {
 async function cropLinesToBlobs(
   binaryBlob: Blob,
   grayscaleBlob: Blob,
-  lines: Array<{ x: number; y: number; w: number; h: number }>
+  lines: Array<{ x: number; y: number; w: number; h: number }>,
+  minInkRatio = 0.015,
 ): Promise<Blob[]> {
   if (lines.length === 0 || typeof OffscreenCanvas === 'undefined') return []
   // Binary bitmap used only for blank-line detection (clean 0/255 signal).
@@ -505,7 +506,7 @@ async function cropLinesToBlobs(
     const pixels = checkCtx.getImageData(0, 0, w, h).data
     let blackCount = 0
     for (let p = 0; p < pixels.length; p += 4) { if (pixels[p] < 128) blackCount++ }
-    if (blackCount / (w * h) < 0.015) continue
+    if (blackCount / (w * h) < minInkRatio) continue
 
     // Crop grayscale with horizontal padding (3% each side) for TrOCR input.
     // Tight crops starting at ink confuse encoder position embeddings on first/last chars.
@@ -1013,28 +1014,56 @@ export async function imageOcrConvert(
                 ...florence.quadBoxes.flatMap(q => [q[1], q[3], q[5], q[7]].filter((n): n is number => typeof n === 'number')),
                 1,
               )
-              const { leftoverLineBoxes, leftoverTextNotInBody } = await import('@/lib/ocr/leftover-lines')
+              const {
+                leftoverLineBoxes,
+                leftoverTextNotInBody,
+                rightRemainderBoxes,
+                appendRemainderToOverlappingRow,
+              } = await import('@/lib/ocr/leftover-lines')
               const leftover = leftoverLineBoxes(lineBoxes, florence.quadBoxes, imageHeight).slice(0, 6)
-              if (leftover.length > 0) {
-                diagLog('florence-leftover-start', `boxes=${leftover.length}`)
+              const remainders = rightRemainderBoxes(lineBoxes, florence.quadBoxes).slice(0, 8)
+              if (leftover.length > 0 || remainders.length > 0) {
+                diagLog('florence-gapfill-start', `remainders=${remainders.length} leftover=${leftover.length}`)
                 const { recognizeWithTrOCR } = await import('@/lib/ocr/trocr-client')
-                const leftoverBlobs = await cropLinesToBlobs(binBlob, grayBlob, leftover)
-                if (leftoverBlobs.length > 0) {
-                  const extra = await recognizeWithTrOCR(
-                    leftoverBlobs,
-                    p => onProgress?.(i, 57 + Math.round(p * 0.08)),
-                    quality,
-                  )
-                  const unique = leftoverTextNotInBody(text, extra.text)
-                  if (unique) {
-                    text = `${text.replace(/\s+$/, '')}\n${unique}`
-                    pageWords = text.split(/\s+/).filter(Boolean).map(w => ({
-                      text: w,
-                      confidence: -1 as const,
-                    }))
-                    diagLog('florence-leftover-appended', unique.slice(0, 80))
+                const { florenceVisualRows } = await import('@/lib/ocr/florence-ocr-client')
+                const extraInk = 0.03
+
+                if (remainders.length > 0) {
+                  const rows = florenceVisualRows({
+                    labels: florence.labels,
+                    quad_boxes: florence.quadBoxes,
+                  })
+                  for (const box of remainders) {
+                    const blobs = await cropLinesToBlobs(binBlob, grayBlob, [box], extraInk)
+                    if (blobs.length === 0) continue
+                    const extra = await recognizeWithTrOCR(blobs, undefined, quality)
+                    const unique = leftoverTextNotInBody(text, extra.text)
+                    if (!unique) continue
+                    text = appendRemainderToOverlappingRow(text, rows, box, unique)
+                    diagLog('florence-remainder-appended', unique.slice(0, 40))
                   }
                 }
+
+                if (leftover.length > 0) {
+                  const leftoverBlobs = await cropLinesToBlobs(binBlob, grayBlob, leftover, extraInk)
+                  if (leftoverBlobs.length > 0) {
+                    const extra = await recognizeWithTrOCR(
+                      leftoverBlobs,
+                      p => onProgress?.(i, 57 + Math.round(p * 0.08)),
+                      quality,
+                    )
+                    const unique = leftoverTextNotInBody(text, extra.text)
+                    if (unique) {
+                      text = `${text.replace(/\s+$/, '')}\n${unique}`
+                      diagLog('florence-leftover-appended', unique.slice(0, 80))
+                    }
+                  }
+                }
+
+                pageWords = text.split(/\s+/).filter(Boolean).map(w => ({
+                  text: w,
+                  confidence: -1 as const,
+                }))
               }
             } catch (leftoverErr) {
               console.warn('[Florence-2] Leftover-line pass failed:', leftoverErr)

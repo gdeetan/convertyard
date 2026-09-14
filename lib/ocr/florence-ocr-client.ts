@@ -139,6 +139,28 @@ export function sortRegionsToReadingOrder(regions: OcrRegions): string[] {
   return out
 }
 
+export function florenceVisualRows(
+  regions: OcrRegions,
+): Array<{ text: string; y0: number; y1: number }> {
+  if (!regions.labels.length || !regions.quad_boxes?.length) return []
+  const items = toRegionItems(regions).sort((a, b) => a.topY - b.topY || a.leftX - b.leftX)
+  const rows: RegionItem[][] = []
+  for (const item of items) {
+    const row = rows[rows.length - 1]
+    if (!row) {
+      rows.push([item])
+      continue
+    }
+    if (belongsToVisualRow(item, row)) row.push(item)
+    else rows.push([item])
+  }
+  return rows.map(row => ({
+    text: normalizeLineText(row.map(item => item.label).join(' ')),
+    y0: Math.min(...row.map(r => r.topY)),
+    y1: Math.max(...row.map(r => r.bottomY)),
+  })).filter(row => row.text)
+}
+
 export function buildFlorenceReadingText(regions: OcrRegions): string {
   if (!regions.labels?.length) return ''
   if (!regions.quad_boxes?.length) return normalizeOcrText(regions.labels.join('\n'))
@@ -148,6 +170,7 @@ export function buildFlorenceReadingText(regions: OcrRegions): string {
 export interface FlorenceOcrResult {
   text: string
   quadBoxes: number[][]
+  labels: string[]
 }
 
 export async function recognizeWithFlorenceOcr(
@@ -160,16 +183,17 @@ export async function recognizeWithFlorenceOcr(
   const file = new File([blob], filename, { type: blob.type || 'image/png' })
   const raw = await recognizeHandwritingOcr(file, onProgress)
 
-  if (!raw) return { text: '', quadBoxes: [] }
+  if (!raw) return { text: '', quadBoxes: [], labels: [] }
 
   try {
     const regions: OcrRegions = JSON.parse(raw)
     return {
       text: buildFlorenceReadingText(regions),
       quadBoxes: Array.isArray(regions.quad_boxes) ? regions.quad_boxes : [],
+      labels: Array.isArray(regions.labels) ? regions.labels : [],
     }
   } catch {
     // JSON parse failed — treat raw as plain text
-    return { text: normalizeOcrText(raw.trim()), quadBoxes: [] }
+    return { text: normalizeOcrText(raw.trim()), quadBoxes: [], labels: [] }
   }
 }

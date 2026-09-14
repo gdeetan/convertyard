@@ -83,7 +83,77 @@ export function leftoverTextNotInBody(body: string, extra: string): string {
   const kept = lines.filter(line => {
     const n = line.toLowerCase().replace(/\s+/g, ' ')
     if (n.length < 2) return false
+    if (n.split(/\s+/).length > 6) return false
     return !bodyNorm.includes(n)
   })
   return kept.join('\n')
+}
+
+function quadRight(quad: number[]): number {
+  const xs = [quad[0], quad[2], quad[4], quad[6]].filter((v): v is number => typeof v === 'number')
+  return xs.length ? Math.max(...xs) : 0
+}
+
+function verticalOverlap(line: LineBox, quad: number[]): number {
+  const qTop = Math.min(quad[1], quad[3], quad[5], quad[7])
+  const qBot = Math.max(quad[1], quad[3], quad[5], quad[7])
+  return Math.min(line.y + line.h, qBot) - Math.max(line.y, qTop)
+}
+
+export function rightRemainderBoxes(
+  lines: LineBox[],
+  florenceQuads: number[][] | null,
+): LineBox[] {
+  if (!florenceQuads?.length || lines.length === 0) return []
+  const out: LineBox[] = []
+  for (const line of lines) {
+    const overlapping = florenceQuads.filter(q => verticalOverlap(line, q) >= line.h * 0.25)
+    if (overlapping.length === 0) continue
+    const florenceRight = Math.max(...overlapping.map(quadRight))
+    const lineRight = line.x + line.w
+    const extra = lineRight - florenceRight
+    if (extra < 24 || extra < line.w * 0.12) continue
+    out.push({ x: florenceRight, y: line.y, w: extra, h: line.h })
+  }
+  return out
+}
+
+export function appendRemainderToOverlappingRow(
+  body: string,
+  rows: Array<{ y0: number; y1: number }>,
+  box: LineBox,
+  extra: string,
+): string {
+  const add = extra.trim()
+  if (!add) return body
+  const addNorm = add.toLowerCase().replace(/\s+/g, ' ')
+  if (addNorm.split(/\s+/).length > 6) return body
+
+  const boxMid = box.y + box.h / 2
+  let best = -1
+  let bestOverlap = 0
+  for (let i = 0; i < rows.length; i++) {
+    const overlap = Math.min(box.y + box.h, rows[i].y1) - Math.max(box.y, rows[i].y0)
+    if (overlap > bestOverlap || (overlap === bestOverlap && boxMid >= rows[i].y0 && boxMid <= rows[i].y1)) {
+      if (overlap > 0) {
+        bestOverlap = overlap
+        best = i
+      }
+    }
+  }
+  if (best < 0) return body
+
+  const lines = body.split('\n')
+  let visual = 0
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i]) continue
+    if (visual === best) {
+      const lineNorm = lines[i].toLowerCase().replace(/\s+/g, ' ')
+      if (lineNorm.includes(addNorm)) return body
+      lines[i] = `${lines[i].replace(/\s+$/, '')} ${add}`
+      return lines.join('\n')
+    }
+    visual++
+  }
+  return body
 }
