@@ -54,6 +54,24 @@ describe('sortRegionsToReadingOrder', () => {
     ])
   })
 
+  it('keeps an indented line above a full-width line even when they overlap', () => {
+    const regions: OcrRegions = {
+      labels: [
+        'SOMETIMES I PREFER MY ALL-CAPS',
+        'WRITING FOR LISTS & NOTES. IT MAKES ME',
+      ],
+      quad_boxes: [
+        [40, 10, 280, 10, 280, 42, 40, 42],
+        [10, 28, 300, 28, 300, 60, 10, 60],
+      ],
+    }
+
+    expect(sortRegionsToReadingOrder(regions)).toEqual([
+      'SOMETIMES I PREFER MY ALL - CAPS',
+      'WRITING FOR LISTS & NOTES. IT MAKES ME',
+    ])
+  })
+
   it('inserts a paragraph break when vertical gap is much larger than line height', () => {
     const regions: OcrRegions = {
       labels: ['First line', 'Second paragraph'],

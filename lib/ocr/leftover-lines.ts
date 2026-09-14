@@ -157,3 +157,27 @@ export function appendRemainderToOverlappingRow(
   }
   return body
 }
+
+export function insertTextAtY(
+  body: string,
+  rows: Array<{ y0: number; y1: number }>,
+  y: number,
+  extra: string,
+): string {
+  const add = extra.trim()
+  if (!add) return body
+  const lines = body.split('\n')
+  let insertAt = lines.length
+  let visual = 0
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i]) continue
+    const row = rows[visual]
+    visual++
+    if (row && row.y0 > y) {
+      insertAt = i
+      break
+    }
+  }
+  lines.splice(insertAt, 0, add)
+  return lines.join('\n')
+}

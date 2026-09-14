@@ -1019,6 +1019,7 @@ export async function imageOcrConvert(
                 leftoverTextNotInBody,
                 rightRemainderBoxes,
                 appendRemainderToOverlappingRow,
+                insertTextAtY,
               } = await import('@/lib/ocr/leftover-lines')
               const leftover = leftoverLineBoxes(lineBoxes, florence.quadBoxes, imageHeight).slice(0, 6)
               const remainders = rightRemainderBoxes(lineBoxes, florence.quadBoxes).slice(0, 8)
@@ -1045,18 +1046,18 @@ export async function imageOcrConvert(
                 }
 
                 if (leftover.length > 0) {
-                  const leftoverBlobs = await cropLinesToBlobs(binBlob, grayBlob, leftover, extraInk)
-                  if (leftoverBlobs.length > 0) {
-                    const extra = await recognizeWithTrOCR(
-                      leftoverBlobs,
-                      p => onProgress?.(i, 57 + Math.round(p * 0.08)),
-                      quality,
-                    )
+                  const rows = florenceVisualRows({
+                    labels: florence.labels,
+                    quad_boxes: florence.quadBoxes,
+                  })
+                  for (const box of leftover) {
+                    const leftoverBlobs = await cropLinesToBlobs(binBlob, grayBlob, [box], extraInk)
+                    if (leftoverBlobs.length === 0) continue
+                    const extra = await recognizeWithTrOCR(leftoverBlobs, undefined, quality)
                     const unique = leftoverTextNotInBody(text, extra.text)
-                    if (unique) {
-                      text = `${text.replace(/\s+$/, '')}\n${unique}`
-                      diagLog('florence-leftover-appended', unique.slice(0, 80))
-                    }
+                    if (!unique) continue
+                    text = insertTextAtY(text, rows, box.y, unique)
+                    diagLog('florence-leftover-appended', unique.slice(0, 80))
                   }
                 }
 
@@ -1418,6 +1419,15 @@ export async function imageOcrConvert(
         } catch (corrErr) {
           console.warn('[correction] Correction failed, using raw OCR output:', corrErr)
         }
+      }
+
+      if (
+        lang === 'eng'
+        && (mode === 'text' || mode === 'markdown' || mode === 'combined')
+        && opts.autoCorrect !== false
+      ) {
+        const { rescoreOcrText } = await import('@/lib/ocr/rescore-text')
+        text = rescoreOcrText(text)
       }
 
       const baseName = file.name.replace(/\.[^.]+$/, '')
