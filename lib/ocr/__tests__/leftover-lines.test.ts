@@ -3,7 +3,10 @@ import {
   leftoverLineBoxes,
   leftoverTextNotInBody,
   rightRemainderBoxes,
+  leftRemainderBoxes,
   appendRemainderToOverlappingRow,
+  attachRemainderToOverlappingRow,
+  stitchRemainder,
   insertTextAtY,
 } from '../leftover-lines'
 
@@ -113,6 +116,26 @@ describe('rightRemainderBoxes', () => {
   })
 })
 
+describe('leftRemainderBoxes', () => {
+  it('returns the uncovered left edge of a truncated line', () => {
+    const lines = [{ x: 10, y: 50, w: 200, h: 24 }]
+    const quads = [[50, 50, 210, 50, 210, 74, 50, 74]]
+    expect(leftRemainderBoxes(lines, quads)).toEqual([
+      { x: 10, y: 50, w: 40, h: 24 },
+    ])
+  })
+})
+
+describe('stitchRemainder', () => {
+  it('prepends a clipped first letter without a space', () => {
+    expect(stitchRemainder('orse than the happiest', 'w', 'left')).toBe('worse than the happiest')
+  })
+
+  it('stitches overlapping And onto d may', () => {
+    expect(stitchRemainder('d may the most', 'And', 'left')).toBe('And may the most')
+  })
+})
+
 describe('insertTextAtY', () => {
   it('inserts a signature above a later P.S. line', () => {
     const body = 'Anyway, thanks for reading!\nP.S. THIS IS WRITTEN WITH A MICRON 05.'
@@ -135,6 +158,20 @@ describe('appendRemainderToOverlappingRow', () => {
     ]
     expect(
       appendRemainderToOverlappingRow(body, rows, { x: 180, y: 12, w: 40, h: 22 }, 'looks'),
-    ).toBe('This is a handwriting test to see how it lo looks\non lined paper. For the past two weeks I hav')
+    ).toBe('This is a handwriting test to see how it looks\non lined paper. For the past two weeks I hav')
+  })
+
+  it('prepends a clipped line start onto the overlapping Florence line', () => {
+    const body = 'orse than the happiest day of your past.'
+    const rows = [{ y0: 48, y1: 76 }]
+    expect(
+      attachRemainderToOverlappingRow(
+        body,
+        rows,
+        { x: 10, y: 50, w: 40, h: 22 },
+        'w',
+        'left',
+      ),
+    ).toBe('worse than the happiest day of your past.')
   })
 })

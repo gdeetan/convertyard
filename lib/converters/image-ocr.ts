@@ -1018,23 +1018,39 @@ export async function imageOcrConvert(
                 leftoverLineBoxes,
                 leftoverTextNotInBody,
                 rightRemainderBoxes,
+                leftRemainderBoxes,
                 appendRemainderToOverlappingRow,
+                attachRemainderToOverlappingRow,
                 insertTextAtY,
               } = await import('@/lib/ocr/leftover-lines')
               const leftover = leftoverLineBoxes(lineBoxes, florence.quadBoxes, imageHeight).slice(0, 6)
-              const remainders = rightRemainderBoxes(lineBoxes, florence.quadBoxes).slice(0, 8)
-              if (leftover.length > 0 || remainders.length > 0) {
-                diagLog('florence-gapfill-start', `remainders=${remainders.length} leftover=${leftover.length}`)
+              const rightRemainders = rightRemainderBoxes(lineBoxes, florence.quadBoxes).slice(0, 8)
+              const leftRemainders = leftRemainderBoxes(lineBoxes, florence.quadBoxes).slice(0, 8)
+              if (leftover.length > 0 || rightRemainders.length > 0 || leftRemainders.length > 0) {
+                diagLog(
+                  'florence-gapfill-start',
+                  `left=${leftRemainders.length} right=${rightRemainders.length} leftover=${leftover.length}`,
+                )
                 const { recognizeWithTrOCR } = await import('@/lib/ocr/trocr-client')
                 const { florenceVisualRows } = await import('@/lib/ocr/florence-ocr-client')
                 const extraInk = 0.03
+                const rows = florenceVisualRows({
+                  labels: florence.labels,
+                  quad_boxes: florence.quadBoxes,
+                })
 
-                if (remainders.length > 0) {
-                  const rows = florenceVisualRows({
-                    labels: florence.labels,
-                    quad_boxes: florence.quadBoxes,
-                  })
-                  for (const box of remainders) {
+                for (const box of leftRemainders) {
+                  const blobs = await cropLinesToBlobs(binBlob, grayBlob, [box], extraInk)
+                  if (blobs.length === 0) continue
+                  const extra = await recognizeWithTrOCR(blobs, undefined, quality)
+                  const unique = extra.text.trim()
+                  if (!unique) continue
+                  text = attachRemainderToOverlappingRow(text, rows, box, unique, 'left')
+                  diagLog('florence-left-remainder-appended', unique.slice(0, 40))
+                }
+
+                if (rightRemainders.length > 0) {
+                  for (const box of rightRemainders) {
                     const blobs = await cropLinesToBlobs(binBlob, grayBlob, [box], extraInk)
                     if (blobs.length === 0) continue
                     const extra = await recognizeWithTrOCR(blobs, undefined, quality)

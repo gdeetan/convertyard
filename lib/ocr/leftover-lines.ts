@@ -89,6 +89,11 @@ export function leftoverTextNotInBody(body: string, extra: string): string {
   return kept.join('\n')
 }
 
+function quadLeft(quad: number[]): number {
+  const xs = [quad[0], quad[2], quad[4], quad[6]].filter((v): v is number => typeof v === 'number')
+  return xs.length ? Math.min(...xs) : 0
+}
+
 function quadRight(quad: number[]): number {
   const xs = [quad[0], quad[2], quad[4], quad[6]].filter((v): v is number => typeof v === 'number')
   return xs.length ? Math.max(...xs) : 0
@@ -118,11 +123,52 @@ export function rightRemainderBoxes(
   return out
 }
 
-export function appendRemainderToOverlappingRow(
+export function leftRemainderBoxes(
+  lines: LineBox[],
+  florenceQuads: number[][] | null,
+): LineBox[] {
+  if (!florenceQuads?.length || lines.length === 0) return []
+  const out: LineBox[] = []
+  for (const line of lines) {
+    const overlapping = florenceQuads.filter(q => verticalOverlap(line, q) >= line.h * 0.25)
+    if (overlapping.length === 0) continue
+    const florenceLeft = Math.min(...overlapping.map(quadLeft))
+    const extra = florenceLeft - line.x
+    if (extra < 16) continue
+    out.push({ x: line.x, y: line.y, w: extra, h: line.h })
+  }
+  return out
+}
+
+/** Join extra onto a truncated line without duplicating overlap ("w"+"orse" → "worse"). */
+export function stitchRemainder(existing: string, extra: string, side: 'left' | 'right'): string {
+  const line = existing.trim()
+  const add = extra.trim()
+  if (!add) return existing
+  if (!line) return add
+
+  const a = side === 'left' ? add : line
+  const b = side === 'left' ? line : add
+  const aNorm = a.toLowerCase()
+  const bNorm = b.toLowerCase()
+  const maxK = Math.min(a.length, b.length)
+  for (let k = maxK; k > 0; k--) {
+    if (aNorm.slice(-k) === bNorm.slice(0, k)) {
+      return `${a}${b.slice(k)}`
+    }
+  }
+  if (side === 'left' && add.length <= 2 && /^[a-zA-Z]+$/.test(add) && /^[a-zA-Z]/.test(line)) {
+    return `${add}${line}`
+  }
+  return side === 'left' ? `${add} ${line}` : `${line} ${add}`
+}
+
+export function attachRemainderToOverlappingRow(
   body: string,
   rows: Array<{ y0: number; y1: number }>,
   box: LineBox,
   extra: string,
+  side: 'left' | 'right',
 ): string {
   const add = extra.trim()
   if (!add) return body
@@ -150,12 +196,21 @@ export function appendRemainderToOverlappingRow(
     if (visual === best) {
       const lineNorm = lines[i].toLowerCase().replace(/\s+/g, ' ')
       if (lineNorm.includes(addNorm)) return body
-      lines[i] = `${lines[i].replace(/\s+$/, '')} ${add}`
+      lines[i] = stitchRemainder(lines[i], add, side)
       return lines.join('\n')
     }
     visual++
   }
   return body
+}
+
+export function appendRemainderToOverlappingRow(
+  body: string,
+  rows: Array<{ y0: number; y1: number }>,
+  box: LineBox,
+  extra: string,
+): string {
+  return attachRemainderToOverlappingRow(body, rows, box, extra, 'right')
 }
 
 export function insertTextAtY(
