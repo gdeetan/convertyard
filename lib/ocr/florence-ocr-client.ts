@@ -67,7 +67,20 @@ function toRegionItems(regions: OcrRegions): RegionItem[] {
   })
 }
 
-// Sort regions into reading order with simple row clustering.
+function belongsToVisualRow(item: RegionItem, row: RegionItem[]): boolean {
+  const rowTop = Math.min(...row.map(r => r.topY))
+  const rowBot = Math.max(...row.map(r => r.bottomY))
+  const rowH = Math.max(1, rowBot - rowTop)
+  const overlap = Math.min(item.bottomY, rowBot) - Math.max(item.topY, rowTop)
+  if (overlap >= Math.min(item.height, rowH) * 0.25) return true
+
+  const avgTop = row.reduce((sum, curr) => sum + curr.topY, 0) / row.length
+  const avgHeight = row.reduce((sum, curr) => sum + curr.height, 0) / row.length
+  return Math.abs(item.topY - avgTop) <= Math.max(12, avgHeight * 1.05)
+}
+
+// Sort regions into reading order. Cursive words on one written line often have
+// wobbly tops — cluster by vertical overlap so output does not jump mid-line.
 export function sortRegionsToReadingOrder(regions: OcrRegions): string[] {
   if (!regions.labels.length) return []
 
@@ -81,11 +94,7 @@ export function sortRegionsToReadingOrder(regions: OcrRegions): string[] {
       continue
     }
 
-    const avgTop = row.reduce((sum, curr) => sum + curr.topY, 0) / row.length
-    const avgHeight = row.reduce((sum, curr) => sum + curr.height, 0) / row.length
-    const sameRowThreshold = Math.max(12, avgHeight * 0.65)
-
-    if (Math.abs(item.topY - avgTop) <= sameRowThreshold) {
+    if (belongsToVisualRow(item, row)) {
       row.push(item)
     } else {
       rows.push([item])

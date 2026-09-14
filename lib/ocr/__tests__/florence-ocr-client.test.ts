@@ -21,6 +21,21 @@ describe('sortRegionsToReadingOrder', () => {
     expect(sortRegionsToReadingOrder(regions)).toEqual(['Hello world', 'Second line'])
   })
 
+  it('keeps wavy cursive words on the same visual line', () => {
+    const regions: OcrRegions = {
+      labels: ['May the', 'saddest day', 'of your future'],
+      quad_boxes: [
+        [10, 10, 80, 10, 80, 30, 10, 30],
+        [90, 24, 180, 24, 180, 44, 90, 44],
+        [190, 6, 300, 6, 300, 32, 190, 32],
+      ],
+    }
+
+    expect(sortRegionsToReadingOrder(regions)).toEqual([
+      'May the saddest day of your future',
+    ])
+  })
+
   it('inserts a paragraph break when vertical gap is much larger than line height', () => {
     const regions: OcrRegions = {
       labels: ['First line', 'Second paragraph'],
