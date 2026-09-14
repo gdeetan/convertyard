@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { Maximize2, Minimize2 } from 'lucide-react'
 import { buildEditableOcrText } from '@/lib/ocr/review-text'
 import { cn } from '@/lib/utils/cn'
 import type { ConversionResult, OcrResultMeta } from '@/lib/types'
@@ -43,7 +44,7 @@ function FileThumbnail({ file }: { file: File }) {
     : <div className="h-10 w-10 rounded bg-bg-muted shrink-0" aria-hidden="true" />
 }
 
-function SourceImage({ file }: { file: File }) {
+function SourceImage({ file, className }: { file: File; className?: string }) {
   const [src, setSrc] = useState<string | null>(null)
   useEffect(() => {
     const url = URL.createObjectURL(file)
@@ -53,8 +54,8 @@ function SourceImage({ file }: { file: File }) {
   return src
     ? <img
         src={src}
-        alt="Source document"
-        className="max-w-full rounded border border-border"
+        alt="Original handwriting"
+        className={cn('max-w-full rounded border border-border', className)}
         style={{ touchAction: 'pan-x pan-y pinch-zoom' }}
       />
     : <div className="h-48 w-full rounded bg-bg-muted animate-pulse" />
@@ -93,7 +94,7 @@ function CorrectionPopover({ rawText, correctedText, anchorRect, onRevert, onClo
       aria-modal="false"
       aria-label="Auto-correction details"
       className={cn(
-        'fixed z-50 rounded-lg border border-border bg-bg-elevated shadow-lg p-3',
+        'fixed z-[60] rounded-lg border border-border bg-bg-elevated shadow-lg p-3',
         'min-w-[180px] text-sm'
       )}
       style={{
@@ -136,8 +137,21 @@ export function OcrReviewPanel({ files, results, onResultEdit }: OcrReviewPanelP
     wordIndex: number
     anchorRect: DOMRect
   } | null>(null)
+  const [fullscreen, setFullscreen] = useState(false)
   const editRef = useRef<HTMLDivElement>(null)
   const liveRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!fullscreen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFullscreen(false) }
+    window.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = prev
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [fullscreen])
 
   const hasAnyOcr = results.some(r => getOcrMeta(r) !== null)
   if (!hasAnyOcr) return null
@@ -197,12 +211,127 @@ export function OcrReviewPanel({ files, results, onResultEdit }: OcrReviewPanelP
   const isApplied = applied.has(activeIndex)
   const renderedLines = activeMeta.lines.length > 0 ? activeMeta.lines : [buildEditableOcrText(activeMeta)]
 
+  const compareButton = (
+    <button
+      type="button"
+      onClick={() => setFullscreen(open => !open)}
+      className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-bg px-2.5 py-1.5 text-xs font-medium text-fg-muted hover:bg-bg-muted min-h-[44px] md:min-h-0"
+      aria-label={fullscreen ? 'Exit fullscreen compare' : 'Compare original and text fullscreen'}
+    >
+      {fullscreen
+        ? <Minimize2 className="h-3.5 w-3.5" aria-hidden="true" />
+        : <Maximize2 className="h-3.5 w-3.5" aria-hidden="true" />}
+      {fullscreen ? 'Exit (Esc)' : 'Compare fullscreen'}
+    </button>
+  )
+
+  const splitLayout = (
+    <div className={cn(
+      'flex flex-col md:flex-row md:divide-x md:divide-border',
+      fullscreen && 'flex-1 min-h-0',
+    )}>
+      <div className={cn(
+        'overflow-auto p-4 md:w-1/2',
+        fullscreen ? 'min-h-0 flex-1 md:h-full flex items-start justify-center bg-bg-muted/40' : 'md:max-h-[500px]',
+      )}>
+        <SourceImage
+          file={activeFile}
+          className={fullscreen ? 'max-h-full w-auto object-contain' : undefined}
+        />
+      </div>
+
+      <div className={cn(
+        'flex flex-col p-4 md:w-1/2 gap-3',
+        fullscreen && 'min-h-0 flex-1',
+      )}>
+        <p className="text-xs text-fg-muted flex flex-wrap gap-3">
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block w-6 border-b-2 border-amber-400 border-dashed" />
+            Low confidence
+          </span>
+          <span className="inline-flex items-center gap-1.5">
+            <span className="inline-block w-6 border-b-2 border-blue-400 border-dotted" />
+            Auto-corrected (tap to revert)
+          </span>
+        </p>
+
+        <div
+          ref={editRef}
+          contentEditable
+          suppressContentEditableWarning
+          className={cn(
+            'rounded-lg border border-border bg-bg p-3 text-sm text-fg leading-relaxed',
+            'focus:outline-none focus:ring-2 focus:ring-primary/40',
+            'overflow-y-auto whitespace-pre-wrap',
+            fullscreen ? 'flex-1 min-h-0' : 'min-h-[160px] max-h-[360px]',
+          )}
+          aria-label="Extracted text — editable"
+          aria-multiline="true"
+        >
+          {(() => {
+            let wordIndex = 0
+            return renderedLines.map((line, lineIndex) => (
+              <div key={lineIndex}>
+                {tokenizeLine(line).map((token, tokenIndex) => {
+                  if (!token || /^\s+$/.test(token)) {
+                    return <span key={`ws-${lineIndex}-${tokenIndex}`}>{token}</span>
+                  }
+
+                  const word = effectiveWords[wordIndex]
+                  const display = word?.corrected ?? word?.text ?? token
+                  const isFlagged = !!word && word.confidence !== -1 && word.confidence < 60 && !word.corrected
+                  const isCorrected = !!word && word.corrected !== undefined
+                  const currentWordIndex = wordIndex
+                  wordIndex++
+
+                  if (!word || (!isFlagged && !isCorrected)) {
+                    return <span key={`word-${lineIndex}-${tokenIndex}`}>{display}</span>
+                  }
+
+                  return (
+                    <AnnotatedWord
+                      key={`word-${lineIndex}-${tokenIndex}`}
+                      word={word}
+                      wordIndex={currentWordIndex}
+                      isFlagged={isFlagged}
+                      isCorrected={isCorrected}
+                      onPopoverOpen={handleWordClick}
+                    />
+                  )
+                })}
+              </div>
+            ))
+          })()}
+        </div>
+
+        <div ref={liveRef} aria-live="polite" className="sr-only" />
+
+        <button
+          type="button"
+          onClick={handleApply}
+          className={cn(
+            'self-end rounded-lg px-4 py-2 text-sm font-semibold transition-colors min-h-[44px]',
+            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+            isApplied
+              ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+              : 'bg-primary text-primary-fg hover:bg-primary-hover'
+          )}
+        >
+          {isApplied ? 'Changes applied ✓' : 'Apply changes'}
+        </button>
+      </div>
+    </div>
+  )
+
   return (
+    <>
     <div className="rounded-xl border border-border bg-bg-elevated overflow-hidden">
-      {/* Header */}
-      <div className="border-b border-border px-4 py-3 flex items-center justify-between">
+      <div className="border-b border-border px-4 py-3 flex items-center justify-between gap-3">
         <span className="text-sm font-semibold text-fg">Review extracted text</span>
-        <span className="text-xs text-fg-muted">Edit before downloading</span>
+        <div className="flex items-center gap-2">
+          <span className="hidden sm:inline text-xs text-fg-muted">Edit before downloading</span>
+          {compareButton}
+        </div>
       </div>
 
       {/* File strip — batch only */}
@@ -243,96 +372,45 @@ export function OcrReviewPanel({ files, results, onResultEdit }: OcrReviewPanelP
         </div>
       )}
 
-      {/* Split layout */}
-      <div className="flex flex-col md:flex-row md:divide-x md:divide-border">
-        {/* Source image */}
-        <div className="overflow-auto p-4 md:w-1/2 md:max-h-[500px]">
-          <SourceImage file={activeFile} />
-        </div>
+      {!fullscreen && splitLayout}
+    </div>
 
-        {/* Text side */}
-        <div className="flex flex-col p-4 md:w-1/2 gap-3">
-          {/* Legend */}
-          <p className="text-xs text-fg-muted flex flex-wrap gap-3">
-            <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block w-6 border-b-2 border-amber-400 border-dashed" />
-              Low confidence
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <span className="inline-block w-6 border-b-2 border-blue-400 border-dotted" />
-              Auto-corrected (tap to revert)
-            </span>
-          </p>
-
-          {/* Editable region */}
-          <div
-            ref={editRef}
-            contentEditable
-            suppressContentEditableWarning
-            className={cn(
-              'min-h-[160px] rounded-lg border border-border bg-bg p-3 text-sm text-fg leading-relaxed',
-              'focus:outline-none focus:ring-2 focus:ring-primary/40',
-              'overflow-y-auto max-h-[360px]',
-            )}
-            aria-label="Extracted text — editable"
-            aria-multiline="true"
-          >
-            {(() => {
-              let wordIndex = 0
-              return renderedLines.map((line, lineIndex) => (
-                <div key={lineIndex}>
-                  {tokenizeLine(line).map((token, tokenIndex) => {
-                    if (!token || /^\s+$/.test(token)) {
-                      return <span key={`ws-${lineIndex}-${tokenIndex}`}>{token}</span>
-                    }
-
-                    const word = effectiveWords[wordIndex]
-                    const display = word?.corrected ?? word?.text ?? token
-                    const isFlagged = !!word && word.confidence !== -1 && word.confidence < 60 && !word.corrected
-                    const isCorrected = !!word && word.corrected !== undefined
-                    const currentWordIndex = wordIndex
-                    wordIndex++
-
-                    if (!word || (!isFlagged && !isCorrected)) {
-                      return <span key={`word-${lineIndex}-${tokenIndex}`}>{display}</span>
-                    }
-
-                    return (
-                      <AnnotatedWord
-                        key={`word-${lineIndex}-${tokenIndex}`}
-                        word={word}
-                        wordIndex={currentWordIndex}
-                        isFlagged={isFlagged}
-                        isCorrected={isCorrected}
-                        onPopoverOpen={handleWordClick}
-                      />
-                    )
-                  })}
-                </div>
-              ))
-            })()}
+      {fullscreen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label="Compare original handwriting and extracted text"
+          className="fixed inset-0 z-50 flex flex-col bg-bg"
+        >
+          <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+            <h2 className="text-sm font-semibold text-fg truncate">
+              Compare · {activeFile.name}
+            </h2>
+            {compareButton}
           </div>
-
-          {/* aria-live for screen readers */}
-          <div ref={liveRef} aria-live="polite" className="sr-only" />
-
-          <button
-            type="button"
-            onClick={handleApply}
-            className={cn(
-              'self-end rounded-lg px-4 py-2 text-sm font-semibold transition-colors min-h-[44px]',
-              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
-              isApplied
-                ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
-                : 'bg-primary text-primary-fg hover:bg-primary-hover'
-            )}
-          >
-            {isApplied ? 'Changes applied ✓' : 'Apply changes'}
-          </button>
+          {files.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto px-3 py-2 border-b border-border" role="tablist" aria-label="Files">
+              {files.map((f, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  role="tab"
+                  aria-selected={i === activeIndex}
+                  onClick={() => setActiveIndex(i)}
+                  className={cn(
+                    'rounded-lg border px-2 py-1 text-xs truncate max-w-[140px]',
+                    i === activeIndex ? 'border-primary/50 bg-primary/5 text-fg' : 'border-border text-fg-muted',
+                  )}
+                >
+                  {f.name}
+                </button>
+              ))}
+            </div>
+          )}
+          {splitLayout}
         </div>
-      </div>
+      )}
 
-      {/* Correction popover */}
       {popover && (() => {
         const w = getEffectiveWords(popover.fileIndex)[popover.wordIndex]
         if (!w?.corrected) return null
@@ -346,7 +424,7 @@ export function OcrReviewPanel({ files, results, onResultEdit }: OcrReviewPanelP
           />
         )
       })()}
-    </div>
+    </>
   )
 }
 
