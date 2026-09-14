@@ -1285,16 +1285,22 @@ export async function tryCompressVideoAvcHardware(
     return null
   }
 
-  // iOS Safari AVC WebCodecs previously produced stuttering output because
-  // the encoder emitted B-frames that mp4-muxer's ctts handling couldn't
-  // sort out. Prior fixes (f084bb0, dccb298, 6d34573, 2026-09-14 re-enable)
-  // all tried to fix the muxer side and failed. This attempt attacks the
-  // source: pickAvcEncoderConfig on iOS now only tries Baseline codecs
-  // (see AVC_CODECS_IOS_BASELINE_ONLY), which by spec cannot emit B-frames.
-  // If iOS accepts Baseline at the requested resolution → real 1080p+
-  // output with no stutter. If it rejects (returns null), we fall through
-  // to ffmpeg-wasm libx264 with the 720p auto-downshift — same safe
-  // behavior as before this change.
+  // iOS Safari AVC WebCodecs produces stuttering output regardless of profile
+  // or muxer configuration. Fix attempts to date:
+  //   - f084bb0 (input PTS-order)
+  //   - dccb298 (output sort)
+  //   - 6d34573 (decode-order + duration lookup)
+  //   - 2026-09-14 blanket re-enable (regressed)
+  //   - 1d3df87 Baseline-only codecs (still stutters, so B-frames aren't
+  //     the root cause — bug is deeper in iOS's encoder or elsewhere)
+  //
+  // Route iOS to libx264 via ffmpeg.wasm instead. Slower but produces a
+  // correct file every time. ffmpeg.ts caps iOS large 1080p+ requests at
+  // 720p to sidestep the libx264 wasm memory stall at 99%.
+  if (isIOSBrowser()) {
+    console.info('[compress-video] iOS Safari — skipping AVC WebCodecs, using ffmpeg-wasm libx264 for correct output')
+    return null
+  }
 
   // See HEVC version: rebase between paths so the fallback continues from
   // where the fast path stopped instead of jumping backward.
