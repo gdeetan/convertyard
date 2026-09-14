@@ -76,8 +76,8 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'Image Cropper — ConvertYard',
+    title: 'Image Cropper - Crop Images Fast with this Free Tool',
     description:
-      'Crop JPG, PNG, and WebP in batches. Presets for UPSC, SSC, passport, and social sizes, or set exact pixels. Runs in your browser — nothing is uploaded.',
+      'Crop images free in your browser. Drag the box to trim unwanted space, or set exact pixels. Batch-crop up to 1,000 JPG, PNG, or WebP files at once.',
   },
 }

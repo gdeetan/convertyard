@@ -301,8 +301,8 @@ export function CropBox({ files, options, onChange }: Props) {
               </div>
             )}
 
-            {/* Handles */}
-            {(['nw','n','ne','e','se','s','sw','w'] as Handle[]).map(h => (
+            {/* Handles — edges first so corners paint on top and win overlapping hits */}
+            {(['n','e','s','w','nw','ne','se','sw'] as Handle[]).map(h => (
               <Handle key={h} type={h} onPointerDown={e => onPointerDown(h, e)} />
             ))}
           </div>
@@ -321,16 +321,21 @@ const HANDLE_CURSORS: Record<Handle, string> = {
   e: 'e-resize', se: 'se-resize', s: 's-resize', sw: 'sw-resize', w: 'w-resize',
 }
 
+const CORNER = 44
+const EDGE_THICKNESS = 20
+
 const HANDLE_POSITIONS: Record<Handle, React.CSSProperties> = {
   move: {},
-  nw: { top: 0, left: 0, transform: 'translate(-50%, -50%)' },
-  n:  { top: 0, left: '50%', transform: 'translate(-50%, -50%)' },
-  ne: { top: 0, right: 0, transform: 'translate(50%, -50%)' },
-  e:  { top: '50%', right: 0, transform: 'translate(50%, -50%)' },
-  se: { bottom: 0, right: 0, transform: 'translate(50%, 50%)' },
-  s:  { bottom: 0, left: '50%', transform: 'translate(-50%, 50%)' },
-  sw: { bottom: 0, left: 0, transform: 'translate(-50%, 50%)' },
-  w:  { top: '50%', left: 0, transform: 'translate(-50%, -50%)' },
+  // Corners: fixed 44x44 hotspot centered on corner
+  nw: { top: 0, left: 0, width: CORNER, height: CORNER, transform: 'translate(-50%, -50%)' },
+  ne: { top: 0, right: 0, width: CORNER, height: CORNER, transform: 'translate(50%, -50%)' },
+  se: { bottom: 0, right: 0, width: CORNER, height: CORNER, transform: 'translate(50%, 50%)' },
+  sw: { bottom: 0, left: 0, width: CORNER, height: CORNER, transform: 'translate(-50%, 50%)' },
+  // Edges: strip spanning the full length of the edge
+  n: { top: 0, left: 0, right: 0, height: EDGE_THICKNESS, transform: 'translateY(-50%)' },
+  s: { bottom: 0, left: 0, right: 0, height: EDGE_THICKNESS, transform: 'translateY(50%)' },
+  e: { top: 0, bottom: 0, right: 0, width: EDGE_THICKNESS, transform: 'translateX(50%)' },
+  w: { top: 0, bottom: 0, left: 0, width: EDGE_THICKNESS, transform: 'translateX(-50%)' },
 }
 
 function Handle({ type, onPointerDown }: { type: Handle; onPointerDown: (e: React.PointerEvent) => void }) {
@@ -339,8 +344,6 @@ function Handle({ type, onPointerDown }: { type: Handle; onPointerDown: (e: Reac
     <div
       style={{
         position: 'absolute',
-        width: 44,
-        height: 44,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
