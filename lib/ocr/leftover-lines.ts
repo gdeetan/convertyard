@@ -34,6 +34,30 @@ function boxesAfterGap(lines: LineBox[]): LineBox[] {
   return lower
 }
 
+function median(values: number[]): number {
+  if (values.length === 0) return 0
+  const sorted = [...values].sort((a, b) => a - b)
+  return sorted[Math.floor(sorted.length / 2)]
+}
+
+/** Keep caption-shaped leftovers; drop full-width ruled lines under the paragraph. */
+function captionShapedLeftovers(leftover: LineBox[], allLines: LineBox[]): LineBox[] {
+  if (leftover.length === 0) return []
+  const leftoverKeys = new Set(leftover.map(l => `${l.x},${l.y},${l.w},${l.h}`))
+  const main = allLines.filter(l => !leftoverKeys.has(`${l.x},${l.y},${l.w},${l.h}`))
+  if (main.length === 0) return leftover
+
+  const medianW = median(main.map(l => l.w))
+  const medianX = median(main.map(l => l.x))
+  const captionLike = leftover.filter(l =>
+    l.w < medianW * 0.78 ||
+    l.x > medianX + Math.max(16, medianW * 0.08),
+  )
+  if (captionLike.length === 0) return []
+  if (leftover.length >= 3 && captionLike.length / leftover.length < 0.5) return []
+  return captionLike
+}
+
 export function leftoverLineBoxes(
   lines: LineBox[],
   florenceQuads: number[][] | null,
@@ -41,13 +65,16 @@ export function leftoverLineBoxes(
 ): LineBox[] {
   if (lines.length === 0) return []
 
+  let leftover: LineBox[]
   if (florenceQuads && florenceQuads.length > 0) {
     const lastBottom = Math.max(...florenceQuads.map(quadBottom), 0)
     if (lastBottom >= imageHeight * 0.92) return []
-    return lines.filter(line => line.y >= lastBottom - 2)
+    leftover = lines.filter(line => line.y >= lastBottom - 2)
+  } else {
+    leftover = boxesAfterGap(lines)
   }
 
-  return boxesAfterGap(lines)
+  return captionShapedLeftovers(leftover, lines)
 }
 
 export function leftoverTextNotInBody(body: string, extra: string): string {

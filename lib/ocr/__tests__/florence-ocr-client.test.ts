@@ -36,6 +36,24 @@ describe('sortRegionsToReadingOrder', () => {
     ])
   })
 
+  it('does not merge two full-width notebook lines that slightly overlap', () => {
+    const regions: OcrRegions = {
+      labels: [
+        'This is a handwriting test to see how it looks',
+        'on lined paper. For the past two weeks I have',
+      ],
+      quad_boxes: [
+        [10, 10, 310, 10, 310, 42, 10, 42],
+        [10, 28, 308, 28, 308, 60, 10, 60],
+      ],
+    }
+
+    expect(sortRegionsToReadingOrder(regions)).toEqual([
+      'This is a handwriting test to see how it looks',
+      'on lined paper. For the past two weeks I have',
+    ])
+  })
+
   it('inserts a paragraph break when vertical gap is much larger than line height', () => {
     const regions: OcrRegions = {
       labels: ['First line', 'Second paragraph'],

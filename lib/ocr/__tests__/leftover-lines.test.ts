@@ -47,6 +47,22 @@ describe('leftoverLineBoxes', () => {
     ]
     expect(leftoverLineBoxes(lines, null, 200)).toEqual([])
   })
+
+  it('ignores full-width ruled lines below the main block', () => {
+    const lines = [
+      { x: 10, y: 20, w: 200, h: 24 },
+      { x: 10, y: 50, w: 200, h: 24 },
+      { x: 10, y: 120, w: 200, h: 16 },
+      { x: 10, y: 145, w: 200, h: 16 },
+      { x: 10, y: 170, w: 200, h: 16 },
+      { x: 10, y: 195, w: 200, h: 16 },
+    ]
+    const quads = [
+      [10, 20, 210, 20, 210, 44, 10, 44],
+      [10, 50, 210, 50, 210, 74, 10, 74],
+    ]
+    expect(leftoverLineBoxes(lines, quads, 220)).toEqual([])
+  })
 })
 
 describe('leftoverTextNotInBody', () => {
