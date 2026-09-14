@@ -4,6 +4,7 @@ import {
   leftoverTextNotInBody,
   rightRemainderBoxes,
   appendRemainderToOverlappingRow,
+  insertTextAtY,
 } from '../leftover-lines'
 
 describe('leftoverLineBoxes', () => {
@@ -109,6 +110,19 @@ describe('rightRemainderBoxes', () => {
     const lines = [{ x: 10, y: 20, w: 200, h: 24 }]
     const quads = [[8, 18, 214, 18, 214, 46, 8, 46]]
     expect(rightRemainderBoxes(lines, quads)).toEqual([])
+  })
+})
+
+describe('insertTextAtY', () => {
+  it('inserts a signature above a later P.S. line', () => {
+    const body = 'Anyway, thanks for reading!\nP.S. THIS IS WRITTEN WITH A MICRON 05.'
+    const rows = [
+      { y0: 10, y1: 40 },
+      { y0: 80, y1: 110 },
+    ]
+    expect(insertTextAtY(body, rows, 50, '- Traddington Bear')).toBe(
+      'Anyway, thanks for reading!\n- Traddington Bear\nP.S. THIS IS WRITTEN WITH A MICRON 05.',
+    )
   })
 })
 

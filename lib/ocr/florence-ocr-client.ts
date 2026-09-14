@@ -78,9 +78,10 @@ function isStackedFullWidthLine(item: RegionItem, row: RegionItem[]): boolean {
   const avgTop = row.reduce((sum, curr) => sum + curr.topY, 0) / row.length
   const avgHeight = row.reduce((sum, curr) => sum + curr.height, 0) / row.length
   const leftAligned = Math.abs(item.leftX - rowLeft) <= Math.max(24, rowWidth * 0.08)
-  const bothWide = itemWidth >= rowWidth * 0.55 && rowWidth > 40
+  const bothWide = itemWidth >= 100 && rowWidth >= 100 && itemWidth >= rowWidth * 0.45
   const clearlyBelow = item.topY - avgTop >= avgHeight * 0.4
-  return leftAligned && bothWide && clearlyBelow
+  // Indented first line + full-width wrap still count as stacked notebook lines.
+  return bothWide && clearlyBelow && (leftAligned || item.leftX + 8 < rowLeft || itemWidth >= rowWidth * 0.7)
 }
 
 function belongsToVisualRow(item: RegionItem, row: RegionItem[]): boolean {
