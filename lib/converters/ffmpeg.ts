@@ -1347,6 +1347,7 @@ export async function compressVideo(
     const source = files[i]
     const t0 = Date.now()
     let iosDownshiftedFlag = false
+    let noSavingsRemuxedFlag = false
     const result: ConversionResult = await (async (): Promise<ConversionResult> => {
     try {
       let file = files[i]
@@ -1777,6 +1778,40 @@ export async function compressVideo(
       await ffmpeg.deleteFile(outputName).catch(() => {})
 
       if (!data || data.byteLength === 0) throw new Error('Compression produced no output')
+
+      // Smaller-is-better guard for the wasm quality-mode path. Some sources
+      // (efficient HEVC, well-compressed AVC) can't be shrunk by CRF re-encoding
+      // to H.264 — the output ends up larger than the source. Only applies to
+      // quality mode; target-size mode is user-directed to a specific size.
+      // Fall back to a container-only remux so the user gets a playable .mp4
+      // at approximately source size instead of a larger "compressed" file.
+      if (!targetSizeMode && data.byteLength >= file.size) {
+        console.info(`[compress-video] wasm output ${data.byteLength} >= source ${file.size} — remuxing source to .mp4 instead`)
+        const remuxOutputName = `cv_remux_${i}_${ts}.mp4`
+        try {
+          const videoCodecName = await probeVideoCodec(ffmpeg, inputName)
+          const isHevcSource = videoCodecName === 'hevc' || videoCodecName === 'h265'
+          const { code: remuxCode } = await execWithReason(ffmpeg, [
+            '-i', inputName,
+            '-c', 'copy',
+            ...(isHevcSource ? ['-tag:v', 'hvc1'] : []),
+            '-movflags', '+faststart',
+            remuxOutputName,
+          ])
+          if (remuxCode === 0) {
+            const remuxedData = await ffmpeg.readFile(remuxOutputName) as Uint8Array<ArrayBuffer>
+            if (remuxedData && remuxedData.byteLength > 0) {
+              data = remuxedData
+              noSavingsRemuxedFlag = true
+            }
+          }
+        } catch (err) {
+          console.info('[compress-video] no-savings remux failed — returning encoded output', err)
+        } finally {
+          await ffmpeg.deleteFile(remuxOutputName).catch(() => {})
+        }
+      }
+
       const baseName = file.name.replace(/\.[^.]+$/, '')
       return new File([data], `${baseName}.mp4`, { type: 'video/mp4' })
       } finally {
@@ -1797,20 +1832,17 @@ export async function compressVideo(
     }
     })()
     try { emitVideoCompressDiag(source, result, Date.now() - t0, i) } catch { /* diag must never throw */ }
-    // Attach the iOS auto-downshift notice if that override fired and we
-    // produced an actual File. Preserves any existing notice (e.g., the
-    // H.265→H.264 mobile fallback wrapper adds its own upstream).
-    if (iosDownshiftedFlag && result instanceof File) {
-      return {
-        file: result,
-        notice: 'Encoded at 720p on iOS — 1080p often stalls for videos this size. Use desktop for 1080p+.',
-      }
+    // Compose the final notice. Order matters: no-savings remux takes
+    // precedence because it explains why the "compressed" file is source-
+    // sized. iOS 720p downshift is secondary.
+    const noSavingsNotice = 'Source is already efficient — remuxed to MP4 without re-encoding (no size reduction was possible at this quality level).'
+    const iosNotice = 'Encoded at 720p on iOS — 1080p often stalls for videos this size. Use desktop for 1080p+.'
+    const chosenNotice = noSavingsRemuxedFlag ? noSavingsNotice : (iosDownshiftedFlag ? iosNotice : null)
+    if (chosenNotice && result instanceof File) {
+      return { file: result, notice: chosenNotice }
     }
-    if (iosDownshiftedFlag && !(result instanceof Error) && typeof result === 'object' && result && 'file' in result && !('notice' in result && (result as { notice?: string }).notice)) {
-      return {
-        ...(result as { file: File }),
-        notice: 'Encoded at 720p on iOS — 1080p often stalls for videos this size. Use desktop for 1080p+.',
-      }
+    if (chosenNotice && !(result instanceof Error) && typeof result === 'object' && result && 'file' in result && !('notice' in result && (result as { notice?: string }).notice)) {
+      return { ...(result as { file: File }), notice: chosenNotice }
     }
     return result
   }

@@ -33,31 +33,40 @@ function useVideoMeta(file: File | null): Meta | null {
     video.preload = 'metadata'
     video.crossOrigin = 'anonymous'
 
-    let width = 0
-    let height = 0
-    let durationSeconds = 0
-
     const cleanup = () => {
       URL.revokeObjectURL(objectUrl)
       video.removeAttribute('src')
       video.load()
     }
 
+    // Fast path: publish meta immediately on loadedmetadata (dims + duration).
+    // The estimate depends on these three numbers plus source bitrate — the
+    // frame thumbnail and fps refinement can fill in progressively without
+    // blocking the estimate display. Assumes fps=30 up front (source-anchored
+    // estimate barely depends on fps once source bitrate is known).
     const onLoaded = () => {
       if (cancelledRef.current) return cleanup()
-      width = video.videoWidth || 0
-      height = video.videoHeight || 0
-      durationSeconds = Number.isFinite(video.duration) ? video.duration : 0
-      video.currentTime = Math.min(0.5, (video.duration || 1) / 2)
+      const width = video.videoWidth || 0
+      const height = video.videoHeight || 0
+      const durationSeconds = Number.isFinite(video.duration) ? video.duration : 0
+      if (width > 0 && height > 0 && durationSeconds > 0) {
+        setMeta({ frameUrl: '', width, height, durationSeconds, fps: 30 })
+      }
     }
 
-    const onSeeked = () => {
+    // Progressive enhancement: draw the first decoded frame into the preview
+    // thumbnail without seeking. `loadeddata` fires when the first frame is
+    // ready — no need to force a mid-clip seek that costs a decode round-trip.
+    const onLoadedData = () => {
       if (cancelledRef.current) return cleanup()
+      const width = video.videoWidth || 0
+      const height = video.videoHeight || 0
+      if (!(width > 0 && height > 0)) { cleanup(); return }
       const canvas = document.createElement('canvas')
-      const targetW = Math.min(480, width || 480)
-      const scale = width > 0 ? targetW / width : 1
+      const targetW = Math.min(480, width)
+      const scale = targetW / width
       canvas.width = targetW
-      canvas.height = Math.max(1, Math.round((height || 270) * scale))
+      canvas.height = Math.max(1, Math.round(height * scale))
       const ctx = canvas.getContext('2d')
       if (!ctx) { cleanup(); return }
       try {
@@ -65,52 +74,22 @@ function useVideoMeta(file: File | null): Meta | null {
       } catch {
         cleanup(); return
       }
-      const frameUrl = canvas.toDataURL('image/png')
-      // Probe real source fps via requestVideoFrameCallback. Sample 5 frames
-      // and average the mediaTime deltas. Falls back to 30 if rVFC is missing
-      // (Firefox) or the video doesn't tick within the window. Real fps
-      // matters for the estimate: 60 fps sources encode at ~2× the bitrate a
-      // 30 fps assumption predicts.
-      const rvfcSupported = typeof (video as HTMLVideoElement & { requestVideoFrameCallback?: unknown }).requestVideoFrameCallback === 'function'
-      const finish = (fps: number) => {
-        if (cancelledRef.current) { cleanup(); return }
-        setMeta({ frameUrl, width, height, durationSeconds, fps })
-        cleanup()
+      const frameUrl = canvas.toDataURL('image/jpeg', 0.75)
+      const durationSeconds = Number.isFinite(video.duration) ? video.duration : 0
+      if (!cancelledRef.current) {
+        setMeta({ frameUrl, width, height, durationSeconds, fps: 30 })
       }
-      if (!rvfcSupported) { finish(30); return }
-      const times: number[] = []
-      const rVFC = (video as HTMLVideoElement).requestVideoFrameCallback!.bind(video)
-      const computeFps = (): number => {
-        if (times.length < 2) return 30
-        const totalDelta = times[times.length - 1] - times[0]
-        const intervals = times.length - 1
-        if (totalDelta <= 0 || intervals <= 0) return 30
-        const avg = totalDelta / intervals
-        return Math.min(240, Math.max(1, Math.round(1 / avg)))
-      }
-      const settleTimer = window.setTimeout(() => finish(computeFps()), 1200)
-      const onFrame = (_now: number, meta: { mediaTime: number }) => {
-        if (cancelledRef.current) { clearTimeout(settleTimer); return }
-        times.push(meta.mediaTime)
-        if (times.length >= 6) {
-          clearTimeout(settleTimer)
-          finish(computeFps())
-          return
-        }
-        rVFC(onFrame)
-      }
-      video.muted = true
-      video.play().then(() => rVFC(onFrame)).catch(() => { clearTimeout(settleTimer); finish(30) })
+      cleanup()
     }
 
     video.addEventListener('loadedmetadata', onLoaded)
-    video.addEventListener('seeked', onSeeked)
+    video.addEventListener('loadeddata', onLoadedData)
     video.addEventListener('error', cleanup)
 
     return () => {
       cancelledRef.current = true
       video.removeEventListener('loadedmetadata', onLoaded)
-      video.removeEventListener('seeked', onSeeked)
+      video.removeEventListener('loadeddata', onLoadedData)
       video.removeEventListener('error', cleanup)
       cleanup()
     }
