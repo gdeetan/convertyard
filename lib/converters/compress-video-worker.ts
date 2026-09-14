@@ -30,7 +30,14 @@ function even(n: number): number {
 // pushes the streaming path earlier so large mobile encodes never accumulate
 // in memory. Android + desktop keep the old 400 MB threshold.
 const OPFS_MIN_BYTES_IOS = 250 * 1024 * 1024
-const OPFS_MIN_BYTES_DEFAULT = 400 * 1024 * 1024
+// Android Chrome's OPFS stream.close() + handle.getFile() can take 15–30 s
+// on 400 MB–1 GB outputs, freezing the progress bar between 97% and 100%
+// (looks like a stall to the user). Android tabs have a 2–4 GB heap budget,
+// so keeping mid-size outputs in-memory (no OPFS) is safer than paying the
+// OPFS finalize cost. Only push to OPFS above 1.2 GB source, where the
+// in-memory muxer would risk hitting the tab cap. Desktop uses the same
+// threshold — its heap is even larger and in-memory finalize is faster.
+const OPFS_MIN_BYTES_DEFAULT = 1200 * 1024 * 1024
 
 function opfsMinBytes(): number {
   if (typeof navigator === 'undefined') return OPFS_MIN_BYTES_DEFAULT
@@ -412,9 +419,15 @@ async function encodeHevcInWorker(
     const mp4Bytes = finalMuxer.finalize()
     onProgress(97)
     if (opfs) {
-      await withTimeout(opfs.stream.close(), 15_000, 'hevc: opfs.stream.close()')
+      await runWithTicks(
+        withTimeout(opfs.stream.close(), 30_000, 'hevc: opfs.stream.close()'),
+        97, 99, onProgress,
+      )
       cleanupOpfsOldFiles(opfs.fileName).catch(() => {})
-      const opfsFile = await withTimeout(opfs.handle.getFile(), 15_000, 'hevc: opfs.handle.getFile()')
+      const opfsFile = await runWithTicks(
+        withTimeout(opfs.handle.getFile(), 30_000, 'hevc: opfs.handle.getFile()'),
+        99, 99, onProgress,
+      )
       return {
         file: new File([opfsFile], `${baseName}.mp4`, { type: 'video/mp4' }),
         audioDropped,
@@ -690,9 +703,18 @@ async function encodeAvcInWorker(
     const mp4Bytes = finalMuxer.finalize()
     onProgress(97)
     if (opfs) {
-      await withTimeout(opfs.stream.close(), 15_000, 'avc: opfs.stream.close()')
+      // OPFS stream.close() + handle.getFile() are the biggest single stall
+      // on Android Chrome — 15–30 s on 400 MB–1 GB outputs. Emit ticks so
+      // the bar visibly moves 97 → 99 instead of appearing frozen.
+      await runWithTicks(
+        withTimeout(opfs.stream.close(), 30_000, 'avc: opfs.stream.close()'),
+        97, 99, onProgress,
+      )
       cleanupOpfsOldFiles(opfs.fileName).catch(() => {})
-      const opfsFile = await withTimeout(opfs.handle.getFile(), 15_000, 'avc: opfs.handle.getFile()')
+      const opfsFile = await runWithTicks(
+        withTimeout(opfs.handle.getFile(), 30_000, 'avc: opfs.handle.getFile()'),
+        99, 99, onProgress,
+      )
       return {
         file: new File([opfsFile], `${baseName}.mp4`, { type: 'video/mp4' }),
         audioDropped,
