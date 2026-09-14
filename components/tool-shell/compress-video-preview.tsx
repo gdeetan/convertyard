@@ -180,13 +180,20 @@ function estimateOutputBytes(args: {
     /Android|iPhone|iPod|iPad/i.test(navigator.userAgent)
     || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
   )
+  const isIos = typeof navigator !== 'undefined' && (
+    /iPhone|iPod|iPad/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent))
+  )
   const effectiveH265 = h265 && !isMobile
 
-  // iOS runs hardware WebCodecs at whatever resolution the user picked and
-  // only falls back to a 720p wasm downshift if WebCodecs fails at runtime.
-  // Preview at the requested resolution — that's the expected outcome; the
-  // fallback is a rare edge case.
-  const targetH = RESOLUTION_HEIGHT[resolution] ?? meta.height
+  // Mirror the iOS auto-downshift in ffmpeg.ts processOne: iOS always routes
+  // to ffmpeg-wasm (AVC WebCodecs stutters on iPhone-recorded MP4s), and on
+  // sources >150MB, Original and 1080p are forced to 720p to avoid Safari's
+  // heap stall around 99%. Preview must reflect the resolution that will
+  // actually run so the estimate matches reality.
+  const iosAutoDownshift = isIos && file.size > 150 * 1024 * 1024 && (resolution === 'original' || resolution === '1080p')
+  const effectiveResolution = iosAutoDownshift ? '720p' : resolution
+  const targetH = RESOLUTION_HEIGHT[effectiveResolution] ?? meta.height
   const encodedH = Math.min(meta.height, targetH)
   const encodedW = Math.round(meta.width * (encodedH / meta.height))
   const fps = meta.fps > 0 ? meta.fps : 30

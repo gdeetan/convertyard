@@ -1407,7 +1407,8 @@ export async function compressVideo(
       const iosLargeSource = isIosBrowser() && file.size > 150 * 1024 * 1024
       const iosAutoDownshift = iosLargeSource && (resolution === 'original' || resolution === '1080p')
       if (iosAutoDownshift) {
-        console.info(`[compress-video] iOS auto-downshift to 720p prepared — will apply if hardware WebCodecs fails and we fall through to ffmpeg-wasm`)
+        console.info(`[compress-video] iOS auto-downshift to 720p — source ${Math.round(file.size / 1024 / 1024)}MB, selected ${resolution} (avoids Safari heap stall at 99%)`)
+        iosDownshiftedFlag = true
       }
       const effectiveVfArgs: string[] = iosAutoDownshift ? ['-vf', 'scale=-2:720'] : vfArgs
       const effectiveResHeight: number | undefined = iosAutoDownshift ? 720 : resHeight
@@ -1486,13 +1487,6 @@ export async function compressVideo(
 
       // wasm fallback: serialize on the shared ffmpeg instance so parallel workers
       // don't collide on progress/log listeners or overlapping tempfile writes.
-      // The iOS 720p downshift only fires here — hardware WebCodecs above
-      // handles 1080p+ correctly when available; wasm is the memory-stall
-      // path that needs the fallback resolution cap.
-      if (iosAutoDownshift) {
-        iosDownshiftedFlag = true
-        console.info(`[compress-video] iOS wasm fallback — encoding at 720p to avoid Safari heap stall (source ${Math.round(file.size / 1024 / 1024)}MB)`)
-      }
       return await withFfmpegLock(async () => {
       const ffmpeg = await getCompressVideoFFmpeg()
       const ts = Date.now()
