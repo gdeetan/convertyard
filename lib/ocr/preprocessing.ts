@@ -117,11 +117,23 @@ async function preprocessCore(blob: Blob, minWidth = MIN_WIDTH_PX): Promise<{
   //     so perspective corner detection isn't confused by shadow edges
   const normalized = normalizeIllumination(denoised, origW, origH)
 
-  // 3. Perspective correction — flatten trapezoid warp from angled photos
+  // 3. Crop to the largest inset paper region (phone photos of a page on a desk).
+  //    Full-bleed scans are left alone — paperBoundsFromProjection returns null.
   let workGray = normalized
   let workW = origW
   let workH = origH
-  const corners = detectDocumentCorners(normalized, origW, origH)
+  const { colCounts, rowCounts } = countsFromGray(normalized, origW, origH, 160)
+  const paper = paperBoundsFromProjection(colCounts, rowCounts, origW, origH)
+  if (paper) {
+    const cropped = cropGray(workGray, workW, workH, paper)
+    workGray = cropped.data
+    workW = cropped.w
+    workH = cropped.h
+    diagLog('paper-crop', `${origW}x${origH} -> ${workW}x${workH}`)
+  }
+
+  // 4. Perspective correction — flatten trapezoid warp from angled photos
+  const corners = detectDocumentCorners(workGray, workW, workH)
   if (corners) {
     const corrected = applyPerspectiveCorrection(normalized, origW, origH, corners)
     workGray = corrected.data
@@ -193,6 +205,105 @@ export function isDarkModeScreenshot(meanLuminance: number): boolean {
 
 export function screenshotNeedsUpscale(width: number): boolean {
   return width < SCREENSHOT_MIN_WIDTH
+}
+
+export interface PaperBounds {
+  x0: number
+  y0: number
+  x1: number
+  y1: number
+}
+
+function largestRun(
+  counts: ArrayLike<number>,
+  n: number,
+  threshold: number,
+): { start: number; end: number } | null {
+  let bestStart = -1
+  let bestEnd = -1
+  let start = -1
+  for (let i = 0; i <= n; i++) {
+    const active = i < n && counts[i] >= threshold
+    if (active && start === -1) start = i
+    if ((!active || i === n) && start !== -1) {
+      const end = i - 1
+      if (end - start > bestEnd - bestStart) {
+        bestStart = start
+        bestEnd = end
+      }
+      start = -1
+    }
+  }
+  if (bestStart < 0) return null
+  return { start: bestStart, end: bestEnd }
+}
+
+// Exported for unit testing. Maps paper-pixel column/row counts to a crop box.
+// Returns null when the page already fills the frame or no paper-sized region exists.
+export function paperBoundsFromProjection(
+  colCounts: ArrayLike<number>,
+  rowCounts: ArrayLike<number>,
+  probeW: number,
+  probeH: number,
+): PaperBounds | null {
+  const colThreshold = Math.max(8, Math.round(probeH * 0.10))
+  const colRun = largestRun(colCounts, probeW, colThreshold)
+  if (!colRun) return null
+  const width = colRun.end - colRun.start + 1
+  if (width < probeW * 0.22) return null
+
+  const rowThreshold = Math.max(8, Math.round(width * 0.10))
+  const rowRun = largestRun(rowCounts, probeH, rowThreshold)
+  if (!rowRun) return null
+  const height = rowRun.end - rowRun.start + 1
+  if (height < probeH * 0.22) return null
+
+  const padX = Math.round(probeW * 0.02)
+  const padY = Math.round(probeH * 0.02)
+  const x0 = Math.max(0, colRun.start - padX)
+  const x1 = Math.min(probeW - 1, colRun.end + padX)
+  const y0 = Math.max(0, rowRun.start - padY)
+  const y1 = Math.min(probeH - 1, rowRun.end + padY)
+
+  const area = (x1 - x0 + 1) * (y1 - y0 + 1)
+  const frame = probeW * probeH
+  if (area > frame * 0.88 || area < frame * 0.12) return null
+  return { x0, y0, x1, y1 }
+}
+
+function countsFromGray(
+  gray: Uint8Array,
+  w: number,
+  h: number,
+  thresh: number,
+): { colCounts: Uint16Array; rowCounts: Uint16Array } {
+  const colCounts = new Uint16Array(w)
+  const rowCounts = new Uint16Array(h)
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      if (gray[y * w + x] >= thresh) {
+        colCounts[x]++
+        rowCounts[y]++
+      }
+    }
+  }
+  return { colCounts, rowCounts }
+}
+
+function cropGray(
+  gray: Uint8Array,
+  w: number,
+  h: number,
+  b: PaperBounds,
+): { data: Uint8Array; w: number; h: number } {
+  const cw = b.x1 - b.x0 + 1
+  const ch = b.y1 - b.y0 + 1
+  const out = new Uint8Array(cw * ch)
+  for (let y = 0; y < ch; y++) {
+    const src = (b.y0 + y) * w + b.x0
+    out.set(gray.subarray(src, src + cw), y * cw)
+  }
+  return { data: out, w: cw, h: ch }
 }
 
 // Near-passthrough preprocessing for clear screenshots and sharp digital images.
