@@ -11,30 +11,17 @@ export const config: ToolConfig = {
   accepts: ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp', '.heic', '.heif'],
   outputExt: '.txt',
-  convertFn: (files, opts, onProgress) => imageOcrConvert(files, opts, onProgress),
+  convertFn: (files, opts, onProgress) =>
+    imageOcrConvert(files, { ...opts, recognitionEngine: 'ai-enhanced' }, onProgress),
   enablePresets: true,
   reviewPanel: OcrReviewPanel,
 
   limitationNote: {
-    summary: 'AI-Enhanced mode significantly improves cursive accuracy',
-    body: 'Standard mode uses Tesseract OCR with image preprocessing — best for printed-style handwriting in all 12 languages. AI-Enhanced mode uses Florence-2 (full-page) then falls back to TrOCR (line-by-line) for higher accuracy on cursive and decorated backgrounds — English only, downloads ~262MB once (shared with the Image Description tool). For English output, "Fix common OCR errors" applies a dictionary pass to catch classic mistakes like rn→m or O→0 — only low-confidence words are touched, shown in the review panel so you can revert before downloading.',
+    summary: 'English handwriting model, ~262MB on first use',
+    body: 'Uses Florence-2 (full-page) then TrOCR (line-by-line) for cursive and mixed handwriting. English only — other languages use a print-oriented fallback. Downloads ~262MB once (shared with the Image Description tool, cached after that). On iPhone Safari the model is skipped to avoid a tab crash and the fallback engine runs instead. For English output, "Fix common OCR errors" applies a dictionary pass to catch classic mistakes like rn→m or O→0 — only low-confidence words are touched, shown in the review panel so you can revert before downloading.',
   },
 
   options: [
-    {
-      type: 'radio',
-      name: 'recognitionEngine',
-      label: 'Recognition engine',
-      choices: [
-        { value: 'standard', label: 'Standard — all languages, no download' },
-        { value: 'ai-enhanced', label: 'AI-Enhanced — English only, ~262MB (may be cached)' },
-      ],
-      default: 'standard',
-      conditionalHints: {
-        standard: 'Tesseract OCR with image preprocessing. Works with all 12 languages. Best for printed-style or neat handwriting.',
-        'ai-enhanced': 'Florence-2 + TrOCR: processes the full page at once (no line segmentation), handling decorated backgrounds and complex layouts. Falls back to TrOCR line-by-line for images Florence-2 misses. Downloads ~262MB on first use — shared with the Image Description tool so may already be cached.',
-      },
-    },
     {
       type: 'radio',
       name: 'handwritingStyle',
@@ -60,17 +47,16 @@ export const config: ToolConfig = {
         { value: 'fast', label: 'Fast — greedy, quicker' },
       ],
       default: 'quality',
-      dependsOn: { name: 'recognitionEngine', value: 'ai-enhanced' },
       conditionalHints: {
-        quality: 'Evaluates 4 candidate readings per word — catches ambiguous letter pairs (a/o, l/1, u/n, m/n). Adds ~3× processing time per line. AI-Enhanced mode only.',
-        fast: 'Single greedy pass — 1–2s per line. Use when speed matters more than accuracy. AI-Enhanced mode only.',
+        quality: 'Evaluates 4 candidate readings per word — catches ambiguous letter pairs (a/o, l/1, u/n, m/n). Adds ~3× processing time per line.',
+        fast: 'Single greedy pass — 1–2s per line. Use when speed matters more than accuracy.',
       },
     },
     {
       type: 'dropdown',
       name: 'language',
       label: 'Language',
-      hint: 'Choose the language of the handwriting. Standard engine only — AI-Enhanced uses English.',
+      hint: 'English uses the handwriting model. Other languages use a print-oriented fallback.',
       choices: [
         { value: 'eng', label: 'English' },
         { value: 'fra', label: 'French' },
@@ -116,23 +102,23 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my handwritten notes uploaded anywhere to run OCR?',
-      a: 'No. All OCR — including the AI-Enhanced model — runs entirely in your browser. Your files never leave your device.',
+      a: 'No. The handwriting model runs entirely in your browser. Your files never leave your device.',
     },
     {
-      q: 'What is the difference between Standard and AI-Enhanced mode?',
-      a: 'Standard mode uses Tesseract OCR — works for all 12 languages and starts immediately, but was trained on printed text. AI-Enhanced mode uses Florence-2 and TrOCR, models trained specifically on handwritten input — handles cursive and mixed styles better, but supports English only and downloads ~262MB on first use (cached in your browser after that).',
+      q: 'Why is the first run slow?',
+      a: 'The first conversion downloads a ~262MB handwriting model (Florence-2 + TrOCR), then caches it in your browser. Later conversions skip the download. The model is shared with the Image Description tool, so it may already be cached.',
     },
     {
       q: 'Does it work on cursive handwriting?',
-      a: 'With Standard mode, accuracy on cursive is lower and you should expect to correct errors. AI-Enhanced mode (English) handles cursive noticeably better — transformer models understand joined strokes in a way traditional OCR cannot. Messy or doctor-style scrawl will still produce errors in both modes.',
+      a: 'Yes, for English. The model is trained on handwritten input, including joined strokes. Messy or doctor-style scrawl will still produce errors — treat the output as a first draft.',
     },
     {
       q: 'How accurate should I expect the output to be?',
-      a: 'Handwriting is the hardest input for OCR. Neat, upright print on a white background with AI-Enhanced mode can reach 90–95% accuracy. Casual cursive, mixed styles, or anything on a coloured or patterned background will be lower. Treat the output as a first draft — the review panel underlines low-confidence words in amber so you can focus corrections quickly.',
+      a: 'Handwriting is the hardest input for OCR. Neat, upright print on a white background can reach 90–95% accuracy. Casual cursive, mixed styles, or anything on a coloured or patterned background will be lower. The review panel underlines low-confidence words in amber so you can focus corrections quickly.',
     },
     {
       q: 'Can it handle filled-in paper forms?',
-      a: 'Yes. Printed form labels extract cleanly in both modes. Handwritten answers in the blanks extract with variable accuracy — AI-Enhanced mode improves the handwritten portions.',
+      a: 'Yes. Printed form labels extract cleanly. Handwritten answers in the blanks extract with variable accuracy — review those fields before downloading.',
     },
     {
       q: 'Can I edit the extracted text before downloading?',

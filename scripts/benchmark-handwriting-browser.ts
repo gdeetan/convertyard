@@ -75,15 +75,9 @@ async function captureFixture(page: import('@playwright/test').Page, fixture: Ma
     const input = page.locator('input[type="file"]').first()
     await input.setInputFiles(join(FIXTURES_DIR, fixture.image))
 
-    await selectRadio(page, ENGINE === 'ai-enhanced'
-      ? 'AI-Enhanced — English only, ~262MB (may be cached)'
-      : 'Standard — all languages, no download')
-
-    if (ENGINE === 'ai-enhanced') {
-      await selectRadio(page, QUALITY === 'fast'
-        ? 'Fast — greedy, quicker'
-        : 'Quality — beam search, slower')
-    }
+    await selectRadio(page, QUALITY === 'fast'
+      ? 'Fast — greedy, quicker'
+      : 'Quality — beam search, slower')
 
     await page.getByRole('button', { name: /Convert 1 file/i }).click()
 
