@@ -166,6 +166,9 @@ export interface ToolConfig {
   bestFor?: string       // one sentence: when to reach for this tool
   // Per-tool action verb. Defaults to { verb: 'Convert', gerund: 'Converting' }.
   actionLabel?: { verb: string; gerund: string }
+  // Optional hard cap on how many files the tool accepts in one session.
+  // Extra files are dropped and the user is warned. Undefined = no cap.
+  maxFiles?: number
   category: ToolCategory
   accepts: string[]       // MIME types, e.g. ['image/jpeg']
   acceptsExt: string[]    // display extensions, e.g. ['.jpg', '.jpeg']

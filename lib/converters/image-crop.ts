@@ -8,6 +8,9 @@ export async function imageCrop(
   onProgress?: (fileIndex: number, pct: number) => void
 ): Promise<ConversionResult[]> {
   const results: ConversionResult[] = []
+  const perFile = Array.isArray(opts.cropRects)
+    ? (opts.cropRects as Array<{ x: number; y: number; w: number; h: number }>)
+    : null
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     if (
@@ -19,8 +22,12 @@ export async function imageCrop(
       continue
     }
     const fmt = detectSameFormat(file)
+    const r = perFile?.[i]
+    const fileOpts = r
+      ? { ...opts, cropX: r.x, cropY: r.y, cropW: r.w, cropH: r.h, cropRects: undefined }
+      : opts
     try {
-      const result = await convertViaWorker(file, fmt, opts, (pct) => onProgress?.(i, pct))
+      const result = await convertViaWorker(file, fmt, fileOpts, (pct) => onProgress?.(i, pct))
       onProgress?.(i, 100)
       results.push(result)
     } catch (err) {

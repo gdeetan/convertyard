@@ -262,10 +262,21 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
   const toolCardRef = useRef<HTMLDivElement>(null)
 
   const handleAdd = useCallback((files: File[]) => {
-    dispatch({ type: 'ADD_FILES', files })
-    diagLog('files-added', `${files.length} files total=${files.reduce((s, f) => s + f.size, 0)} bytes`)
+    let accepted = files
+    let capMsg: string | null = null
+    if (config.maxFiles != null) {
+      const room = Math.max(0, config.maxFiles - state.entries.length)
+      if (files.length > room) {
+        accepted = files.slice(0, room)
+        capMsg = `This tool accepts up to ${config.maxFiles} files at a time. ${files.length - room} file${files.length - room === 1 ? ' was' : 's were'} not added.`
+      }
+    }
+    dispatch({ type: 'ADD_FILES', files: accepted })
+    diagLog('files-added', `${accepted.length} files total=${accepted.reduce((s, f) => s + f.size, 0)} bytes`)
     if (config.warningFn) {
-      setFileWarning(config.warningFn(files))
+      setFileWarning(config.warningFn(accepted) ?? capMsg)
+    } else if (capMsg) {
+      setFileWarning(capMsg)
     }
     // After the compact dropzone collapses, the shorter tool card can leave
     // the user scrolled down on the How-it-works section. Pull the card back
@@ -273,7 +284,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
     requestAnimationFrame(() => {
       toolCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     })
-  }, [config])
+  }, [config, state.entries.length])
 
   const handleReset = useCallback(() => {
     progressGate.invalidate()

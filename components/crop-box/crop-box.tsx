@@ -104,70 +104,93 @@ function enforceAspect(rect: Rect, ratio: number | null, naturalW: number, natur
   }
 }
 
+const DEFAULT_RECT: Rect = { x: 0.1, y: 0.1, w: 0.8, h: 0.8 }
+
 export function CropBox({ files, options, onChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const imgRef = useRef<HTMLImageElement>(null)
   const [imgSrc, setImgSrc] = useState<string | null>(null)
   const [naturalW, setNaturalW] = useState(0)
   const [naturalH, setNaturalH] = useState(0)
-  const [cropRect, setCropRect] = useState<Rect>({ x: 0.1, y: 0.1, w: 0.8, h: 0.8 })
+  const [activeIndex, setActiveIndex] = useState(0)
+  const [rects, setRects] = useState<Rect[]>(() => {
+    const seed = options.cropRects as Rect[] | undefined
+    if (Array.isArray(seed) && seed.length > 0) return seed
+    return files.map(() => ({ ...DEFAULT_RECT }))
+  })
   const dragRef = useRef<DragState | null>(null)
-  const cropRectRef = useRef(cropRect)
-  cropRectRef.current = cropRect
+  const rectsRef = useRef(rects)
+  rectsRef.current = rects
+  const activeIndexRef = useRef(activeIndex)
+  activeIndexRef.current = activeIndex
+
+  const cropRect = rects[activeIndex] ?? DEFAULT_RECT
 
   const currentAspect = (options.aspect as string) ?? 'free'
   const aspectRatio = ASPECT_PRESETS.find(p => p.value === currentAspect)?.ratio ?? null
 
-  // Load first file as image preview
+  // Keep rects[] length in sync with files[] as items are added/removed
   useEffect(() => {
-    const file = files[0]
-    if (!file) return
+    setRects(prev => {
+      if (prev.length === files.length) return prev
+      const next = files.map((_, i) => prev[i] ?? { ...DEFAULT_RECT })
+      return next
+    })
+    setActiveIndex(i => Math.min(i, Math.max(0, files.length - 1)))
+  }, [files.length])
+
+  // Load the active file as image preview
+  useEffect(() => {
+    const file = files[activeIndex]
+    if (!file) { setImgSrc(null); return }
     const url = URL.createObjectURL(file)
     setImgSrc(url)
+    setNaturalW(0)
+    setNaturalH(0)
     return () => URL.revokeObjectURL(url)
-  }, [files])
+  }, [files, activeIndex])
 
-  // Initialize crop coords from options if provided
-  useEffect(() => {
-    const cx = options.cropX as number | undefined
-    const cy = options.cropY as number | undefined
-    const cw = options.cropW as number | undefined
-    const ch = options.cropH as number | undefined
-    if (cx != null && cw != null) {
-      setCropRect({ x: cx, y: cy ?? 0.1, w: cw, h: ch ?? 0.8 })
-    }
-  }, []) // only on mount
-
-  // Enforce aspect ratio when it changes
+  // Enforce aspect ratio on the active rect when aspect changes
   const prevAspect = useRef(currentAspect)
   useEffect(() => {
     if (prevAspect.current === currentAspect) return
     prevAspect.current = currentAspect
-    const enforced = enforceAspect(cropRectRef.current, aspectRatio, naturalW, naturalH)
-    setCropRect(enforced)
-    onChange('cropX', enforced.x)
-    onChange('cropY', enforced.y)
-    onChange('cropW', enforced.w)
-    onChange('cropH', enforced.h)
-  }, [currentAspect, aspectRatio, onChange])
+    if (aspectRatio === null || naturalW === 0 || naturalH === 0) return
+    const enforced = enforceAspect(rectsRef.current[activeIndexRef.current] ?? DEFAULT_RECT, aspectRatio, naturalW, naturalH)
+    updateRect(activeIndexRef.current, enforced)
+  }, [currentAspect, aspectRatio, naturalW, naturalH])
 
-  const commitRect = useCallback((r: Rect) => {
-    onChange('cropX', r.x)
-    onChange('cropY', r.y)
-    onChange('cropW', r.w)
-    onChange('cropH', r.h)
+  const commitRects = useCallback((arr: Rect[]) => {
+    onChange('cropRects', arr)
   }, [onChange])
+
+  const updateRect = useCallback((idx: number, r: Rect) => {
+    setRects(prev => {
+      const next = prev.slice()
+      next[idx] = r
+      commitRects(next)
+      return next
+    })
+  }, [commitRects])
+
+  // Emit initial cropRects so the converter picks it up even if the user
+  // never drags a handle (default centered crop).
+  useEffect(() => {
+    commitRects(rectsRef.current)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const onPointerDown = useCallback((handle: Handle, e: React.PointerEvent) => {
     e.stopPropagation()
     const container = containerRef.current
     if (!container) return
     const rect = container.getBoundingClientRect()
+    const startRect = rectsRef.current[activeIndexRef.current] ?? DEFAULT_RECT
     dragRef.current = {
       handle,
       startMouseX: e.clientX,
       startMouseY: e.clientY,
-      startRect: { ...cropRectRef.current },
+      startRect: { ...startRect },
       containerW: rect.width,
       containerH: rect.height,
     }
@@ -178,7 +201,11 @@ export function CropBox({ files, options, onChange }: Props) {
     const drag = dragRef.current
     if (!drag) return
     const newRect = applyDrag(drag, e.clientX, e.clientY, aspectRatio, naturalW, naturalH)
-    setCropRect(newRect)
+    setRects(prev => {
+      const next = prev.slice()
+      next[activeIndexRef.current] = newRect
+      return next
+    })
   }, [aspectRatio, naturalW, naturalH])
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
@@ -186,14 +213,13 @@ export function CropBox({ files, options, onChange }: Props) {
     if (!drag) return
     dragRef.current = null
     const finalRect = applyDrag(drag, e.clientX, e.clientY, aspectRatio, naturalW, naturalH)
-    setCropRect(finalRect)
-    commitRect(finalRect)
-  }, [aspectRatio, naturalW, naturalH, commitRect])
+    updateRect(activeIndexRef.current, finalRect)
+  }, [aspectRatio, naturalW, naturalH, updateRect])
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
     const NUDGE = e.shiftKey ? 0 : 0.01
     const RESIZE = e.shiftKey ? 0.01 : 0
-    const r = cropRectRef.current
+    const r = rectsRef.current[activeIndexRef.current] ?? DEFAULT_RECT
     let { x, y, w, h } = r
 
     switch (e.key) {
@@ -205,9 +231,8 @@ export function CropBox({ files, options, onChange }: Props) {
     }
     e.preventDefault()
     const newRect = enforceAspect({ x, y, w, h }, aspectRatio, naturalW, naturalH)
-    setCropRect(newRect)
-    commitRect(newRect)
-  }, [aspectRatio, naturalW, naturalH, commitRect])
+    updateRect(activeIndexRef.current, newRect)
+  }, [aspectRatio, naturalW, naturalH, updateRect])
 
   const pxW = naturalW > 0 ? Math.round(cropRect.w * naturalW) : 0
   const pxH = naturalH > 0 ? Math.round(cropRect.h * naturalH) : 0
@@ -237,6 +262,35 @@ export function CropBox({ files, options, onChange }: Props) {
           ))}
         </div>
       </div>
+
+      {/* Prev/Next navigation */}
+      {files.length > 1 && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-border bg-bg-muted/40 px-3 py-2">
+          <button
+            type="button"
+            onClick={() => setActiveIndex(i => Math.max(0, i - 1))}
+            disabled={activeIndex === 0}
+            className="rounded px-2 py-1 text-sm font-medium text-fg hover:bg-bg-elevated disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="Previous file"
+          >
+            ◀ Prev
+          </button>
+          <div className="min-w-0 flex-1 text-center text-xs text-fg-muted">
+            <span className="font-medium text-fg">File {activeIndex + 1} of {files.length}</span>
+            <span className="mx-2 text-fg-subtle">·</span>
+            <span className="truncate align-middle inline-block max-w-[60%]">{files[activeIndex]?.name}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setActiveIndex(i => Math.min(files.length - 1, i + 1))}
+            disabled={activeIndex >= files.length - 1}
+            className="rounded px-2 py-1 text-sm font-medium text-fg hover:bg-bg-elevated disabled:opacity-40 disabled:cursor-not-allowed"
+            aria-label="Next file"
+          >
+            Next ▶
+          </button>
+        </div>
+      )}
 
       {/* Crop canvas */}
       {imgSrc && (
@@ -310,7 +364,9 @@ export function CropBox({ files, options, onChange }: Props) {
       )}
 
       <p className="text-xs text-fg-subtle">
-        The same crop region (as a % of each image) is applied to every file in the batch.
+        {files.length > 1
+          ? 'Each file gets its own crop. Use Prev/Next to set the region for every image.'
+          : 'Drag the box, its edges, or its corners to set the crop.'}
       </p>
     </div>
   )
