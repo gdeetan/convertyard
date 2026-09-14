@@ -164,6 +164,8 @@ export interface ToolConfig {
   subtitle: string
   subtitlePosition?: 'top' | 'below-drop'  // where to render subtitle in the shell (default 'top')
   bestFor?: string       // one sentence: when to reach for this tool
+  // Per-tool action verb. Defaults to { verb: 'Convert', gerund: 'Converting' }.
+  actionLabel?: { verb: string; gerund: string }
   category: ToolCategory
   accepts: string[]       // MIME types, e.g. ['image/jpeg']
   acceptsExt: string[]    // display extensions, e.g. ['.jpg', '.jpeg']

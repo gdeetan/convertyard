@@ -45,13 +45,14 @@ function useEtaLabel(pct: number, active: boolean): string | null {
 interface ProgressListProps {
   entries: FileEntry[]
   announcement?: string
+  gerund?: string
 }
 
 const ROW_H = 56
 const VIRTUALIZE_AT = 50
 const MAX_LIST_H = 420
 
-export function ProgressList({ entries, announcement }: ProgressListProps) {
+export function ProgressList({ entries, announcement, gerund = 'Converting' }: ProgressListProps) {
   const parentRef = useRef<HTMLDivElement>(null)
   const useVirt = entries.length > VIRTUALIZE_AT
 
@@ -77,7 +78,7 @@ export function ProgressList({ entries, announcement }: ProgressListProps) {
       {/* Summary + live announcement */}
       <div className="flex items-center justify-between text-sm">
         <span className="font-medium text-fg">
-          Converting {total} file{total !== 1 ? 's' : ''}… <span className="text-primary tabular-nums font-semibold">{formatPct(overallPct)}%</span>
+          {gerund} {total} file{total !== 1 ? 's' : ''}… <span className="text-primary tabular-nums font-semibold">{formatPct(overallPct)}%</span>
           {eta && (
             <span className="ml-2 text-fg-muted font-normal tabular-nums">· {eta}</span>
           )}

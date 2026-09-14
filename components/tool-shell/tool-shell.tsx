@@ -50,7 +50,7 @@ type Action =
   | { type: 'SET_PROGRESS'; fileIndex: number; pct: number }
   | { type: 'SET_RESULT'; fileIndex: number; result: File; resultMeta?: CompressionMeta; ocrMeta?: OcrResultMeta; notice?: string }
   | { type: 'SET_ERROR'; fileIndex: number; error: string }
-  | { type: 'START_CONVERTING' }
+  | { type: 'START_CONVERTING'; gerund?: string }
   | { type: 'FINISH'; resultMode?: ToolConfig['resultMode'] }
   | { type: 'RESET' }
   | { type: 'EDIT_RESULT'; fileIndex: number; newFile: File }
@@ -82,7 +82,7 @@ function reducer(state: State, action: Action): State {
         ...state,
         phase: 'converting',
         entries: state.entries.map((e) => ({ ...e, status: 'processing', progress: 0 })),
-        announcement: `Converting ${state.entries.length} file${state.entries.length > 1 ? 's' : ''}…`,
+        announcement: `${action.gerund ?? 'Converting'} ${state.entries.length} file${state.entries.length > 1 ? 's' : ''}…`,
       }
     }
     case 'SET_PROGRESS': {
@@ -288,7 +288,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
   const handleConvert = useCallback(async () => {
     if (state.entries.length === 0) return
     const progressGen = progressGate.begin()
-    dispatch({ type: 'START_CONVERTING' })
+    dispatch({ type: 'START_CONVERTING', gerund: config.actionLabel?.gerund })
 
     const files = state.entries.map((e) => e.file)
     const pageRotations = state.entries.map((e) => e.rotation ?? 0)
@@ -357,6 +357,8 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
   const { entries, phase, announcement } = state
   const hasFiles = entries.length > 0
   const totalBytes = entries.reduce((s, e) => s + e.file.size, 0)
+  const actionVerb = config.actionLabel?.verb ?? 'Convert'
+  const actionGerund = config.actionLabel?.gerund ?? 'Converting'
 
   const zipName = `${config.slug}-converted.zip`
 
@@ -527,7 +529,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
                 )}
               >
                 <Upload className="h-4 w-4" aria-hidden="true" />
-                Convert {entries.length} file{entries.length > 1 ? 's' : ''}
+                {actionVerb} {entries.length} file{entries.length > 1 ? 's' : ''}
               </button>
             </div>
           </div>
@@ -543,7 +545,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
                 options={options}
               />
             )}
-            <ProgressList entries={entries} announcement={announcement} />
+            <ProgressList entries={entries} announcement={announcement} gerund={actionGerund} />
           </div>
         )}
 
@@ -582,7 +584,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
                 )}
               >
                 <RefreshCcw className="h-3.5 w-3.5" aria-hidden="true" />
-                Convert more files
+                {actionVerb} more files
               </button>
             </div>
           </div>
@@ -600,6 +602,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
         title={config.title}
         hasOptions={!!config.options?.length}
         override={config.howItWorks}
+        actionVerb={actionVerb}
       />
 
       {/* ── FAQ, related tools, related articles (hidden when embedded) ─── */}
@@ -807,15 +810,18 @@ function HowItWorks({
   title,
   hasOptions,
   override,
+  actionVerb,
 }: {
   title: string
   hasOptions: boolean
   override?: Array<{ label: string; desc: string }>
+  actionVerb?: string
 }) {
+  const verb = actionVerb ?? 'Convert'
   const baseSteps = override ?? [
     { label: 'Drop your files', desc: 'Drag and drop, click to browse, or paste from clipboard. Up to 1,000 files at once.' },
     ...(hasOptions ? [{ label: 'Choose settings', desc: 'Adjust quality, format, and other options to match your needs.' }] : []),
-    { label: 'Click Convert', desc: `Everything runs in your browser via WebAssembly. ${title} happens locally — no server involved.` },
+    { label: `Click ${verb}`, desc: `Everything runs in your browser via WebAssembly. ${title} happens locally — no server involved.` },
     { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
   ]
   const steps = baseSteps.map((s, i) => ({ n: String(i + 1), ...s }))
