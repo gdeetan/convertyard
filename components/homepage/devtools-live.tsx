@@ -14,6 +14,8 @@ type Row = {
 
 type Phase = 'idle' | 'converting' | 'done' | 'error'
 
+const ACCEPT_EXT_RE = /\.(jpe?g|png|webp|avif|heic|heif|gif|tiff?|bmp)$/i
+
 function formatBytes(n: number): string {
   if (!n || n < 1024) return `${n} B`
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} kB`
@@ -37,6 +39,11 @@ function inferType(entry: PerformanceResourceTiming): string {
   if (n.endsWith('.css')) return 'stylesheet'
   if (entry.initiatorType === 'fetch' || entry.initiatorType === 'xmlhttprequest') return 'fetch'
   return entry.initiatorType || 'other'
+}
+
+function isImageFile(file: File): boolean {
+  if (file.type && file.type.startsWith('image/')) return true
+  return ACCEPT_EXT_RE.test(file.name)
 }
 
 export function DevToolsLive() {
@@ -96,8 +103,8 @@ export function DevToolsLive() {
 
   const handleFile = useCallback(
     async (file: File) => {
-      if (!file.type.startsWith('image/')) {
-        setError('Pick an image file (JPG, PNG, WebP, etc.)')
+      if (!isImageFile(file)) {
+        setError('Pick an image file (JPG, PNG, WebP, AVIF, HEIC, GIF, TIFF, BMP).')
         setPhase('error')
         return
       }
@@ -116,7 +123,6 @@ export function DevToolsLive() {
         setError(err instanceof Error ? err.message : 'Conversion failed')
         setPhase('error')
       } finally {
-        // give the observer a tick to flush entries
         setTimeout(stopObserving, 500)
       }
     },
@@ -133,8 +139,8 @@ export function DevToolsLive() {
 
   if (!mounted) {
     return (
-      <div className="flex flex-col items-start justify-center rounded-xl border border-dashed border-border bg-bg-muted/40 p-6">
-        <p className="mb-3 text-sm text-fg-muted">
+      <div className="mx-auto flex max-w-3xl flex-col items-center justify-center rounded-xl border border-dashed border-border bg-bg-muted/40 p-8 text-center">
+        <p className="mb-4 text-sm text-fg-muted">
           Want to see it for real? Load a mini live demo below (adds ~2 MB of WASM).
         </p>
         <button
@@ -150,45 +156,26 @@ export function DevToolsLive() {
 
   return (
     <div className="space-y-3">
-      {/* Dropzone */}
-      <label
-        onDrop={onDrop}
-        onDragOver={(e) => e.preventDefault()}
-        className={cn(
-          'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center text-sm transition',
-          phase === 'converting'
-            ? 'border-primary bg-primary/5 text-primary'
-            : 'border-border bg-white text-fg-muted hover:border-primary/60',
-        )}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          className="sr-only"
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) handleFile(f)
-          }}
-        />
-        {phase === 'converting'
-          ? `Converting ${droppedName}…`
-          : phase === 'done'
-            ? `Done — drop another to re-run`
-            : 'Drop a JPG here or click to pick one'}
-      </label>
+      {/* Full-width Chrome DevTools console panel */}
+      <div className="overflow-hidden rounded-lg border border-[#3c4043] bg-[#202124] font-mono text-[12px] shadow-2xl">
+        {/* Window chrome */}
+        <div className="flex items-center gap-1.5 border-b border-[#3c4043] bg-[#292a2d] px-3 py-2">
+          <span className="h-3 w-3 rounded-full bg-[#ff5f57]" />
+          <span className="h-3 w-3 rounded-full bg-[#febc2e]" />
+          <span className="h-3 w-3 rounded-full bg-[#28c840]" />
+          <span className="ml-3 font-sans text-[11px] text-[#9aa0a6]">DevTools — convertyard.com</span>
+        </div>
 
-      {/* DevTools panel */}
-      <div className="overflow-hidden rounded-xl border border-border bg-white font-mono text-[11px] shadow-sm">
-        <div className="flex items-center border-b border-[#dadce0] bg-[#f1f3f4] px-2">
-          {['Elements', 'Console', 'Sources', 'Network', 'Performance'].map((tab) => (
+        {/* Tab strip */}
+        <div className="flex items-center border-b border-[#3c4043] bg-[#292a2d] px-2">
+          {['Elements', 'Console', 'Sources', 'Network', 'Performance', 'Application'].map((tab) => (
             <span
               key={tab}
               className={cn(
                 'px-3 py-2 font-sans text-[11px]',
                 tab === 'Network'
-                  ? 'border-b-2 border-[#1a73e8] text-[#1a73e8]'
-                  : 'text-[#5f6368]',
+                  ? 'border-b-2 border-[#8ab4f8] text-[#e8eaed]'
+                  : 'text-[#9aa0a6]',
               )}
             >
               {tab}
@@ -196,56 +183,74 @@ export function DevToolsLive() {
           ))}
         </div>
 
-        <div className="grid grid-cols-[2fr_1fr_1fr_1fr] border-b border-[#dadce0] bg-[#f1f3f4] px-3 py-1 text-[10px] text-[#5f6368]">
+        {/* Filter bar */}
+        <div className="flex items-center gap-3 border-b border-[#3c4043] bg-[#202124] px-3 py-1.5 font-sans text-[11px] text-[#9aa0a6]">
+          <span className="text-[#f28b82]">●</span>
+          <span>Recording</span>
+          <span className="text-[#3c4043]">|</span>
+          <span>{rows.length} requests</span>
+          <span className="text-[#3c4043]">|</span>
+          <span className={externalCount ? 'text-[#f28b82]' : 'text-[#81c995]'}>
+            {externalCount} to external servers
+          </span>
+        </div>
+
+        {/* Column header */}
+        <div className="grid grid-cols-[3fr_1fr_1fr_1fr] border-b border-[#3c4043] bg-[#292a2d] px-3 py-1 text-[10px] uppercase tracking-wide text-[#9aa0a6]">
           <span>Name</span>
           <span>Type</span>
           <span>Size</span>
           <span>Time</span>
         </div>
 
-        <div className="max-h-[240px] min-h-[130px] divide-y divide-[#f1f3f4] overflow-y-auto bg-white">
+        {/* Log body */}
+        <div className="max-h-[420px] min-h-[280px] divide-y divide-[#292a2d] overflow-y-auto bg-[#202124]">
           {rows.length === 0 && phase === 'idle' && (
-            <div className="px-3 py-3 italic text-[#80868b]">
-              Requests captured during conversion appear here.
+            <div className="px-3 py-6 text-center font-sans italic text-[#5f6368]">
+              Drop an image below — requests will stream in here.
             </div>
           )}
 
           {rows.map((row, i) => (
             <div
               key={`${row.name}-${i}`}
-              className="grid grid-cols-[2fr_1fr_1fr_1fr] items-center px-3 py-1.5"
+              className="grid grid-cols-[3fr_1fr_1fr_1fr] items-center px-3 py-1"
             >
-              <span className="truncate text-[#1a73e8]" title={row.name}>
+              <span
+                className={cn('truncate', row.external ? 'text-[#f28b82]' : 'text-[#8ab4f8]')}
+                title={row.name}
+              >
+                {row.external ? '⚠ ' : ''}
                 {row.name}
               </span>
-              <span className="text-[#5f6368]">{row.type}</span>
-              <span className="text-[#5f6368]">{row.size}</span>
-              <span className="text-[#5f6368]">{row.time}</span>
+              <span className="text-[#9aa0a6]">{row.type}</span>
+              <span className="text-[#9aa0a6]">{row.size}</span>
+              <span className="text-[#9aa0a6]">{row.time}</span>
             </div>
           ))}
 
           {droppedName && (
-            <div className="flex items-center gap-2 bg-[#fff8e1] px-3 py-1.5">
-              <span className="text-[10px] text-[#e65100]">▶ {droppedName} dropped</span>
+            <div className="flex items-center gap-2 border-l-2 border-[#fdd663] bg-[#2d2a1a] px-3 py-1.5">
+              <span className="text-[11px] text-[#fdd663]">▶ dropped: {droppedName}</span>
               {phase === 'converting' && (
-                <span className="ml-auto flex items-center gap-1 text-[#5f6368]">
-                  <span className="inline-block h-2 w-2 animate-spin rounded-full border border-[#1a73e8] border-t-transparent" />
-                  running in browser
+                <span className="ml-auto flex items-center gap-1 text-[#9aa0a6]">
+                  <span className="inline-block h-2 w-2 animate-spin rounded-full border border-[#8ab4f8] border-t-transparent" />
+                  running in browser (no upload)
                 </span>
               )}
             </div>
           )}
 
           {phase === 'done' && result && (
-            <div className="flex items-center gap-2 bg-[#e8f5e9] px-3 py-1.5">
-              <span className="text-[#2e7d32]">✓</span>
-              <span className="text-[#2e7d32]">
-                Done — {formatBytes(result.size)} WebP created locally.
+            <div className="flex items-center gap-2 border-l-2 border-[#81c995] bg-[#1a2a1e] px-3 py-1.5">
+              <span className="text-[#81c995]">✓</span>
+              <span className="text-[#81c995]">
+                Done — {formatBytes(result.size)} WebP created locally, zero uploads.
               </span>
               <a
                 href={result.url}
                 download={result.name}
-                className="ml-auto text-[#1a73e8] underline"
+                className="ml-auto text-[#8ab4f8] underline"
               >
                 download
               </a>
@@ -253,14 +258,55 @@ export function DevToolsLive() {
           )}
 
           {phase === 'error' && error && (
-            <div className="bg-[#ffebee] px-3 py-1.5 text-[#c62828]">✗ {error}</div>
+            <div className="border-l-2 border-[#f28b82] bg-[#2a1a1a] px-3 py-1.5 text-[#f28b82]">
+              ✗ {error}
+            </div>
           )}
         </div>
 
-        <div className="border-t border-[#dadce0] bg-[#f1f3f4] px-3 py-1 text-[10px] text-[#5f6368]">
-          {rows.length} requests · {externalCount} to external servers
+        {/* Status bar */}
+        <div className="flex items-center justify-between border-t border-[#3c4043] bg-[#292a2d] px-3 py-1 font-sans text-[10px] text-[#9aa0a6]">
+          <span>{rows.length} requests</span>
+          <span className={externalCount ? 'text-[#f28b82]' : 'text-[#81c995]'}>
+            {externalCount === 0 ? 'No external requests during conversion' : `${externalCount} external`}
+          </span>
         </div>
       </div>
+
+      {/* Dropzone under the panel */}
+      <label
+        onDrop={onDrop}
+        onDragOver={(e) => e.preventDefault()}
+        className={cn(
+          'flex cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 text-center text-sm transition',
+          phase === 'converting'
+            ? 'border-primary bg-primary/5 text-primary'
+            : 'border-border bg-bg-elevated text-fg-muted hover:border-primary/60',
+        )}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,.heic,.heif,.avif,.tif,.tiff,.bmp"
+          className="sr-only"
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) handleFile(f)
+          }}
+        />
+        <p className="font-medium">
+          {phase === 'converting'
+            ? `Converting ${droppedName}…`
+            : phase === 'done'
+              ? 'Done — drop another to re-run'
+              : 'Drop an image here or click to pick one'}
+        </p>
+        {phase !== 'converting' && (
+          <p className="mt-1 text-xs text-fg-subtle">
+            JPG · PNG · WebP · AVIF · HEIC · GIF · TIFF · BMP
+          </p>
+        )}
+      </label>
     </div>
   )
 }
