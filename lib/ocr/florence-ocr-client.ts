@@ -127,23 +127,31 @@ export function buildFlorenceReadingText(regions: OcrRegions): string {
   return normalizeOcrText(sortRegionsToReadingOrder(regions).join('\n'))
 }
 
+export interface FlorenceOcrResult {
+  text: string
+  quadBoxes: number[][]
+}
+
 export async function recognizeWithFlorenceOcr(
   blob: Blob,
   filename: string,
   onProgress?: (pct: number) => void
-): Promise<string> {
+): Promise<FlorenceOcrResult> {
   await loadTransformersModel('ocr', onProgress ?? (() => {}))
 
   const file = new File([blob], filename, { type: blob.type || 'image/png' })
   const raw = await recognizeHandwritingOcr(file, onProgress)
 
-  if (!raw) return ''
+  if (!raw) return { text: '', quadBoxes: [] }
 
   try {
     const regions: OcrRegions = JSON.parse(raw)
-    return buildFlorenceReadingText(regions)
+    return {
+      text: buildFlorenceReadingText(regions),
+      quadBoxes: Array.isArray(regions.quad_boxes) ? regions.quad_boxes : [],
+    }
   } catch {
     // JSON parse failed — treat raw as plain text
-    return normalizeOcrText(raw.trim())
+    return { text: normalizeOcrText(raw.trim()), quadBoxes: [] }
   }
 }

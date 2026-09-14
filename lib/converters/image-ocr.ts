@@ -990,11 +990,12 @@ export async function imageOcrConvert(
           diagMemory('before-florence')
           const { recognizeWithFlorenceOcr } = await import('@/lib/ocr/florence-ocr-client')
           onProgress?.(i, 22)
-          const florenceText = await recognizeWithFlorenceOcr(
+          const florence = await recognizeWithFlorenceOcr(
             grayBlob,
             file.name,
             p => onProgress?.(i, 22 + Math.round(p * 0.35))
           )
+          const florenceText = florence.text
           if (florenceText.trim()) {
             text = florenceText
             confidence = 90
@@ -1004,6 +1005,41 @@ export async function imageOcrConvert(
             }))
             usedFlorence = true
             diagLog('florence-stage-done', `chars=${text.length}`)
+
+            try {
+              const lineBoxes = await detectLines(binBlob)
+              const imageHeight = Math.max(
+                ...lineBoxes.map(b => b.y + b.h),
+                ...florence.quadBoxes.flatMap(q => [q[1], q[3], q[5], q[7]].filter((n): n is number => typeof n === 'number')),
+                1,
+              )
+              const { leftoverLineBoxes, leftoverTextNotInBody } = await import('@/lib/ocr/leftover-lines')
+              const leftover = leftoverLineBoxes(lineBoxes, florence.quadBoxes, imageHeight).slice(0, 6)
+              if (leftover.length > 0) {
+                diagLog('florence-leftover-start', `boxes=${leftover.length}`)
+                const { recognizeWithTrOCR } = await import('@/lib/ocr/trocr-client')
+                const leftoverBlobs = await cropLinesToBlobs(binBlob, grayBlob, leftover)
+                if (leftoverBlobs.length > 0) {
+                  const extra = await recognizeWithTrOCR(
+                    leftoverBlobs,
+                    p => onProgress?.(i, 57 + Math.round(p * 0.08)),
+                    quality,
+                  )
+                  const unique = leftoverTextNotInBody(text, extra.text)
+                  if (unique) {
+                    text = `${text.replace(/\s+$/, '')}\n${unique}`
+                    pageWords = text.split(/\s+/).filter(Boolean).map(w => ({
+                      text: w,
+                      confidence: -1 as const,
+                    }))
+                    diagLog('florence-leftover-appended', unique.slice(0, 80))
+                  }
+                }
+              }
+            } catch (leftoverErr) {
+              console.warn('[Florence-2] Leftover-line pass failed:', leftoverErr)
+              diagError('florence-leftover-fail', leftoverErr)
+            }
           } else {
             console.warn('[Florence-2] Empty OCR result — falling back to TrOCR')
             diagLog('florence-stage-empty', 'falling back to TrOCR')
