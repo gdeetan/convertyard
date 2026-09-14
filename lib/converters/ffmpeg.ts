@@ -1801,13 +1801,13 @@ export async function compressVideo(
     if (iosDownshiftedFlag && result instanceof File) {
       return {
         file: result,
-        notice: 'Encoded at 720p — iOS Safari can\'t reliably finish 1080p or higher for videos this size (memory stall around 99%). Use a desktop browser if you need 1080p.',
+        notice: 'Encoded at 720p on iOS — 1080p often stalls for videos this size. Use desktop for 1080p+.',
       }
     }
     if (iosDownshiftedFlag && !(result instanceof Error) && typeof result === 'object' && result && 'file' in result && !('notice' in result && (result as { notice?: string }).notice)) {
       return {
         ...(result as { file: File }),
-        notice: 'Encoded at 720p — iOS Safari can\'t reliably finish 1080p or higher for videos this size (memory stall around 99%). Use a desktop browser if you need 1080p.',
+        notice: 'Encoded at 720p on iOS — 1080p often stalls for videos this size. Use desktop for 1080p+.',
       }
     }
     return result

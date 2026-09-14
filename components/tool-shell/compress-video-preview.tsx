@@ -174,18 +174,28 @@ function estimateOutputBytes(args: {
   }
   if (meta.durationSeconds <= 0 || meta.width <= 0 || meta.height <= 0) return null
 
-  const targetH = RESOLUTION_HEIGHT[resolution] ?? meta.height
-  const encodedH = Math.min(meta.height, targetH)
-  const encodedW = Math.round(meta.width * (encodedH / meta.height))
-  const fps = meta.fps > 0 ? meta.fps : 30
-
   // Mobile downshifts requested H.265 to H.264 (see ffmpeg.ts:1240) — mirror
   // that here so the estimate reflects the codec that will actually run.
   const isMobile = typeof navigator !== 'undefined' && (
     /Android|iPhone|iPod|iPad/i.test(navigator.userAgent)
     || (/Macintosh/i.test(navigator.userAgent) && navigator.maxTouchPoints > 1)
   )
+  const isIos = typeof navigator !== 'undefined' && (
+    /iPhone|iPod|iPad/i.test(navigator.userAgent)
+    || (navigator.maxTouchPoints > 1 && /Macintosh/i.test(navigator.userAgent))
+  )
   const effectiveH265 = h265 && !isMobile
+
+  // Mirror the iOS auto-downshift in ffmpeg.ts processOne: on iOS with
+  // source >150MB, Original and 1080p are forced to 720p to avoid the
+  // Safari heap stall. The preview must reflect the resolution the encoder
+  // will actually use, not what the user picked.
+  const iosAutoDownshift = isIos && file.size > 150 * 1024 * 1024 && (resolution === 'original' || resolution === '1080p')
+  const effectiveResolution = iosAutoDownshift ? '720p' : resolution
+  const targetH = RESOLUTION_HEIGHT[effectiveResolution] ?? meta.height
+  const encodedH = Math.min(meta.height, targetH)
+  const encodedW = Math.round(meta.width * (encodedH / meta.height))
+  const fps = meta.fps > 0 ? meta.fps : 30
 
   // 1) Source bitrate = file size / duration. Fps- and codec-agnostic.
   const sourceBps = (file.size * 8) / meta.durationSeconds
