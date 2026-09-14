@@ -41,6 +41,7 @@ interface ToolShellProps {
   initialOptions?: ToolOptions
   notice?: React.ReactNode
   belowToolCard?: React.ReactNode
+  afterHowItWorks?: React.ReactNode
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -223,7 +224,7 @@ export function ToolShell(props: { config: AnyToolConfig } & Omit<ToolShellProps
   return <ConverterShell {...(props as ToolShellProps)} />
 }
 
-function ConverterShell({ config, embedded = false, onResults, initialOptions, notice, belowToolCard }: ToolShellProps) {
+function ConverterShell({ config, embedded = false, onResults, initialOptions, notice, belowToolCard, afterHowItWorks }: ToolShellProps) {
   const [state, dispatch] = useReducer(reducer, {
     entries: [],
     phase: 'idle',
@@ -615,6 +616,8 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
         override={config.howItWorks}
         actionVerb={actionVerb}
       />
+
+      {!embedded && afterHowItWorks && <div className="mt-8">{afterHowItWorks}</div>}
 
       {/* ── FAQ, related tools, related articles (hidden when embedded) ─── */}
       {!embedded && (
