@@ -1231,15 +1231,17 @@ export async function compressVideo(
   const stripAudio    = options.stripAudio   === true || options.stripAudio === 'true'
   const targetKB      = typeof options.targetKB === 'number' ? options.targetKB : 51200
 
-  // Mobile browsers (both iOS Safari and Android) cannot reliably encode H.265:
-  // iOS has no HEVC WebCodecs path and libx265 in single-threaded WASM can hang
-  // for 5+ minutes or silent-OOM; Android WebCodecs HEVC is inconsistent across
-  // devices and burning memory on a doomed HEVC attempt destabilizes AVC too.
-  // Silently downshift to H.264 on all mobile and attach a per-file notice.
-  const mobileAutoFallback = isMobileBrowser() && requestedH265
+  // Android cannot reliably encode H.265: WebCodecs HEVC is inconsistent
+  // across devices and burning memory on a doomed HEVC attempt destabilizes
+  // the subsequent AVC attempt on the same tab. iOS Safari 16.4+ does have
+  // a hardware HEVC WebCodecs path, and we route to it because AVC WebCodecs
+  // on iOS produces a broken output timeline (stutter) that four prior fix
+  // attempts couldn't resolve. HEVC uses a different mp4-muxer code path
+  // and may sidestep that bug.
+  const mobileAutoFallback = isMobileBrowser() && !isIosBrowser() && requestedH265
   const h265 = mobileAutoFallback ? false : requestedH265
   const H264_FALLBACK_NOTICE =
-    'Encoded as H.264 instead of H.265 — mobile browsers can\'t reliably run H.265 encoding. Use a desktop browser for real H.265 output.'
+    'Encoded as H.264 instead of H.265 — Android browsers can\'t reliably run H.265 encoding. Use a desktop browser for real H.265 output.'
   const wrapNotice = (r: ConversionResult): ConversionResult => {
     if (!mobileAutoFallback) return r
     if (r instanceof Error) return r

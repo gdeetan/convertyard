@@ -255,8 +255,19 @@ function isMobileBrowser(): boolean {
   return false
 }
 
+// Allow HEVC WebCodecs on iOS (Safari 16.4+ has hardware HEVC encoder — the
+// old "iOS has no HEVC WebCodecs path" assumption from the comment in
+// ffmpeg.ts:1235 is outdated). Blocks Android because HEVC WebCodecs is
+// inconsistent across Android devices and a doomed HEVC attempt destabilizes
+// the subsequent AVC attempt on the same tab.
+//
+// Motivation: AVC WebCodecs on iOS produces a stuttering output timeline
+// that four prior fix attempts couldn't resolve (see compress-video-webcodecs.ts:1277
+// gate comment). HEVC uses a different frame-ordering path in mp4-muxer and
+// may avoid the bug entirely.
 export function mobileAllowsHevc(): boolean {
-  return !isMobileBrowser()
+  if (!isMobileBrowser()) return true
+  return isIOSBrowser()
 }
 
 function isIOSBrowser(): boolean {
