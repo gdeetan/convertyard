@@ -222,36 +222,70 @@ export function CompressVideoPreview({ files, options }: CompressVideoPreviewPro
     ? Math.max(0, Math.min(99, Math.round((1 - estimatedBytes / file.size) * 100)))
     : null
 
+  // Human-readable label for each option — mirrors what the user picked in
+  // the options panel. Shown as chips so the user can confirm mid-compress
+  // exactly what settings are being applied.
+  const resolutionLabel = (() => {
+    const r = (options.resolution as string) ?? 'original'
+    if (r === 'original') return 'Original'
+    return r
+  })()
+  const levelLabel = (() => {
+    const l = (options.level as string) ?? 'medium'
+    return l.charAt(0).toUpperCase() + l.slice(1)
+  })()
+  const codecLabel = options.h265 === true || options.h265 === 'true' ? 'H.265' : 'H.264'
+  const audioLabel = options.stripAudio === true || options.stripAudio === 'true' ? 'No audio' : 'Keep audio'
+  const targetSizeMode = options.targetSizeMode === true || options.targetSizeMode === 'true'
+  const targetLabel = targetSizeMode && typeof options.targetKB === 'number'
+    ? `Target ≤ ${(options.targetKB / 1024).toFixed(0)} MB`
+    : null
+
   return (
-    <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,220px)]">
-      <div className="min-h-[120px]">
-        {meta?.frameUrl
-          ? <img src={meta.frameUrl} alt="First frame" className="w-full rounded-lg" />
-          : <div className="grid h-full min-h-[160px] place-items-center rounded-lg bg-bg-elevated text-xs text-fg-muted">Loading preview…</div>}
+    <div className="space-y-3">
+      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,220px)]">
+        <div className="min-h-[120px]">
+          {meta?.frameUrl
+            ? <img src={meta.frameUrl} alt="First frame" className="w-full rounded-lg" />
+            : <div className="grid h-full min-h-[160px] place-items-center rounded-lg bg-bg-elevated text-xs text-fg-muted">Loading preview…</div>}
+        </div>
+        <dl className="grid grid-cols-2 gap-y-2 gap-x-3 text-sm md:grid-cols-1">
+          <div>
+            <dt className="text-xs text-fg-muted">Length</dt>
+            <dd className="font-medium">{formatDuration(meta?.durationSeconds ?? 0)}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-fg-muted">Resolution</dt>
+            <dd className="font-medium">{meta ? `${meta.width}×${meta.height}` : '—'}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-fg-muted">Source size</dt>
+            <dd className="font-medium">{formatBytes(file.size)}</dd>
+          </div>
+          <div>
+            <dt className="text-xs text-fg-muted">Estimated output</dt>
+            <dd className="font-medium">
+              {estimatedBytes != null ? formatBytes(estimatedBytes) : '—'}
+              {savingsPct != null && savingsPct > 0 && (
+                <span className="ml-2 text-xs text-fg-muted">−{savingsPct}%</span>
+              )}
+            </dd>
+          </div>
+        </dl>
       </div>
-      <dl className="grid grid-cols-2 gap-y-2 gap-x-3 text-sm md:grid-cols-1">
-        <div>
-          <dt className="text-xs text-fg-muted">Length</dt>
-          <dd className="font-medium">{formatDuration(meta?.durationSeconds ?? 0)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-fg-muted">Resolution</dt>
-          <dd className="font-medium">{meta ? `${meta.width}×${meta.height}` : '—'}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-fg-muted">Source size</dt>
-          <dd className="font-medium">{formatBytes(file.size)}</dd>
-        </div>
-        <div>
-          <dt className="text-xs text-fg-muted">Estimated output</dt>
-          <dd className="font-medium">
-            {estimatedBytes != null ? formatBytes(estimatedBytes) : '—'}
-            {savingsPct != null && savingsPct > 0 && (
-              <span className="ml-2 text-xs text-fg-muted">−{savingsPct}%</span>
-            )}
-          </dd>
-        </div>
-      </dl>
+      <div className="flex flex-wrap items-center gap-1.5 text-xs">
+        <span className="text-fg-muted">Settings:</span>
+        {targetLabel ? (
+          <span className="rounded-full border border-border bg-bg-elevated px-2 py-0.5 font-medium">{targetLabel}</span>
+        ) : (
+          <>
+            <span className="rounded-full border border-border bg-bg-elevated px-2 py-0.5 font-medium">Resolution: {resolutionLabel}</span>
+            <span className="rounded-full border border-border bg-bg-elevated px-2 py-0.5 font-medium">Quality: {levelLabel}</span>
+          </>
+        )}
+        <span className="rounded-full border border-border bg-bg-elevated px-2 py-0.5 font-medium">{codecLabel}</span>
+        <span className="rounded-full border border-border bg-bg-elevated px-2 py-0.5 font-medium">{audioLabel}</span>
+      </div>
     </div>
   )
 }
