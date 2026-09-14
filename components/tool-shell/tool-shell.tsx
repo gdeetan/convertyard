@@ -235,6 +235,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
     ...initialOptions,
   }))
   const [fileWarning, setFileWarning] = useState<string | null>(null)
+  const [asyncWarning, setAsyncWarning] = useState<string | null>(null)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const { record } = useRecentTools()
 
@@ -291,11 +292,36 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
     progressGate.invalidate()
     dispatch({ type: 'RESET' })
     setFileWarning(null)
+    setAsyncWarning(null)
   }, [progressGate])
 
   const handleOptionChange = useCallback((name: string, value: unknown) => {
     setOptions((prev) => ({ ...prev, [name]: value }))
   }, [])
+
+  // Async warning probe. Runs once when the file set changes — cancelled
+  // via `active` flag if a new set arrives mid-probe.
+  useEffect(() => {
+    setAsyncWarning(null)
+    if (!config.asyncWarningFn || state.entries.length === 0) return
+    const files = state.entries.map((e) => e.file)
+    let active = true
+    config.asyncWarningFn(files)
+      .then((msg) => { if (active) setAsyncWarning(msg) })
+      .catch(() => { /* probe failure is non-fatal */ })
+    return () => { active = false }
+  }, [config, state.entries])
+
+  // Derived options: force option values based on the current file set. Guards
+  // against infinite re-renders by only dispatching when the value changed.
+  useEffect(() => {
+    if (!config.derivedOptionsFn || state.entries.length === 0) return
+    const files = state.entries.map((e) => e.file)
+    const overrides = config.derivedOptionsFn(files, options)
+    for (const [name, value] of Object.entries(overrides)) {
+      if (options[name] !== value) handleOptionChange(name, value)
+    }
+  }, [config, state.entries, options, handleOptionChange])
 
   const handleConvert = useCallback(async () => {
     if (state.entries.length === 0) return
@@ -518,6 +544,12 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
                 </div>
               ) : null
             })()}
+
+            {asyncWarning && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                {asyncWarning}
+              </div>
+            )}
 
             <div className="flex items-center justify-between gap-3">
               <button

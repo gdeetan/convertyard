@@ -1,6 +1,43 @@
 const PROBE_TIMEOUT_MS = 1500
 
+// iOS Safari with `preload="metadata"` on <video> often over-fetches when
+// the moov atom sits at the end of the file (common in phone captures),
+// which turns a "cheap" probe into a multi-second wait for large clips.
+// mediabunny's BlobSource does explicit range reads for the moov only.
+function isIOSBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent
+  if (/iPhone|iPad|iPod/i.test(ua)) return true
+  return /Mac/.test(ua) && navigator.maxTouchPoints > 1
+}
+
+async function probeWithMediabunny(file: File): Promise<
+  { durationSeconds: number; width: number; height: number } | null
+> {
+  try {
+    const { Input, BlobSource, ALL_FORMATS } = await import('mediabunny')
+    const probe = new Input({ source: new BlobSource(file), formats: ALL_FORMATS })
+    try {
+      const track = await probe.getPrimaryVideoTrack()
+      if (!track) return null
+      const durationSeconds = await probe.computeDuration()
+      const width = await (track.getDisplayWidth?.() ?? track.getCodedWidth())
+      const height = await (track.getDisplayHeight?.() ?? track.getCodedHeight())
+      if (!width || !height) return null
+      return { durationSeconds: isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0, width, height }
+    } finally {
+      probe.dispose()
+    }
+  } catch {
+    return null
+  }
+}
+
 export async function probeVideoDuration(file: File): Promise<number> {
+  if (isIOSBrowser()) {
+    const mb = await probeWithMediabunny(file)
+    if (mb && mb.durationSeconds > 0) return mb.durationSeconds
+  }
   if (typeof document === 'undefined' || typeof URL?.createObjectURL !== 'function') {
     return 0
   }
@@ -69,6 +106,10 @@ export async function probeVideoTrack(file: File): Promise<boolean | null> {
 }
 
 export async function probeVideoDimensions(file: File): Promise<{ width: number; height: number } | null> {
+  if (isIOSBrowser()) {
+    const mb = await probeWithMediabunny(file)
+    if (mb) return { width: mb.width, height: mb.height }
+  }
   if (typeof document === 'undefined' || typeof URL?.createObjectURL !== 'function') {
     return null
   }

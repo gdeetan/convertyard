@@ -24,26 +24,93 @@ export const config: ToolConfig = {
   convertFn: compressVideo,
   previewPanel: CompressVideoPreview,
   enablePresets: true,
+  // Force resolution to 720p on iOS when a >120 MB source is present and the
+  // user has Original or 1080p picked. Keeps the visible radio in sync with
+  // the orchestrator-level downshift in lib/converters/ffmpeg.ts:1410.
+  derivedOptionsFn: (files, options) => {
+    if (typeof navigator === 'undefined') return {}
+    const ua = navigator.userAgent
+    const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.maxTouchPoints > 1 && /Mac/.test(ua))
+    if (!isIOS) return {}
+    const hasLarge = files.some((f) => f.size > 120 * 1024 * 1024)
+    if (!hasLarge) return {}
+    const resolution = (options.resolution as string) ?? 'original'
+    if (resolution === 'original' || resolution === '1080p') return { resolution: '720p' }
+    return {}
+  },
+  // Soft "already optimized" check. Probes the first file's bitrate and
+  // resolution via mediabunny (moov-only read, fast even for GB inputs) and
+  // warns when input bits-per-pixel-per-frame is already below the H.264
+  // Medium CRF floor — compressing again is likely to grow the file.
+  asyncWarningFn: async (files) => {
+    if (files.length === 0) return null
+    const file = files[0]
+    if (!file || file.size < 2 * 1024 * 1024) return null
+    try {
+      const { Input, BlobSource, ALL_FORMATS } = await import('mediabunny')
+      const probe = new Input({ source: new BlobSource(file), formats: ALL_FORMATS })
+      try {
+        const track = await probe.getPrimaryVideoTrack()
+        if (!track) return null
+        const duration = await probe.computeDuration()
+        if (!duration || duration < 1) return null
+        const w = await (track.getDisplayWidth?.() ?? track.getCodedWidth())
+        const h = await (track.getDisplayHeight?.() ?? track.getCodedHeight())
+        if (!w || !h) return null
+        const stats = await track.computePacketStats().catch(() => null)
+        const fps = stats?.averagePacketRate && stats.averagePacketRate > 0
+          ? Math.min(60, Math.max(1, stats.averagePacketRate))
+          : 30
+        // Approx video bitrate: assume ~10% container/audio overhead.
+        const videoBits = file.size * 8 * 0.9
+        const bpp = videoBits / (w * h * fps * duration)
+        // H.264 Medium CRF ~0.10 bpp. Below ~0.08 is already lean.
+        if (bpp >= 0.08) return null
+        const mbps = (videoBits / duration / 1_000_000).toFixed(1)
+        const shortEdge = Math.min(w, h)
+        const label = shortEdge >= 2000 ? '4K' : shortEdge >= 1000 ? '1080p' : shortEdge >= 700 ? '720p' : `${w}×${h}`
+        return `This video looks already optimized (${mbps} Mbps at ${label}). Compressing again may increase the file size or hurt quality — proceed only if you need a specific target size.`
+      } finally {
+        probe.dispose()
+      }
+    } catch {
+      return null
+    }
+  },
   optionsWarningFn: (files, options) => {
     if (typeof navigator === 'undefined') return null
     const ua = navigator.userAgent
     const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.maxTouchPoints > 1 && /Mac/.test(ua))
-    const isMobile = navigator.maxTouchPoints > 1 || /Android|iPhone|iPad/i.test(ua)
+    const isAndroid = /Android/i.test(ua) && !isIOS
+    const isMobile = isIOS || isAndroid || navigator.maxTouchPoints > 1
     const resolution = (options.resolution as string) ?? 'original'
     const targetSizeMode = options.targetSizeMode === true || options.targetSizeMode === 'true'
     const h265 = options.h265 === true || options.h265 === 'true'
 
-    // H.265 on desktop for maximum compression. H.264 on mobile for speed
-    // and battery life. Mobile browsers can't reliably encode HEVC — iOS has
-    // no hardware HEVC WebCodecs path, and Android WebCodecs HEVC is
-    // inconsistent — so the orchestrator silently encodes mobile as H.264
-    // regardless of this toggle. Surface that up front so the toggle doesn't
-    // feel broken.
-    if (isMobile && h265) {
-      return 'H.265 on desktop for maximum compression. H.264 on mobile for speed and battery life — this video will be encoded as H.264.'
+    // iOS + >120MB safety cap: Original and 1080p push libx264/libx265 past
+    // Safari's per-tab memory budget on large source videos. The orchestrator
+    // downgrades the actual encode to 720p; surface the reason.
+    const IOS_LARGE_FILE_CAP = 120 * 1024 * 1024
+    const hasIOSLarge = isIOS && files.some((f) => f.size > IOS_LARGE_FILE_CAP)
+    if (hasIOSLarge && (resolution === 'original' || resolution === '1080p')) {
+      return 'iPhone: for videos over 120 MB, Original and 1080p can restart the page due to memory limits. This will be encoded at 720p — pick 480p or 360p if you want more headroom.'
     }
 
-    if (isMobile && !targetSizeMode && resolution === 'original') {
+    // H.265 on iOS: hardware HEVC WebCodecs produces stuttering output on
+    // iPhone, so the orchestrator routes to ffmpeg-wasm libx265. That path
+    // is 5–10× slower than H.264 but yields correct playback.
+    if (isIOS && h265) {
+      return 'H.265 on iPhone uses a software encoder for smooth playback — expect 5–10× longer encode time than H.264. For fastest compression, leave H.265 unchecked.'
+    }
+
+    // H.265 on Android: WebCodecs HEVC is inconsistent across devices and a
+    // failed HEVC attempt destabilizes memory. Orchestrator downgrades to
+    // H.264. Surface so the toggle doesn't feel broken.
+    if (isAndroid && h265) {
+      return 'Android browsers can\'t reliably encode H.265 — this video will be encoded as H.264. Use a desktop browser for real H.265 output.'
+    }
+
+    if (isMobile && !targetSizeMode && resolution === 'original' && !hasIOSLarge) {
       const hasLarge = files.some((f) => f.size > 50 * 1024 * 1024)
       if (hasLarge) {
         return 'Heads up: encoding at Original resolution on mobile can crash the browser tab for videos over 50 MB (iOS especially). Pick 720p or 480p for a safer run, or continue on a desktop for full quality.'

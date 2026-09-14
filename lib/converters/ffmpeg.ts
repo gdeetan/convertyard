@@ -1407,7 +1407,7 @@ export async function compressVideo(
       // 720p on iOS whenever the source is large enough that the output
       // would land in the danger zone. 720p libx264 output typically stays
       // under 100 MB and finishes cleanly.
-      const iosLargeSource = isIosBrowser() && file.size > 150 * 1024 * 1024
+      const iosLargeSource = isIosBrowser() && file.size > 120 * 1024 * 1024
       const iosAutoDownshift = iosLargeSource && (resolution === 'original' || resolution === '1080p')
       if (iosAutoDownshift) {
         console.info(`[compress-video] iOS auto-downshift to 720p — source ${Math.round(file.size / 1024 / 1024)}MB, selected ${resolution} (avoids Safari heap stall at 99%)`)

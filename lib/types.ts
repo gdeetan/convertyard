@@ -192,6 +192,13 @@ export interface ToolConfig {
   // Warning that depends on both files AND currently-selected options.
   // Recomputed on every option change and rendered above the Compress button.
   optionsWarningFn?: (files: File[], options: ToolOptions) => string | null
+  // Async warning surfaced above the Compress button. Runs once per file
+  // set — use for probes that need to read the media (bitrate, codec).
+  asyncWarningFn?: (files: File[]) => Promise<string | null>
+  // Options that should be forced based on the current file set. Return the
+  // subset of options to override (e.g. {resolution: '720p'} when a large
+  // iOS file was dropped). ToolShell applies these via handleOptionChange.
+  derivedOptionsFn?: (files: File[], options: ToolOptions) => Partial<ToolOptions>
   previewPanel?: React.ComponentType<{
     files: File[]
     results: (File | null)[]
