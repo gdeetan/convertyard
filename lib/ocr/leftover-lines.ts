@@ -236,3 +236,90 @@ export function insertTextAtY(
   lines.splice(insertAt, 0, add)
   return lines.join('\n')
 }
+
+const SHORT_OK = new Set([
+  'a', 'i', 'of', 'to', 'be', 'no', 'we', 'me', 'it', 'is', 'or', 'an', 'at',
+  'on', 'in', 'so', 'if', 'as', 'do', 'go', 'up', 'by', 'my', 'he', 'us', 'am',
+])
+
+export function looksLeftTruncated(line: string): boolean {
+  const t = line.trim()
+  return t.length > 0 && /^[a-z]/.test(t)
+}
+
+export function looksRightTruncated(line: string): boolean {
+  const t = line.trim()
+  if (!t) return false
+  const last = (t.split(/\s+/).pop() ?? '').replace(/[^a-zA-Z]/g, '').toLowerCase()
+  if (last.length === 0) return false
+  if (last.length <= 2 && !SHORT_OK.has(last)) return true
+  return false
+}
+
+function tokens(s: string): string[] {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean)
+}
+
+export function mergeTruncatedLine(florenceLine: string, trocrLine: string): string {
+  const f = florenceLine.replace(/\s+/g, ' ').trim()
+  const t = trocrLine.replace(/\s+/g, ' ').trim()
+  if (!t) return florenceLine
+  const fTok = tokens(f)
+  const tTok = tokens(t)
+  if (tTok.length === 0) return florenceLine
+  const tSet = new Set(tTok)
+  const hits = fTok.filter(w => tSet.has(w) || [...tSet].some(x => x.includes(w) || w.includes(x)))
+  const covered = fTok.length === 0 ? 0 : hits.length / fTok.length
+  const trocrLooksComplete = /^[A-Z]/.test(t) || tTok.length >= fTok.length
+  if (covered >= 0.5 && trocrLooksComplete && t.length >= f.length * 0.8) return t
+  if (t.toLowerCase().includes(f.toLowerCase()) && t.length > f.length) return t
+  return florenceLine
+}
+
+export function overlappingLineBox(
+  lines: LineBox[],
+  row: { y0: number; y1: number },
+): LineBox | null {
+  let best: LineBox | null = null
+  let bestOverlap = 0
+  const rowH = Math.max(1, row.y1 - row.y0)
+  for (const line of lines) {
+    const overlap = Math.min(line.y + line.h, row.y1) - Math.max(line.y, row.y0)
+    if (overlap > bestOverlap && overlap >= Math.min(line.h, rowH) * 0.25) {
+      bestOverlap = overlap
+      best = line
+    }
+  }
+  return best
+}
+
+export function replaceOverlappingRowText(
+  body: string,
+  rows: Array<{ y0: number; y1: number }>,
+  row: { y0: number; y1: number },
+  next: string,
+): string {
+  const add = next.trim()
+  if (!add) return body
+  let best = -1
+  let bestOverlap = 0
+  for (let i = 0; i < rows.length; i++) {
+    const overlap = Math.min(row.y1, rows[i].y1) - Math.max(row.y0, rows[i].y0)
+    if (overlap > bestOverlap) {
+      bestOverlap = overlap
+      best = i
+    }
+  }
+  if (best < 0) return body
+  const lines = body.split('\n')
+  let visual = 0
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i]) continue
+    if (visual === best) {
+      lines[i] = add
+      return lines.join('\n')
+    }
+    visual++
+  }
+  return body
+}

@@ -8,6 +8,9 @@ import {
   attachRemainderToOverlappingRow,
   stitchRemainder,
   insertTextAtY,
+  looksLeftTruncated,
+  looksRightTruncated,
+  mergeTruncatedLine,
 } from '../leftover-lines'
 
 describe('leftoverLineBoxes', () => {
@@ -173,5 +176,33 @@ describe('appendRemainderToOverlappingRow', () => {
         'left',
       ),
     ).toBe('worse than the happiest day of your past.')
+  })
+})
+
+describe('truncated line repair', () => {
+  it('detects clipped line starts', () => {
+    expect(looksLeftTruncated('orse than the happiest day')).toBe(true)
+    expect(looksLeftTruncated('d may the most you wish for')).toBe(true)
+    expect(looksLeftTruncated('May the saddest day')).toBe(false)
+  })
+
+  it('detects clipped line ends', () => {
+    expect(looksRightTruncated('you wish for be th')).toBe(true)
+    expect(looksRightTruncated('of your future be')).toBe(false)
+  })
+
+  it('replaces a clipped Florence line with a complete TrOCR line', () => {
+    expect(
+      mergeTruncatedLine(
+        'orse than the happiest day ofyour',
+        'worse than the happiest day of your past.',
+      ),
+    ).toBe('worse than the happiest day of your past.')
+    expect(
+      mergeTruncatedLine(
+        'd may the most you wish for be th',
+        'And may the most you wish for be the least',
+      ),
+    ).toBe('And may the most you wish for be the least')
   })
 })

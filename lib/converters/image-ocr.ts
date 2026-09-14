@@ -1022,22 +1022,28 @@ export async function imageOcrConvert(
                 appendRemainderToOverlappingRow,
                 attachRemainderToOverlappingRow,
                 insertTextAtY,
+                looksLeftTruncated,
+                looksRightTruncated,
+                mergeTruncatedLine,
+                overlappingLineBox,
+                replaceOverlappingRowText,
               } = await import('@/lib/ocr/leftover-lines')
               const leftover = leftoverLineBoxes(lineBoxes, florence.quadBoxes, imageHeight).slice(0, 6)
               const rightRemainders = rightRemainderBoxes(lineBoxes, florence.quadBoxes).slice(0, 8)
               const leftRemainders = leftRemainderBoxes(lineBoxes, florence.quadBoxes).slice(0, 8)
-              if (leftover.length > 0 || rightRemainders.length > 0 || leftRemainders.length > 0) {
+              const { florenceVisualRows } = await import('@/lib/ocr/florence-ocr-client')
+              const rows = florenceVisualRows({
+                labels: florence.labels,
+                quad_boxes: florence.quadBoxes,
+              })
+              const truncatedRows = rows.filter(r => looksLeftTruncated(r.text) || looksRightTruncated(r.text))
+              if (leftover.length > 0 || rightRemainders.length > 0 || leftRemainders.length > 0 || truncatedRows.length > 0) {
                 diagLog(
                   'florence-gapfill-start',
-                  `left=${leftRemainders.length} right=${rightRemainders.length} leftover=${leftover.length}`,
+                  `left=${leftRemainders.length} right=${rightRemainders.length} leftover=${leftover.length} truncated=${truncatedRows.length}`,
                 )
                 const { recognizeWithTrOCR } = await import('@/lib/ocr/trocr-client')
-                const { florenceVisualRows } = await import('@/lib/ocr/florence-ocr-client')
                 const extraInk = 0.03
-                const rows = florenceVisualRows({
-                  labels: florence.labels,
-                  quad_boxes: florence.quadBoxes,
-                })
 
                 for (const box of leftRemainders) {
                   const blobs = await cropLinesToBlobs(binBlob, grayBlob, [box], extraInk)
@@ -1075,6 +1081,18 @@ export async function imageOcrConvert(
                     text = insertTextAtY(text, rows, box.y, unique)
                     diagLog('florence-leftover-appended', unique.slice(0, 80))
                   }
+                }
+
+                for (const row of truncatedRows) {
+                  const box = overlappingLineBox(lineBoxes, row)
+                  if (!box) continue
+                  const blobs = await cropLinesToBlobs(binBlob, grayBlob, [box], extraInk)
+                  if (blobs.length === 0) continue
+                  const extra = await recognizeWithTrOCR(blobs, undefined, quality)
+                  const merged = mergeTruncatedLine(row.text, extra.text)
+                  if (merged === row.text) continue
+                  text = replaceOverlappingRowText(text, rows, row, merged)
+                  diagLog('florence-truncated-repaired', merged.slice(0, 60))
                 }
 
                 pageWords = text.split(/\s+/).filter(Boolean).map(w => ({

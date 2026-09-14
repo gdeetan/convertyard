@@ -12,6 +12,7 @@ const ALWAYS: Array<[RegExp, string]> = [
   [/\bgitten\b/gi, 'gotten'],
   [/\bcompilinets\b/gi, 'compliments'],
   [/\bcompiiments\b/gi, 'compliments'],
+  [/\bofyour\b/gi, 'of your'],
 ]
 
 const HANDWRITING_PAGE = /handwrit|writing|cursive|fountain|micron/i
