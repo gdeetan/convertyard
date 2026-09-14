@@ -77,6 +77,21 @@ export function leftoverLineBoxes(
   return captionShapedLeftovers(leftover, lines)
 }
 
+/** Strip under the last Florence box — captions in lighter ink that line-detect missed. */
+export function belowBlockBox(
+  florenceQuads: number[][] | null,
+  imageWidth: number,
+  imageHeight: number,
+): LineBox | null {
+  if (!florenceQuads?.length || imageWidth < 8 || imageHeight < 8) return null
+  const lastBottom = Math.max(...florenceQuads.map(quadBottom), 0)
+  if (lastBottom >= imageHeight * 0.88) return null
+  const y = Math.min(imageHeight - 24, lastBottom + 6)
+  const h = Math.min(imageHeight - y, Math.max(56, Math.min(96, Math.round(imageHeight * 0.14))))
+  if (h < 28) return null
+  return { x: 0, y, w: imageWidth, h }
+}
+
 export function leftoverTextNotInBody(body: string, extra: string): string {
   const bodyNorm = body.toLowerCase().replace(/\s+/g, ' ').trim()
   const lines = extra.split('\n').map(l => l.trim()).filter(Boolean)

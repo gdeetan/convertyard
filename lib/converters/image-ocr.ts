@@ -482,6 +482,7 @@ async function cropLinesToBlobs(
   grayscaleBlob: Blob,
   lines: Array<{ x: number; y: number; w: number; h: number }>,
   minInkRatio = 0.015,
+  inkMaxLuma = 128,
 ): Promise<Blob[]> {
   if (lines.length === 0 || typeof OffscreenCanvas === 'undefined') return []
   // Binary bitmap used only for blank-line detection (clean 0/255 signal).
@@ -502,11 +503,11 @@ async function cropLinesToBlobs(
     // that cause TrOCR to hallucinate "000" or unrelated words.
     const check = new OffscreenCanvas(w, h)
     const checkCtx = check.getContext('2d')!
-    checkCtx.drawImage(binBmp, x, y, w, h, 0, 0, w, h)
+    checkCtx.drawImage(grayBmp, x, y, w, h, 0, 0, w, h)
     const pixels = checkCtx.getImageData(0, 0, w, h).data
-    let blackCount = 0
-    for (let p = 0; p < pixels.length; p += 4) { if (pixels[p] < 128) blackCount++ }
-    if (blackCount / (w * h) < minInkRatio) continue
+    let inkCount = 0
+    for (let p = 0; p < pixels.length; p += 4) { if (pixels[p] < inkMaxLuma) inkCount++ }
+    if (inkCount / (w * h) < minInkRatio) continue
 
     // Crop grayscale with horizontal padding (3% each side) for TrOCR input.
     // Tight crops starting at ink confuse encoder position embeddings on first/last chars.
@@ -1027,6 +1028,7 @@ export async function imageOcrConvert(
                 mergeTruncatedLine,
                 overlappingLineBox,
                 replaceOverlappingRowText,
+                belowBlockBox,
               } = await import('@/lib/ocr/leftover-lines')
               const leftover = leftoverLineBoxes(lineBoxes, florence.quadBoxes, imageHeight).slice(0, 6)
               const rightRemainders = rightRemainderBoxes(lineBoxes, florence.quadBoxes).slice(0, 8)
@@ -1037,16 +1039,22 @@ export async function imageOcrConvert(
                 quad_boxes: florence.quadBoxes,
               })
               const truncatedRows = rows.filter(r => looksLeftTruncated(r.text) || looksRightTruncated(r.text))
-              if (leftover.length > 0 || rightRemainders.length > 0 || leftRemainders.length > 0 || truncatedRows.length > 0) {
+              const pageBmp = await createImageBitmap(grayBlob)
+              const imgW = pageBmp.width
+              const imgH = pageBmp.height
+              pageBmp.close()
+              const below = belowBlockBox(florence.quadBoxes, imgW, imgH)
+              if (leftover.length > 0 || rightRemainders.length > 0 || leftRemainders.length > 0 || truncatedRows.length > 0 || below) {
                 diagLog(
                   'florence-gapfill-start',
-                  `left=${leftRemainders.length} right=${rightRemainders.length} leftover=${leftover.length} truncated=${truncatedRows.length}`,
+                  `left=${leftRemainders.length} right=${rightRemainders.length} leftover=${leftover.length} truncated=${truncatedRows.length} below=${below ? 1 : 0}`,
                 )
                 const { recognizeWithTrOCR } = await import('@/lib/ocr/trocr-client')
-                const extraInk = 0.03
+                const extraInk = 0.008
+                const brownLuma = 210
 
                 for (const box of leftRemainders) {
-                  const blobs = await cropLinesToBlobs(binBlob, grayBlob, [box], extraInk)
+                  const blobs = await cropLinesToBlobs(binBlob, grayBlob, [box], extraInk, brownLuma)
                   if (blobs.length === 0) continue
                   const extra = await recognizeWithTrOCR(blobs, undefined, quality)
                   const unique = extra.text.trim()
@@ -1057,7 +1065,7 @@ export async function imageOcrConvert(
 
                 if (rightRemainders.length > 0) {
                   for (const box of rightRemainders) {
-                    const blobs = await cropLinesToBlobs(binBlob, grayBlob, [box], extraInk)
+                    const blobs = await cropLinesToBlobs(binBlob, grayBlob, [box], extraInk, brownLuma)
                     if (blobs.length === 0) continue
                     const extra = await recognizeWithTrOCR(blobs, undefined, quality)
                     const unique = leftoverTextNotInBody(text, extra.text)
@@ -1073,7 +1081,7 @@ export async function imageOcrConvert(
                     quad_boxes: florence.quadBoxes,
                   })
                   for (const box of leftover) {
-                    const leftoverBlobs = await cropLinesToBlobs(binBlob, grayBlob, [box], extraInk)
+                    const leftoverBlobs = await cropLinesToBlobs(binBlob, grayBlob, [box], extraInk, brownLuma)
                     if (leftoverBlobs.length === 0) continue
                     const extra = await recognizeWithTrOCR(leftoverBlobs, undefined, quality)
                     const unique = leftoverTextNotInBody(text, extra.text)
@@ -1085,14 +1093,28 @@ export async function imageOcrConvert(
 
                 for (const row of truncatedRows) {
                   const box = overlappingLineBox(lineBoxes, row)
-                  if (!box) continue
-                  const blobs = await cropLinesToBlobs(binBlob, grayBlob, [box], extraInk)
+                  const band = box
+                    ? { x: 0, y: box.y, w: imgW, h: Math.max(box.h, 28) }
+                    : { x: 0, y: row.y0, w: imgW, h: Math.max(row.y1 - row.y0, 28) }
+                  const blobs = await cropLinesToBlobs(binBlob, grayBlob, [band], extraInk, brownLuma)
                   if (blobs.length === 0) continue
                   const extra = await recognizeWithTrOCR(blobs, undefined, quality)
                   const merged = mergeTruncatedLine(row.text, extra.text)
                   if (merged === row.text) continue
                   text = replaceOverlappingRowText(text, rows, row, merged)
                   diagLog('florence-truncated-repaired', merged.slice(0, 60))
+                }
+
+                if (below) {
+                  const belowBlobs = await cropLinesToBlobs(binBlob, grayBlob, [below], extraInk, brownLuma)
+                  if (belowBlobs.length > 0) {
+                    const extra = await recognizeWithTrOCR(belowBlobs, undefined, quality)
+                    const unique = leftoverTextNotInBody(text, extra.text)
+                    if (unique) {
+                      text = insertTextAtY(text, rows, below.y, unique)
+                      diagLog('florence-below-appended', unique.slice(0, 80))
+                    }
+                  }
                 }
 
                 pageWords = text.split(/\s+/).filter(Boolean).map(w => ({

@@ -11,6 +11,7 @@ import {
   looksLeftTruncated,
   looksRightTruncated,
   mergeTruncatedLine,
+  belowBlockBox,
 } from '../leftover-lines'
 
 describe('leftoverLineBoxes', () => {
@@ -58,6 +59,17 @@ describe('leftoverLineBoxes', () => {
       { x: 10, y: 88, w: 200, h: 18 },
     ]
     expect(leftoverLineBoxes(lines, null, 200)).toEqual([])
+  })
+
+  it('returns a strip under Florence text for a missed caption', () => {
+    const quads = [
+      [10, 20, 210, 20, 210, 50, 10, 50],
+      [10, 55, 200, 55, 200, 90, 10, 90],
+    ]
+    const box = belowBlockBox(quads, 400, 300)
+    expect(box).not.toBeNull()
+    expect(box!.y).toBeGreaterThanOrEqual(90)
+    expect(box!.y + box!.h).toBeLessThanOrEqual(300)
   })
 
   it('ignores full-width ruled lines below the main block', () => {
