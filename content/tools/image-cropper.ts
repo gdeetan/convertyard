@@ -7,8 +7,8 @@ export const config: ToolConfig = {
   title: 'Batch Image Cropper',
   actionLabel: { verb: 'Crop', gerund: 'Cropping' },
   maxFiles: 20,
-  subtitle: 'Crop each image individually to exact pixels or preset aspect ratios. Up to 20 files per batch.',
-  bestFor: 'Best for setting a uniform crop across a product photo batch, or generating exam-spec passport photos at exact dimensions.',
+  subtitle: 'All images can be cropped individually. You can set pixel values exactly or select one of the predefined aspect ratios. I’ve limited the batches to 20 to prevent mobile devices from crashing when trying to crop a large 100+ image batch.',
+  bestFor: 'Crop Individual Images – for small batches of product images or even exam specifications that require individual photos to be cropped differently.',
   category: 'image-editing',
   accepts: ['image/jpeg', 'image/png', 'image/webp'],
   acceptsExt: ['.jpg', '.jpeg', '.png', '.webp'],
@@ -49,28 +49,32 @@ export const config: ToolConfig = {
 
   faq: [
     {
-      q: 'Does the same crop apply to every file in a batch?',
-      a: 'Yes — the crop region is stored as a percentage of each image\'s dimensions, so it scales proportionally. A 1:1 crop set to 80% of the image on a 4000×3000 source produces 3000×3000 pixels, and the same region on an 800×600 source produces 480×480 pixels.',
+      q: 'Can I set a different crop for each image?',
+      a: 'Yes. You can process up to 20 images in one batch. Each file will have its own crop area, which will be saved until you hit the Crop button. You can then process more files and even go back to previous files using the Prev / Next buttons above the crop area.',
+    },
+    {
+      q: 'Why is the batch capped at 20 files?',
+      a: 'Every image is cropped individually, so you have to actually see and frame every file. You can crop up to 20 images, but it would be a hassle to apply the same crop to hundreds of images. A special workflow for this would be nice, though.',
     },
     {
       q: 'How do I get an exact output size like 350×350 pixels for UPSC?',
-      a: 'Set the aspect ratio to 1:1 (Square), draw your crop region, then enter 350 in both the Output width and Output height fields. The tool crops first, then resizes the result to exactly 350×350 — regardless of the source file\'s resolution.',
+      a: 'Set the aspect ratio to 1:1 (Square), then set the crop, and set the output dimensions to 350 in both the width and height fields. This resizes the cropped image to 350×350 pixels, regardless of the original image resolution. This is how you would crop and resize multiple UPSC Civil Services, NEET, JEE Main, or GATE photos.',
     },
     {
       q: 'Which aspect ratio should I use for exam photos?',
-      a: 'Use 1:1 (Square) for UPSC Civil Services, NEET, JEE Main, and GATE — these exams require square passport-format photos. Use Passport 3.5:4.5 for SSC CGL, IBPS PO, RRB, and most state PSC exams — these require a taller portrait rectangle (like a standard passport photo).',
+      a: 'Use 1:1 (Square) for UPSC Civil Services, NEET, JEE Main, and GATE exams, which require square passport-size photos. Use 3.5:4.5 for SSC CGL, IBPS PO, RRB, and most of the state PSC exams, which require a taller portrait passport-size photo (like a standard passport-size photo).',
     },
     {
       q: 'Does cropping change the file format?',
-      a: 'No. A JPG stays a JPG, a PNG stays a PNG. Only the dimensions change. If you also need to convert the format or compress the file, use the relevant tool after cropping.',
+      a: 'JPGs remain as JPGs, PNGs remain as PNGs – only the dimensions will change. If you need to change to a completely different file format or compress after cropping, you can use the corresponding tool.',
     },
     {
-      q: 'Can I undo a crop after clicking Convert?',
-      a: 'Yes — your original files are never modified. Click "Convert more files" to start over, or simply drop the originals again and set a new crop region.',
+      q: 'Can I undo a crop after clicking Crop?',
+      a: 'NO! The original file remains unchanged, and you can crop it further. If you want to start over, you can click “Crop more files” or upload new originals and start cropping again. Even if you switch between files using “Prev” and “Next”, all previous crop settings will remain intact until you “Convert file”.',
     },
     {
       q: 'Are my files uploaded anywhere?',
-      a: 'No. All cropping happens in your browser using WebAssembly. Your files never leave your device.',
+      a: 'No, nothing is uploaded on a server. Everything is processed inside the browser using WebAssembly. So you can crop photos with your face or private documents without risking theft or leaks.',
     },
   ],
 
@@ -80,6 +84,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'Image Cropper - Crop Images Fast with this Free Tool',
     description:
-      'Crop images free in your browser. Drag the box to trim unwanted space, or set exact pixels. Batch-crop up to 1,000 JPG, PNG, or WebP files at once.',
+      'Crop images free in your browser. Set a different crop for each file, or apply a preset aspect ratio. Handles up to 20 JPG, PNG, or WebP images per batch.',
   },
 }
