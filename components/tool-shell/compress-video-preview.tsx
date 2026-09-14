@@ -30,8 +30,13 @@ function useVideoMeta(file: File | null): Meta | null {
     video.src = objectUrl
     video.muted = true
     video.playsInline = true
-    video.preload = 'metadata'
+    // Need actual frame data (not just metadata) for the canvas thumbnail.
+    // 'auto' pulls enough of the file to decode the first frame; 'metadata'
+    // may stop after headers and the seek + drawImage never resolves.
+    video.preload = 'auto'
     video.crossOrigin = 'anonymous'
+
+    let capturedFrame = false
 
     const cleanup = () => {
       URL.revokeObjectURL(objectUrl)
@@ -41,9 +46,9 @@ function useVideoMeta(file: File | null): Meta | null {
 
     // Fast path: publish meta immediately on loadedmetadata (dims + duration).
     // The estimate depends on these three numbers plus source bitrate — the
-    // frame thumbnail and fps refinement can fill in progressively without
-    // blocking the estimate display. Assumes fps=30 up front (source-anchored
-    // estimate barely depends on fps once source bitrate is known).
+    // frame thumbnail fills in progressively via the seeked handler below.
+    // Assumes fps=30 up front (source-anchored estimate barely depends on
+    // fps once source bitrate is known).
     const onLoaded = () => {
       if (cancelledRef.current) return cleanup()
       const width = video.videoWidth || 0
@@ -52,13 +57,15 @@ function useVideoMeta(file: File | null): Meta | null {
       if (width > 0 && height > 0 && durationSeconds > 0) {
         setMeta({ frameUrl: '', width, height, durationSeconds, fps: 30 })
       }
+      // Force a tiny seek so `seeked` fires reliably across browsers and the
+      // video pipeline decodes a real frame we can drawImage from. Setting
+      // to a small non-zero value avoids the "already at 0, no seek needed"
+      // browser optimization that would leave us waiting forever.
+      try { video.currentTime = 0.01 } catch { /* some browsers throw on 0 */ }
     }
 
-    // Progressive enhancement: draw the first decoded frame into the preview
-    // thumbnail without seeking. `loadeddata` fires when the first frame is
-    // ready — no need to force a mid-clip seek that costs a decode round-trip.
-    const onLoadedData = () => {
-      if (cancelledRef.current) return cleanup()
+    const onSeeked = () => {
+      if (cancelledRef.current || capturedFrame) return
       const width = video.videoWidth || 0
       const height = video.videoHeight || 0
       if (!(width > 0 && height > 0)) { cleanup(); return }
@@ -74,22 +81,21 @@ function useVideoMeta(file: File | null): Meta | null {
       } catch {
         cleanup(); return
       }
+      capturedFrame = true
       const frameUrl = canvas.toDataURL('image/jpeg', 0.75)
       const durationSeconds = Number.isFinite(video.duration) ? video.duration : 0
-      if (!cancelledRef.current) {
-        setMeta({ frameUrl, width, height, durationSeconds, fps: 30 })
-      }
+      setMeta({ frameUrl, width, height, durationSeconds, fps: 30 })
       cleanup()
     }
 
     video.addEventListener('loadedmetadata', onLoaded)
-    video.addEventListener('loadeddata', onLoadedData)
+    video.addEventListener('seeked', onSeeked)
     video.addEventListener('error', cleanup)
 
     return () => {
       cancelledRef.current = true
       video.removeEventListener('loadedmetadata', onLoaded)
-      video.removeEventListener('loadeddata', onLoadedData)
+      video.removeEventListener('seeked', onSeeked)
       video.removeEventListener('error', cleanup)
       cleanup()
     }
