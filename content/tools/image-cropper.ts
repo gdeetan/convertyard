@@ -78,6 +78,29 @@ export const config: ToolConfig = {
     },
   ],
 
+  howItWorks: [
+    {
+      label: 'Drop your images',
+      desc: 'Drag and drop, click to browse, or paste from clipboard. Up to 20 images per batch (JPG, PNG, or WebP).',
+    },
+    {
+      label: 'Frame each file',
+      desc: 'Use the Prev / Next buttons above the crop area to step through your images. Drag the box (or its edges and corners) to set a different crop for every file. Pick an aspect ratio preset if you need one.',
+    },
+    {
+      label: 'Set output size (optional)',
+      desc: 'Enter exact width and height in pixels to force a final size like 350×350 for UPSC. Leave both at 0 to keep the cropped dimensions.',
+    },
+    {
+      label: 'Click Crop',
+      desc: 'Everything runs in your browser via WebAssembly. Your files never leave your device.',
+    },
+    {
+      label: 'Download',
+      desc: 'Grab files individually or download the whole batch as a ZIP.',
+    },
+  ],
+
   relatedTools: ['image-resizer', 'compress-image', 'background-remover'],
   relatedArticles: [],
 
