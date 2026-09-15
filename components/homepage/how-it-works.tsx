@@ -4,17 +4,17 @@ const STEPS = [
   {
     n: '1',
     title: 'Drop your files',
-    body: 'Click or drag, one file or a thousand.',
+    body: 'Choose files to convert, up to a thousand per batch.',
   },
   {
     n: '2',
     title: 'Convert in your browser',
-    body: 'Real WebAssembly. Your files never leave your device.',
+    body: 'Files convert in the browser using WebAssembly. Nothing is uploaded.',
   },
   {
     n: '3',
     title: 'Download',
-    body: 'Single file or ZIP, instantly ready.',
+    body: 'Download files individually, or as a single ZIP file.',
   },
 ]
 
