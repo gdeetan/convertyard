@@ -5,14 +5,14 @@ const CASES = [
   {
     icon: Camera,
     title: 'For photographers',
-    body: 'Convert hundreds of HEIC or RAW files from a shoot without uploading client work to anyone\'s servers. Batch compress, resize, and rename in one pass.',
+    body: 'Convert hundreds or thousands of RAW files from a photoshoot without uploading anything to an unknown server. Batch compress, resize, and rename in one step.',
     cta: 'See image tools',
     href: '/#images',
   },
   {
     icon: Code2,
     title: 'For developers',
-    body: 'Clean, fast tools that respect your time. Shareable URLs for state. API access coming soon.',
+    body: 'Tools that help make your workflow more efficient with shareable URLs.',
     cta: 'See developer tools',
     href: '/#dev',
   },
