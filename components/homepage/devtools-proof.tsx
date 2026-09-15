@@ -6,7 +6,7 @@ export function DevToolsProof() {
       <div className="mx-auto w-full max-w-none px-4 sm:px-6 lg:px-8">
         <div className="mx-auto mb-8 max-w-3xl text-center">
           <p className="mb-3 text-sm font-semibold tracking-wide text-primary">
-            Verified — don&apos;t take our word for it
+            Still not convinced?
           </p>
           <h2
             id="devtools-heading"

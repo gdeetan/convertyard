@@ -141,7 +141,7 @@ export function DevToolsLive() {
     return (
       <div className="mx-auto flex max-w-3xl flex-col items-center justify-center rounded-xl border border-dashed border-border bg-bg-muted/40 p-8 text-center">
         <p className="mb-4 text-sm text-fg-muted">
-          Want to see it for real? Load a mini live demo below (adds ~2 MB of WASM).
+          Convert an image and see the requests live.
         </p>
         <button
           type="button"

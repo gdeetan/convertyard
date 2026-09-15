@@ -363,7 +363,7 @@ export function Hero() {
           </h1>
 
           <p className="mt-6 max-w-xl text-lg leading-relaxed text-fg-muted">
-            Convert 1,000 images, PDFs, videos, or audio files — right in your browser. No uploads. Ever.
+            Convert images, PDFs, videos, or audio files, up to 1,000 files per batch, locally, in your browser, so nothing is uploaded.
           </p>
 
           <div className="mt-8 flex flex-wrap items-center gap-4">

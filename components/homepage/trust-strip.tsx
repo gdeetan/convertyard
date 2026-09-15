@@ -9,12 +9,12 @@ const PILLARS = [
   {
     icon: Package,
     heading: 'Built for batches',
-    body: '1,000+ files at once, downloaded as a single ZIP.',
+    body: 'Convert up to 1,000 files at once, download individually or as a single ZIP.',
   },
   {
     icon: Zap,
     heading: 'Get in, get out',
-    body: 'No signups. No email walls. Open a tool, finish your work, close the tab.',
+    body: 'No paywall, no signups, no conversion limits. Open a tool, do your work, you’re done.',
   },
 ]
 
