@@ -43,7 +43,7 @@ export const metadata: Metadata = {
 const FAQ = [
   {
     q: 'How can conversion happen without uploading?',
-    a: 'ConvertYard uses WebAssembly to run conversion libraries directly in your browser. Your files are processed locally by your CPU and never sent to any server.',
+    a: "ConvertYard uses a locally run library of code called WebAssembly, so the conversion happens inside the browser. The CPU processes the files, and they aren't uploaded to any server.",
   },
   {
     q: 'Is there a file size limit?',
@@ -51,35 +51,35 @@ const FAQ = [
   },
   {
     q: "What's the maximum batch size?",
-    a: "We've tested up to 1,000+ files per batch. The practical limit depends on your device. Older phones may handle fewer; modern laptops handle thousands.",
+    a: "I've tested a batch of over 230 files, and it finished everything in around 10 minutes. It was a mixture of large files directly off the camera (4 to 6 MB) and smaller files. I've added extra features in the file converters, like resize and target size, to help reduce the number of steps needed for your file compression or conversion needs. The actual maximum batch size depends on your processor and graphics card speed; the faster they are, the faster it will compress.",
   },
   {
     q: 'Do you store any data about my files?',
-    a: "No. We never see your files, so we can't store anything about them. All conversion runs in your browser — no file data, filenames, or contents ever reach our servers.",
+    a: "No, nothing is stored. You could test it yourself. Once the tool loads, turn off your Wi-Fi and try converting or compressing a file; it will still work without an internet connection.",
   },
   {
     q: 'Do you show ads?',
-    a: "Yes. Display ads appear below the FAQ on tool pages and within articles. They never appear inside the conversion flow, above the fold, or anywhere they'd get in your way. Your files are still processed entirely locally — ads and file processing are completely separate systems.",
+    a: "Yes. Once the site gets enough traffic, I'll show display ads, but only in areas that will not affect the tools' functionality.",
   },
   {
     q: 'Do you use analytics or cookies?',
-    a: "Two things, kept completely separate. Your files: 100% local — all conversion runs in your browser via WebAssembly and nothing ever reaches our servers. Site analytics: yes, we use Google Analytics (loaded only after you accept the cookie banner) to measure which tools are popular and to build the verified traffic data required to apply to premium ad networks like Mediavine. That ad revenue is how we keep every tool free with no signups or watermarks. Ad networks may set their own cookies. None of this touches your files.",
+    a: "We manage two things here: your files and the site's analytics. Your files are 100% local. We're running conversion in the browser with WebAssembly, and none of that ever hits our servers. For site analytics, we use Google Analytics (which we load in the cookie banner) to see which tools are most popular and build verified traffic stats for premium ad networks like Mediavine, so I can further develop the site. Ad revenue on our tools means they're free to use – no signups required, no watermarks. And as noted above, ad networks may set their own cookies here. None of this touches your files.",
   },
   {
     q: 'Does it work offline?',
-    a: "Yes, after your first visit. Once the tool's WebAssembly module is cached, it works without internet.",
+    a: "Yes, only after the tool and script load. I've tested it with the WIFI and data turned off, and it works even without an internet connection.",
   },
   {
     q: 'Why is this free?',
-    a: "Tools should be free, so they are. The site is supported by minimal display ads below tools and on articles. Tool UIs themselves stay clean — no ads in the conversion flow, ever. We may also add a paid API tier in the future for developers.",
+    a: "One of my frustrations looking for an image conversion tool is that most of the ones I've tried have paywalls or require you to sign up. With the increasing number of data breaches from using your Gmail account to log in, I was concerned about privacy; hence, I decided to create this tool for myself.",
   },
   {
     q: 'Do I need to create an account?',
-    a: "No. There's no signup, no email wall, no login. Open a tool, use it, leave.",
+    a: "Nope. No need to create an account or log in to use the tool. There's no signup, no email wall, no login. Open a tool, use it, leave.",
   },
   {
     q: 'Are there watermarks on output files?',
-    a: "Never. Your output files are identical to what you'd get from desktop software.",
+    a: "No. Converted or compressed files don't have any watermarks.",
   },
 ]
 
