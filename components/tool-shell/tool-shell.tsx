@@ -300,16 +300,37 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
   }, [])
 
   // Async warning probe. Runs once when the file set changes — cancelled
-  // via `active` flag if a new set arrives mid-probe.
+  // via `active` flag if a new set arrives mid-probe. Deferred so the
+  // preview panel's <video> element grabs its first frame first; Safari
+  // serializes blob reads and a competing mediabunny probe on the same
+  // file blocks the preview thumbnail until it releases.
   useEffect(() => {
     setAsyncWarning(null)
     if (!config.asyncWarningFn || state.entries.length === 0) return
     const files = state.entries.map((e) => e.file)
     let active = true
-    config.asyncWarningFn(files)
-      .then((msg) => { if (active) setAsyncWarning(msg) })
-      .catch(() => { /* probe failure is non-fatal */ })
-    return () => { active = false }
+    const start = () => {
+      if (!active) return
+      config.asyncWarningFn!(files)
+        .then((msg) => { if (active) setAsyncWarning(msg) })
+        .catch(() => { /* probe failure is non-fatal */ })
+    }
+    const w = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number
+      cancelIdleCallback?: (id: number) => void
+    }
+    let idleId: number | null = null
+    let timeoutId: number | null = null
+    if (typeof w.requestIdleCallback === 'function') {
+      idleId = w.requestIdleCallback(start, { timeout: 3000 })
+    } else {
+      timeoutId = window.setTimeout(start, 1500)
+    }
+    return () => {
+      active = false
+      if (idleId != null && typeof w.cancelIdleCallback === 'function') w.cancelIdleCallback(idleId)
+      if (timeoutId != null) clearTimeout(timeoutId)
+    }
   }, [config, state.entries])
 
   // Derived options: force option values based on the current file set. Guards
