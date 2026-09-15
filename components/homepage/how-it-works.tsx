@@ -55,9 +55,9 @@ export function HowItWorks() {
             Wait — how does it work without uploading?
           </p>
           <p className="mt-3 text-sm leading-relaxed text-fg-muted">
-            WebAssembly lets us run the same C++ libraries that professional desktop apps use
-            (libvips, ffmpeg, pdf-lib) directly inside your browser. Your files are processed by
-            your CPU, right here in this tab, without sending anything anywhere.
+            By using WebAssembly it’s possible to run the same C++ code as the corresponding
+            desktop apps (libvips, ffmpeg and pdf-lib) in the browser. This means that all
+            processing is done on your CPU, in this tab, and no files are uploaded to any server.
           </p>
           <Link
             href="/how-it-works"
