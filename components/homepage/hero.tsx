@@ -343,9 +343,9 @@ export function Hero() {
       aria-labelledby="hero-heading"
       className="mx-auto max-w-7xl px-4 py-10 sm:px-6 sm:py-16 lg:px-8"
     >
-      <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-5 lg:gap-16">
-        {/* Left: copy — 3/5 width on desktop */}
-        <div className="lg:col-span-3">
+      <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-5 lg:gap-12">
+        {/* Left: copy — 2/5 width on desktop */}
+        <div className="lg:col-span-2">
           <p
             className="mb-4 hidden text-sm font-semibold tracking-wide text-primary lg:block"
             aria-hidden="true"
@@ -399,8 +399,8 @@ export function Hero() {
           </p>
         </div>
 
-        {/* Right: mini-converter — 2/5 width on desktop */}
-        <div className="lg:col-span-2">
+        {/* Right: mini-converter — 3/5 width on desktop, aligned to Tools menu */}
+        <div className="lg:col-span-3">
           <MiniConverter />
         </div>
       </div>
