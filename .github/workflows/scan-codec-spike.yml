@@ -12,18 +12,37 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install encoders
+      - name: Install base tools
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            jbig2enc \
             libtiff-tools \
+            libtiff-dev \
+            libleptonica-dev \
+            libpng-dev \
+            libjpeg-dev \
+            zlib1g-dev \
+            autoconf \
+            automake \
+            libtool \
+            build-essential \
             poppler-utils \
             qpdf \
-            curl
-          jbig2 -V || true
+            curl \
+            git
           tiffcp -h 2>&1 | head -1 || true
           pdfimages -v 2>&1 | head -1 || true
+
+      - name: Build jbig2enc from source
+        run: |
+          git clone --depth 1 https://github.com/agl/jbig2enc.git /tmp/jbig2enc
+          cd /tmp/jbig2enc
+          ./autogen.sh
+          ./configure
+          make -j"$(nproc)"
+          sudo make install
+          sudo ldconfig
+          jbig2 -V 2>&1 | head -1 || jbig2 2>&1 | head -3 || true
 
       - name: Download large fixtures (gitignored)
         working-directory: fixtures/pdf-scan-codec-spike
