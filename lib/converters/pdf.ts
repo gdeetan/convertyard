@@ -6,6 +6,7 @@ import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types
 import { convertPdfToWord } from './pdf-to-word'
 import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 import { downsampleFlateImage } from '@/lib/pdf/image-downsample'
+import { computeEffectiveDpi } from '../pdf/effective-dpi'
 
 // ── Merge ─────────────────────────────────────────────────────────────────────
 
@@ -208,7 +209,12 @@ async function recompressImagesKeepText(
   buffer: ArrayBuffer,
   quality: number,
   fileName: string,
-  opts: { targetDpi: number; sourceDpi: number } = { targetDpi: 150, sourceDpi: 300 }
+  opts: {
+    targetDpi: number;
+    sourceDpi: number;
+    imageRenderMap?: Record<string, number>;
+    flateLevel?: number;
+  } = { targetDpi: 150, sourceDpi: 300 }
 ): Promise<{ file: File; preservedImages: string[] }> {
   const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
   const context = doc.context
@@ -268,14 +274,28 @@ async function recompressImagesKeepText(
       }
 
       try {
+        let effectiveSourceDpi = opts.sourceDpi
+        if (opts.imageRenderMap) {
+          const key = `${width.asNumber()}x${height.asNumber()}`
+          const renderedPoints = opts.imageRenderMap[key]
+          if (typeof renderedPoints === 'number' && renderedPoints > 0) {
+            const dpi = computeEffectiveDpi({
+              pixelWidth: width.asNumber(),
+              renderedPoints,
+            })
+            if (Number.isFinite(dpi) && dpi > 0) effectiveSourceDpi = dpi
+          }
+        }
+
         const result = await downsampleFlateImage(obj.contents, {
           sourceWidth: width.asNumber(),
           sourceHeight: height.asNumber(),
-          sourceDpi: opts.sourceDpi,
+          sourceDpi: effectiveSourceDpi,
           targetDpi: opts.targetDpi,
           colorSpace: csStr === '/DeviceRGB' ? 'DeviceRGB' : 'DeviceGray',
           bitsPerComponent: 8,
           jpegQuality: quality / 100,
+          flateLevel: opts.flateLevel,
         })
 
         if (result.filter === 'FlateDecode') {

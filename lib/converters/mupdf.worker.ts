@@ -28,7 +28,7 @@ function getMupdf(): Promise<any> {
 self.onmessage = async (e: MessageEvent) => {
   const { id, type, fileBuffer, pageIndex, dpi, quality, transparent, password, userPassword, ownerPassword, encryptStrength, permissions } = e.data as {
     id: string
-    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text' | 'page-sizes' | 'unlock-pdf' | 'protect-pdf' | 'save-compressed'
+    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text' | 'page-sizes' | 'unlock-pdf' | 'protect-pdf' | 'save-compressed' | 'get-image-bboxes'
     fileBuffer: ArrayBuffer
     pageIndex?: number
     dpi?: number
@@ -192,6 +192,47 @@ self.onmessage = async (e: MessageEvent) => {
       buf.destroy()
       src.destroy()
       self.postMessage({ id, type: 'result', data: outBuf }, [outBuf])
+      return
+    }
+
+    if (type === 'get-image-bboxes') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc: any = mupdf.Document.openDocument(fileBuffer, 'application/pdf')
+      const pageCount: number = doc.countPages()
+      // Key: "<pixelWidth>x<pixelHeight>". Value: max rendered width in PDF points.
+      const maxRenderedByKey: Record<string, number> = {}
+
+      for (let p = 0; p < pageCount; p++) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const page: any = doc.loadPage(p)
+        try {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const stext: any = page.toStructuredText('preserve-images')
+          stext.walk({
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onImageBlock(bbox: any, _transform: any, image: any) {
+              try {
+                const w = image.getWidth()
+                const h = image.getHeight()
+                const key = `${w}x${h}`
+                const renderedPoints = bbox[2] - bbox[0]
+                const prev = maxRenderedByKey[key] ?? 0
+                if (renderedPoints > prev) maxRenderedByKey[key] = renderedPoints
+              } catch {
+                // skip unreadable image
+              }
+            },
+          })
+          stext.destroy?.()
+        } finally {
+          page.destroy()
+        }
+      }
+
+      doc.destroy()
+      const encoded = new TextEncoder().encode(JSON.stringify(maxRenderedByKey))
+      const buf = encoded.buffer.slice(encoded.byteOffset, encoded.byteOffset + encoded.byteLength)
+      self.postMessage({ id, type: 'result', data: buf }, [buf])
       return
     }
 
