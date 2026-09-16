@@ -7,6 +7,7 @@ import { textTools }    from '@/content/text-tool-registry'
 import { articles }     from '@/content/article-registry'
 import { sizeTargets }  from '@/content/size-target-registry'
 import { verticals }    from '@/content/vertical-registry'
+import { ALL_TOOLS }    from '@/content/tool-catalog'
 import { BASE_URL }     from '@/lib/seo/schema'
 
 const BUILD_DATE = new Date()
@@ -25,6 +26,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: 'monthly',
     priority: 0.8,
   }))
+
+  // Catalog-only entries: live tool pages present on disk and in ALL_TOOLS
+  // but not wired through the shared-shell registries above. Emitted at a
+  // slightly lower priority since they lack registry-driven cross-linking.
+  const registrySlugs = new Set([
+    ...tools.map((t) => t.slug),
+    ...textTools.map((t) => t.slug),
+  ])
+  const catalogOnlyEntries: MetadataRoute.Sitemap = ALL_TOOLS
+    .filter((t) => t.status === 'live' && !registrySlugs.has(t.slug))
+    .map((t) => ({
+      url: `${BASE_URL}/${t.slug}/`,
+      lastModified: BUILD_DATE,
+      changeFrequency: 'monthly',
+      priority: 0.7,
+    }))
 
   const articleEntries: MetadataRoute.Sitemap = articles.map((a) => ({
     url: `${BASE_URL}/blog/${a.slug}/`,
@@ -74,6 +91,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...staticEntries,
     ...toolEntries,
     ...textToolEntries,
+    ...catalogOnlyEntries,
     ...articleEntries,
     ...sizeTargetEntries,
     ...verticalEntries,
