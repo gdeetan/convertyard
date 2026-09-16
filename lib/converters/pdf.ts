@@ -8,6 +8,14 @@ import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 import { downsampleFlateImage } from '@/lib/pdf/image-downsample'
 import { computeEffectiveDpi } from '../pdf/effective-dpi'
 
+// P1 efficiency features. Flip individually to false if triage requires it.
+const P1_FEATURES = {
+  perImageDpi: true,
+  mupdfSaveCompressed: true,
+  dedupeImageXObjects: true,
+  flateLevel9: true,
+} as const
+
 // ── Merge ─────────────────────────────────────────────────────────────────────
 
 export interface MergeSource {
@@ -529,17 +537,72 @@ export async function compressPdfKeepText(
 
   // JPEG re-encode + Flate/PNG downsample operate on the structural output so
   // we keep the cumulative savings from both passes.
-  const structuralBuffer = await structural.arrayBuffer()
+  let structuralBuffer = await structural.arrayBuffer()
+
+  // Feature #3: dedup pass runs against the structural output BEFORE recompress.
+  if (P1_FEATURES.dedupeImageXObjects) {
+    try {
+      const preDedup = await PDFDocument.load(structuralBuffer, { ignoreEncryption: true })
+      const { dedupeImageXObjects } = await import('../pdf/dedupe-image-xobjects')
+      const { collapsed } = await dedupeImageXObjects(preDedup)
+      if (collapsed > 0) {
+        const deduped = await preDedup.save({ useObjectStreams: true, addDefaultPage: false })
+        structuralBuffer = deduped.buffer.slice(
+          deduped.byteOffset,
+          deduped.byteOffset + deduped.byteLength
+        ) as ArrayBuffer
+        passesRun.push(`image-dedup:collapsed-${collapsed}`)
+      }
+    } catch {
+      // best-effort; fall through with the original structuralBuffer.
+    }
+  }
+
+  // Feature #1: fetch per-image render map from mupdf if enabled.
+  let imageRenderMap: Record<string, number> | undefined
+  if (P1_FEATURES.perImageDpi) {
+    try {
+      const { getImageBboxes } = await import('./mupdf-client')
+      imageRenderMap = await getImageBboxes(structuralBuffer)
+    } catch {
+      imageRenderMap = undefined
+    }
+  }
+
   const { file: jpegPass } = await recompressImagesKeepText(
     structuralBuffer,
     60,
-    input.name
+    input.name,
+    {
+      targetDpi: 150,
+      sourceDpi: 300,
+      imageRenderMap,
+      flateLevel: P1_FEATURES.flateLevel9 ? 9 : undefined,
+    }
   )
   passesRun.push('jpeg-recompress')
   onProgress?.(90)
 
   // Track the smallest valid pass produced.
-  const best = jpegPass.size < structural.size ? jpegPass : structural
+  let best: Blob = jpegPass.size < structural.size ? jpegPass : structural
+
+  // Feature #2: mupdf save-compressed final pass.
+  if (P1_FEATURES.mupdfSaveCompressed) {
+    try {
+      const { saveCompressed } = await import('./mupdf-client')
+      const bestBuffer = await best.arrayBuffer()
+      const compressed = await saveCompressed(bestBuffer)
+      if (compressed.byteLength < best.size) {
+        best = new Blob([new Uint8Array(compressed)], { type: 'application/pdf' })
+        passesRun.push('mupdf-save-compressed')
+      } else {
+        passesRun.push('mupdf-save-noop')
+      }
+    } catch {
+      passesRun.push('mupdf-save-noop')
+    }
+  }
+
   if (best.size <= targetBytes) {
     onProgress?.(100)
     return { ok: true, blob: best, bytes: best.size, passesRun }
