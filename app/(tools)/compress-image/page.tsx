@@ -67,6 +67,27 @@ const howToCompressSection = (
         individually or as a single ZIP file.
       </li>
     </ol>
+
+    <p className="mt-6 text-base text-fg-muted">
+      If you want the maximum image compression and have an older format
+      like a JPG, use the file converter tool like{' '}
+      <a href="/jpg-to-webp/" className="text-primary underline hover:text-primary-hover">
+        JPG to WebP
+      </a>
+      ,{' '}
+      <a href="/png-to-webp/" className="text-primary underline hover:text-primary-hover">
+        PNG to WebP
+      </a>
+      ,{' '}
+      <a href="/bmp-to-webp/" className="text-primary underline hover:text-primary-hover">
+        BMP to WebP
+      </a>
+      , or{' '}
+      <a href="/jpg-to-avif/" className="text-primary underline hover:text-primary-hover">
+        JPG to AVIF
+      </a>{' '}
+      to compress files by over 90% without compromising image quality.
+    </p>
   </section>
 )
 
