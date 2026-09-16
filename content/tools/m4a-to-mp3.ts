@@ -49,23 +49,19 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'What is M4A and why won\'t it play everywhere?',
-      a: 'M4A is Apple\'s audio format — it\'s an AAC audio track inside an MPEG-4 container. It plays natively on Apple devices (iPhone, Mac, iPad) and in most modern media players, but older Android apps, car stereos, and some podcast platforms expect MP3. Converting to MP3 makes the file universally compatible.',
+      a: 'M4A is an Apple audio format that\'s an AAC audio track sitting inside an MPEG-4 container. This format will play on Apple devices like iPhone, Mac, or iPad and most newer media players, but it\'s not compatible with older Android apps and car audio equipment. If you record a podcast in this format, converting it to MP3 would allow you to upload it to podcast platforms, and it is the more universally accepted format for audio files.',
     },
     {
       q: 'Does converting M4A to MP3 lose quality?',
-      a: 'Yes, slightly — both M4A (AAC) and MP3 are lossy formats, and converting between them is a lossy-to-lossy transcode. At 192 kbps or higher, the quality difference is inaudible for most listeners. For voice memos, 128 kbps is transparent. Keep your original M4A files if you ever need to re-edit.',
-    },
-    {
-      q: 'Can I convert iPhone voice memos?',
-      a: 'Yes. iPhone voice memos are saved as M4A files. Export them to your Mac or PC (via AirDrop, iCloud, or a USB cable), drop them into this tool, and download the MP3s. The conversion runs entirely in your browser — nothing is uploaded.',
+      a: 'There will be slight degradation since both M4A (AAC) and MP3 are lossy formats, and converting between them requires a lossy-to-lossy transcode. If you choose a bitrate of 192 kbps or higher, the difference isn\'t noticeable for most people. For voice memos, 128 kbps will be sufficient. Regardless, you still need to keep the original M4A files in case you need the best possible audio copy.',
     },
     {
       q: 'What bitrate should I use for voice memos vs music?',
-      a: 'For voice memos, recordings, and podcasts: 128 kbps is transparent — you won\'t hear a difference from the original. For music: use 192–256 kbps. Use 320 kbps only if you plan to re-edit the MP3 later, since re-encoding a lossy file degrades quality further.',
+      a: 'Choose 128 kbps for most use cases: recordings, podcasts, or voice memos. There isn\'t much difference in the audio output between the original M4A file and the MP3 equivalent. But if you\'re converting a music file, use a bitrate between 192 and 256 kbps. Only use 320 kbps if you plan to reuse the MP3 for another project because re-encoding a lossy file will degrade quality further.',
     },
     {
       q: 'Can I batch convert M4A files?',
-      a: 'Yes. Drop as many M4A files as you need. ConvertYard processes them one at a time in your browser and packages all the MP3s into a single ZIP for download. There is no hard file count limit, though very large batches will take proportionally longer.',
+      a: 'Yes, you can convert up to 1,000 M4A files in a batch, and ConvertYard will process each file individually in the browser and combine them into a ZIP for download.',
     },
     {
       q: 'Are my files uploaded to a server?',
@@ -75,8 +71,8 @@ export const config: ToolConfig = {
   relatedTools: ['compress-mp3', 'mp4-to-mp3', 'extract-audio', 'audio-trimmer', 'mp3-to-mp4'],
   relatedArticles: ['audio-bitrate-explained', 'extract-audio-from-mp4', 'browser-video-editing-2026'],
   meta: {
-    title: 'M4A to MP3 — iPhone Voice Memos — ConvertYard',
+    title: 'M4A to MP3 Converter - Nothing Uploads, Convert Files on Your Browser',
     description:
-      'Convert M4A to MP3 in your browser. Batch convert iPhone voice memos and M4A audio files — choose bitrate up to 320 kbps, no uploads, no account.',
+      "Convert Apple's native audio format M4A to an MP3 format that has better compatibility across different devices on Android and iOS. Free, no paywall or signups.",
   },
 }
