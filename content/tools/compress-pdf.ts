@@ -142,13 +142,6 @@ export const config: ToolConfig = {
     { type: 'section-header' as const, label: 'Fonts' },
     {
       type: 'toggle' as const,
-      name: 'subsetFonts',
-      label: 'Subset embedded fonts',
-      hint: 'Improves savings estimate for documents with unsubsetted fonts. Full glyph-level subsetting requires a native PDF tool.',
-      default: true,
-    },
-    {
-      type: 'toggle' as const,
       name: 'removeUnusedFonts',
       label: 'Remove unused fonts',
       hint: 'Deletes font resources that are embedded but never referenced by any page content.',
@@ -174,13 +167,6 @@ export const config: ToolConfig = {
       dependsOn: { name: 'stripFormFields', value: 'true' },
     },
     { type: 'section-header' as const, label: 'Structure' },
-    {
-      type: 'toggle' as const,
-      name: 'linearize',
-      label: 'Linearize for fast web view',
-      hint: 'Reorganizes the PDF so page 1 loads immediately when opened in a browser before the full file downloads.',
-      default: false,
-    },
     {
       type: 'toggle' as const,
       name: 'stripPrivateAppData',

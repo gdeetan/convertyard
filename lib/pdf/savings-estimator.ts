@@ -14,7 +14,6 @@ export interface SavingsEstimate {
     imageDownsampling: TechniqueSavings
     imageQualityReduction: TechniqueSavings
     grayscaleConversion: TechniqueSavings
-    fontSubsetting: TechniqueSavings
     stripMetadata: TechniqueSavings
     stripAnnotations: TechniqueSavings
     stripEmbeddedFiles: TechniqueSavings
@@ -23,12 +22,11 @@ export interface SavingsEstimate {
 }
 
 export function estimateSavings(analysis: PdfAnalysis, options: ToolOptions): SavingsEstimate {
-  const { images, fonts, fileSize } = analysis
+  const { images, fileSize } = analysis
   const jpegQuality = typeof options.jpegQuality === 'number' ? options.jpegQuality : 70
   const grayscale = options.grayscale === true
   const dpiEnabled = options.dpiMode === true
   const targetDpi = typeof options.targetDpi === 'number' ? options.targetDpi : 150
-  const subsetFonts = options.subsetFonts !== false
   const stripMetadataEnabled = options.stripMetadata !== false
   const stripAnnotationsEnabled = options.stripAnnotations === true
   const stripEmbeddedEnabled = options.stripEmbedded === true
@@ -48,11 +46,6 @@ export function estimateSavings(analysis: PdfAnalysis, options: ToolOptions): Sa
       ? Math.round(images.totalEstimatedBytes * 0.6)
       : 0
 
-  const fontSubsettingBytes =
-    fonts.unsubsettedCount > 0 && subsetFonts
-      ? Math.round(fonts.estimatedBytes * 0.4)
-      : 0
-
   const stripMetadataBytes = analysis.hasMetadata && stripMetadataEnabled ? 50 * 1024 : 0
   const stripAnnotationsBytes = analysis.hasAnnotations && stripAnnotationsEnabled ? 50 * 1024 : 0
   const stripEmbeddedBytes = analysis.hasEmbeddedFiles && stripEmbeddedEnabled ? 100 * 1024 : 0
@@ -60,7 +53,7 @@ export function estimateSavings(analysis: PdfAnalysis, options: ToolOptions): Sa
 
   const totalSavings = Math.min(
     fileSize,
-    imageDownsamplingBytes + imageQualityBytes + grayscaleBytes + fontSubsettingBytes +
+    imageDownsamplingBytes + imageQualityBytes + grayscaleBytes +
     stripMetadataBytes + stripAnnotationsBytes + stripEmbeddedBytes + contentStreamBytes
   )
 
@@ -82,12 +75,6 @@ export function estimateSavings(analysis: PdfAnalysis, options: ToolOptions): Sa
       grayscaleConversion: {
         savingsBytes: grayscaleBytes,
         explanation: `Convert ${images.byColorSpace?.color ?? images.count} color images to grayscale (~60% reduction)`,
-      },
-      fontSubsetting: {
-        savingsBytes: fontSubsettingBytes,
-        explanation: fonts.unsubsettedCount > 0
-          ? `Subset ${fonts.unsubsettedCount} embedded font(s) — remove unused glyphs`
-          : 'All fonts already subsetted',
       },
       stripMetadata: {
         savingsBytes: stripMetadataBytes,

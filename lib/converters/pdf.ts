@@ -5,6 +5,7 @@ import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
 import { convertPdfToWord } from './pdf-to-word'
 import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
+import { downsampleFlateImage } from '@/lib/pdf/image-downsample'
 
 // ── Merge ─────────────────────────────────────────────────────────────────────
 
@@ -193,6 +194,132 @@ async function recompressImages(
   return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
 }
 
+/**
+ * Keep-text image-recompress pass. Extends `recompressImages` behavior by
+ * ALSO downsampling Flate-encoded PNG-origin image XObjects (DeviceRGB and
+ * DeviceGray, 8-bit) via `downsampleFlateImage`. Other codecs (JPX, JBIG2,
+ * CCITT) and non-basic colorspaces (ICCBased, Indexed, DeviceN, Pattern, etc.)
+ * are preserved as-is and collected into a local `preservedImages` diagnostic.
+ *
+ * The JPEG (`/DCTDecode`) path here matches `recompressImages` exactly so
+ * behavior is preserved for the keep-text pipeline.
+ */
+async function recompressImagesKeepText(
+  buffer: ArrayBuffer,
+  quality: number,
+  fileName: string,
+  opts: { targetDpi: number; sourceDpi: number } = { targetDpi: 150, sourceDpi: 300 }
+): Promise<{ file: File; preservedImages: string[] }> {
+  const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+  const context = doc.context
+  const preservedImages: string[] = []
+
+  for (const [ref, obj] of context.enumerateIndirectObjects()) {
+    if (!(obj instanceof PDFRawStream)) continue
+    const subtype = obj.dict.get(PDFName.of('Subtype'))
+    if (subtype?.toString() !== '/Image') continue
+
+    const filter = obj.dict.get(PDFName.of('Filter'))
+    const filterStr = filter?.toString() ?? ''
+
+    // Existing JPEG branch — unchanged behavior.
+    if (filterStr === '/DCTDecode') {
+      try {
+        const reencoded = await reencodeJpeg(obj.contents, quality)
+        if (reencoded.byteLength >= obj.contents.byteLength) continue
+        obj.dict.set(PDFName.of('Length'), PDFNumber.of(reencoded.byteLength))
+        context.assign(ref, PDFRawStream.of(obj.dict, reencoded))
+      } catch {
+        preservedImages.push(`${ref.toString()}:jpeg-reencode-failed`)
+      }
+      continue
+    }
+
+    // Flate/PNG branch — only DeviceRGB or DeviceGray, BPC 8, no filter chain.
+    if (filterStr === '/FlateDecode') {
+      const cs = obj.dict.get(PDFName.of('ColorSpace'))
+      const csStr = cs?.toString() ?? ''
+      if (csStr !== '/DeviceRGB' && csStr !== '/DeviceGray') {
+        preservedImages.push(`${ref.toString()}:colorspace=${csStr || 'none'}`)
+        continue
+      }
+      const width = obj.dict.get(PDFName.of('Width'))
+      const height = obj.dict.get(PDFName.of('Height'))
+      const bpc = obj.dict.get(PDFName.of('BitsPerComponent'))
+      if (!(width instanceof PDFNumber) || !(height instanceof PDFNumber) || !(bpc instanceof PDFNumber)) {
+        preservedImages.push(`${ref.toString()}:missing-dims`)
+        continue
+      }
+      if (bpc.asNumber() !== 8) {
+        preservedImages.push(`${ref.toString()}:bpc=${bpc.asNumber()}`)
+        continue
+      }
+      // Skip if image also has an SMask (alpha) — downsampling to JPEG would
+      // drop the mask and change rendering. Preserve for safety.
+      if (obj.dict.get(PDFName.of('SMask'))) {
+        preservedImages.push(`${ref.toString()}:has-smask`)
+        continue
+      }
+      // Skip images with a Decode array — non-default remapping we can't
+      // faithfully carry through JPEG.
+      if (obj.dict.get(PDFName.of('Decode'))) {
+        preservedImages.push(`${ref.toString()}:has-decode`)
+        continue
+      }
+
+      try {
+        const result = await downsampleFlateImage(obj.contents, {
+          sourceWidth: width.asNumber(),
+          sourceHeight: height.asNumber(),
+          sourceDpi: opts.sourceDpi,
+          targetDpi: opts.targetDpi,
+          colorSpace: csStr === '/DeviceRGB' ? 'DeviceRGB' : 'DeviceGray',
+          bitsPerComponent: 8,
+          jpegQuality: quality / 100,
+        })
+
+        if (result.filter === 'FlateDecode') {
+          // No downsample happened — leave object unchanged.
+          continue
+        }
+        if (result.bytes.byteLength >= obj.contents.byteLength) {
+          // JPEG output larger than the Flate source — leave unchanged.
+          continue
+        }
+
+        // Build a new dict for a JPEG image XObject. Preserve the existing
+        // dict entries except those that must change for a DCT-encoded image.
+        const newDict = obj.dict.clone(context)
+        newDict.set(PDFName.of('Filter'), PDFName.of('DCTDecode'))
+        newDict.set(PDFName.of('Width'), PDFNumber.of(result.width))
+        newDict.set(PDFName.of('Height'), PDFNumber.of(result.height))
+        newDict.set(PDFName.of('BitsPerComponent'), PDFNumber.of(8))
+        newDict.set(PDFName.of('ColorSpace'), PDFName.of(
+          csStr === '/DeviceRGB' ? 'DeviceRGB' : 'DeviceGray'
+        ))
+        newDict.set(PDFName.of('Length'), PDFNumber.of(result.bytes.byteLength))
+        // Flate-only decoding hints have no meaning for DCT; drop them.
+        newDict.delete(PDFName.of('DecodeParms'))
+        newDict.delete(PDFName.of('Predictor'))
+
+        context.assign(ref, PDFRawStream.of(newDict, result.bytes))
+      } catch {
+        preservedImages.push(`${ref.toString()}:downsample-failed`)
+      }
+      continue
+    }
+
+    // Any other codec (JPX, JBIG2, CCITT, filter chain) — preserve as-is.
+    preservedImages.push(`${ref.toString()}:filter=${filterStr || 'none'}`)
+  }
+
+  const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+  return {
+    file: new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' }),
+    preservedImages,
+  }
+}
+
 async function rasterizePdf(file: File, dpi: number, fileName: string): Promise<File> {
   const buffer = await file.arrayBuffer()
   const pageCount = await getPageCount(buffer)
@@ -347,14 +474,187 @@ function isValidPdf(bytes: Uint8Array): boolean {
 
 // ── Target-size compression ───────────────────────────────────────────────────
 
+export type TargetSizeResult =
+  | { ok: true; blob: Blob; bytes: number; passesRun: string[] }
+  | {
+      ok: false;
+      reason: 'unachievable-keep-text';
+      bestBlob: Blob;
+      bestBytes: number;
+      targetBytes: number;
+      passesRun: string[];
+    }
+
+/**
+ * Keep-text target-size compression: runs structural cleanup + JPEG re-encode
+ * only. Never rasterizes. If neither pass reaches the target, returns
+ * ok:false with the smallest achieved output for the caller to gate rasterize
+ * behind explicit user consent.
+ */
+export async function compressPdfKeepText(
+  input: File,
+  targetBytes: number,
+  onProgress?: (pct: number) => void
+): Promise<TargetSizeResult> {
+  const passesRun: string[] = []
+  const inputBuffer = await input.arrayBuffer()
+
+  onProgress?.(5)
+  const structural = await compressStructural(inputBuffer, 'high', input.name)
+  passesRun.push('structural-cleanup')
+  onProgress?.(40)
+  if (structural.size <= targetBytes) {
+    return { ok: true, blob: structural, bytes: structural.size, passesRun }
+  }
+
+  // JPEG re-encode + Flate/PNG downsample operate on the structural output so
+  // we keep the cumulative savings from both passes.
+  const structuralBuffer = await structural.arrayBuffer()
+  const { file: jpegPass } = await recompressImagesKeepText(
+    structuralBuffer,
+    60,
+    input.name
+  )
+  passesRun.push('jpeg-recompress')
+  onProgress?.(90)
+
+  // Track the smallest valid pass produced.
+  const best = jpegPass.size < structural.size ? jpegPass : structural
+  if (best.size <= targetBytes) {
+    onProgress?.(100)
+    return { ok: true, blob: best, bytes: best.size, passesRun }
+  }
+
+  onProgress?.(100)
+  return {
+    ok: false,
+    reason: 'unachievable-keep-text',
+    bestBlob: best,
+    bestBytes: best.size,
+    targetBytes,
+    passesRun,
+  }
+}
+
+/**
+ * Rasterize escalation extracted from the legacy `compressPdfToTargetSize`
+ * pipeline. Only invoke after user opts in via UnachievableTargetCard.
+ * Preserves the original 200→72 DPI passes + grayscale finale.
+ */
+export async function rasterizeToTargetSize(
+  input: File,
+  targetBytes: number,
+  onProgress?: (pct: number) => void
+): Promise<{ file: File; meta: CompressionMeta }> {
+  const originalBytes = input.size
+  const floor = targetBytes * 0.5
+  const inputBuffer = await input.arrayBuffer()
+
+  const steps: Array<{ label: string; produce: () => Promise<File> }> = [
+    { label: 'rasterize 200 DPI quality 80',     produce: () => rasterizeForTarget(inputBuffer, input.name, 200, 80) },
+    { label: 'rasterize 150 DPI quality 75',     produce: () => rasterizeForTarget(inputBuffer, input.name, 150, 75) },
+    { label: 'rasterize 100 DPI quality 65',     produce: () => rasterizeForTarget(inputBuffer, input.name, 100, 65) },
+    { label: 'rasterize 72 DPI quality 40',      produce: () => rasterizeForTarget(inputBuffer, input.name, 72, 40) },
+    { label: 'rasterize grayscale 72 DPI q 35',  produce: () => rasterizeGrayscaleForTarget(inputBuffer, input.name, 72, 35) },
+  ]
+
+  let prevBest: File = input
+  let prevBestLabel = 'original'
+  let iterationsUsed = 0
+
+  for (let i = 0; i < steps.length; i++) {
+    onProgress?.(Math.round(10 + ((i + 1) / steps.length) * 85))
+
+    let candidate: File
+    try {
+      candidate = await steps[i].produce()
+    } catch {
+      iterationsUsed++
+      continue
+    }
+
+    const bytes = new Uint8Array(await candidate.arrayBuffer())
+    if (!isValidPdf(bytes)) {
+      iterationsUsed++
+      continue
+    }
+
+    iterationsUsed++
+
+    if (candidate.size <= targetBytes) {
+      if (candidate.size >= floor) {
+        onProgress?.(100)
+        return {
+          file: candidate,
+          meta: {
+            originalBytes,
+            targetBytes,
+            achievedBytes: candidate.size,
+            reachedTarget: true,
+            isUnchanged: false,
+            iterationsUsed,
+            appliedSettings: steps[i].label,
+          },
+        }
+      }
+      if (prevBest.size > targetBytes) {
+        onProgress?.(100)
+        return {
+          file: candidate,
+          meta: {
+            originalBytes,
+            targetBytes,
+            achievedBytes: candidate.size,
+            reachedTarget: true,
+            isUnchanged: false,
+            iterationsUsed,
+            appliedSettings: steps[i].label,
+          },
+        }
+      }
+      break
+    }
+
+    if (candidate.size < prevBest.size) {
+      prevBest = candidate
+      prevBestLabel = steps[i].label
+    }
+  }
+
+  onProgress?.(100)
+  return {
+    file: prevBest,
+    meta: {
+      originalBytes,
+      targetBytes,
+      achievedBytes: prevBest.size,
+      reachedTarget: prevBest.size <= targetBytes,
+      isUnchanged: false,
+      iterationsUsed,
+      appliedSettings: prevBestLabel,
+      message: prevBest.size <= targetBytes
+        ? undefined
+        : `Couldn't reach ${formatBytes(targetBytes)} — smallest possible is ${formatBytes(prevBest.size)}`,
+    },
+  }
+}
+
+/**
+ * @deprecated: to remove in follow-up.
+ *
+ * Retained because size-target landing pages (/compress-pdf/to-100kb, etc.)
+ * still route through `compressPDF` and rely on the auto-escalate-to-rasterize
+ * behavior to hit their advertised size caps without user interaction. The
+ * /compress-pdf tool page itself now bypasses this adapter and gates
+ * `rasterizeToTargetSize` behind explicit user consent via
+ * `UnachievableTargetCard`. Do NOT add new callers.
+ */
 export async function compressPdfToTargetSize(
   input: File,
   targetBytes: number,
   onProgress?: (pct: number) => void
 ): Promise<{ file: File; meta: CompressionMeta }> {
   const originalBytes = input.size
-  // INVARIANT 3: never return a file smaller than 50% of target (that's over-compression)
-  const floor = targetBytes * 0.5
 
   // INVARIANT 1: if input is already within target, return original unchanged
   if (originalBytes <= targetBytes) {
@@ -373,115 +673,29 @@ export async function compressPdfToTargetSize(
     }
   }
 
-  const inputBuffer = await input.arrayBuffer()
-
-  // INVARIANT 6: monotonically escalating compression steps (1–6).
-  // Steps 1–2 are lossless/JPEG-only (preserve text selectability).
-  // Steps 3–6 rasterize at decreasing DPI to guarantee meaningful size reduction
-  // regardless of PDF content type (text, vector, scanned images).
-  // Graduated DPI steps prevent jumping past the target into the over-compression floor.
-  const steps: Array<{ label: string; produce: () => Promise<File> }> = [
-    { label: 'structural compression',           produce: () => compressStructural(inputBuffer, 'high', input.name) },
-    { label: 'JPEG re-encode quality 60',        produce: () => recompressImages(inputBuffer, 60, input.name) },
-    { label: 'rasterize 200 DPI quality 80',     produce: () => rasterizeForTarget(inputBuffer, input.name, 200, 80) },
-    { label: 'rasterize 150 DPI quality 75',     produce: () => rasterizeForTarget(inputBuffer, input.name, 150, 75) },
-    { label: 'rasterize 100 DPI quality 65',     produce: () => rasterizeForTarget(inputBuffer, input.name, 100, 65) },
-    { label: 'rasterize 72 DPI quality 40',      produce: () => rasterizeForTarget(inputBuffer, input.name, 72, 40) },
-    { label: 'rasterize grayscale 72 DPI q 35',  produce: () => rasterizeGrayscaleForTarget(inputBuffer, input.name, 72, 35) },
-  ]
-
-  // prevBest: smallest result still above target (to step back to if we over-compress)
-  let prevBest: File = input
-  let prevBestLabel = 'original'
-  let iterationsUsed = 0
-
-  for (let i = 0; i < steps.length; i++) {
-    onProgress?.(Math.round(10 + ((i + 1) / steps.length) * 85))
-
-    let candidate: File
-    try {
-      candidate = await steps[i].produce()
-    } catch {
-      iterationsUsed++
-      continue
-    }
-
-    // INVARIANT 2: discard invalid PDF output
-    const bytes = new Uint8Array(await candidate.arrayBuffer())
-    if (!isValidPdf(bytes)) {
-      iterationsUsed++
-      continue
-    }
-
-    iterationsUsed++
-
-    if (candidate.size <= targetBytes) {
-      if (candidate.size >= floor) {
-        // Perfect hit: within [floor, target] — stop at first success (INVARIANT 6)
-        onProgress?.(100)
-        return {
-          file: candidate,
-          meta: {
-            originalBytes,
-            targetBytes,
-            achievedBytes: candidate.size,
-            reachedTarget: true,
-            isUnchanged: false,
-            iterationsUsed,
-            appliedSettings: steps[i].label,
-          },
-        }
-      }
-      // Below floor (over-compressed relative to target). INVARIANT 3: step back
-      // to previous best. If the previous best is closer to target than this
-      // over-compressed result, prefer it; otherwise keep the smaller file
-      // (better too-small than never reaching the target at all).
-      if (prevBest.size > targetBytes) {
-        // Nothing has hit the target yet — the over-compressed result is the
-        // smallest we can do. The file IS below the target, so reachedTarget=true;
-        // we just couldn't stay within the preferred floor.
-        onProgress?.(100)
-        return {
-          file: candidate,
-          meta: {
-            originalBytes,
-            targetBytes,
-            achievedBytes: candidate.size,
-            reachedTarget: true,
-            isUnchanged: false,
-            iterationsUsed,
-            appliedSettings: steps[i].label,
-          },
-        }
-      }
-      // A previous step already beat the target — step back to that
-      break
-    }
-
-    // Still above target — track best so far
-    if (candidate.size < prevBest.size) {
-      prevBest = candidate
-      prevBestLabel = steps[i].label
+  const keepText = await compressPdfKeepText(input, targetBytes, (pct) =>
+    onProgress?.(Math.round(pct * 0.4))
+  )
+  if (keepText.ok) {
+    onProgress?.(100)
+    const outFile = new File([keepText.blob], input.name, { type: 'application/pdf' })
+    return {
+      file: outFile,
+      meta: {
+        originalBytes,
+        targetBytes,
+        achievedBytes: keepText.bytes,
+        reachedTarget: true,
+        isUnchanged: false,
+        iterationsUsed: keepText.passesRun.length,
+        appliedSettings: keepText.passesRun.join(' + '),
+      },
     }
   }
 
-  onProgress?.(100)
-  // INVARIANT 5: return best result achieved
-  return {
-    file: prevBest,
-    meta: {
-      originalBytes,
-      targetBytes,
-      achievedBytes: prevBest.size,
-      reachedTarget: prevBest.size <= targetBytes,
-      isUnchanged: false,
-      iterationsUsed,
-      appliedSettings: prevBestLabel,
-      message: prevBest.size <= targetBytes
-        ? undefined
-        : `Couldn't reach ${formatBytes(targetBytes)} — smallest possible is ${formatBytes(prevBest.size)}`,
-    },
-  }
+  return rasterizeToTargetSize(input, targetBytes, (pct) =>
+    onProgress?.(Math.round(40 + pct * 0.6))
+  )
 }
 
 // ── Compress ──────────────────────────────────────────────────────────────────
