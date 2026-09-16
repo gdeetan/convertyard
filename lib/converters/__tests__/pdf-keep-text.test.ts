@@ -125,3 +125,40 @@ describe('compressPdfKeepText', () => {
     expect(hasTextOp).toBe(true)
   })
 })
+
+describe('compressPdfKeepText — P1 wins', () => {
+  it('duplicate-image fixture: dedup collapses at least 2 refs', async () => {
+    const bytes = fs.readFileSync(
+      path.resolve('fixtures/pdf-keep-text/text-with-duplicate-images.pdf')
+    )
+    const file = new File([new Uint8Array(bytes)], 'dup.pdf', { type: 'application/pdf' })
+    const result = await compressPdfKeepText(file, 1) // target size 1 byte -> forces all passes
+    const passes = result.ok ? result.passesRun : result.passesRun
+    const collapseEntry = passes.find((p) => p.startsWith('image-dedup:collapsed-'))
+    expect(collapseEntry).toBeDefined()
+    const collapsed = parseInt(collapseEntry!.split('-').pop() ?? '0', 10)
+    expect(collapsed).toBeGreaterThanOrEqual(2)
+  })
+
+  it('text-with-png fixture: mupdf save-compressed reports either compressed or noop', async () => {
+    const bytes = fs.readFileSync(
+      path.resolve('fixtures/pdf-keep-text/text-with-png.pdf')
+    )
+    const file = new File([new Uint8Array(bytes)], 't.pdf', { type: 'application/pdf' })
+    const result = await compressPdfKeepText(file, 1)
+    const passes = result.ok ? result.passesRun : result.passesRun
+    expect(
+      passes.includes('mupdf-save-compressed') || passes.includes('mupdf-save-noop')
+    ).toBe(true)
+  })
+
+  it('text-with-png fixture: P1-enabled output is at least 3% smaller than input', async () => {
+    const bytes = fs.readFileSync(
+      path.resolve('fixtures/pdf-keep-text/text-with-png.pdf')
+    )
+    const file = new File([new Uint8Array(bytes)], 't.pdf', { type: 'application/pdf' })
+    const result = await compressPdfKeepText(file, 1)
+    const out = result.ok ? result.bytes : result.bestBytes
+    expect(out).toBeLessThanOrEqual(bytes.byteLength * 0.97)
+  })
+})
