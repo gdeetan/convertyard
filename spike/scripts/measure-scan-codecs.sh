@@ -64,11 +64,11 @@ for pdf in "$FIX_DIR"/*.pdf; do
   fdir="$WORK/$(echo "$name" | tr ' ' _)"
   mkdir -p "$fdir"
 
-  # Extract embedded images to disk. -all keeps native encoding when possible.
-  # For measurement we want raw pixel data, so re-extract as ppm (color) or pbm (bitonal).
-  pdfimages -j "$pdf" "$fdir/img" 2>/dev/null || true
-  # Also extract bitonal-safe:
-  pdfimages -tiff "$pdf" "$fdir/tif" 2>/dev/null || true
+  # Cap extraction to first 50 pages for measurement — per-page compression
+  # ratios don't need the full document. Keeps CI under the timeout.
+  PAGE_CAP=50
+  pdfimages -j -f 1 -l "$PAGE_CAP" "$pdf" "$fdir/img" 2>/dev/null || true
+  pdfimages -tiff -f 1 -l "$PAGE_CAP" "$pdf" "$fdir/tif" 2>/dev/null || true
 
   # Original embedded image byte total (jpg/png/etc)
   emb_bytes=$(du -bc "$fdir"/img-*.* 2>/dev/null | tail -1 | awk '{print $1}' || echo 0)
@@ -106,7 +106,8 @@ for pdf in "$FIX_DIR"/*.pdf; do
   jb2ly_dir="$fdir/jbig2-lossy"
   mkdir -p "$jb2ly_dir"
   jb2ly_ms_start=$(date +%s%N)
-  ( cd "$jb2ly_dir" && jbig2 -s -t 0.85 -p "$fdir"/tif-*.tif >/dev/null 2>&1 || true )
+  # 10-min ceiling per fixture on lossy — symbol-substitution is superlinear.
+  ( cd "$jb2ly_dir" && timeout 600 jbig2 -s -t 0.85 -p "$fdir"/tif-*.tif >/dev/null 2>&1 || echo "LOSSY_TIMEOUT" > TIMEOUT )
   jb2ly_ms_end=$(date +%s%N)
   jb2ly_ms=$(( (jb2ly_ms_end - jb2ly_ms_start) / 1000000 ))
   jb2ly_bytes=$(du -bc "$jb2ly_dir"/output.* 2>/dev/null | tail -1 | awk '{print $1}' || echo 0)
