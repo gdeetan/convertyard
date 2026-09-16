@@ -64,7 +64,10 @@ export function FAQAccordion({ items, pageUrl }: FAQAccordionProps) {
                 hidden={!isOpen}
                 className="border-t border-border px-5 pb-4 pt-3"
               >
-                <p className="text-sm leading-relaxed text-fg-muted">{item.a}</p>
+                <p
+                  className="text-sm leading-relaxed text-fg-muted [&_a]:text-primary [&_a]:underline hover:[&_a]:text-primary-hover"
+                  dangerouslySetInnerHTML={{ __html: item.a }}
+                />
               </div>
             </div>
           )

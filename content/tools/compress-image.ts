@@ -150,35 +150,35 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Does compression reduce image dimensions?',
-      a: 'By default, no. Unlike the Batch Image Resizer, this tool changes the file size by re-encoding at a lower quality setting. As long as you do not enable "Limit longest edge" in the Advanced settings, the width and height of the image will remain the same.',
+      a: 'By default, it does not reduce image dimensions. This tool reduces the image size by re-encoding it at a lower quality. But I’ve added a feature that lets users resize the whole batch using a preset (limit longest side) or enter a custom width (height adjusts automatically), which streamlines the workflow since you don’t have to open a separate tool for this task.',
     },
     {
       q: 'What quality setting should I use?',
-      a: "For web use, typical values range from 75% to 85%. At 80%, you'll rarely see any difference from the original. Values below 60% will start to show compression artifacts in photographs. Values of 85% to 95% are better for logos, diagrams, and images containing text or hard edges.",
+      a: 'For most web use cases, the acceptable range is between 75% and 85% before there’s noticeable degradation in image clarity. At 80%, there’s hardly any difference from the original image. If you’re trying to compress a file directly from a DSLR camera, you could resize it to get more savings. For certain lossless formats like PNG or WebP, you could compress it between 85 and 95% without much quality degradation, but always check the output first.',
     },
     {
-      q: 'Why does PNG compression look different from PNG?',
-      a: "Note that PNG is a lossless format, meaning that the image data will never be degraded. Therefore, the quality slider for PNG images only controls how much time and effort the compression algorithm spends processing, with only slight variations in processing time and resulting file size while maintaining identical visual quality. If you need to reduce the size of your PNGs by a lot of bytes, it's often more efficient to just convert them to WebP instead.",
+      q: 'Why doesn’t PNG compression change how the image looks?',
+      a: 'One reason is that PNG is a lossless format, meaning pixels can’t be altered during compression, so the output stays unchanged. I’ve tried lowering the quality to as low as 20%, and the image still doesn’t change much. Another downside of just compressing a PNG file is that there’s a cap on how many bytes you can shave off. The range (based on my tests) for savings is between 25% and 50%. Now, if you want a larger reduction, consider converting that PNG file into another, more web-friendly format like WebP or AVIF, which can lower the file size by over 90% (over 100% if you reduced the dimensions).',
     },
     {
       q: 'How does target size compression work?',
-      a: 'When a max file size is specified for file generation, the tool starts by reducing the image quality in steps of 10% (e.g. from the quality specified by the user to 20% and then stopping if the generated file is within the size specified by the user, otherwise it continues to reduce the quality in steps of 10% down to 20% quality and then, as long as the generated file is still too large, it reduces the image dimensions in steps of 10% down to 50% of the original size, and returns the smallest file generated even if the size specified by the user could not be exactly reached).',
+      a: 'If a maximum file size for file generation is specified, the tool first reduces the image quality in steps of 10% (e.g., from the quality specified by the user down to 20%). If the generated file is within the size limit, it stops there. Otherwise, it continues reducing quality in steps of 10% down to 20%, and then continues reducing the image dimensions in steps of 10% down to 50% of the original size, and returns the smallest generated file even if the specified size cannot be reached exactly.',
     },
     {
       q: 'What is chroma subsampling, and should I change it?',
-      a: "Color information can be subsampled to reduce an image's size, as most online images are cached as 4:2:0 JPEGs. The difference is invisible to 99% of online viewers, but for images with overlaid text, logos, or other graphics with sharp color transitions, 4:4:4 chroma subsampling can make a big difference and save an extra 15–25% in file size.",
+      a: 'Subsampling color information is another method to reduce image size. The large majority of online images are cached as 4:2:0 JPEGs. To the eyes of 99% of online viewers, the difference is invisible. For images with overlaid text or logos and sharp color transitions, 4:4:4 chroma subsampling makes a huge difference and saves an additional 15–25% in file size.',
     },
     {
       q: 'Why is "Strip metadata" on by default?',
-      a: "Smartphone photos contain the GPS location where they were taken, the phone model, and even the settings used (e.g., whether flash was on) in their EXIF data. It's better to be safe than sorry and remove this when uploading publicly. You can switch this off in the options if you need it for archiving or other professional reasons.",
+      a: 'The reason is two-fold. First, it reduces file size because the data stored in the EXIF file adds to it. The second reason is security. Photos taken with smartphones like the iPhone contain GPS location data, so if these photos are downloaded with the EXIF data intact, the individual who downloads it can run it through an <a href="/exif-viewer/">EXIF reader</a> and know where the photo was taken, the phone model, and other details that you may not want to be there online. One reason to keep the ‘metadata’ is if you want to keep the optimized photos locally in a personal archive.',
     },
     {
       q: 'Why does my image look softer at very small targets?',
-      a: 'Very aggressive compression can also produce low-quality images that are smaller only in file size. This can result in visible artifacts at quality 20 and a loss of fine detail when resized to 50%. You can achieve better results by raising the target quality and accepting a larger output file, or by lowering compression and accepting a larger file size.',
+      a: 'Pushing the quality slider lower or setting a small max file size makes the encoder throw away a lot of pixel data to hit the target. This shows up in two ways: smudged artifacts on the edges and text, and a loss of detail (meaning it looks blurred), making the image look soft.',
     },
     {
       q: 'Are my images uploaded to your servers?',
-      a: "No. The image compression runs in the browser, so nothing uploads to the server. Your file never leaves your device. Converyard delivers the tool's code through your browser.",
+      a: 'Nope. The image compression process is done in the browser. So I can’t see them, store them, or access them in any way. Your files never leave your device — ConvertYard only delivers the tool’s code to your browser.',
     },
   ],
 
