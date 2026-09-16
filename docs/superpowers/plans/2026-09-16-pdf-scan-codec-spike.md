@@ -12,6 +12,16 @@
 
 **Spec:** `docs/superpowers/specs/2026-09-16-pdf-scan-codec-spike-design.md`
 
+## Amendment 2026-09-16 (after Task 3 library survey)
+
+No prebuilt jbig2enc-wasm exists on npm or in any maintained fork. Building one from source via Emscripten + Leptonica is a full day of build tooling alone and risks consuming the entire spike timebox before any measurement.
+
+**Scope split (approved by user):**
+- **CCITT Group 4 (Task 5):** unchanged — full in-browser WASM prototype (libtiff via Emscripten or existing WASM wrapper).
+- **JBIG2 (Tasks 6–7):** measurement-only pass on native/Docker jbig2enc. Goal: answer "does JBIG2 give meaningful compression on our fixtures?" If yes → follow-up spike will address WASM shippability. If no → JBIG2 dropped from P0 with numbers backing the decision.
+- **Task 8:** bundle-cost measurement only for CCITT. JBIG2 bundle cost is explicitly deferred to the follow-up spike (mark as N/A in the report with reason).
+- **Task 9 report:** JBIG2 verdict is one of {compression-viable pending WASM, compression-not-viable dropped, blocked}. Do not conflate compression viability with WASM shippability.
+
 ---
 
 ## Task 1: Set up spike branch and workspace
