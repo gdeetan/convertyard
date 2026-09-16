@@ -186,8 +186,8 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-images-without-losing-quality', 'avif-vs-webp-vs-jpeg-2026', 'best-webp-quality', 'batch-convert-images'],
 
   meta: {
-    title: 'Image Compressor - Compress JPG, PNG, WebP, AVIF, GIF and SVG Files for Free',
+    title: 'Image Compressor - JPG, PNG, WebP, AVIF, GIF, SVG (Free)',
     description:
-      'Compress JPG, PNG, WebP, AVIF, GIF, or SVG in batches up to 1,000 files in your browser. No signups, no uploads, no paywall.',
+      'Compress JPG, PNG, WebP, AVIF, GIF, or SVG in batches up to 1,000 files in your browser. No sign ups, nothing uploads, no paywall, no free tier limits.',
   },
 }
