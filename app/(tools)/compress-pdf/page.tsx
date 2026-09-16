@@ -154,25 +154,26 @@ export default function Page() {
 
   const pendingEntries = Object.entries(pending)
 
+  const notice = pendingEntries.length > 0 ? (
+    <div>
+      {pendingEntries.map(([idxStr, entry]) => {
+        const idx = Number(idxStr)
+        return (
+          <UnachievableTargetCard
+            key={idx}
+            bestBytes={entry.bestBytes}
+            targetBytes={entry.targetBytes}
+            onKeep={() => handleKeep(idx)}
+            onRasterize={() => handleRasterize(idx)}
+          />
+        )
+      })}
+    </div>
+  ) : undefined
+
   return (
     <>
-      <ToolShell config={config} onReady={handleReady} />
-      {pendingEntries.length > 0 && (
-        <div className="mx-auto max-w-3xl px-4 sm:px-6">
-          {pendingEntries.map(([idxStr, entry]) => {
-            const idx = Number(idxStr)
-            return (
-              <UnachievableTargetCard
-                key={idx}
-                bestBytes={entry.bestBytes}
-                targetBytes={entry.targetBytes}
-                onKeep={() => handleKeep(idx)}
-                onRasterize={() => handleRasterize(idx)}
-              />
-            )
-          })}
-        </div>
-      )}
+      <ToolShell config={config} onReady={handleReady} notice={notice} />
       <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-6">
         <CompressorComparisonTable />
       </div>
