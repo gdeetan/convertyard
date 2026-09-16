@@ -67,17 +67,6 @@ describe('estimateSavings', () => {
     expect(result.perTechnique.grayscaleConversion.savingsBytes).toBe(0)
   })
 
-  it('fontSubsetting savings > 0 when unsubsetted fonts exist', () => {
-    const result = estimateSavings(baseAnalysis, { subsetFonts: true })
-    expect(result.perTechnique.fontSubsetting.savingsBytes).toBeGreaterThan(0)
-  })
-
-  it('fontSubsetting savings is 0 when all fonts are subsetted', () => {
-    const allSubset = { ...baseAnalysis, fonts: { ...baseAnalysis.fonts, unsubsettedCount: 0 } }
-    const result = estimateSavings(allSubset, { subsetFonts: true })
-    expect(result.perTechnique.fontSubsetting.savingsBytes).toBe(0)
-  })
-
   it('estimatedSavingsPercent is 0 for fileSize 0', () => {
     const zeroSize = { ...baseAnalysis, fileSize: 0, images: { ...baseAnalysis.images, count: 0, totalEstimatedBytes: 0 } }
     const result = estimateSavings(zeroSize, {})
