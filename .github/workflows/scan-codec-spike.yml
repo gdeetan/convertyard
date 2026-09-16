@@ -1,0 +1,60 @@
+name: PDF scan-codec spike measurement
+
+on:
+  push:
+    branches: [spike/pdf-scan-codecs]
+  workflow_dispatch:
+
+jobs:
+  measure:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install encoders
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            jbig2enc \
+            libtiff-tools \
+            poppler-utils \
+            qpdf \
+            curl
+          jbig2 -V || true
+          tiffcp -h 2>&1 | head -1 || true
+          pdfimages -v 2>&1 | head -1 || true
+
+      - name: Download large fixtures (gitignored)
+        working-directory: fixtures/pdf-scan-codec-spike
+        run: |
+          set -e
+          declare -A URLS=(
+            ["public-color-mixed.pdf"]="https://archive.org/download/sim_popular-science_1958-01_172_1/sim_popular-science_1958-01_172_1.pdf"
+            ["public-already-jbig2.pdf"]="https://archive.org/download/poemsofalfredten00tenn/poemsofalfredten00tenn_bw.pdf"
+            ["public-large-500p.pdf"]="https://archive.org/download/warandpeace030164mbp/warandpeace030164mbp.pdf"
+          )
+          for f in "${!URLS[@]}"; do
+            if [ ! -f "$f" ]; then
+              echo "Downloading $f ..."
+              curl -sSL -o "$f" "${URLS[$f]}" || echo "WARN: failed to fetch $f"
+            fi
+            [ -f "$f" ] && ls -lh "$f"
+          done
+
+      - name: Run measurement
+        run: |
+          chmod +x spike/scripts/measure-scan-codecs.sh
+          ./spike/scripts/measure-scan-codecs.sh fixtures/pdf-scan-codec-spike spike/notes/03-measurement.md
+
+      - name: Show report
+        run: cat spike/notes/03-measurement.md
+
+      - name: Upload report + intermediates
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scan-codec-measurement
+          path: |
+            spike/notes/03-measurement.md
+          if-no-files-found: error
