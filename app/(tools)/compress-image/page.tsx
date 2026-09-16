@@ -94,7 +94,10 @@ const howToCompressSection = (
 const howToCompressWithCompare = (
   <>
     {howToCompressSection}
-    <div className="mt-10">
+    <p className="mt-8 text-base text-fg-muted">
+      Still not convinced? Check out this real-world test image compression.
+    </p>
+    <div className="mt-4">
       <BeforeAfterCompare
     beforeSrc="/tools/compress-image/cargo-before.png"
     beforeAlt="Original PNG cargo illustration before compression"
