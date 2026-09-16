@@ -227,6 +227,17 @@ export const config: ToolConfig = {
       ],
       default: 'original',
       hint: 'Downscaling resolution gives the biggest size reduction. 720p is a good balance of quality and file size.',
+      // Gray out iOS-unsafe resolutions when a >120 MB source is present on
+      // iPhone/iPad. Mirrors the derivedOptionsFn downshift so the disabled
+      // state is visible before the user tries to pick one.
+      disabledChoicesFn: (files) => {
+        if (typeof navigator === 'undefined') return []
+        const ua = navigator.userAgent
+        const isIOS = /iPhone|iPad|iPod/i.test(ua) || (navigator.maxTouchPoints > 1 && /Mac/.test(ua))
+        if (!isIOS) return []
+        const hasLarge = files.some((f) => f.size > 120 * 1024 * 1024)
+        return hasLarge ? ['original', '1080p'] : []
+      },
     },
     {
       type: 'toggle',

@@ -41,6 +41,10 @@ export interface RadioOption extends BaseOption {
   choices: Array<{ value: string; label: string }>
   default: string
   conditionalHints?: Record<string, string>
+  // Return the set of choice values that should render disabled given the
+  // current files + options. Used to gray out iOS-unsafe resolutions when a
+  // large source is present.
+  disabledChoicesFn?: (files: File[], options: Record<string, unknown>) => string[]
 }
 
 export interface NumberOption extends BaseOption {

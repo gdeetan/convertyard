@@ -17,9 +17,10 @@ interface OptionsPanelProps {
   values: ToolOptions
   onChange: (name: string, value: unknown) => void
   disabled?: boolean
+  files?: File[]
 }
 
-export function OptionsPanel({ options, values, onChange, disabled = false }: OptionsPanelProps) {
+export function OptionsPanel({ options, values, onChange, disabled = false, files = [] }: OptionsPanelProps) {
   if (options.length === 0) return null
 
   return (
@@ -65,6 +66,8 @@ export function OptionsPanel({ options, values, onChange, disabled = false }: Op
               opt={opt as RenderableOption}
               value={values[opt.name]}
               onChange={onChange}
+              files={files}
+              values={values}
             />
           )
         })}
@@ -76,10 +79,14 @@ function OptionRow({
   opt,
   value,
   onChange,
+  files,
+  values,
 }: {
   opt: RenderableOption
   value: unknown
   onChange: (name: string, value: unknown) => void
+  files: File[]
+  values: ToolOptions
 }) {
   const id = `opt-${opt.name}`
 
@@ -177,43 +184,57 @@ function OptionRow({
           </select>
         )}
 
-        {opt.type === 'radio' && (
-          <>
-            <fieldset>
-              <legend className="sr-only">{opt.label}</legend>
-              <div className="flex flex-wrap gap-2">
-                {opt.choices.map((c) => (
-                  <label
-                    key={c.value}
-                    className={cn(
-                      'flex cursor-pointer items-center gap-1.5 rounded-md border px-3 py-1.5',
-                      'text-sm transition-colors',
-                      'focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary',
-                      value === c.value
-                        ? 'border-primary bg-bg-muted text-primary font-medium'
-                        : 'border-border text-fg-muted hover:border-border-strong'
-                    )}
-                  >
-                    <input
-                      type="radio"
-                      name={`opt-${opt.name}`}
-                      value={c.value}
-                      checked={value === c.value}
-                      onChange={() => onChange(opt.name, c.value)}
-                      className="sr-only"
-                    />
-                    {c.label}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            {(opt as RadioOption).conditionalHints?.[value as string] && (
-              <p className="mt-1.5 text-xs text-fg-subtle">
-                {(opt as RadioOption).conditionalHints![value as string]}
-              </p>
-            )}
-          </>
-        )}
+        {opt.type === 'radio' && (() => {
+          const radio = opt as RadioOption
+          const disabledSet = new Set(
+            radio.disabledChoicesFn?.(files, values) ?? []
+          )
+          return (
+            <>
+              <fieldset>
+                <legend className="sr-only">{opt.label}</legend>
+                <div className="flex flex-wrap gap-2">
+                  {radio.choices.map((c) => {
+                    const isSelected = value === c.value
+                    const isDisabled = disabledSet.has(c.value)
+                    return (
+                      <label
+                        key={c.value}
+                        aria-disabled={isDisabled}
+                        className={cn(
+                          'flex items-center gap-1.5 rounded-md border-2 px-3 py-1.5',
+                          'text-sm transition-colors',
+                          'focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-primary',
+                          isDisabled
+                            ? 'cursor-not-allowed border-border bg-bg-muted text-fg-subtle opacity-50'
+                            : isSelected
+                              ? 'cursor-pointer border-primary bg-bg-muted text-primary font-bold'
+                              : 'cursor-pointer border-border-strong text-fg hover:border-primary/60'
+                        )}
+                      >
+                        <input
+                          type="radio"
+                          name={`opt-${opt.name}`}
+                          value={c.value}
+                          checked={isSelected}
+                          disabled={isDisabled}
+                          onChange={() => onChange(opt.name, c.value)}
+                          className="sr-only"
+                        />
+                        {c.label}
+                      </label>
+                    )
+                  })}
+                </div>
+              </fieldset>
+              {radio.conditionalHints?.[value as string] && (
+                <p className="mt-1.5 text-xs text-fg-subtle">
+                  {radio.conditionalHints[value as string]}
+                </p>
+              )}
+            </>
+          )
+        })()}
 
         {opt.type === 'number' && (
           <input

@@ -526,6 +526,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
                 options={config.options}
                 values={options}
                 onChange={handleOptionChange}
+                files={state.entries.map((e) => e.file)}
               />
             )}
 
@@ -549,6 +550,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
                         options={config.advancedOptions}
                         values={options}
                         onChange={handleOptionChange}
+                        files={state.entries.map((e) => e.file)}
                       />
                     </div>
                   </details>
