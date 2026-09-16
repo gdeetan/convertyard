@@ -1,0 +1,696 @@
+Subject: Build a Browser-Based Image Compression Previewer with libvips-wasm
+
+Most web developers working with Three.js or WebGL are familiar with the general process of optimizing images for use on websites. But for WebGL scenes built with Three.js, the right texture quality can be a complete mystery. Export your image, open another app, zoom in on the pixels, go back to your work, tweak the settings, and test again. Repeat as necessary. This adds unnecessary steps to the workflow. This tutorial will present a better way.
+
+By the end of this tutorial, you will know how to build a web application for previewing compressed images that can be dragged and dropped into the window. We will use an offline compressor, which doesn’t upload your images to a server. The preview app will have two side-by-side canvases: one showing the compressed image and one showing the original, so you can spot quality differences at a glance. It will also have a zoom slider to inspect fine details and a quality slider to adjust compression and compare results on the fly. Additionally, it will have a special size-targeting mode to step down the quality till it reaches “under 100 kb”.
+
+1. The Problem
+
+Setting the right compression quality is typically a matter of trial and error – first pick a quality setting, then encode and review the result, then go back to your editor and re-export the image with a different quality setting, and so on. As you are probably working with a lot of different tools, switching between them and possibly even opening and closing your editor in between can get quite tedious.
+
+When working with textures in WebGL/Three.js, there's a special twist: texture quality affects both scene performance (VRAM, bandwidth consumption, etc.) and visual quality. However, you have to measure this for every image in your scene. A gradient background, for instance, has a very different quality-usage curve than a normal map. And you can only really measure an image's quality when you can look at it up close at the original size your application will sample it at.
+
+We need a tool to preview our images in the browser at the exact pixel resolution our tool will render, so try picking two different quality values and explaining why one works better for your specific image. The core question it needs to answer: "60 or 75?"
+
+2. The Idea
+
+The tool should encode only on the local machine, with no server-side encoding. Also, in order to be a “tool”, the local machine tool should be fast enough to be interactive (i.e., not encode on the main thread).
+
+libvips is one of the fastest image processing libraries around. We can package this for the browser with Wasm-vips, run it in a Web Worker, and render the encoded images to a split-view canvas. All of this happens in your browser at native speeds.
+
+A split-view canvas, tightly coupled to the rest of the application, pays off most in texture work. Instead of just looking ‘good enough’ at a low quality setting, you are testing for blocking artifacts in the roughness channel of your normal map at the exact zoom level that your scene will sample it at. To test this, look at pixels at the exact resolution your scene will use, not a thumbnail.
+
+3. Architecture
+
+Two threads, strict separation.
+
+The main thread renders the UI, the dropzone, the Quality control, the two canvases, and the divider, so when you open the app, you can see each of these laid out directly. The main thread does not use the WASM encoder.
+
+This worker runs the libvips-wasm code. This code takes an ArrayBuffer from the main thread containing the file's raw data. It encodes this at the quality level set by the user, then posts an ArrayBuffer to the main thread. This ArrayBuffer contains the encoded file data. The main thread then converts the ArrayBuffer into a Blob, checks its size, turns it into a texture drawn on a canvas, and updates the UI to display the newly encoded file.
+
+<pre>
+
+Main thread                     Worker
+
+──────────────────────────────────────────────────────
+
+File → ArrayBuffer ──────────────────────→ decode + encode
+
+                                           (libvips-wasm)
+
+Blob ← ArrayBuffer ←─────────────────────  encoded bytes
+
+render to canvas
+
+update size display
+
+</pre>
+
+The canvas is only for the compare preview. It plays no role in the encode pipeline. Creating a download is then a matter of creating a ‘Blob’ directly from the worker’s output. No need to go back to the canvas.
+
+Why strict separation? Initialization of a WASM module on the main thread stalls paint for 200-400ms. This is your entire LCP frame budget. Moving it to a Worker keeps the UI responsive while libvips boots up.
+
+4. Loading libvips-wasm in a Worker (the foundation everything else builds on)
+
+Install the package:
+
+<pre><code>npm install wasm-vips</code></pre>
+
+The Worker file:
+
+<pre><code class="language-js">// compress-worker.js
+
+import Vips from 'wasm-vips';
+
+let vips = null;
+
+async function getVips() {
+
+if (! vips) {
+
+vips = await Vips({
+
+// Prevent wasm-vips from trying to use SharedArrayBuffer.
+
+// Safe default for environments without COOP/COEP headers.
+
+dynamicLibraries: [],
+
+});
+
+}
+
+return vips;
+
+}
+
+self.onmessage = async (e) => {
+
+const { buffer, format, quality, scale = 1, strip = true, id } = e.data;
+
+self.postMessage({ id, type: 'progress', value: 10 });
+
+const v = await getVips();
+
+self.postMessage({ id, type: 'progress', value: 30 });
+
+let image = v.Image.newFromBuffer(buffer);
+
+if (scale ! == 1) {
+
+const scaled = image.resize(scale);
+
+image.delete();
+
+image = scaled;
+
+}
+
+self.postMessage({ id, type: 'progress', value: 50 });
+
+let outputBuffer = image.writeToBuffer.${format}, { Q: quality, strip });
+
+self.postMessage({ id, type: 'progress', value: 95 });
+
+self.postMessage(
+
+{ id, type: 'result', buffer: outputBuffer.buffer },
+
+[outputBuffer.buffer]
+
+);
+
+image.delete();
+
+};
+
+</code></pre>
+
+Once instantiated on the main thread, the Worker can be reused again and again (one instance, many calls, no re-initialization):
+
+<pre><code class="language-js">const worker = new Worker(
+
+new URL('./compress-worker.js', import.meta.url),
+
+{ type: 'module' }
+
+);
+
+let pendingId = 0;
+
+const pending = new Map();
+
+function compress(file, format, quality, { strip = true, scale = 1 } = {}) {
+
+return new Promise(async (resolve, reject) => {
+
+const id = ++pendingId;
+
+const buffer = await file.arrayBuffer();
+
+pending.set(id, { resolve, reject });
+
+worker.postMessage({ id: id, buffer: buffer, format: format, quality: quality, strip: strip, scale: scale }, [buffer]);
+
+});
+
+}
+
+function compressScaled(file, format, quality, scale) {
+
+return compress(file, format, quality, { scale });
+
+}
+
+worker.onmessage = (e) => {
+
+const { id, type, value, buffer } = e.data;
+
+const p = pending.get(id);
+
+if (! p) return;
+
+if (type === 'progress') {
+
+// update your progress UI here
+
+} else if (type === 'result') {
+
+pending.delete(id);
+
+p.resolve(new Blob([buffer]));
+
+}
+
+};
+
+</code></pre>
+
+By sending the ArrayBuffer of the image data in the postMessage, we do a zero-copy transfer of the already resident data in the main process’s memory. Note also that, in the worker, we must call image.delete() for every image created in Vips. As noted, Vips uses WASM linear memory for its data, and we must free it manually. Not doing so will cause that memory to be consumed in every subsequent compression, even outside this tool.
+
+5. The PNG Quality Trap (Size, Not Quality)
+
+Importantly, PNG quality does not control the visual quality of the PNG output. Its primary purpose is to set the amount of compression the PNG generates, from as few bytes as possible (via more passes of the DEFLATE algorithm) to as many bytes as possible (via fewer passes).
+
+PNG is a lossless format, meaning that even at the lowest “quality” level, a PNG will look identical to one encoded at the highest quality. What changes is the amount of time libvips spends trying to compress the data further, essentially, the number of passes it makes through the DEFLATE algorithm. When users see a slider for PNGs in your application, they should understand that changing the value has no impact on how the final PNG looks.
+
+For lossless formats, such as PNG or PPM/PGM/PIG, the key variable controlling file size is actually metadata stripping: EXIF metadata, ICC color profiles, and thumbnails (e.g., created by cameras). These can add 20-80 KiB of mostly irrelevant data to what looks like a very small file on disk.
+
+Setting 'strip:true' in wasm-vips's VipsImage.encode options in the above code will remove EXIF, ICC, and thumbnail data from PNGs used as WebGL textures, and from images stored in HTML5 canvas elements, which will not have any EXIF or ICC information to begin with.
+
+You can display this breakdown so users see exactly how much of their file is metadata before deciding whether to strip it:
+
+<pre><code class="language-js">
+
+async function pngBreakdown(file) {
+
+const originalBlob = await compress(file, 'png', 100, { strip: false });
+
+const strippedBlob = await compress(file, 'png', 100, { strip: true });
+
+return {
+
+totalSize: originalBlob.size,
+
+strippedSize: strippedBlob.size,
+
+metadataBytes: originalBlob.size - strippedBlob.size,
+
+};
+
+}
+
+</code></pre>
+
+Show users exactly how much of their file is metadata, and let them click to strip it and see the new file size.
+
+Because quality maps directly to lossy compression in JPEG, WebP, and AVIF, the quality slider should be exposed to let users set a quality level that compresses the file to the target size or below.
+
+6. The Two-Phase Size-Targeting Algorithm
+
+A quality slider is useful for a developer with some experience on what quality setting might be needed to get to 100KB or so. But for a complete newbie, it’s a much harder question to answer.
+
+This behavior means that a simple binary search for the optimal quality would fail to find the appropriate setting (in this case, Quality 20) and return an inappropriate setting such as Quality 15 for images that are under a certain size (in this example, slightly above 86.7KB or 173551 bytes).
+
+The approach that works is a two-phase descent:
+
+Phase 1: Walk quality down in coarse steps to find a quick fit.
+
+<pre><code class="language-js">async function findQualityForTargetSize(file, format, targetBytes) {
+
+const steps = [80, 70, 60, 50, 40, 30, 20];
+
+for (const q of steps) {
+
+const blob = await compress(file, format, q);
+
+if (blob.size &lt;= targetBytes) {
+
+return { blob, quality: q, scaled: false };
+
+}
+
+}
+
+// Still over target after Phase 1 — fall through to Phase 2
+
+return null;
+
+}
+
+</code></pre>
+
+Phase 2: Fall back to dimension reduction
+
+Next, we fall back to reducing dimensions if the image cannot fit within the target size at any quality level. 
+
+This is also why PNG images skip straight to phase two: there is no quality setting for PNGs, so only dimension scaling applies, not quality reduction.
+
+<pre><code class="language-js">async function findScaleForTargetSize(file, format, targetBytes) {
+
+const scales = [0.9, 0.8, 0.7, 0.6, 0.5];
+
+for (const scale of scales) {
+
+const blob = await compressScaled(file, format, 80, scale);
+
+if (blob.size &lt;= targetBytes) {
+
+return { blob, scale, quality: 80 };
+
+}
+
+}
+
+return null; // can't hit target even at 50% dimensions
+
+}
+
+</code></pre>
+
+The full targeting function chains them:
+
+<pre><code class="language-js">async function targetFileSize(file, format, targetBytes) {
+
+const isPng = format === 'png';
+
+if (! isPng) {
+
+const phaseOne = await findQualityForTargetSize(file, format, targetBytes);
+
+if (phaseOne) return phaseOne;
+
+}
+
+// Phase 2: dimension reduction
+
+return findScaleForTargetSize(file, format, targetBytes);
+
+}
+
+</code></pre>
+
+In practice, phase 2 is uncommon for JPG and WebP, but it does occur when targeting very aggressive file sizes. AVIF sometimes needs to search here for smaller targets as well. PNG, on the other hand, is always here by definition.
+
+7. The Split-View UI (putting it all together)
+
+The new tool's true power is revealed in split-view mode for texture work. To this end, the two images (original and compressed) must be displayed side by side at the same zoom level. A simple CSS clip-path can create a half-canvas within another canvas in the basic case, but it fails when you add zoom and/or pan.
+
+The divider drag:
+
+Do not use a range input. It needs to be pixel-accurate, and a range input introduces quantization, which makes it feel slow at high zoom. Just use a pointermove handler for the divider drag.
+
+<pre><code class="language-js">let dividerX = containerWidth / 2;
+
+let isDragging = false;
+
+divider.addEventListener('pointerdown', (e) =&gt; {
+
+  isDragging = true;
+
+  divider.setPointerCapture(e.pointerId);
+
+});
+
+window.addEventListener('pointermove', (e) =&gt; {
+
+  if (!isDragging) return;
+
+  const rect = container.getBoundingClientRect();
+
+  dividerX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+
+  render();
+
+});
+
+window.addEventListener('pointerup', () =&gt; { isDragging = false; });
+
+</code></pre>
+
+Wheel zoom centered on the cursor:
+
+<pre><code class="language-js">let zoom = 1;
+
+let panX = 0;
+
+let panY = 0;
+
+canvas.addEventListener('wheel', (e) =&gt; {
+
+  e.preventDefault();
+
+  const rect = canvas.getBoundingClientRect();
+
+  const cursorX = e.clientX - rect.left;
+
+  const cursorY = e.clientY - rect.top;
+
+  const prevZoom = zoom;
+
+  zoom = Math.max(1, Math.min(10, zoom * (e.deltaY &lt; 0 ? 1.1 : 0.9)));
+
+  // Adjust pan so the point under the cursor stays fixed
+
+  panX = cursorX - (cursorX - panX) * (zoom / prevZoom);
+
+  panY = cursorY - (cursorY - panY) * (zoom / prevZoom);
+
+  clampPan();
+
+  render();
+
+}, { passive: false });
+
+function clampPan() {
+
+  const maxX = Math.max(0, (imageWidth * zoom - canvasWidth) / 2);
+
+  const maxY = Math.max(0, (imageHeight * zoom - canvasHeight) / 2);
+
+  panX = Math.max(-maxX, Math.min(maxX, panX));
+
+  panY = Math.max(-maxY, Math.min(maxY, panY));
+
+}
+
+</code></pre>
+
+Checkerboard for transparency:
+
+Render the checkerboard once on an offscreen canvas and then use it as the background for your image previewer.
+
+<pre><code class="language-js">function makeCheckerboard(size = 8) {
+
+  const c = new OffscreenCanvas(size  2, size  2);
+
+  const ctx = c.getContext('2d');
+
+  ctx.fillStyle = '#ccc';
+
+  ctx.fillRect(0, 0, size  2, size  2);
+
+  ctx.fillStyle = '#fff';
+
+  ctx.fillRect(0, 0, size, size);
+
+  ctx.fillRect(size, size, size, size);
+
+  return c;
+
+}
+
+const checker = makeCheckerboard();
+
+function render() {
+
+  ctx.save();
+
+  ctx.translate(panX, panY);
+
+  ctx.scale(zoom, zoom);
+
+  // Checkerboard fill
+
+  const pattern = ctx.createPattern(checker, 'repeat');
+
+  ctx.fillStyle = pattern;
+
+  ctx.fillRect(0, 0, imageWidth, imageHeight);
+
+  // Draw image
+
+  ctx.drawImage(imageBitmap, 0, 0);
+
+  ctx.restore();
+
+  // Clip right half to compressed image
+
+  ctx.save();
+
+  ctx.beginPath();
+
+  ctx.rect(dividerX, 0, canvasWidth - dividerX, canvasHeight);
+
+  ctx.clip();
+
+  ctx.translate(panX, panY);
+
+  ctx.scale(zoom, zoom);
+
+  ctx.drawImage(compressedBitmap, 0, 0);
+
+  ctx.restore();
+
+  // Draw divider line
+
+  ctx.strokeStyle = 'white';
+
+  ctx.lineWidth = 2;
+
+  ctx.beginPath();
+
+  ctx.moveTo(dividerX, 0);
+
+  ctx.lineTo(dividerX, canvasHeight);
+
+  ctx.stroke();
+
+}
+
+</code></pre>
+
+Texture work benefits greatly from this tool as you can zoom in to 4× on the specific area causing problems and then move the slider to see the exact point in space where the blocking artifacts occur.  
+
+---
+
+8. Putting It Together
+
+By now you might be wondering how all of this comes together. The drop handler, the quality slider, the format selector, and the download button are all part of this tool.
+
+<pre><code class="language-js">const dropzone = document.getElementById('dropzone');
+
+const qualitySlider = document.getElementById('quality');
+
+const formatSelect = document.getElementById('format');
+
+const sizeLabel = document.getElementById('size-label');
+
+const downloadBtn = document.getElementById('download');
+
+let currentFile = null;
+
+let currentBlob = null;
+
+let compressedBitmap = null;
+
+dropzone.addEventListener('dragover', (e) =&gt; e.preventDefault());
+
+dropzone.addEventListener('drop', async (e) =&gt; {
+
+  e.preventDefault();
+
+  const file = e.dataTransfer.files[0];
+
+  if (!file) return;
+
+  currentFile = file;
+
+  // Load original into canvas immediately — no encode needed
+
+  const originalBitmap = await createImageBitmap(file);
+
+  imageWidth = originalBitmap.width;
+
+  imageHeight = originalBitmap.height;
+
+  canvas.width = container.clientWidth;
+
+  canvas.height = container.clientHeight;
+
+  imageBitmap = originalBitmap;
+
+  await recompress();
+
+});
+
+qualitySlider.addEventListener('input', recompress);
+
+formatSelect.addEventListener('change', recompress);
+
+async function recompress() {
+
+  if (!currentFile) return;
+
+  const format = formatSelect.value;
+
+  const quality = Number(qualitySlider.value);
+
+  // Hide quality slider for PNG — it's meaningless (see section 5)
+
+  qualitySlider.disabled = format === 'png';
+
+  currentBlob = await compress(currentFile, format, quality);
+
+  sizeLabel.textContent = ${(currentBlob.size / 1024).toFixed(1)} KB;
+
+  if (compressedBitmap) compressedBitmap.close();
+
+  compressedBitmap = await createImageBitmap(currentBlob);
+
+  render();
+
+}
+
+downloadBtn.addEventListener('click', () =&gt; {
+
+  if (!currentBlob) return;
+
+  const url = URL.createObjectURL(currentBlob);
+
+  const a = document.createElement('a');
+
+  a.href = url;
+
+  a.download = compressed.${formatSelect.value};
+
+  a.click();
+
+  // Revoke after the browser has had a frame to initiate the download
+
+  requestAnimationFrame(() =&gt; URL.revokeObjectURL(url));
+
+});
+
+</code></pre>
+
+Few notes on the qualitySlider in the replay quality settings panel. qualitySlider.disabled = format === 'png' puts the quality trap for PNG in the UI – and shows a disabled slider with a tooltip explaining what it does. And compressedBitmap.close() is called before creating a new compressedBitmap to release the decoded bitmap from GPU memory. If we didn’t close it and thus leaked a new texture object every time we moved the slider in replay quality settings, that would be very, very bad.
+
+I also leave it as an exercise for the reader to see how different formats compare for a given texture. So far, I have only compared JPEG to AVIF for the roughness channel (a single mipmap level) and found that AVIF at Q=60 usually uses about half the bytes of the JPEG encoded at Q=80. Note that “often halves” is doing a lot of work for you, so you really need to see this for yourself by first zooming the roughness channel to 4× and then dragging the divider to see if the quantization artifacts are acceptable at your scene’s sample resolution.
+
+9. Responsiveness
+
+The canvas split-view does not translate well to a small screen. A draggable divider within a too-small image at a reasonable zoom is not a good user experience. And tapping the divider instead of scrolling will be a problem for touch users.
+
+Two ways to handle it:
+
+Option A — Stack vertically.** Below a breakpoint, stack the two canvases to go full width, one on top of the other, with no divider. The render function will need to handle a flag to render to two canvases instead of one, but the rest of the encode pipeline remains the same.
+
+<pre><code class="language-css">@media (max-width: 640px) {
+
+  .split-container { flex-direction: column; }
+
+  .divider { display: none; }
+
+}
+
+</code></pre>
+
+Option B: Gate the tool for wider screens by showing a message prompting users to open it on a larger screen. Less work, but you turn away mobile users. This makes sense, as the main use case for showing pixel-level texture comparison in WebGL is a desktop-based workflow, not something users would normally do on a phone.
+
+Option A is more work to support more users. Option B is honest about the scope of work Option A supports, so pick the option most relevant to your audience.
+
+10. Accessibility
+
+Before we ship the split-view UI, we need to address two assumptions it makes about our users: that they have a pointer device and that they can see the canvas.
+
+Keyboard access to the dropzone.
+
+A raw <div> with a drop listener is unreachable via keyboard. Wrap it with a visually hidden <input type="file"> and a <label>:
+
+<pre><code class="language-html">&lt;label class="dropzone" for="file-input"&gt;
+
+  Drop an image here, or click to browse
+
+  &lt;input id="file-input" type="file" accept="image/*" class="visually-hidden"&gt;
+
+&lt;/label&gt;
+
+</code></pre>
+
+<pre><code class="language-css">.visually-hidden {
+
+  position: absolute;
+
+  width: 1px;
+
+  height: 1px;
+
+  overflow: hidden;
+
+  clip: rect(0 0 0 0);
+
+  white-space: nowrap;
+
+}
+
+</code></pre>
+
+Attach a change event to the input and have it call the same handler as drop for the quality slider and format select (native elements that are keyboard accessible by default). Also add visible <label> elements for the quality slider and format select if needed.
+
+Screen reader labels.
+
+Make the opaque canvas accessible. Add role and description to the canvas.
+
+<pre><code class="language-html">&lt;canvas role="img" aria-label="Split-view image compression preview"&gt;&lt;/canvas&gt;
+
+</code></pre>
+
+Make the file size readout on each encode update live with aria-live so screen readers announce the change to the user there without their having to go to it.
+
+<pre><code class="language-html">&lt;span id="size-label" aria-live="polite"&gt;&lt;/span&gt;
+
+</code></pre>
+
+Reduced motion.
+
+For now, there are no transitions to reduce to, but if you do add some (e.g., to fade between different quality settings, or to slide in the download button), wrap them in this:
+
+<pre><code class="language-css">@media (prefers-reduced-motion: reduce) {
+
+  * { transition: none !important; animation: none !important; }
+
+}
+
+</code></pre>
+
+Wrapping Up
+
+What you've built: a browser-native compression previewer for images that encodes images via libvips entirely in a Web Worker. It compares original and compressed images at the pixel level and sets a target file size without performing a binary search. The whole thing runs locally.
+
+Three things break it if you get them wrong:
+
+1. Worker isolation. Moving Vips to the main thread will freeze paint for 200-400ms on initial load.
+
+2. image.delete(): WASM memory is not garbage collected. This means we must delete every encoded image to prevent it (and all the other memory it allocated) from persisting after we’re done using it. Failing to delete an encoded image here (or elsewhere in your program) means the memory allocated to that image persists until the program exits. To make this clear, there is a large red card here: remember to delete every image after you’ve encoded it.
+
+3. compressedBitmap.close() before every re-render.** GPU texture memory leaks the same way. If you re-render an image, close the old GPU-allocated texture before rendering the image into a new texture.
+
+These wrap the three invariants described above.
+
+The AVIF quality curve is also very interesting and could be optimized further. The two-phase approach used in the size-targeting algorithm for JPEG/WebP is a practical hack and not a very solid solution. The quality-to-size tradeoff for AVIF is much more image-content-dependent than for JPEG and WebP, and so it would be great to develop some image-entropy-based heuristics, or even just to run a tighter binary search within the monotonic part of the curve (around Q=30–80), and then step down in smaller increments in the falling part of the curve.
+
+You can find a working version of the tool here: https://convertyard.com/compress-image. This uses a Worker-owned Vips instance, ArrayBuffers for data transfer, two-phase size-targeting, and a split canvas view. It follows the same architecture as described above.
+
+Garrick Dee Tan created ConvertYard, a local-first suite of batch file tools that runs entirely in the browser using WebAssembly and never uploads any of your files.
+

@@ -164,6 +164,23 @@ export function buildPermissionsMask(opts: {
   return mask
 }
 
+export async function saveCompressed(fileBuffer: ArrayBuffer): Promise<ArrayBuffer> {
+  const clone = fileBuffer.slice(0)
+  const res = await send<{ data: ArrayBuffer }>('save-compressed', { fileBuffer: clone }, [clone])
+  return res.data
+}
+
+export interface ImageRenderMap {
+  /** Key: "<pixelWidth>x<pixelHeight>". Value: max rendered width in PDF points. */
+  [dimensionsKey: string]: number
+}
+
+export async function getImageBboxes(fileBuffer: ArrayBuffer): Promise<ImageRenderMap> {
+  const clone = fileBuffer.slice(0)
+  const res = await send<{ data: ArrayBuffer }>('get-image-bboxes', { fileBuffer: clone }, [clone])
+  return JSON.parse(new TextDecoder().decode(new Uint8Array(res.data)))
+}
+
 export async function extractStructuredText(fileBuffer: ArrayBuffer): Promise<string[]> {
   const clone = fileBuffer.slice(0)
   const res = await send<{ data: ArrayBuffer }>('extract-structured-text', { fileBuffer: clone }, [clone])

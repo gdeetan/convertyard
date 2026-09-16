@@ -8,6 +8,7 @@ export interface DownsampleOptions {
   colorSpace: 'DeviceRGB' | 'DeviceGray';
   bitsPerComponent: number;
   jpegQuality: number;
+  flateLevel?: number; // 1–9. If set and source is kept as Flate, re-encode at this level.
 }
 
 export interface DownsampleResult {
@@ -22,6 +23,22 @@ export async function downsampleFlateImage(
   opts: DownsampleOptions
 ): Promise<DownsampleResult> {
   if (opts.sourceDpi <= opts.targetDpi) {
+    if (opts.flateLevel && opts.flateLevel >= 1 && opts.flateLevel <= 9) {
+      try {
+        const raw = pako.inflate(compressed);
+        const reencoded = pako.deflate(raw, { level: opts.flateLevel as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 });
+        if (reencoded.byteLength < compressed.byteLength) {
+          return {
+            bytes: reencoded,
+            width: opts.sourceWidth,
+            height: opts.sourceHeight,
+            filter: 'FlateDecode',
+          };
+        }
+      } catch {
+        // fall through and return the original bytes.
+      }
+    }
     return {
       bytes: compressed,
       width: opts.sourceWidth,

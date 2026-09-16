@@ -57,3 +57,44 @@ describe('downsampleFlateImage', () => {
     expect(result.filter).toBe('FlateDecode');
   });
 });
+
+describe('downsampleFlateImage — flateLevel option', () => {
+  it('re-encodes at level 9 when source DPI ≤ target DPI and flateLevel is set', async () => {
+    // 100x100 DeviceGray, 8-bit — 10 000 raw bytes, highly compressible (all zeros).
+    const raw = new Uint8Array(100 * 100);
+    const level6 = pako.deflate(raw, { level: 6 });
+
+    const result = await downsampleFlateImage(level6, {
+      sourceWidth: 100,
+      sourceHeight: 100,
+      sourceDpi: 100,  // <= targetDpi means "keep Flate branch"
+      targetDpi: 150,
+      colorSpace: 'DeviceGray',
+      bitsPerComponent: 8,
+      jpegQuality: 0.6,
+      flateLevel: 9,
+    });
+
+    expect(result.filter).toBe('FlateDecode');
+    // Level 9 must be ≤ level 6 for repetitive data.
+    expect(result.bytes.byteLength).toBeLessThanOrEqual(level6.byteLength);
+  });
+
+  it('leaves bytes unchanged when flateLevel is omitted', async () => {
+    const raw = new Uint8Array(100 * 100);
+    const level6 = pako.deflate(raw, { level: 6 });
+
+    const result = await downsampleFlateImage(level6, {
+      sourceWidth: 100,
+      sourceHeight: 100,
+      sourceDpi: 100,
+      targetDpi: 150,
+      colorSpace: 'DeviceGray',
+      bitsPerComponent: 8,
+      jpegQuality: 0.6,
+    });
+
+    expect(result.filter).toBe('FlateDecode');
+    expect(result.bytes).toBe(level6); // same reference — untouched
+  });
+});

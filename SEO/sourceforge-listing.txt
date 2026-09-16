@@ -1,0 +1,19 @@
+AUDIENCE
+Developers, designers, marketers, content creators, and small business owners who need private, bulk file conversion without account registration or cloud uploads.
+
+---
+
+FULL DESCRIPTION
+ConvertYard is a browser-based file conversion platform powered by WebAssembly. All processing happens on your device — files never leave your browser.
+
+Image tools: Convert HEIC, JPG, PNG, WebP, and AVIF formats. Compress, resize, and remove backgrounds in bulk.
+
+PDF tools: Merge PDFs, compress file size, extract pages, delete pages, crop, add page numbers, and export pages as images.
+
+Video & audio: Convert between formats and extract audio tracks.
+
+Developer utilities: Format JSON, encode/decode Base64, convert JSON to CSV.
+
+AI tools: Auto-generate alt text for images to improve accessibility.
+
+All tools support batch processing of up to 1,000 files per run. Results are packaged into a single ZIP download. No account required, no watermarks, no file size paywalls. Works offline after the initial page load via WebAssembly caching. Clean interface with no ads inside the conversion workflow.
