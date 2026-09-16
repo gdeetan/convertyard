@@ -5,6 +5,7 @@ import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
 import { convertPdfToWord } from './pdf-to-word'
 import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
+import { downsampleFlateImage } from '@/lib/pdf/image-downsample'
 
 // ── Merge ─────────────────────────────────────────────────────────────────────
 
@@ -191,6 +192,132 @@ async function recompressImages(
 
   const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
   return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
+}
+
+/**
+ * Keep-text image-recompress pass. Extends `recompressImages` behavior by
+ * ALSO downsampling Flate-encoded PNG-origin image XObjects (DeviceRGB and
+ * DeviceGray, 8-bit) via `downsampleFlateImage`. Other codecs (JPX, JBIG2,
+ * CCITT) and non-basic colorspaces (ICCBased, Indexed, DeviceN, Pattern, etc.)
+ * are preserved as-is and collected into a local `preservedImages` diagnostic.
+ *
+ * The JPEG (`/DCTDecode`) path here matches `recompressImages` exactly so
+ * behavior is preserved for the keep-text pipeline.
+ */
+async function recompressImagesKeepText(
+  buffer: ArrayBuffer,
+  quality: number,
+  fileName: string,
+  opts: { targetDpi: number; sourceDpi: number } = { targetDpi: 150, sourceDpi: 300 }
+): Promise<{ file: File; preservedImages: string[] }> {
+  const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+  const context = doc.context
+  const preservedImages: string[] = []
+
+  for (const [ref, obj] of context.enumerateIndirectObjects()) {
+    if (!(obj instanceof PDFRawStream)) continue
+    const subtype = obj.dict.get(PDFName.of('Subtype'))
+    if (subtype?.toString() !== '/Image') continue
+
+    const filter = obj.dict.get(PDFName.of('Filter'))
+    const filterStr = filter?.toString() ?? ''
+
+    // Existing JPEG branch — unchanged behavior.
+    if (filterStr === '/DCTDecode') {
+      try {
+        const reencoded = await reencodeJpeg(obj.contents, quality)
+        if (reencoded.byteLength >= obj.contents.byteLength) continue
+        obj.dict.set(PDFName.of('Length'), PDFNumber.of(reencoded.byteLength))
+        context.assign(ref, PDFRawStream.of(obj.dict, reencoded))
+      } catch {
+        preservedImages.push(`${ref.toString()}:jpeg-reencode-failed`)
+      }
+      continue
+    }
+
+    // Flate/PNG branch — only DeviceRGB or DeviceGray, BPC 8, no filter chain.
+    if (filterStr === '/FlateDecode') {
+      const cs = obj.dict.get(PDFName.of('ColorSpace'))
+      const csStr = cs?.toString() ?? ''
+      if (csStr !== '/DeviceRGB' && csStr !== '/DeviceGray') {
+        preservedImages.push(`${ref.toString()}:colorspace=${csStr || 'none'}`)
+        continue
+      }
+      const width = obj.dict.get(PDFName.of('Width'))
+      const height = obj.dict.get(PDFName.of('Height'))
+      const bpc = obj.dict.get(PDFName.of('BitsPerComponent'))
+      if (!(width instanceof PDFNumber) || !(height instanceof PDFNumber) || !(bpc instanceof PDFNumber)) {
+        preservedImages.push(`${ref.toString()}:missing-dims`)
+        continue
+      }
+      if (bpc.asNumber() !== 8) {
+        preservedImages.push(`${ref.toString()}:bpc=${bpc.asNumber()}`)
+        continue
+      }
+      // Skip if image also has an SMask (alpha) — downsampling to JPEG would
+      // drop the mask and change rendering. Preserve for safety.
+      if (obj.dict.get(PDFName.of('SMask'))) {
+        preservedImages.push(`${ref.toString()}:has-smask`)
+        continue
+      }
+      // Skip images with a Decode array — non-default remapping we can't
+      // faithfully carry through JPEG.
+      if (obj.dict.get(PDFName.of('Decode'))) {
+        preservedImages.push(`${ref.toString()}:has-decode`)
+        continue
+      }
+
+      try {
+        const result = await downsampleFlateImage(obj.contents, {
+          sourceWidth: width.asNumber(),
+          sourceHeight: height.asNumber(),
+          sourceDpi: opts.sourceDpi,
+          targetDpi: opts.targetDpi,
+          colorSpace: csStr === '/DeviceRGB' ? 'DeviceRGB' : 'DeviceGray',
+          bitsPerComponent: 8,
+          jpegQuality: quality / 100,
+        })
+
+        if (result.filter === 'FlateDecode') {
+          // No downsample happened — leave object unchanged.
+          continue
+        }
+        if (result.bytes.byteLength >= obj.contents.byteLength) {
+          // JPEG output larger than the Flate source — leave unchanged.
+          continue
+        }
+
+        // Build a new dict for a JPEG image XObject. Preserve the existing
+        // dict entries except those that must change for a DCT-encoded image.
+        const newDict = obj.dict.clone(context)
+        newDict.set(PDFName.of('Filter'), PDFName.of('DCTDecode'))
+        newDict.set(PDFName.of('Width'), PDFNumber.of(result.width))
+        newDict.set(PDFName.of('Height'), PDFNumber.of(result.height))
+        newDict.set(PDFName.of('BitsPerComponent'), PDFNumber.of(8))
+        newDict.set(PDFName.of('ColorSpace'), PDFName.of(
+          csStr === '/DeviceRGB' ? 'DeviceRGB' : 'DeviceGray'
+        ))
+        newDict.set(PDFName.of('Length'), PDFNumber.of(result.bytes.byteLength))
+        // Flate-only decoding hints have no meaning for DCT; drop them.
+        newDict.delete(PDFName.of('DecodeParms'))
+        newDict.delete(PDFName.of('Predictor'))
+
+        context.assign(ref, PDFRawStream.of(newDict, result.bytes))
+      } catch {
+        preservedImages.push(`${ref.toString()}:downsample-failed`)
+      }
+      continue
+    }
+
+    // Any other codec (JPX, JBIG2, CCITT, filter chain) — preserve as-is.
+    preservedImages.push(`${ref.toString()}:filter=${filterStr || 'none'}`)
+  }
+
+  const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+  return {
+    file: new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' }),
+    preservedImages,
+  }
 }
 
 async function rasterizePdf(file: File, dpi: number, fileName: string): Promise<File> {
@@ -380,10 +507,14 @@ export async function compressPdfKeepText(
     return { ok: true, blob: structural, bytes: structural.size, passesRun }
   }
 
-  // JPEG re-encode operates on the structural output so we keep the cumulative
-  // savings from both passes.
+  // JPEG re-encode + Flate/PNG downsample operate on the structural output so
+  // we keep the cumulative savings from both passes.
   const structuralBuffer = await structural.arrayBuffer()
-  const jpegPass = await recompressImages(structuralBuffer, 60, input.name)
+  const { file: jpegPass } = await recompressImagesKeepText(
+    structuralBuffer,
+    60,
+    input.name
+  )
   passesRun.push('jpeg-recompress')
   onProgress?.(90)
 
