@@ -28,7 +28,7 @@ function getMupdf(): Promise<any> {
 self.onmessage = async (e: MessageEvent) => {
   const { id, type, fileBuffer, pageIndex, dpi, quality, transparent, password, userPassword, ownerPassword, encryptStrength, permissions } = e.data as {
     id: string
-    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text' | 'page-sizes' | 'unlock-pdf' | 'protect-pdf'
+    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text' | 'page-sizes' | 'unlock-pdf' | 'protect-pdf' | 'save-compressed'
     fileBuffer: ArrayBuffer
     pageIndex?: number
     dpi?: number
