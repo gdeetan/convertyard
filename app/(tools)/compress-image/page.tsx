@@ -70,8 +70,11 @@ const howToCompressSection = (
   </section>
 )
 
-const compareDemo = (
-  <BeforeAfterCompare
+const howToCompressWithCompare = (
+  <>
+    {howToCompressSection}
+    <div className="mt-10">
+      <BeforeAfterCompare
     beforeSrc="/tools/compress-image/cargo-before.png"
     beforeAlt="Original PNG cargo illustration before compression"
     beforeLabel="PNG — 146 KB"
@@ -82,7 +85,9 @@ const compareDemo = (
     height={1653}
     aspectRatio="1888 / 1653"
     caption="Real-word test with Convertyard's image compression tool: 146 KB PNG → 54 KB PNG (63% smaller) at the same 1888 × 1653 resolution. Drag the slider to compare."
-  />
+      />
+    </div>
+  </>
 )
 
 function CompressImagePage() {
@@ -104,12 +109,12 @@ function CompressImagePage() {
     }
   }, [verticalSlug])
 
-  return <ToolShell config={config} initialOptions={initialOptions} afterHowItWorks={howToCompressSection} beforeFaq={compareDemo} />
+  return <ToolShell config={config} initialOptions={initialOptions} afterHowItWorks={howToCompressWithCompare} />
 }
 
 export default function Page() {
   return (
-    <Suspense fallback={<ToolShell config={config} afterHowItWorks={howToCompressSection} beforeFaq={compareDemo} />}>
+    <Suspense fallback={<ToolShell config={config} afterHowItWorks={howToCompressWithCompare} />}>
       <CompressImagePage />
     </Suspense>
   )
