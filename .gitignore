@@ -39,3 +39,13 @@ next-env.d.ts
 # Git worktrees
 .worktrees/
 public/dicts/en.txt
+
+# Spike outputs
+spike/out/
+.DS_Store
+
+# Large fixtures (>25MB) — see fixtures/pdf-scan-codec-spike/README.md for download instructions
+fixtures/pdf-scan-codec-spike/*.pdf
+!fixtures/pdf-scan-codec-spike/public-bitonal-certificate.pdf
+!fixtures/pdf-scan-codec-spike/public-grayscale-contract.pdf
+!fixtures/pdf-scan-codec-spike/4Ws-050326-HONOR-GOD-BY-HONORING-YOUR-FATHER-AND-MOTHER (1).pdf
