@@ -640,11 +640,14 @@ export async function rasterizeToTargetSize(
 }
 
 /**
- * Legacy adapter — will be deleted in Task 5.
+ * @deprecated: to remove in follow-up.
  *
- * Preserves the pre-split behavior: try keep-text passes first, escalate to
- * rasterize if unreachable. Newer callers should invoke `compressPdfKeepText`
- * directly and gate `rasterizeToTargetSize` behind explicit user consent.
+ * Retained because size-target landing pages (/compress-pdf/to-100kb, etc.)
+ * still route through `compressPDF` and rely on the auto-escalate-to-rasterize
+ * behavior to hit their advertised size caps without user interaction. The
+ * /compress-pdf tool page itself now bypasses this adapter and gates
+ * `rasterizeToTargetSize` behind explicit user consent via
+ * `UnachievableTargetCard`. Do NOT add new callers.
  */
 export async function compressPdfToTargetSize(
   input: File,

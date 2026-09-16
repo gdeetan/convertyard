@@ -34,6 +34,11 @@ const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
   ai:               { label: 'AI Tools',             href: '/ai-tools' },
 }
 
+export interface ToolShellApi {
+  /** Replace a result file in place (e.g., after user opts in to a lossy alt path). */
+  replaceResult: (fileIndex: number, newFile: File) => void
+}
+
 interface ToolShellProps {
   config: ToolConfig
   embedded?: boolean
@@ -42,6 +47,12 @@ interface ToolShellProps {
   notice?: React.ReactNode
   belowToolCard?: React.ReactNode
   afterHowItWorks?: React.ReactNode
+  /**
+   * Called once on mount with imperative helpers. Lets a parent page perform
+   * manual result swaps (e.g. compress-pdf's "Rasterize anyway" flow) without
+   * duplicating the shell's state machine.
+   */
+  onReady?: (api: ToolShellApi) => void
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -224,7 +235,7 @@ export function ToolShell(props: { config: AnyToolConfig } & Omit<ToolShellProps
   return <ConverterShell {...(props as ToolShellProps)} />
 }
 
-function ConverterShell({ config, embedded = false, onResults, initialOptions, notice, belowToolCard, afterHowItWorks }: ToolShellProps) {
+function ConverterShell({ config, embedded = false, onResults, initialOptions, notice, belowToolCard, afterHowItWorks, onReady }: ToolShellProps) {
   const [state, dispatch] = useReducer(reducer, {
     entries: [],
     phase: 'idle',
@@ -262,6 +273,16 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
   }, [state.phase, progressGate])
 
   const toolCardRef = useRef<HTMLDivElement>(null)
+
+  // Expose imperative helpers (e.g. manual result swap) exactly once. The
+  // dispatch identity is stable across renders, so this fires on mount only.
+  useEffect(() => {
+    onReady?.({
+      replaceResult: (fileIndex, newFile) =>
+        dispatch({ type: 'EDIT_RESULT', fileIndex, newFile }),
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleAdd = useCallback((files: File[]) => {
     let accepted = files
