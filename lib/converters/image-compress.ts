@@ -9,6 +9,10 @@ export async function imageCompress(
   onProgress?: (fileIndex: number, pct: number) => void,
   onResult?: (fileIndex: number, result: ConversionResult) => void
 ): Promise<ConversionResult[]> {
+  if (opts.maxDimension === 'custom') {
+    const custom = typeof opts.customMaxDimension === 'number' ? opts.customMaxDimension : 0
+    opts = { ...opts, maxDimension: custom > 0 ? custom : 0 }
+  }
   const results: ConversionResult[] = []
   for (let i = 0; i < files.length; i++) {
     const file = files[i]

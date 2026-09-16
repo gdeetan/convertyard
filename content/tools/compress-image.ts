@@ -114,13 +114,25 @@ export const config: ToolConfig = {
       name: 'maxDimension',
       label: 'Limit longest edge',
       choices: [
-        { value: '0',    label: 'Original' },
-        { value: '1920', label: '1920px (Full HD)' },
-        { value: '1280', label: '1280px (Web)' },
-        { value: '800',  label: '800px (Thumbnail)' },
+        { value: '0',      label: 'Original' },
+        { value: '1920',   label: '1920px (Full HD)' },
+        { value: '1280',   label: '1280px (Web)' },
+        { value: '800',    label: '800px (Thumbnail)' },
+        { value: 'custom', label: 'Custom width' },
       ],
       default: '0',
-      hint: 'Aspect ratio is always preserved.',
+      hint: 'Aspect ratio is always preserved. Images smaller than the target are left untouched.',
+    },
+    {
+      type: 'number',
+      name: 'customMaxDimension',
+      label: 'Custom width (px)',
+      min: 1,
+      max: 20000,
+      step: 1,
+      default: 1600,
+      dependsOn: { name: 'maxDimension', value: 'custom' },
+      hint: 'Applied to the longest edge, so portraits scale by height. Never upscales.',
     },
     {
       type: 'section-header',
@@ -174,7 +186,7 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-images-without-losing-quality', 'avif-vs-webp-vs-jpeg-2026', 'best-webp-quality', 'batch-convert-images'],
 
   meta: {
-    title: 'Image Compressor - Compress JPG, WebP, AVIF, GIF and SVG Files for Free',
+    title: 'Image Compressor - Compress JPG, PNG, WebP, AVIF, GIF and SVG Files for Free',
     description:
       'Compress JPG, PNG, WebP, AVIF, GIF, or SVG in batches up to 1,000 files in your browser. No signups, no uploads, no paywall.',
   },
