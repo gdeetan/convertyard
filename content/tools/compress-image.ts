@@ -7,6 +7,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'compress-image',
   title: 'Image Compressor',
+  actionLabel: { verb: 'Compress', gerund: 'Compressing' },
   subtitle: 'Batch compress JPG, PNG, WebP, AVIF, GIF, and SVG image files with a live before/after slider that shows real-time comparisons of file-size savings and quality differences. Multiple image compression options, including quality, auto-orientation, and even an exact-size target per batch.',
   subtitlePosition: 'below-drop',
   bestFor: 'Reduce image size before publishing photos on a website, CMS, or email without opening a third-party application or paying for a subscription-based photo editor, saving you time and money.',
