@@ -54,14 +54,58 @@ async function selectRadio(page: import('@playwright/test').Page, text: string) 
   await page.locator('label').filter({ hasText: text }).first().click()
 }
 
+// Parses "[timing] stage=X ms=Y ..." lines into {stage, ms, meta} tuples.
+function parseTimingLine(text: string): { stage: string; ms: number; meta: Record<string, string> } | null {
+  if (!text.includes('[timing]')) return null
+  const match = text.match(/\[timing\]\s+(.*)$/)
+  if (!match) return null
+  const parts = match[1].trim().split(/\s+/)
+  const kv: Record<string, string> = {}
+  for (const p of parts) {
+    const [k, v] = p.split('=')
+    if (k && v !== undefined) kv[k] = v
+  }
+  const stage = kv.stage
+  const ms = Number(kv.ms)
+  if (!stage || !Number.isFinite(ms)) return null
+  const { stage: _s, ms: _m, ...meta } = kv
+  return { stage, ms, meta }
+}
+
+type TimingEvent = { stage: string; ms: number; meta: Record<string, string> }
+
+function summarizeTimings(events: TimingEvent[]): Record<string, unknown> {
+  const perStage: Record<string, { count: number; totalMs: number; maxMs: number }> = {}
+  for (const e of events) {
+    perStage[e.stage] ??= { count: 0, totalMs: 0, maxMs: 0 }
+    perStage[e.stage].count++
+    perStage[e.stage].totalMs += e.ms
+    if (e.ms > perStage[e.stage].maxMs) perStage[e.stage].maxMs = e.ms
+  }
+  const summary: Record<string, unknown> = {}
+  for (const [stage, s] of Object.entries(perStage)) {
+    summary[stage] = {
+      count: s.count,
+      totalMs: s.totalMs,
+      avgMs: Math.round(s.totalMs / s.count),
+      maxMs: s.maxMs,
+    }
+  }
+  return summary
+}
+
 async function captureFixture(page: import('@playwright/test').Page, fixture: ManifestFixture) {
   const consoleMessages: string[] = []
+  const timings: TimingEvent[] = []
   const consoleHandler = (msg: import('@playwright/test').ConsoleMessage) => {
     const text = msg.text()
+    const timing = parseTimingLine(text)
+    if (timing) timings.push(timing)
     if (
       text.includes('[Florence-2]') ||
       text.includes('[TrOCR]') ||
-      text.includes('[correction]')
+      text.includes('[correction]') ||
+      text.includes('[timing]')
     ) {
       consoleMessages.push(text)
     }
@@ -79,10 +123,12 @@ async function captureFixture(page: import('@playwright/test').Page, fixture: Ma
       ? 'Fast — greedy, quicker'
       : 'Quality — beam search, slower')
 
+    const wallStart = Date.now()
     await page.getByRole('button', { name: /Convert 1 file/i }).click()
 
     const review = page.getByLabel('Extracted text — editable')
     await review.waitFor({ timeout: 300_000 })
+    const wallMs = Date.now() - wallStart
     const predicted = (await review.innerText()).trim()
 
     const route = inferRouteFromLogs(consoleMessages)
@@ -98,6 +144,8 @@ async function captureFixture(page: import('@playwright/test').Page, fixture: Ma
       category: fixture.category,
       route,
       predicted,
+      wallMs,
+      timings: summarizeTimings(timings),
       consoleMessages,
     }
   } finally {
@@ -125,11 +173,21 @@ async function main() {
 
   await browser.close()
 
+  const wallMsValues = results.map(r => r.wallMs).filter((n): n is number => typeof n === 'number')
+  const avgWallMs = wallMsValues.length
+    ? Math.round(wallMsValues.reduce((s, n) => s + n, 0) / wallMsValues.length)
+    : 0
+  const maxWallMs = wallMsValues.length ? Math.max(...wallMsValues) : 0
+
   const payload = {
     generatedAt: new Date().toISOString(),
     baseUrl: BASE_URL,
     engine: ENGINE,
     quality: QUALITY,
+    timingSummary: {
+      avgWallMs,
+      maxWallMs,
+    },
     results,
   }
 
@@ -145,6 +203,7 @@ async function main() {
   console.log(`fixtures=${results.length}`)
   console.log(`categories=${JSON.stringify(byCategory)}`)
   console.log(`routes=${JSON.stringify(routeCounts)}`)
+  console.log(`avgWallMs=${avgWallMs} maxWallMs=${maxWallMs}`)
   console.log(`output=${OUTPUT_PATH}`)
 }
 

@@ -37,6 +37,7 @@ async function loadPipeline(
     try {
       diagLog('trocr-pipeline-load-start', label)
       diagMemory(`before-trocr-pipeline:${label}`)
+      const loadStart = performance.now()
       const instance = await pipeline('image-to-text', model, {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         dtype: 'fp32' as any,
@@ -48,6 +49,7 @@ async function loadPipeline(
         },
       })
       console.log(`[TrOCR] Loaded ${label}`)
+      console.log(`[timing] stage=trocr-model-load ms=${Math.round(performance.now() - loadStart)} model=${label.replace(/\s+/g, '_')}`)
       diagLog('trocr-pipeline-loaded', label)
       diagMemory(`after-trocr-pipeline:${label}`)
       return instance
@@ -90,6 +92,7 @@ export async function recognizeLineWithTrOCR(
 ): Promise<TrOcrLineResult> {
   const url = URL.createObjectURL(lineBlob)
   diagLog('trocr-inference-start')
+  const inferStart = performance.now()
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const result = await (pipe as any)(url, {
@@ -101,6 +104,7 @@ export async function recognizeLineWithTrOCR(
     const output = Array.isArray(result) ? result[0] : result
     const raw = (output as { generated_text?: string }).generated_text?.trim() ?? ''
     const text = isDegenerate(raw) ? '' : raw
+    console.log(`[timing] stage=trocr-line ms=${Math.round(performance.now() - inferStart)} chars=${text.length}`)
     diagLog('trocr-inference-done', text.slice(0, 40) || '(empty)')
     // Length-based confidence proxy — TrOCR pipeline does not expose beam-search scores.
     const confidence = text.length >= 3 ? 0.9 : text.length > 0 ? 0.5 : 0.0

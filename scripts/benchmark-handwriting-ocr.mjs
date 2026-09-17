@@ -97,12 +97,15 @@ function summarize(results) {
     routeCounts[result.route] = (routeCounts[result.route] ?? 0) + 1
   }
 
+  const wallSamples = results.map(r => r.wallMs).filter(n => typeof n === 'number')
+
   return {
     fixtureCount: results.length,
     average: {
       cer: avg(results.map(r => r.cer)),
       wer: avg(results.map(r => r.wer)),
       lineBreakAccuracy: avg(results.map(r => r.lineBreakAccuracy)),
+      wallMs: wallSamples.length ? Math.round(avg(wallSamples)) : undefined,
     },
     routeCounts,
     byCategory: Object.fromEntries(
@@ -151,7 +154,9 @@ async function runTesseractNode(fixtures) {
     const imagePath = join(FIXTURES_DIR, fixture.image)
     const transcriptPath = join(FIXTURES_DIR, fixture.transcript)
     const groundTruth = readFileSync(transcriptPath, 'utf-8').trim()
+    const start = performance.now()
     const { data } = await worker.recognize(imagePath)
+    const wallMs = Math.round(performance.now() - start)
     const predicted = data.text.trim()
 
     results.push({
@@ -160,6 +165,7 @@ async function runTesseractNode(fixtures) {
       route: 'tesseract',
       predicted,
       groundTruth,
+      wallMs,
       cer: cer(predicted, groundTruth),
       wer: wer(predicted, groundTruth),
       lineBreakAccuracy: lineBreakAccuracy(predicted, groundTruth),
@@ -189,6 +195,8 @@ function scoreJson(fixtures, inputPath) {
       route: found.route ?? 'unknown',
       predicted,
       groundTruth,
+      wallMs: typeof found.wallMs === 'number' ? found.wallMs : undefined,
+      timings: found.timings ?? undefined,
       cer: cer(predicted, groundTruth),
       wer: wer(predicted, groundTruth),
       lineBreakAccuracy: lineBreakAccuracy(predicted, groundTruth),
@@ -225,6 +233,9 @@ async function main() {
   console.log(`avg CER=${(payload.summary.average.cer * 100).toFixed(1)}%`)
   console.log(`avg WER=${(payload.summary.average.wer * 100).toFixed(1)}%`)
   console.log(`avg lineBreak=${(payload.summary.average.lineBreakAccuracy * 100).toFixed(1)}%`)
+  if (typeof payload.summary.average.wallMs === 'number') {
+    console.log(`avg wallMs=${payload.summary.average.wallMs}`)
+  }
   console.log(`routes=${JSON.stringify(payload.summary.routeCounts)}`)
   printCategorySummary(payload.summary)
   console.log(`output=${OUTPUT_PATH.replace(ROOT + '/', '')}`)
