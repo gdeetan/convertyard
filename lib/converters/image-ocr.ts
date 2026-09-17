@@ -979,10 +979,12 @@ export async function imageOcrConvert(
         onProgress?.(i, 20)
         diagLog('ai-mode-preprocess-start')
         diagMemory('before-preprocess')
+        const preprocessStart = performance.now()
         const { binary: binBlob, grayscale: grayBlob } = await preprocessForOcrDual(
           blob,
           receiptMode ? receiptMinWidth : undefined
         )
+        console.log(`[timing] stage=preprocess ms=${Math.round(performance.now() - preprocessStart)}`)
         diagLog('ai-mode-preprocess-done')
         let trocrLines: TrOcrLineResult[] | null = null
 
@@ -992,11 +994,13 @@ export async function imageOcrConvert(
           diagMemory('before-florence')
           const { recognizeWithFlorenceOcr } = await import('@/lib/ocr/florence-ocr-client')
           onProgress?.(i, 22)
+          const florenceStart = performance.now()
           const florence = await recognizeWithFlorenceOcr(
             grayBlob,
             file.name,
             p => onProgress?.(i, 22 + Math.round(p * 0.35))
           )
+          console.log(`[timing] stage=florence-recognize ms=${Math.round(performance.now() - florenceStart)}`)
           const florenceText = florence.text
           if (florenceText.trim()) {
             text = florenceText
@@ -1121,14 +1125,18 @@ export async function imageOcrConvert(
             diagMemory('before-trocr')
             const { recognizeWithTrOCR } = await import('@/lib/ocr/trocr-client')
             onProgress?.(i, 57)
+            const lineDetectStart = performance.now()
             const lineBoxes = await detectLines(binBlob)
+            console.log(`[timing] stage=line-detect ms=${Math.round(performance.now() - lineDetectStart)} lines=${lineBoxes.length}`)
             onProgress?.(i, 62)
             const lineBlobs = await cropLinesToBlobs(binBlob, grayBlob, lineBoxes)
+            const trocrStart = performance.now()
             const { text: aiText, lines: aiLines } = await recognizeWithTrOCR(
               lineBlobs,
               p => onProgress?.(i, 62 + Math.round(p * 0.25)),
               quality
             )
+            console.log(`[timing] stage=trocr-recognize ms=${Math.round(performance.now() - trocrStart)} lines=${lineBlobs.length}`)
             trocrLines = aiLines
             text = aiText
             confidence = aiLines.length > 0
