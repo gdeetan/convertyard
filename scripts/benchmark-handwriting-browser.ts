@@ -127,7 +127,7 @@ async function captureFixture(page: import('@playwright/test').Page, fixture: Ma
     await page.getByRole('button', { name: /Convert 1 file/i }).click()
 
     const review = page.getByLabel('Extracted text — editable')
-    await review.waitFor({ timeout: 300_000 })
+    await review.waitFor({ timeout: 1_200_000 })
     const wallMs = Date.now() - wallStart
     const predicted = (await review.innerText()).trim()
 
@@ -159,7 +159,8 @@ async function main() {
   if (!fixtures.length) throw new Error('No fixtures matched the current filter')
   ensureFixtureFiles(fixtures)
 
-  const browser = await chromium.launch({ headless: true })
+  const headless = process.argv.includes('--headless')
+  const browser = await chromium.launch({ headless })
   const context = await browser.newContext()
   const page = await context.newPage()
 
