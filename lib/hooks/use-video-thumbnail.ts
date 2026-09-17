@@ -8,7 +8,10 @@ export function isVideoFile(file: File) {
 }
 
 // Extract a single frame from a video for a Finder-style thumbnail.
-// Returns null on any failure so the caller falls back to a generic icon.
+// Mirrors the approach used in compress-video-preview's useVideoMeta,
+// which is known to work across Chrome/Safari/Firefox for the same
+// blob sources the compressor accepts. Returns null on any failure so
+// the caller falls back to a generic icon.
 export function useVideoThumbnail(file?: File) {
   const [url, setUrl] = useState<string | null>(null)
 
@@ -18,40 +21,36 @@ export function useVideoThumbnail(file?: File) {
       return
     }
     let cancelled = false
-    let generatedUrl: string | null = null
+    let captured = false
     let timeoutId: ReturnType<typeof setTimeout> | null = null
     const objectUrl = URL.createObjectURL(file)
     const video = document.createElement('video')
+    video.src = objectUrl
     video.muted = true
     video.playsInline = true
+    // 'auto' pulls enough of the file to decode the first frame; 'metadata'
+    // may stop after headers and the seek + drawImage never resolves.
     video.preload = 'auto'
-    // Some browsers (notably iOS Safari and some Android Chromium builds)
-    // won't fully decode a detached <video>. Park it off-screen so it lives
-    // in the DOM and loads reliably.
-    video.style.position = 'fixed'
-    video.style.left = '-9999px'
-    video.style.top = '-9999px'
-    video.style.width = '1px'
-    video.style.height = '1px'
-    video.style.opacity = '0'
-    video.style.pointerEvents = 'none'
-    document.body.appendChild(video)
     // NOTE: don't set crossOrigin on blob: URLs. Safari treats "anonymous"
-    // on a blob URL as a CORS requirement it can't satisfy and refuses to
-    // decode the video, which is why the thumbnail rendered as a black box
-    // on macOS Safari. Blob URLs share the document origin — no CORS needed.
-    video.src = objectUrl
+    // on a blob URL as a CORS requirement it can't satisfy.
 
     const cleanup = () => {
       if (timeoutId) { clearTimeout(timeoutId); timeoutId = null }
       video.removeAttribute('src')
       try { video.load() } catch { /* noop */ }
-      if (video.parentNode) video.parentNode.removeChild(video)
       URL.revokeObjectURL(objectUrl)
     }
 
-    let captured = false
-    const capture = () => {
+    const onLoaded = () => {
+      if (cancelled) return cleanup()
+      // Force a tiny seek so `seeked` fires reliably across browsers and the
+      // video pipeline decodes a real frame we can drawImage from. Setting
+      // to a small non-zero value avoids the "already at 0, no seek needed"
+      // browser optimization that would leave us waiting forever.
+      try { video.currentTime = 0.1 } catch { /* some browsers throw on 0 */ }
+    }
+
+    const onSeeked = () => {
       if (cancelled || captured) return
       const w = video.videoWidth
       const h = video.videoHeight
@@ -65,57 +64,26 @@ export function useVideoThumbnail(file?: File) {
       try {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
         captured = true
-        canvas.toBlob((blob) => {
-          if (cancelled) { cleanup(); return }
-          if (!blob) { cleanup(); return }
-          generatedUrl = URL.createObjectURL(blob)
-          setUrl(generatedUrl)
-          cleanup()
-        }, 'image/jpeg', 0.8)
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+        setUrl(dataUrl)
+        cleanup()
       } catch {
         cleanup()
       }
     }
 
-    // Safari fires `seeked` before the frame is actually decoded, so drawImage
-    // captures a black frame. requestVideoFrameCallback (Safari 15.4+) only
-    // fires after a frame is presentable. Fall back to `seeked` on browsers
-    // without rVFC (older Safari, some mobile).
-    const scheduleCapture = () => {
-      if (cancelled || captured) return
-      const rVFC = (video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number }).requestVideoFrameCallback
-      if (typeof rVFC === 'function') {
-        rVFC.call(video, () => capture())
-      } else {
-        capture()
-      }
-    }
+    video.addEventListener('loadedmetadata', onLoaded)
+    video.addEventListener('seeked', onSeeked)
+    video.addEventListener('error', cleanup)
 
-    video.onloadedmetadata = () => {
-      if (cancelled) return
-      const duration = video.duration || 0
-      const seekTo = duration > 0
-        ? Math.min(3, Math.max(1, duration * 0.1))
-        : 1
-      const target = Math.min(seekTo, Math.max(0, duration - 0.1))
-      try { video.currentTime = 0 } catch { /* noop */ }
-      video.currentTime = target
-    }
-    video.onseeked = scheduleCapture
-    video.onloadeddata = () => {
-      if (cancelled || captured) return
-      setTimeout(() => { if (!captured) scheduleCapture() }, 400)
-    }
-    video.onerror = cleanup
-
-    timeoutId = setTimeout(() => {
-      if (!captured) cleanup()
-    }, 6000)
+    timeoutId = setTimeout(() => { if (!captured) cleanup() }, 8000)
 
     return () => {
       cancelled = true
+      video.removeEventListener('loadedmetadata', onLoaded)
+      video.removeEventListener('seeked', onSeeked)
+      video.removeEventListener('error', cleanup)
       cleanup()
-      if (generatedUrl) URL.revokeObjectURL(generatedUrl)
     }
   }, [file])
 
