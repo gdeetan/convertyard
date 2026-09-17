@@ -9,6 +9,7 @@ import { downloadAsZip } from '@/lib/utils/zip'
 import { isIosInAppBrowser } from '@/lib/utils/platform'
 import { ImageLightbox } from './image-lightbox'
 import { resultRowPresentation } from '@/lib/utils/conversion-results'
+import { isVideoFile, useVideoThumbnail } from '@/lib/hooks/use-video-thumbnail'
 import type { FileEntry } from '@/lib/types'
 
 interface ResultListProps {
@@ -321,139 +322,6 @@ function useObjectUrl(file?: File) {
 
 function isImageFile(file: File) {
   return file.type.startsWith('image/')
-}
-
-function isVideoFile(file: File) {
-  if (file.type.startsWith('video/')) return true
-  return /\.(mp4|mov|webm|mkv|avi|flv|m4v|3gp)$/i.test(file.name)
-}
-
-// Extract a single frame from a video for a Finder-style thumbnail.
-// Returns null on any failure so the caller falls back to the generic FileIcon.
-function useVideoThumbnail(file?: File) {
-  const [url, setUrl] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!file || !isVideoFile(file)) {
-      setUrl(null)
-      return
-    }
-    let cancelled = false
-    let generatedUrl: string | null = null
-    let timeoutId: ReturnType<typeof setTimeout> | null = null
-    const objectUrl = URL.createObjectURL(file)
-    const video = document.createElement('video')
-    video.muted = true
-    video.playsInline = true
-    video.preload = 'auto'
-    // Some browsers (notably iOS Safari and some Android Chromium builds)
-    // won't fully decode a detached <video>. Park it off-screen so it lives
-    // in the DOM and loads reliably.
-    video.style.position = 'fixed'
-    video.style.left = '-9999px'
-    video.style.top = '-9999px'
-    video.style.width = '1px'
-    video.style.height = '1px'
-    video.style.opacity = '0'
-    video.style.pointerEvents = 'none'
-    document.body.appendChild(video)
-    // NOTE: don't set crossOrigin on blob: URLs. Safari treats "anonymous"
-    // on a blob URL as a CORS requirement it can't satisfy and refuses to
-    // decode the video, which is why the thumbnail rendered as a black box
-    // on macOS Safari. Blob URLs share the document origin — no CORS needed.
-    video.src = objectUrl
-
-    const cleanup = () => {
-      if (timeoutId) { clearTimeout(timeoutId); timeoutId = null }
-      video.removeAttribute('src')
-      try { video.load() } catch { /* noop */ }
-      if (video.parentNode) video.parentNode.removeChild(video)
-      URL.revokeObjectURL(objectUrl)
-    }
-
-    let captured = false
-    const capture = () => {
-      if (cancelled || captured) return
-      const w = video.videoWidth
-      const h = video.videoHeight
-      if (!w || !h) { cleanup(); return }
-      // Cap the thumbnail at 128px on the long edge — plenty for the 64px slot.
-      const scale = Math.min(1, 128 / Math.max(w, h))
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.max(1, Math.round(w * scale))
-      canvas.height = Math.max(1, Math.round(h * scale))
-      const ctx = canvas.getContext('2d')
-      if (!ctx) { cleanup(); return }
-      try {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-        captured = true
-        canvas.toBlob((blob) => {
-          if (cancelled) { cleanup(); return }
-          if (!blob) { cleanup(); return }
-          generatedUrl = URL.createObjectURL(blob)
-          setUrl(generatedUrl)
-          cleanup()
-        }, 'image/jpeg', 0.8)
-      } catch {
-        cleanup()
-      }
-    }
-
-    // Safari fires `seeked` before the frame is actually decoded, so drawImage
-    // captures a black frame. requestVideoFrameCallback (Safari 15.4+) is the
-    // reliable signal — it only fires after a frame is presentable. Fall back
-    // to `seeked` on browsers without rVFC (older Safari, some mobile).
-    const scheduleCapture = () => {
-      if (cancelled || captured) return
-      const rVFC = (video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: () => void) => number }).requestVideoFrameCallback
-      if (typeof rVFC === 'function') {
-        rVFC.call(video, () => capture())
-      } else {
-        capture()
-      }
-    }
-
-    video.onloadedmetadata = () => {
-      if (cancelled) return
-      // Seek past common all-black intro frames. Aim for 10% of duration but
-      // land no earlier than 1s and no later than 3s so short clips still get
-      // a real frame and long clips don't wait forever for a deep seek.
-      const duration = video.duration || 0
-      const seekTo = duration > 0
-        ? Math.min(3, Math.max(1, duration * 0.1))
-        : 1
-      const target = Math.min(seekTo, Math.max(0, duration - 0.1))
-      // Some browsers skip `seeked` if currentTime is already at the target,
-      // so nudge it before setting the real target.
-      try { video.currentTime = 0 } catch { /* noop */ }
-      video.currentTime = target
-    }
-    video.onseeked = scheduleCapture
-    // Some browsers reach `loadeddata` with a decoded first frame but never
-    // fire `seeked` (e.g. seeks clamped to 0 on short clips). Use it as a
-    // backup trigger.
-    video.onloadeddata = () => {
-      if (cancelled || captured) return
-      // Give the seek a moment to finish; if it never fires, grab whatever
-      // is decoded now.
-      setTimeout(() => { if (!captured) scheduleCapture() }, 400)
-    }
-    video.onerror = cleanup
-
-    // Hard safety net: if nothing captures in 6s, give up and let the
-    // FileIcon fallback render instead of leaving a permanent black square.
-    timeoutId = setTimeout(() => {
-      if (!captured) cleanup()
-    }, 6000)
-
-    return () => {
-      cancelled = true
-      cleanup()
-      if (generatedUrl) URL.revokeObjectURL(generatedUrl)
-    }
-  }, [file])
-
-  return url
 }
 
 function ResultRow({

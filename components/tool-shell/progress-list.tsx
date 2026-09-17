@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Loader2, CheckCircle2, XCircle } from 'lucide-react'
+import { Loader2, CheckCircle2, XCircle, FileIcon } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { formatBytes } from '@/lib/utils/download'
 import { estimateRemainingMs, formatPct, formatRemaining } from '@/lib/utils/conversion-eta'
+import { isVideoFile, useVideoThumbnail } from '@/lib/hooks/use-video-thumbnail'
 import type { FileEntry } from '@/lib/types'
 
 // Remaining time from elapsed / percent done. Resets if progress drops
@@ -48,7 +49,7 @@ interface ProgressListProps {
   gerund?: string
 }
 
-const ROW_H = 56
+const ROW_H = 72
 const VIRTUALIZE_AT = 50
 const MAX_LIST_H = 420
 
@@ -140,6 +141,7 @@ function ProgressRow({ entry }: { entry: FileEntry }) {
   const isDone = status === 'done'
   const isError = status === 'error'
   const rowEta = useEtaLabel(progress, isProcessing)
+  const videoThumbnailUrl = useVideoThumbnail(isVideoFile(file) ? file : undefined)
 
   return (
     <div
@@ -151,6 +153,19 @@ function ProgressRow({ entry }: { entry: FileEntry }) {
       )}
       style={{ height: ROW_H }}
     >
+      {/* Thumbnail */}
+      <div className="shrink-0">
+        {videoThumbnailUrl ? (
+          <div className="h-14 w-14 overflow-hidden rounded-md border border-border bg-bg-muted">
+            <img src={videoThumbnailUrl} alt="" className="h-full w-full object-cover" />
+          </div>
+        ) : (
+          <div className="flex h-14 w-14 items-center justify-center rounded-md border border-border bg-bg-muted">
+            <FileIcon className="h-5 w-5 text-fg-subtle" aria-hidden="true" />
+          </div>
+        )}
+      </div>
+
       {/* Status icon */}
       <div className="shrink-0">
         {(isPending || isProcessing) && (
