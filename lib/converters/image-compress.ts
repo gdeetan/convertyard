@@ -29,9 +29,35 @@ export async function imageCompress(
     const fmt = detectSameFormat(file)
     try {
       onProgress?.(i, 10)
-      const result = fmt === 'svg'
+      const rawResult = fmt === 'svg'
         ? await svgCompress(file, opts)
         : await convertViaWorker(file, fmt, opts, (pct) => onProgress?.(i, pct))
+
+      // If quality-mode re-encoding produced a file >= the original (common
+      // for already-optimized PNGs), return the original with a notice
+      // instead of a larger "compressed" copy. Skip when the user asked for
+      // a resize or a target size (those paths have their own accounting).
+      const targetSize = typeof opts.maxSizeKb === 'number' ? opts.maxSizeKb : 0
+      const willResize = typeof opts.maxDimension === 'number' && opts.maxDimension > 0
+      const producedFile: File | null =
+        rawResult instanceof File
+          ? rawResult
+          : rawResult && !(rawResult instanceof Error) && 'file' in rawResult
+            ? rawResult.file
+            : null
+      let result: ConversionResult = rawResult
+      if (
+        producedFile &&
+        !willResize &&
+        targetSize === 0 &&
+        producedFile.size >= file.size
+      ) {
+        result = {
+          file,
+          notice: 'Already optimized — original file returned (no size reduction possible at this quality).',
+        }
+      }
+
       onProgress?.(i, 100)
       results.push(result)
       onResult?.(i, result)
