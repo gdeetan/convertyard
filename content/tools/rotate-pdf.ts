@@ -16,27 +16,27 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my PDFs uploaded to a server during rotation?',
-      a: 'Never. Rotation runs entirely in your browser using WebAssembly. Your PDF does not leave your device at any point.',
+      a: 'Your PDF files aren’t uploaded to a server. Everything runs locally in your browser, so you can rotate documents containing your personal information.',
     },
     {
       q: 'Is the rotation saved permanently to the file?',
-      a: 'Yes. The rotation is encoded directly into the PDF page specification using pdf-lib. When you open the output in any PDF viewer, the page will be correctly oriented. This is not a viewer preference — it is permanently written into the file.',
+      a: 'Yes. The rotation will be encoded into the PDF document at the browser level first using PDF-lib. But it won’t be applied directly to the original document, so you can keep the original and rotated PDF (if that is your preference), or overwrite the existing file (or save in the same directory using the same file name).',
     },
     {
       q: 'Will rotation reduce the quality of my PDF?',
-      a: 'No. Rotation is encoded as metadata in the page dictionary. The page content — text, images, vectors — is never re-rendered or re-encoded. The file size changes by less than 1 KB.',
+      a: 'Nope, quality won’t be affected since the rotation is encoded as metadata. Everything else: text, images, other parts of the file aren’t re-rendered or re-encoded. There’s very little change to the file size, less than 1 KB.',
     },
     {
       q: 'Can I rotate just one page without affecting the rest?',
-      a: 'Yes. Click the rotate buttons on the individual page thumbnail. Other pages are left exactly as they are.',
+      a: 'Yes, you can rotate one (or a specific page) or all the pages simultaneously.',
     },
     {
       q: 'Can I rotate a password-protected PDF?',
-      a: 'PDFs protected with an open password cannot be processed here. Remove the password first using the Unlock PDF tool. PDFs with copy or print restrictions but no open password can usually be rotated without issue.',
+      a: 'Unfortunately, password-protected PDFs cannot be rotated. You’ll need to remove the password using the <a href="/unlock-pdf/">Unlock PDF Tool</a> before rotating it, then reapply the password (if needed).',
     },
     {
       q: 'What is the rotation increment?',
-      a: 'Rotation is applied in 90° increments only — left (counter-clockwise) or right (clockwise). There is no support for arbitrary angles like 15° or 45°.',
+      a: 'Right now, rotation can be done in 90° increments in both directions: left (or counter-clockwise) or right (clockwise). If you need a special angle or wish to add angles like 15° or 45°, <a href="/contact/">email me</a> to send that request.',
     },
   ],
 
@@ -44,7 +44,7 @@ export const config: ToolConfig = {
   relatedArticles: [],
 
   meta: {
-    title: 'Rotate PDF Pages — ConvertYard',
-    description: 'Rotate PDF pages 90°, 180°, or 270° and save the result. All pages or selected ones. Preview first. Runs in your browser — nothing is uploaded. Kept after save.',
+    title: 'Rotate PDF Files in Your Browser for Free',
+    description: 'This tool rotates your PDF files with a preview so you don\'t have to guess what rotate left right looks like. Rotate per page or the whole document. Nothing uploads.',
   },
 }
