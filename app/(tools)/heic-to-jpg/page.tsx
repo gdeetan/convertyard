@@ -98,6 +98,23 @@ export default function Page() {
           </ul>
 
           <h2 className="mt-10 text-2xl font-semibold text-fg">
+            What&rsquo;s the difference between HEIF and HEIC?
+          </h2>
+
+          <p className="mt-4 text-base text-fg-muted">
+            I was researching the HEIC format when I came across the term
+            HEIF, which I thought was a different file format. But it turns
+            out that wasn&rsquo;t the case. The HEIF (High Efficiency Image
+            Format) is an umbrella spec that was standardized by MPEG in
+            2015. It defines how an image is structured in terms of
+            metadata, multiple images, depth maps, thumbnails, etc., but it
+            doesn&rsquo;t dictate which compression codec is used. That is
+            the role of HEIC (High Efficiency Image Container/Coding),
+            whose image data is compressed with HEVC/H.265, which Apple uses
+            on iOS 11 and later models.
+          </p>
+
+          <h2 className="mt-10 text-2xl font-semibold text-fg">
             What is a JPG file?
           </h2>
 

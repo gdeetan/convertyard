@@ -3,8 +3,8 @@ import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
   slug: 'heic-to-jpg',
-  title: 'HEIC & HEIF to JPG Converter',
-  subtitle: 'Convert iPhone HEIC and HEIF photos to a universally readable JPG format in your browser. No paywall. Nothing uploads to a server. Everything is converted locally in your browser.',
+  title: 'HEIC to JPG Converter',
+  subtitle: 'Convert iPhone HEIC photos to a universally readable JPG format in your browser. No paywall. Nothing uploads to a server. Everything is converted locally in your browser.',
   subtitlePosition: 'top',
   howItWorksPosition: 'below-drop',
   bestFor: 'Best for making iPhone HEIC and HEIF photos viewable on Windows PCs, Android devices, and apps that reject them.',
@@ -15,6 +15,13 @@ export const config: ToolConfig = {
   convertFn: (files, opts, onProgress, onResult) =>
       libvipsConvert(files, 'jpg', opts, onProgress, onResult),
   enablePresets: true,
+
+  howItWorks: [
+    { label: 'Drop your files', desc: 'Drag and drop, click to browse, or paste from clipboard. Up to 1,000 files at once.' },
+    { label: 'Choose settings', desc: 'Adjust quality, dimension and other options to match your needs.' },
+    { label: 'Click Convert', desc: 'Everything runs in your browser via WebAssembly. HEIC to JPG Converter happens locally — no server involved.' },
+    { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+  ],
 
   options: [
     {
@@ -95,7 +102,7 @@ export const config: ToolConfig = {
   relatedArticles: ['what-is-heic', 'heic-to-jpg-on-windows', 'batch-convert-images'],
 
   meta: {
-    title: 'Convert HEIC & HEIF to JPG - Unlimited Conversions, Nothing Uploads',
+    title: 'HEIC to JPG Converter - Nothing Uploads',
     description:
       "Convert iPhone HEIC and HEIF files to JPG in your browser to view the photo on non-iOS devices. Convert batches up to 1,000 files for free. Nothing uploads and there's no paywall. Auto-orient, resize, and adjust quality filters are included.",
   },
