@@ -50,27 +50,27 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'What sizes does the ICO file include?',
-      a: 'The default output ICO contains all 5 sizes: 16×16, 32×32, 48×48, 64×64, and 128×128. You can control which sizes are included in the ICO file using the "ICO sizes" dropdown. Browser favicons are typically 16- 48px, Windows shortcuts are 32- 64px, and high-DPI displays, such as Macs, benefit from a 128px size.',
+      a: 'The default output includes all 5 sizes (16×16, 32×32, 48×48, 64×64, and 128×128 pixels). The "ICO sizes" dropdown is used to select which of these sizes will be included in the generated ICO file. Favicons for browsers are generally created in sizes of 16-48px, Windows shortcuts in sizes of 32-64px, and high-DPI displays like Macs need a 128px size for the best result.',
     },
     {
       q: 'My source PNG is not square — what happens?',
-      a: 'Each size is rendered within a square canvas so the end result fills the edges of that canvas. So, for the best results, we highly recommend cropping your original PNG to a square before converting it to an ICO. The ConvertYard Image Cropper tool does a great job of this too and can be run as part of a single conversion process.',
+      a: 'Note that each icon size is rendered in a square canvas to ensure that the icon fills the edges of the canvas. Therefore, it is strongly recommended to first crop the original PNG file to a square before converting it to an ICO file. The ConvertYard Image Cropper tool is also available to be used as part of the conversion process to crop the original PNG file properly.',
     },
     {
       q: 'Can I use this to make a website favicon?',
-      a: 'Yes. Just drop your square logo PNG into ConvertYard and then upload the generated favicon.ico to your website\'s root. As long as you also add a reference to the favicon in your HTML, most browsers will then pick up the favicon. For modern browsers, a 32×32 or 48×48 PNG favicon is also widely supported.',
+      a: 'Yes, a PNG of your square logo can be easily converted and added to your website. Upload the generated favicon.ico file to the root of your website and add a reference to the favicon in your HTML files. Most browsers will then pick up the favicon. Modern browsers like Chrome, Firefox, Safari, and IE support PNG favicon sizes of 32×32 and 48×48.',
     },
     {
       q: 'Can I convert 1,000 PNG files at once?',
-      a: 'Yes. Just upload the different PNG versions for one icon, and ConvertYard will render one ICO file containing all 5 different resolutions for you. You can then download all results as a ZIP archive.',
+      a: 'Yes, you can convert up to 1,000 PNG files at once, and ConvertYard will render one ICO file with 5 different resolutions and download the files as a ZIP archive.',
     },
     {
       q: 'Are my files uploaded anywhere?',
-      a: 'Nothing uploads to any server. Everything is done locally in your browser, so nothing leaves your computer.',
+      a: 'Nothing is uploaded to any server since the files are converted in the browser. So it\'s safe to convert client files or any creative work.',
     },
     {
       q: 'What is the ICO format and when do I need it?',
-      a: 'ICO is a Microsoft container format that holds multiple resolutions of the same image. You need it for: website favicons (the classic favicon.ico), Windows application icons, and Windows shortcut icons. For Apple app icons or Android adaptive icons, PNG is typically preferred over ICO.',
+      a: 'ICO is a Microsoft-developed file format that contains multiple resolutions of the same image. It\'s best utilized for favicons (that\'s the classic favicon.ico) or Windows software icons. It\'s basically made for anything running on Windows. If you\'re developing software for Apple or any iOS devices, PNG is the preferred format.',
     },
   ],
 
