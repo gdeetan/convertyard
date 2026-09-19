@@ -5,6 +5,8 @@ export const config: ToolConfig = {
   slug: 'jpg-to-avif',
   title: 'JPG to AVIF Converter',
   subtitle: 'Based on my tests, AVIF images compress over 80% better than JPGs at the same quality and dimensions. Convert your library without uploading anything to a server.',
+  subtitlePosition: 'top',
+  howItWorksPosition: 'below-drop',
   bestFor: 'For website owners, converting JPG photos to a more efficient AVIF format can cut a big chunk of file size on image-heavy sites.',
   category: 'images',
   accepts: ['image/jpeg'],
@@ -91,7 +93,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Are my files uploaded to your servers?',
-      a: 'No. The image conversion is done in your browser using WebAssembly, so nothing leaves your device. If you’re particular about data privacy and don’t want your photos potentially stolen in a data breach, Convertyard is a good option.',
+      a: 'Nope, nothing is uploaded to a server because the conversion is done locally through the browser using WebAssembly. So you can convert product images (for e-commerce store owners) or client shots without any risk of someone taking these photos and using them as their own because nothing goes out of the browser.',
     },
   ],
 

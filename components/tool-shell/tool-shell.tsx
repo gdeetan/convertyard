@@ -456,7 +456,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
           <h1 className="text-3xl font-bold tracking-tight text-fg sm:text-4xl">
             {config.title}
           </h1>
-          {config.category !== 'images' && config.subtitlePosition !== 'below-drop' && (
+          {(config.subtitlePosition === 'top' || (config.category !== 'images' && config.subtitlePosition !== 'below-drop')) && (
             <p className="mt-2 text-base text-fg-muted">{config.subtitle}</p>
           )}
           {config.bestFor && (
@@ -679,19 +679,30 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
         )}
       </div>
 
-      {!embedded && (config.category === 'images' || config.subtitlePosition === 'below-drop') && config.subtitle && (
+      {!embedded && config.subtitlePosition !== 'top' && (config.category === 'images' || config.subtitlePosition === 'below-drop') && config.subtitle && (
         <p className="mt-6 text-base text-fg-muted">{config.subtitle}</p>
+      )}
+
+      {config.howItWorksPosition === 'below-drop' && (
+        <HowItWorks
+          title={config.title}
+          hasOptions={!!config.options?.length}
+          override={config.howItWorks}
+          actionVerb={actionVerb}
+        />
       )}
 
       {!embedded && belowToolCard && <div className="mt-8">{belowToolCard}</div>}
 
       {/* ── How this tool works ──────────────────────────────────────────── */}
-      <HowItWorks
-        title={config.title}
-        hasOptions={!!config.options?.length}
-        override={config.howItWorks}
-        actionVerb={actionVerb}
-      />
+      {config.howItWorksPosition !== 'below-drop' && (
+        <HowItWorks
+          title={config.title}
+          hasOptions={!!config.options?.length}
+          override={config.howItWorks}
+          actionVerb={actionVerb}
+        />
+      )}
 
       {!embedded && afterHowItWorks && <div className="mt-8">{afterHowItWorks}</div>}
 

@@ -192,6 +192,9 @@ export interface ToolConfig {
   // Per-tool override for the shared "How it works" steps. Numbering is
   // computed automatically. Leave undefined to use the shell defaults.
   howItWorks?: Array<{ label: string; desc: string }>
+  // Where the "How it works" block renders. Default renders after belowToolCard.
+  // Set to 'below-drop' to place it immediately after the tool card, before belowToolCard.
+  howItWorksPosition?: 'default' | 'below-drop'
   warningFn?: (files: File[]) => string | null
   // Warning that depends on both files AND currently-selected options.
   // Recomputed on every option change and rendered above the Compress button.
