@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { ToolShell } from '@/components/tool-shell/tool-shell'
 import { BeforeAfterCompare } from '@/components/ui/BeforeAfterCompare'
 import { config } from '@/content/tools/heic-to-jpg'
@@ -13,18 +14,31 @@ export default function Page() {
           <h2 className="text-2xl font-semibold text-fg">What is a HEIC file?</h2>
 
           <p className="mt-4 text-base text-fg-muted">
-            HEIC, or High Efficiency Image Container, is an image format Apple
-            introduced on its iPhone products in 2017 with iOS 11. If
-            you&rsquo;ve used an iPhone for the past 10 years or so, chances
-            are it is saved in this format.
+            HEIC, or{' '}
+            <Link
+              href="/blog/what-is-heic"
+              className="text-primary underline"
+            >
+              High Efficiency Image Container
+            </Link>
+            , is an image format Apple introduced on its iPhone products in
+            2017 with iOS 11. If you&rsquo;ve used an iPhone for the past 10
+            years or so, chances are it is saved in this format.
           </p>
 
           <p className="mt-4 text-base text-fg-muted">
             Apple still supports JPG, but by default it saves all images as
             HEIC because it produces smaller file sizes than JPG. For example,
             this photo saved as an HEIC file is more than 50% smaller than
-            its equivalent JPG. So if that&rsquo;s 1000 images, that adds up
-            to 5 GB, but with an HEIC file that number goes down to 2.75 GB,
+            its equivalent JPG. So if that&rsquo;s{' '}
+            <Link
+              href="/blog/batch-convert-images"
+              className="text-primary underline"
+            >
+              1000 images
+            </Link>
+            , that adds up to 5 GB, but with an HEIC file that number goes
+            down to 2.75 GB,
             or around 50% savings, so it adds up over time.
           </p>
 
@@ -108,7 +122,14 @@ export default function Page() {
             However, a major trade-off is that JPG isn&rsquo;t the most
             efficient at encoding data because it throws away tiny bits of
             data to keep file sizes manageable. This, in technical terms, is
-            called lossy compression. You won&rsquo;t notice it, especially
+            called{' '}
+            <Link
+              href="/blog/lossless-vs-lossy"
+              className="text-primary underline"
+            >
+              lossy compression
+            </Link>
+            . You won&rsquo;t notice it, especially
             in high resolution, but it&rsquo;s more evident when you compress
             it to a lower quality.
           </p>
@@ -151,9 +172,16 @@ export default function Page() {
             Converting HEIC to JPG will boil down to compatibility. Yes,
             newer Android devices may be able to open HEIC files, but not all
             of them. If you share a photo in HEIC format with an Android
-            phone user, they may not be able to open it. Printing out a photo
-            in a studio? Good luck; most studios will only accept JPG files
-            unless they use a Mac, and those studios will be pricier.
+            phone user, they{' '}
+            <Link
+              href="/blog/heic-to-jpg-on-windows"
+              className="text-primary underline"
+            >
+              may not be able to open it
+            </Link>
+            . Printing out a photo in a studio? Good luck; most studios will
+            only accept JPG files unless they use a Mac, and those studios
+            will be pricier.
             Converting to JPG solves these issues because of its universal
             compatibility.
           </p>
