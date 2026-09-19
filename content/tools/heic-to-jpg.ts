@@ -5,6 +5,8 @@ export const config: ToolConfig = {
   slug: 'heic-to-jpg',
   title: 'HEIC & HEIF to JPG Converter',
   subtitle: 'Convert iPhone HEIC and HEIF photos to a universally readable JPG format in your browser. No paywall. Nothing uploads to a server. Everything is converted locally in your browser.',
+  subtitlePosition: 'top',
+  howItWorksPosition: 'below-drop',
   bestFor: 'Best for making iPhone HEIC and HEIF photos viewable on Windows PCs, Android devices, and apps that reject them.',
   category: 'images',
   accepts: ['image/heic', 'image/heif'],
