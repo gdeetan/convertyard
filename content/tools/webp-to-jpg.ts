@@ -87,8 +87,8 @@ export const config: ToolConfig = {
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'best-webp-quality', 'batch-convert-images'],
 
   meta: {
-    title: 'WebP to JPG Converter — ConvertYard',
+    title: 'WebP to JPG Converter - Nothing Uploads. 100% Free',
     description:
-      'Convert WebP to JPG for universal compatibility. Batch up to 1,000 files locally in your browser — no uploads, no account. Quality control and resize included.',
+      "Convert WebP to JPG for free - great if you need to upload JPG files to apps, websites or CMS portals that don't accept WebP. Nothing uploads.",
   },
 }
