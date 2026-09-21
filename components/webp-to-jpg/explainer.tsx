@@ -5,81 +5,100 @@ export function WebpToJpgExplainer() {
     <div>
       <h2>Why you&rsquo;re probably here</h2>
       <p>
-        You have WebP files and something you&rsquo;re trying to use them with just won&rsquo;t
-        accept them. Usually it&rsquo;s one of these:
+        You have WebP files and something you&rsquo;re trying to use them with
+        just won&rsquo;t accept them. Usually it&rsquo;s one of these:
       </p>
       <ul>
         <li>A WordPress upload or plugin throwing &ldquo;file type not permitted&rdquo;</li>
         <li>An MLS or real estate portal that only takes JPG</li>
         <li>A print shop or photo lab uploader</li>
         <li>Etsy, eBay, or a marketplace listing form</li>
-        <li>An older version of Word, PowerPoint, or Keynote refusing to embed the image</li>
-        <li>A client, colleague, or teacher who asked for JPG specifically</li>
-        <li>An email client showing a broken-image icon instead of your attachment</li>
+        <li>
+          An older version of Word, PowerPoint, or Keynote embedding images
+          and not allowing WebP.
+        </li>
+        <li>
+          A client, colleague, or teacher that specifically asked for JPG
+          files to view your online work.
+        </li>
+        <li>A broken-image icon in your email.</li>
       </ul>
       <p>
-        WebP is more efficient and modern browsers handle it fine, but a surprising number of
-        business tools still don&rsquo;t. Converting to JPG makes the file work everywhere, at the
-        cost of a bigger file. That trade is worth it when you&rsquo;re stuck.
+        Converting your WebP image to JPG is the most common way to make sure
+        your image file will work with business tools. Modern browsers can
+        handle WebP images, but there are many tools in use today that are not
+        yet modern enough to handle this image type.
       </p>
 
       <h2>What happens to your image</h2>
       <p>
-        <strong>File size goes up.</strong> Usually 25&ndash;35% larger than the WebP you started
-        with. JPG is older and less efficient &mdash; that&rsquo;s expected, not a bug.
+        <strong>File size increases</strong> &mdash; up to 25% to 35% in
+        comparison to the original WebP file. JPG is less efficient in terms
+        of file size than WebP.
       </p>
       <p>
-        <strong>Transparency gets filled.</strong> JPG can&rsquo;t hold transparent pixels. Any
-        transparent areas in your WebP become solid white in the JPG. If you need to keep
-        transparency, use <Link href="/webp-to-png">WebP to PNG</Link> instead.
+        <strong>The inability to preserve transparency.</strong> Transparency
+        in WebP will be filled with white when converting to JPG. If you need
+        to keep the transparency, use <Link href="/webp-to-png">WebP to PNG</Link> instead.
       </p>
       <p>
-        <strong>Animation gets flattened.</strong> Animated WebPs only keep the first frame. JPG
-        is a still-image format.
+        <strong>Animated WebPs are rendered as single frames</strong> with the
+        first frame displayed. Therefore, JPG is a poor format to convert
+        animated images to.
       </p>
       <p>
-        <strong>Quality drops a little.</strong> You&rsquo;re re-encoding an already-compressed
-        file, so there&rsquo;s a small generational loss. At the default quality (90) it&rsquo;s
-        invisible to the eye. Bump to 95 if the source matters &mdash; product photography,
-        portfolio work, anything that&rsquo;ll be printed large.
+        Note that you are also re-encoding the image; thus, there is a small
+        amount of quality loss when converting to JPG, which is already a
+        highly compressed format. However, by default, converting from WebP
+        to JPG uses a quality of 90, which is not distinguishable from the
+        original. To ensure the converted JPG is high enough quality, for
+        images taken for reasons other than Throwaway-Instagram-post, you can
+        bump the quality to 95. Typically, product shots, for example, are
+        converted this way for print.
       </p>
       <p>
-        <strong>EXIF metadata carries over.</strong> Camera model, date, GPS coordinates, color
-        profile &mdash; all preserved unless you turn on &ldquo;Strip metadata.&rdquo; Turn it on
-        if you&rsquo;re sharing publicly and don&rsquo;t want the location baked into the file.
+        EXIF data such as camera model, shoot date, GPS coordinates, and even
+        color profile (i.e., sRGB) are preserved when converting to JPG and
+        can be stripped with the option to &lsquo;Strip metadata&rsquo; should
+        you be sharing publicly and not want images to include location
+        information, for example.
       </p>
 
       <h2>When you should NOT convert</h2>
-      <p>If nothing is complaining, don&rsquo;t convert. WebP is supported by:</p>
+      <p>
+        If nothing is complaining, then there is no need to convert it. WebP
+        is supported by:
+      </p>
       <ul>
         <li>Every modern browser (Chrome, Edge, Firefox, Safari 14+)</li>
         <li>Discord, Slack, Microsoft Teams</li>
-        <li>Google Drive, Dropbox, OneDrive (they&rsquo;ll preview and share fine)</li>
+        <li>Google Drive, Dropbox, OneDrive</li>
         <li>iOS 14+ and modern Android</li>
         <li>Notion, Figma, Canva</li>
       </ul>
       <p>
-        Converting &ldquo;just in case&rdquo; only makes your files bigger. Convert when you hit
-        an actual wall.
+        Convert only when you hit a wall with WebP files; otherwise, your
+        files will only get bigger.
       </p>
 
       <h2>Quality setting cheat sheet</h2>
       <ul>
         <li>
-          <strong>95&ndash;100</strong> &mdash; archival, print, portfolio, anything getting
-          edited further
+          <strong>95&ndash;100</strong> &mdash; archival, print, portfolio,
+          anything getting edited further
         </li>
         <li>
-          <strong>90</strong> (default) &mdash; the safe general-purpose setting; visually
-          identical to the source
+          <strong>90</strong> (default) &mdash; the safe general-purpose
+          setting; visually identical to the source
         </li>
         <li>
-          <strong>80&ndash;85</strong> &mdash; web thumbnails, social posts, faster loads on
-          image-heavy pages
+          <strong>80&ndash;85</strong> &mdash; web thumbnails, social posts,
+          faster loads on image-heavy pages
         </li>
         <li>
-          <strong>Below 75</strong> &mdash; only if you need a hard file-size cap; expect visible
-          softness on detailed images
+          <strong>Below 75:</strong> For very small images where hard file
+          size limits are in place, these qualities will start to look soft on
+          high detail images.
         </li>
       </ul>
     </div>

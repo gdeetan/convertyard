@@ -10,25 +10,24 @@ export default function Page() {
       config={config}
       afterHowItWorks={
         <section className="mt-4">
-          <h2 className="text-2xl font-semibold text-fg">
-            WebP vs JPG &mdash; What actually changes
-          </h2>
+          <h2 className="text-2xl font-semibold text-fg">WebP vs JPG</h2>
 
           <p className="mt-4 text-base text-fg-muted">
-            Converting WebP to JPG is a compatibility move, not a quality
-            upgrade. JPG was standardized in 1992 and every app, printer,
-            portal, and CMS on earth can open it. WebP is newer, more
-            efficient, and better looking at the same file size &mdash; but
-            plenty of upload forms, older software, and legacy tools still
-            reject it.
+            Converting WebP to JPG is a compatibility exercise, and not a
+            quality upgrade. JPG was a standardized format in 1992 and can be
+            opened by every application, printer, portal and CMS on this
+            planet. In contrast, the newer WebP format is more efficient and
+            looks better than JPG while being stored at the same file size.
+            However, too many upload forms, older software packages and legacy
+            applications and systems still don&rsquo;t work with WebP.
           </p>
 
           <p className="mt-4 text-base text-fg-muted">
-            The trade-off works in one direction: your JPG will be visibly
-            identical to the source WebP but the file will get bigger, usually
-            25&ndash;35%. That&rsquo;s the cost of using an older, less
-            efficient compression algorithm. When you need a file that just
-            works, it&rsquo;s worth it.
+            A JPG file will look identical to the WebP file you converted, but
+            it will typically be 25&ndash;35% larger than the original file at
+            the same quality. Unfortunately, there is no way to make a JPG
+            file look better than the original WebP file, as JPG uses less
+            efficient compression.
           </p>
 
           <div className="mt-8">
@@ -48,34 +47,34 @@ export default function Page() {
             />
           </div>
 
-          <h3 className="mt-10 text-lg font-semibold text-fg">
-            Side-by-side
-          </h3>
+          <h3 className="mt-10 text-lg font-semibold text-fg">Side-by-side</h3>
 
-          <ul className="mt-4 space-y-2 text-base text-fg-muted">
+          <ul className="mt-4 space-y-2 text-base text-fg-muted list-disc pl-6">
             <li>
-              <strong className="text-fg">File size:</strong> JPG is typically
-              25&ndash;35% larger than the WebP you started with at the same
-              visual quality.
+              JPG files will be roughly 25&ndash;35% larger than the
+              equivalent sized file of the WebP that you started with.
             </li>
             <li>
-              <strong className="text-fg">Compatibility:</strong> JPG opens in
-              every app, browser, OS, printer, and upload form. WebP still
-              gets rejected by many CMSes, portals, and older software.
+              <strong className="text-fg">WebP compatibility:</strong> JPGs
+              open in every app, browser, OS, printer and online form; WebP
+              files often are not compatible with many content management
+              systems, portals and older software.
             </li>
             <li>
               <strong className="text-fg">Transparency:</strong> WebP supports
-              transparent backgrounds. JPG doesn&rsquo;t &mdash; transparent
-              pixels get filled with white during conversion.
+              transparency (e.g. background is cutout), JPG does not (i.e.
+              transparent pixels are set to white).
             </li>
             <li>
-              <strong className="text-fg">Animation:</strong> Animated WebPs
-              only keep the first frame. JPG is a still-image format.
+              <strong className="text-fg">Animation:</strong> The first frame
+              of an animated WebP is copied to the JPG. WebP is an animated
+              image format, JPG is a still-image format.
             </li>
             <li>
-              <strong className="text-fg">Editing software:</strong> Every
-              image editor made in the last 30 years opens JPG. WebP support
-              in older editors is spotty.
+              <strong className="text-fg">Editing software:</strong> Most
+              image editing software from the last 30 years or so can open JPG
+              files. WebP support in some of the older image editors is
+              spotty at best.
             </li>
           </ul>
         </section>

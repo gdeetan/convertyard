@@ -63,23 +63,23 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Why would I convert WebP to JPG?',
-      a: 'WebP has near-universal browser support but many non-browser apps still can\'t open it: older versions of Photoshop, Lightroom, Windows Photo Viewer, most email clients, and many printing services expect JPG. Converting to JPG makes your images universally openable without any plugins or extra steps.',
+      a: 'Since WebP images have almost perfect browser support, there are, however, many non-browser applications that still cannot open WebP images, such as older versions of Adobe Photoshop and Lightroom, Windows Photo Viewer, most email clients, etc. In order to make images that you upload online universally openable, it is often best to convert them to JPG.',
     },
     {
       q: 'Does Safari support WebP now?',
-      a: 'Yes. Safari added WebP support in version 14 (September 2020), which means virtually all modern Apple devices support it. However, older iPhones and Macs that can\'t update past Safari 13 will still fail to display WebP. If you\'re targeting the broadest possible audience including older devices, JPG is still the safe choice.',
+      a: 'Yes. Safari added WebP support in Safari 14 (released September 2020) for iOS and macOS devices. Support for WebP images should now work for virtually all modern Apple devices. However, many older iPhones and Macs still won\'t support WebP images because they don\'t run Safari 14 or later. These users will safely open JPG images instead.',
     },
     {
       q: 'Does converting WebP to JPG lose quality?',
-      a: 'It depends on the source. If the original WebP was lossless, converting to JPG at quality 90 introduces minimal but technically measurable loss — imperceptible in practice. If the original WebP was lossy, you\'re re-compressing already-compressed data, which can introduce minor additional artifacts. For files where quality is critical, use quality 95+ to minimize the second compression pass.',
+      a: 'Typically it depends on the original WebP file (lossless or lossy compressed). If the original was lossless, then converting to JPG at quality 90 will introduce some slight but theoretically measurable degradation (not perceivable in practice). If the original WebP was already lossy compressed, then re-compressing it to JPG introduces some slight degradation as well (due to second compression) — but this can be kept very minimal by choosing a higher quality setting, e.g. 95+.',
     },
     {
       q: 'Can I convert 1,000 WebP files at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes them in your browser — no uploads, no server queue. Download everything as a ZIP when done.',
+      a: 'Yes, all of them! Drop them all in there, and ConvertYard will process them in your browser. Download them all in a ZIP file when done.',
     },
     {
       q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device. ConvertYard\'s servers only deliver the tool\'s code; they never see your images.',
+      a: 'Never, because the conversion takes place in your browser, and Conversion never sees your image files. We simply deliver the tool to your browser as a WebAssembly module, which runs the conversion for you locally.',
     },
   ],
 
