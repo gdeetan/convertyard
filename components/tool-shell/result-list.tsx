@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { Download, Archive, CheckCircle2, XCircle, Loader2, AlertTriangle, FileIcon } from 'lucide-react'
+import { Download, Archive, CheckCircle2, XCircle, Loader2, AlertTriangle, FileIcon, SplitSquareVertical } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { downloadFile, formatBytes } from '@/lib/utils/download'
 import { downloadAsZip } from '@/lib/utils/zip'
@@ -369,14 +369,22 @@ function ResultRow({
           <button
             type="button"
             onClick={() => onOpenLightbox(entry)}
-            className="h-16 w-16 overflow-hidden rounded-md border border-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-            aria-label={`Preview ${file.name}`}
+            className="group relative h-16 w-16 overflow-hidden rounded-md border border-border focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            aria-label={`Compare before and after for ${file.name}`}
+            title="Compare before and after"
           >
             <img
               src={thumbnailUrl!}
               alt=""
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
             />
+            <span
+              className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-0.5 bg-black/55 text-white opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100"
+              aria-hidden="true"
+            >
+              <SplitSquareVertical className="h-5 w-5" />
+              <span className="text-[10px] font-medium leading-none">Compare</span>
+            </span>
           </button>
         ) : thumbnailUrl ? (
           <div className="h-16 w-16 overflow-hidden rounded-md border border-border bg-bg-muted">
