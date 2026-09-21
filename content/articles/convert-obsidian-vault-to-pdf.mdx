@@ -1,0 +1,175 @@
+export const meta = {
+  title: 'How to Convert an Obsidian Vault to a Single PDF (Local, No Plugins)',
+  description:
+    'Export any Obsidian vault to one clean PDF in your browser. Preserves headings, tables, task lists, and callouts. No plugins, no cloud sync, no watermark — safe for private notes and client files.',
+  lastUpdated: '2026-09-21',
+  faq: [
+    {
+      q: 'Does this work with an encrypted Obsidian vault?',
+      a: 'The vault has to be decrypted first — Obsidian stores notes as plain .md files inside a folder. If you use the community "Encrypted Vault" plugin or file-system encryption (BitLocker, FileVault), unlock the vault normally through Obsidian or your OS, then drop the folder into ConvertYard. Nothing is uploaded — your notes stay on your machine.',
+    },
+    {
+      q: 'What about internal [[wiki-links]] between notes?',
+      a: "Wiki-links render as plain text in the PDF (for example, [[Meeting Notes]] appears as \"Meeting Notes\"). If you want them clickable, do a global find-and-replace inside Obsidian first: `\\[\\[([^\\]|]+)\\]\\]` → `[$1](#$1)`. The generated table of contents automatically links to every H1/H2, which covers most navigation needs.",
+    },
+    {
+      q: 'How large a vault can I convert at once?',
+      a: 'Chrome and Firefox can typically handle a few thousand small notes (under 100 KB each) in a single batch. If your vault is larger, split it into folders by topic and export each one separately. Combined PDFs over a few hundred pages start to feel slow to open — most people prefer one PDF per major topic.',
+    },
+    {
+      q: 'Are images embedded in the PDF?',
+      a: 'Images referenced by absolute URLs or embedded as base64 data URIs are included. Relative paths to files in your attachments folder (like ![[image.png]]) are shown as bracketed placeholders in the PDF for now. Convert your attachments to base64 first, or export from Obsidian with a plugin that inlines images, if you need every image in the final PDF.',
+    },
+    {
+      q: 'Will callouts and Dataview blocks render?',
+      a: 'GitHub-style callouts (`> [!NOTE]`, `> [!WARNING]`, etc.) render as colored boxes matching the type. Obsidian\'s native callout syntax uses the same format, so most callouts convert directly. Dataview code blocks render as plain code — they cannot execute outside Obsidian, but the query source is preserved.',
+    },
+  ],
+  relatedTools: ['markdown-to-pdf', 'merge-pdf', 'compress-pdf'],
+}
+
+Obsidian keeps every note as a plain Markdown file on disk. That's the reason it's a good place to think — and the reason exporting a vault is uncomfortable. There is no built-in "export whole vault as PDF" button, and the community plugins that come close either upload notes to a third-party service or require a paid Pandoc install with LaTeX.
+
+This guide walks through the fastest way to convert an entire Obsidian vault (or any folder of `.md` files) to a single, well-formatted PDF — no plugins, no CLI, no uploads.
+
+**[Convert your vault now — local, free, no signup →](/markdown-to-pdf/)**
+
+## Why people export Obsidian vaults
+
+The reasons cluster into three categories:
+
+- **Archival.** Locking down a snapshot of research, project notes, or client work at a milestone. Markdown is the source of truth, but a PDF is what stakeholders open five years later without any tooling.
+- **Handoff.** Sending a body of work to someone who does not use Obsidian — a client, an editor, a lawyer, a compliance reviewer. They want one file they can annotate, sign, and store.
+- **Print.** Notes that need to leave the screen: a deposition binder, a wedding-planning binder, a study packet. Once printed, page-numbered PDFs beat any digital note format.
+
+The common thread: whoever ends up with the PDF should not need to know what Obsidian is. That constraint dictates the export.
+
+## The requirements no plugin fully solves
+
+If you have shopped around, you have probably tried:
+
+- **Export to PDF** (Obsidian built-in): only exports the currently open note. Batch-exporting a vault means clicking through every file manually.
+- **Pandoc Plugin:** requires installing Pandoc, LaTeX, and configuration. Works, but the setup takes an hour on a fresh machine and breaks on OS updates.
+- **Better Export PDF plugin:** styles one note nicely but does not combine multiple notes.
+- **Print to PDF via browser:** prints Obsidian's UI chrome, side panel, and syntax highlighting themes you probably do not want in the final file.
+- **Notion or Craft export:** requires importing the vault into a different tool first, which loses backlinks and metadata.
+
+What you want is: **drop the folder, pick a theme, get one PDF back — with a cover page, a table of contents, and page breaks between notes**. That is the flow this tool is built for.
+
+## Step-by-step: vault to PDF
+
+### 1. Prepare your vault
+
+Inside Obsidian, decide what belongs in the export. Common patterns:
+
+- Everything: entire vault.
+- One topic: a specific folder (e.g., `Projects/Client-Acme/`).
+- A daily-notes range: use Obsidian search to filter by date range, then copy the resulting files to a temp folder.
+
+If you want a cover page on the finished PDF, add YAML front-matter to the first note (or a new `00-cover.md` at the top of the folder):
+
+```markdown
+---
+title: Acme Project Notes
+subtitle: Q3 2026 Delivery
+author: Your Name
+date: 2026-09-21
+---
+```
+
+Front-matter is invisible in Obsidian's reading view and will not affect how the vault feels day-to-day.
+
+### 2. Open the converter
+
+Go to `convertyard.com/markdown-to-pdf/` and click the **Batch** tab. This is important — the default Editor tab is for single-document workflows. Batch mode is what handles folders.
+
+### 3. Drop the folder
+
+Drag the folder from Finder (macOS) or File Explorer (Windows) directly into the dropzone. Every `.md` file inside is picked up recursively. Non-Markdown files (images, PDFs, canvases) are skipped automatically.
+
+If your vault is large, you will see a per-file progress list. Nothing hits the network — the file listing happens through the browser's File System Access API, and the file contents are read only when the conversion runs.
+
+### 4. Turn on "Combine all files into a single PDF"
+
+This is the key option for a vault export. By default, ConvertYard produces one PDF per input file (packaged in a ZIP). Turning on **Combine** merges everything into one document with:
+
+- Automatic page breaks between notes
+- Each note's filename as a chapter heading (H1)
+- A cover page from the first file's front-matter (if enabled)
+- A table of contents built from every H1/H2 across every note
+
+### 5. Pick a theme
+
+Three themes to choose from:
+
+- **Modern (Helvetica):** clean sans-serif. Good for internal docs, roadmaps, and slide-adjacent notes.
+- **Classic (Times):** serif book styling. Good for long-form research, essays, and anything printed.
+- **Mono (Courier):** typewriter look. Good for technical logs, changelogs, and archives.
+
+You can re-export as many times as you want — no rate limits, since nothing runs on a server.
+
+### 6. Download and verify
+
+Click **Convert**. The PDF downloads directly to your machine. Open it and check:
+
+- Cover page appears if you added front-matter
+- Table of contents lists every note's headings
+- Page breaks separate notes cleanly
+- Code blocks are formatted (not run-together)
+- Tables have visible borders
+
+If something looks off — usually a formatting quirk in one specific note — fix the note in Obsidian and re-run. The whole convert-check-fix loop is under 30 seconds for most vaults.
+
+## Formatting tips that make a big difference
+
+A few small habits make Obsidian notes export beautifully:
+
+**Use one H1 per note.** ConvertYard treats the filename as a chapter heading by default. If your notes each start with a redundant H1 that matches the filename, either delete them or turn off the "Section heading per file" behavior.
+
+**Break long notes with `---`.** Three hyphens create a horizontal rule in Markdown and also give you a natural place for a manual page break. If you want an explicit page break in the PDF, insert `<!-- pagebreak -->` on its own line.
+
+**Prefer fenced code blocks.** Triple-backtick code blocks with a language hint (`ts`, `python`, `bash`) get syntax highlighting in the live preview. In the PDF they render in a monospaced font with a soft gray background.
+
+**Use callouts for structured emphasis.** GitHub-style callouts render as colored boxes:
+
+```markdown
+> [!TIP]
+> Keep the daily notes folder out of long-term exports.
+
+> [!WARNING]
+> Client-confidential notes should be exported with the Classic theme
+> and archived separately from your working vault.
+```
+
+**Skip nested Dataview or Templater blocks in the export.** They render as raw code in the PDF. If they were core to your note's value, replace them with the rendered output before exporting.
+
+## Why local matters here
+
+Obsidian's audience is disproportionately people who write things they don't want in the cloud: researchers, therapists, lawyers, security professionals, and people building companies in stealth. That's also who benefits most from a converter that never uploads a byte.
+
+Every plugin and web tool that "exports your vault to PDF" through a server has to be trusted with your entire notebook. ConvertYard doesn't have that problem — the entire pipeline (parsing, layout, PDF assembly) runs in your browser via WebAssembly. You can literally disconnect from the internet after the page loads and it still works.
+
+That's the same reason there's no signup, no watermark, and no per-file limit. There is no business model that depends on your files existing on a server, because they don't.
+
+## When to split instead of combine
+
+Not every vault should become one PDF. Splits worth considering:
+
+- **By client.** A consulting vault where every client's notes should stay in a separate PDF for confidentiality and billing.
+- **By quarter or year.** Long-running personal journals or research logs that would produce a 500-page single file.
+- **By project phase.** Discovery, design, build, launch — one PDF per phase makes handoffs cleaner.
+
+For splits: run the export multiple times with different folder inputs, one per intended output PDF.
+
+## Wrapping up
+
+The two-minute version:
+
+1. Add YAML front-matter to the first note if you want a cover page.
+2. Open `convertyard.com/markdown-to-pdf/`, click **Batch**, drop the folder.
+3. Enable **Combine all files into a single PDF**.
+4. Pick a theme and hit Convert.
+
+The whole process runs in your browser. Your vault stays on your machine. And when you're done, you have one clean PDF ready to archive, send, or print — no plugins, no accounts, no compromises.
+
+**[Try it now →](/markdown-to-pdf/)**

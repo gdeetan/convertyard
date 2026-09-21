@@ -216,4 +216,25 @@ export const articles: ArticleEntry[] = [
       'Drop a folder of videos, set a size or quality once, download a ZIP. What works in a browser, what settings to use, and when HandBrake is faster.',
     lastUpdated: '2026-08-14',
   },
+  {
+    slug: 'convert-obsidian-vault-to-pdf',
+    title: 'How to Convert an Obsidian Vault to a Single PDF (Local, No Plugins)',
+    description:
+      'Export any Obsidian vault to one clean PDF in your browser. Preserves headings, tables, task lists, and callouts. No plugins, no cloud sync, no watermark — safe for private notes and client files.',
+    lastUpdated: '2026-09-21',
+  },
+  {
+    slug: 'export-chatgpt-to-pdf',
+    title: 'Export ChatGPT (or Claude) Answers to PDF — With Formatting',
+    description:
+      'The reliable way to save AI answers as clean PDFs. Preserves code blocks, tables, math, and Mermaid diagrams. Works with ChatGPT, Claude, Gemini, and Cursor. Local-first, no watermark.',
+    lastUpdated: '2026-09-21',
+  },
+  {
+    slug: 'markdown-resume-to-pdf',
+    title: 'Markdown Resume to PDF: A Better Workflow for Developer Resumes',
+    description:
+      'A version-controlled resume in Markdown beats every drag-and-drop resume builder. Here is the workflow: write in .md, generate ATS-friendly PDFs on demand, no watermarks, no signup.',
+    lastUpdated: '2026-09-21',
+  },
 ]

@@ -1,0 +1,145 @@
+export const meta = {
+  title: 'Export ChatGPT (or Claude) Answers to PDF — With Formatting',
+  description:
+    'The reliable way to save AI answers as clean PDFs. Preserves code blocks, tables, math, and Mermaid diagrams. Works with ChatGPT, Claude, Gemini, and Cursor. Local-first, no watermark.',
+  lastUpdated: '2026-09-21',
+  faq: [
+    {
+      q: 'Why not use "Print to PDF" from the browser?',
+      a: 'Print-to-PDF captures the entire chat UI: sidebar, avatars, "Regenerate" buttons, and often prompt input areas that overflow across pages. The output is bloated and hard to share. A markdown round-trip gives you a clean document with just the content you want.',
+    },
+    {
+      q: 'Does ChatGPT export as Markdown?',
+      a: 'Not directly, but its answers are already Markdown internally. Right-click any assistant message and choose "Copy" (or click the copy icon under the message) — what lands on your clipboard is Markdown source, complete with code fences, tables, and headings.',
+    },
+    {
+      q: 'What about math equations?',
+      a: 'ChatGPT and Claude render math in $...$ (inline) and $$...$$ (block) syntax. The ConvertYard editor renders these with KaTeX in the live preview. Block equations are the most reliably captured; long inline chains sometimes need light manual cleanup.',
+    },
+    {
+      q: 'Are Mermaid diagrams preserved?',
+      a: "If ChatGPT or Claude returns a ```mermaid code block, ConvertYard renders it as an SVG diagram in the live preview. The current PDF export shows the source; export the preview as an image if you need the diagram in the final PDF.",
+    },
+    {
+      q: 'How do I export a whole conversation, not just one answer?',
+      a: 'Select the range of messages in the chat UI, copy, and paste into ConvertYard\'s Markdown editor. Add H2 headings for each turn (e.g., "## You said" and "## Assistant said") so the resulting PDF has a clear structure. Add YAML front-matter at the top with a title and date if you want a cover page.',
+    },
+  ],
+  relatedTools: ['markdown-to-pdf', 'merge-pdf'],
+}
+
+There is a specific frustration that shows up ten minutes after every long AI conversation: you have twelve solid answers you want to keep, and no clean way to save them. The browser's Print-to-PDF drags along sidebar chrome and empty avatars. Screenshots lose the code formatting. Copy-pasting into Google Docs mangles the tables. The output ends up looking like it was rescued from a bad fax.
+
+Here is the reliable path.
+
+**[Convert your ChatGPT answer to PDF now →](/markdown-to-pdf/)**
+
+## Why the copy-paste flow works better than "save as PDF"
+
+ChatGPT and Claude both compose their responses in Markdown. What you see in the chat window is a live-rendered version of that Markdown — the code blocks, tables, and equations are all preserved in the raw text under the hood.
+
+That means the highest-fidelity path to a clean document is:
+
+1. Copy the assistant's Markdown out of the chat.
+2. Paste it into a Markdown → PDF converter that understands GFM, math, and diagrams.
+3. Download.
+
+Nothing gets rasterized, screenshotted, or reflowed by the browser's print engine. What was in the AI's response ends up in the PDF, formatted the way it was meant to be read.
+
+## The three-step version
+
+### 1. Copy the message as Markdown
+
+In ChatGPT, hover over the assistant's reply and click the **copy** icon under the message. In Claude, the copy button lives at the bottom of each response. In Gemini, use the three-dot menu → "Copy". In Cursor, right-click the response in the chat panel and choose "Copy raw".
+
+All four give you the raw Markdown source — the same text the model actually produced, before it was rendered in the chat UI.
+
+### 2. Paste into ConvertYard
+
+Open `convertyard.com/markdown-to-pdf/`. The **Editor** tab is the default. Paste the copied text into the left pane. The right pane immediately renders a styled preview.
+
+If the response contained:
+
+- **Code blocks** → syntax-highlighted, with a soft background.
+- **Tables** → bordered cells, alternating row shading.
+- **Math** in `$...$` or `$$...$$` → rendered by KaTeX.
+- **Mermaid diagrams** → rendered as SVG.
+- **Callouts** (`> [!NOTE]`) → rendered as colored boxes.
+- **Task lists** (`- [x] done`) → rendered with real checkboxes.
+
+You will see all of it in the preview as fast as you paste.
+
+### 3. Add a cover and download
+
+Optional but worth 30 seconds: paste this at the very top of the editor:
+
+```markdown
+---
+title: ChatGPT — Kubernetes debugging notes
+author: Your Name
+date: 2026-09-21
+---
+```
+
+Then click **Download PDF**. A cover page appears as the first page of the resulting file. The rest of the document flows across pages with headers preserved and a soft page-number footer.
+
+## Common cleanups worth doing
+
+The output is usually clean, but a few habits improve it:
+
+**Delete the model's opening pleasantry.** "Sure! Here's a great explanation of..." adds a sentence to the top that reads as filler in a saved document. Remove it.
+
+**Convert numbered lists that lost their numbers.** Occasionally, the copy step drops list markers. Re-add `1.`, `2.`, `3.` — the preview updates instantly.
+
+**Tighten the H2 hierarchy.** If the model used `###` for major sections in a short reply, promote them to `##` so the auto-generated TOC picks them up.
+
+**Fix broken code fences.** When the model closes a fence mid-thought, the preview will show a large highlighted block that swallows the rest of the message. Add a closing ```` ``` ```` in the right spot.
+
+These are usually 20-second edits. The Markdown preview updates on every keystroke, so you can see corrections take effect in real time.
+
+## Multi-turn conversation → single PDF
+
+For longer conversations you want to archive as one document (a support session, a debugging log, a research thread), the flow is a little different:
+
+1. Copy the *first* assistant message. Paste into ConvertYard.
+2. Add `## You:` above the user's next prompt, paste the prompt.
+3. Add `## Assistant:` above the next answer, paste the answer.
+4. Repeat.
+
+At the end you have a properly structured transcript. Turn on **Auto table of contents** and every "You:" / "Assistant:" heading becomes a linked jump. The finished PDF looks like a paginated book of the conversation.
+
+Alternatively — export each answer as its own `.md` file to a folder, then use the **Batch** tab with "Combine all files into a single PDF" enabled. The result is the same, and it scales to conversations with dozens of turns.
+
+## Why this matters for confidential AI work
+
+A lot of the useful conversations people have with AI are ones they cannot afford to paste into another cloud tool for conversion. Medical, legal, financial, security, HR, personal. If the whole point of the conversation was to talk something out privately, uploading the answer to a third-party PDF converter to save it defeats the purpose.
+
+ConvertYard runs the entire conversion in your browser. There is no server-side upload, no analytics on file contents, no watermark, no signup. That's the same reason it works offline once the page loads: the WebAssembly modules for markdown parsing and PDF assembly are the only moving parts.
+
+For teams using Claude for Business or ChatGPT Enterprise where the AI conversation itself is under NDA, the ability to export answers without any third-party file handling is often a compliance requirement, not a preference.
+
+## Formatting the model got wrong
+
+Sometimes the model produces Markdown that renders oddly. A quick reference:
+
+**Malformed tables.** If a table shows up as one collapsed line, check that every row starts and ends with a pipe (`|`) and that the header row has a separator (`|---|---|`). Cursor's chat sometimes strips the leading pipe.
+
+**Math not rendering.** KaTeX in ConvertYard uses standard delimiters: single `$` for inline, double `$$` for block. Some models occasionally emit `\(...\)` and `\[...\]` — do a global find-and-replace to convert to the dollar-sign form.
+
+**Diagram fenced block wrong.** For Mermaid, the fence needs to be exactly ```` ```mermaid ```` (all lowercase, no space). Anything else renders as a plain code block.
+
+**Truncated code.** If the model was interrupted, code blocks can end without a closing fence. Add the closing ```` ``` ````.
+
+## Wrapping up
+
+Print-to-PDF works, but it's not what you want for AI answers. The fidelity gap is real — code blocks that should be crisp look mushy; equations get scrambled; tables lose structure.
+
+The Markdown round-trip fixes that. It's three steps:
+
+1. Copy the assistant message from ChatGPT, Claude, Gemini, or Cursor.
+2. Paste it into ConvertYard's Markdown editor.
+3. Download the PDF.
+
+Everything stays in your browser. The formatting the AI intended is what ends up in the file.
+
+**[Open the editor →](/markdown-to-pdf/)**

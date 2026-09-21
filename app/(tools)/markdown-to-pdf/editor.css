@@ -1,0 +1,130 @@
+/* Markdown preview typography */
+.markdown-preview {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.6;
+  font-size: 15px;
+}
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3,
+.markdown-preview h4,
+.markdown-preview h5,
+.markdown-preview h6 {
+  font-weight: 700;
+  margin-top: 1.6em;
+  margin-bottom: 0.6em;
+  line-height: 1.25;
+  color: #111;
+}
+.markdown-preview h1 { font-size: 1.9em; }
+.markdown-preview h2 { font-size: 1.5em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
+.markdown-preview h3 { font-size: 1.2em; }
+.markdown-preview h4 { font-size: 1.05em; }
+.markdown-preview p { margin: 0.8em 0; }
+.markdown-preview a { color: #2364d8; text-decoration: underline; }
+.markdown-preview ul,
+.markdown-preview ol { margin: 0.8em 0; padding-left: 1.6em; }
+.markdown-preview li { margin: 0.25em 0; }
+.markdown-preview li.task-list-item { list-style: none; margin-left: -1.4em; }
+.markdown-preview li.task-list-item input[type="checkbox"] { margin-right: 0.5em; }
+
+.markdown-preview blockquote {
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  border-left: 4px solid #d1d5db;
+  color: #4b5563;
+  background: #f9fafb;
+  border-radius: 0 4px 4px 0;
+}
+
+.markdown-preview blockquote.callout {
+  border-left-width: 4px;
+  padding: 0.75em 1em;
+}
+.markdown-preview blockquote.callout .callout-label {
+  font-size: 0.72em;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.25em;
+}
+.markdown-preview blockquote.callout-note { border-color: #3b82f6; background: #eff6ff; color: #1e3a8a; }
+.markdown-preview blockquote.callout-note .callout-label { color: #2563eb; }
+.markdown-preview blockquote.callout-tip { border-color: #16a34a; background: #f0fdf4; color: #14532d; }
+.markdown-preview blockquote.callout-tip .callout-label { color: #16a34a; }
+.markdown-preview blockquote.callout-warning,
+.markdown-preview blockquote.callout-caution { border-color: #d97706; background: #fffbeb; color: #78350f; }
+.markdown-preview blockquote.callout-warning .callout-label,
+.markdown-preview blockquote.callout-caution .callout-label { color: #d97706; }
+.markdown-preview blockquote.callout-danger { border-color: #dc2626; background: #fef2f2; color: #7f1d1d; }
+.markdown-preview blockquote.callout-danger .callout-label { color: #dc2626; }
+.markdown-preview blockquote.callout-important { border-color: #7c3aed; background: #f5f3ff; color: #4c1d95; }
+.markdown-preview blockquote.callout-important .callout-label { color: #7c3aed; }
+
+.markdown-preview table {
+  border-collapse: collapse;
+  margin: 1em 0;
+  width: 100%;
+  font-size: 0.95em;
+}
+.markdown-preview th,
+.markdown-preview td {
+  border: 1px solid #e5e7eb;
+  padding: 0.5em 0.75em;
+  text-align: left;
+}
+.markdown-preview th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+.markdown-preview tr:nth-child(even) td { background: #fbfbfd; }
+
+.markdown-preview code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  background: #f1f5f9;
+  padding: 0.15em 0.35em;
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+.markdown-preview pre {
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.9em 1em;
+  overflow-x: auto;
+  margin: 1em 0;
+  font-size: 0.88em;
+  line-height: 1.5;
+}
+.markdown-preview pre code {
+  background: transparent;
+  padding: 0;
+  font-size: 1em;
+}
+.markdown-preview hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 2em 0;
+}
+.markdown-preview img { max-width: 100%; height: auto; }
+.markdown-preview .mermaid {
+  background: #fafafa;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 1em;
+  text-align: center;
+  margin: 1em 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: #64748b;
+  white-space: pre-wrap;
+}
+.markdown-preview .mermaid-rendered {
+  padding: 0.5em;
+  font-family: inherit;
+  color: inherit;
+  white-space: normal;
+}
+.markdown-preview .mermaid-rendered svg { max-width: 100%; height: auto; }
+
+/* KaTeX minor tweaks */
+.markdown-preview .katex-display { margin: 1em 0; overflow-x: auto; overflow-y: hidden; }

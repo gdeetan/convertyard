@@ -481,7 +481,7 @@ const WINI_EXTENDED = new Set([
   0x2026, 0x2030, 0x2039, 0x203A, 0x20AC, 0x2122,
 ])
 
-function sanitizePdfText(s: string): string {
+export function sanitizePdfText(s: string): string {
   // Normalize line endings / tabs to space first
   let result = s.replace(/[\r\n\t]/g, ' ').replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, '')
   // Apply explicit Unicode → ASCII mappings
@@ -2277,29 +2277,114 @@ export async function extractImages(
 // ── Shared Text Rendering Engine ──────────────────────────────────────────────
 
 export interface RenderToken {
-  type: 'heading' | 'paragraph' | 'code-block' | 'list-item' | 'rule' | 'blockquote' | 'space'
+  type:
+    | 'heading'
+    | 'paragraph'
+    | 'code-block'
+    | 'list-item'
+    | 'rule'
+    | 'blockquote'
+    | 'space'
+    | 'table'
+    | 'image'
+    | 'task-item'
+    | 'page-break'
+    | 'cover'
+    | 'toc'
+    | 'callout'
   text: string
-  level?: 1 | 2 | 3
+  level?: 1 | 2 | 3 | 4 | 5 | 6
   ordered?: boolean
   index?: number
-  inline?: Array<{ text: string; bold?: boolean; italic?: boolean; code?: boolean }>
+  inline?: Array<{
+    text: string
+    bold?: boolean
+    italic?: boolean
+    code?: boolean
+    link?: string
+    strike?: boolean
+  }>
+  // table
+  headers?: string[]
+  rows?: string[][]
+  // task-item
+  checked?: boolean
+  // image
+  src?: string
+  alt?: string
+  width?: number
+  height?: number
+  // code-block extras
+  lang?: string
+  highlights?: Array<{ text: string; color?: [number, number, number]; bold?: boolean; italic?: boolean }>
+  // callout
+  variant?: 'note' | 'warning' | 'tip' | 'danger'
+  // cover
+  title?: string
+  author?: string
+  date?: string
+  subtitle?: string
+  // toc
+  entries?: Array<{ level: number; text: string; page?: number }>
+  // list nesting
+  depth?: number
 }
+
+export type PdfTheme = 'classic' | 'modern' | 'mono' | 'compact'
 
 export async function renderTokensToPdf(
   tokens: RenderToken[],
-  options: { pageSize: 'A4' | 'Letter'; fontSize: number }
+  options: {
+    pageSize: 'A4' | 'Letter'
+    fontSize: number
+    theme?: PdfTheme
+    marginMm?: number
+    accentColor?: [number, number, number]
+  }
 ): Promise<Uint8Array> {
   const pageWidth = options.pageSize === 'A4' ? 595.28 : 612
   const pageHeight = options.pageSize === 'A4' ? 841.89 : 792
-  const margin = 60
+  const marginPt = options.marginMm ? (options.marginMm * 72) / 25.4 : 60
+  const margin = marginPt
   const scale = options.fontSize / 12
+  const theme: PdfTheme = options.theme ?? 'modern'
+  const accent = options.accentColor ?? [0.11, 0.31, 0.85]
 
   const doc = await PDFDocument.create()
-  const fontHeading = await doc.embedFont(StandardFonts.TimesRomanBold)
-  const fontBody = await doc.embedFont(StandardFonts.Helvetica)
-  const fontBold = await doc.embedFont(StandardFonts.HelveticaBold)
-  const fontItalic = await doc.embedFont(StandardFonts.HelveticaOblique)
+
+  // Theme font selection
+  const [bodyFont, boldFont, italicFont, boldItalicFont, headingFont] =
+    theme === 'classic'
+      ? [
+          StandardFonts.TimesRoman,
+          StandardFonts.TimesRomanBold,
+          StandardFonts.TimesRomanItalic,
+          StandardFonts.TimesRomanBoldItalic,
+          StandardFonts.TimesRomanBold,
+        ]
+      : theme === 'mono'
+        ? [
+            StandardFonts.Courier,
+            StandardFonts.CourierBold,
+            StandardFonts.CourierOblique,
+            StandardFonts.CourierBoldOblique,
+            StandardFonts.CourierBold,
+          ]
+        : [
+            StandardFonts.Helvetica,
+            StandardFonts.HelveticaBold,
+            StandardFonts.HelveticaOblique,
+            StandardFonts.HelveticaBoldOblique,
+            StandardFonts.HelveticaBold,
+          ]
+
+  const fontHeading = await doc.embedFont(headingFont)
+  const fontBody = await doc.embedFont(bodyFont)
+  const fontBold = await doc.embedFont(boldFont)
+  const fontItalic = await doc.embedFont(italicFont)
+  const fontBoldItalic = await doc.embedFont(boldItalicFont)
   const fontCode = await doc.embedFont(StandardFonts.Courier)
+  const fontCodeBold = await doc.embedFont(StandardFonts.CourierBold)
 
   type EmbeddedFont = Awaited<ReturnType<typeof doc.embedFont>>
 
@@ -2480,20 +2565,377 @@ export async function renderTokensToPdf(
     }
 
     if (token.type === 'blockquote') {
-      const bqSize = 10 * scale
-      const lineH = bqSize * 1.4
-      const indent = 20
+      const bqSize = 11 * scale
+      const lineH = bqSize * 1.5
+      const indent = 24
       const maxW = pageWidth - 2 * margin - indent
       const lines = wrapText(token.text, fontItalic, bqSize, maxW)
+      const startY = cursorY
       for (const line of lines) {
         ensurePage(lineH)
-        currentPage().drawText(line, { x: margin + indent, y: cursorY, font: fontItalic, size: bqSize, color: rgb(0, 0, 0) })
+        const page = currentPage()
+        page.drawLine({
+          start: { x: margin + 6, y: cursorY + bqSize },
+          end: { x: margin + 6, y: cursorY - 2 },
+          thickness: 3,
+          color: rgb(accent[0] * 0.8, accent[1] * 0.8, accent[2] * 0.8),
+        })
+        page.drawText(line, {
+          x: margin + indent,
+          y: cursorY,
+          font: fontItalic,
+          size: bqSize,
+          color: rgb(0.35, 0.35, 0.35),
+        })
         cursorY -= lineH
       }
+      // suppress unused warning when only one line
+      void startY
       cursorY -= 8 * scale
       continue
     }
+
+    if (token.type === 'page-break') {
+      addPage()
+      continue
+    }
+
+    if (token.type === 'cover') {
+      // Cover page: title centered, subtitle, author, date
+      const p = pages.length === 0 ? addPage() : (addPage(), currentPage())
+      const titleSize = 32 * scale
+      const subSize = 16 * scale
+      const metaSize = 11 * scale
+      const cx = pageWidth / 2
+      let y = pageHeight * 0.55
+      const title = sanitizePdfText(token.title ?? token.text ?? 'Untitled')
+      const titleLines = wrapText(title, fontHeading, titleSize, pageWidth - 2 * margin)
+      for (const line of titleLines) {
+        const w = fontHeading.widthOfTextAtSize(line, titleSize)
+        p.drawText(line, { x: cx - w / 2, y, font: fontHeading, size: titleSize, color: rgb(0.08, 0.08, 0.12) })
+        y -= titleSize * 1.2
+      }
+      if (token.subtitle) {
+        y -= 10
+        const sub = sanitizePdfText(token.subtitle)
+        const subLines = wrapText(sub, fontItalic, subSize, pageWidth - 2 * margin)
+        for (const line of subLines) {
+          const w = fontItalic.widthOfTextAtSize(line, subSize)
+          p.drawText(line, { x: cx - w / 2, y, font: fontItalic, size: subSize, color: rgb(0.35, 0.35, 0.4) })
+          y -= subSize * 1.3
+        }
+      }
+      // Accent line
+      y -= 30
+      p.drawLine({
+        start: { x: cx - 40, y },
+        end: { x: cx + 40, y },
+        thickness: 2,
+        color: rgb(accent[0], accent[1], accent[2]),
+      })
+      y -= 30
+      if (token.author) {
+        const a = sanitizePdfText(`by ${token.author}`)
+        const w = fontBody.widthOfTextAtSize(a, metaSize)
+        p.drawText(a, { x: cx - w / 2, y, font: fontBody, size: metaSize, color: rgb(0.3, 0.3, 0.35) })
+        y -= metaSize * 1.5
+      }
+      if (token.date) {
+        const d = sanitizePdfText(token.date)
+        const w = fontBody.widthOfTextAtSize(d, metaSize)
+        p.drawText(d, { x: cx - w / 2, y, font: fontBody, size: metaSize, color: rgb(0.5, 0.5, 0.55) })
+      }
+      // Force next content onto a fresh page
+      cursorY = margin - 1
+      continue
+    }
+
+    if (token.type === 'toc') {
+      ensurePage(60 * scale)
+      const title = 'Table of Contents'
+      currentPage().drawText(title, {
+        x: margin,
+        y: cursorY,
+        font: fontHeading,
+        size: 18 * scale,
+        color: rgb(0.08, 0.08, 0.12),
+      })
+      cursorY -= 22 * scale
+      const entries = token.entries ?? []
+      for (const entry of entries) {
+        const indent = (entry.level - 1) * 16
+        const size = entry.level === 1 ? 12 * scale : 11 * scale
+        const lineH = size * 1.6
+        ensurePage(lineH)
+        const label = sanitizePdfText(entry.text)
+        const truncated =
+          label.length > 80 ? label.slice(0, 77) + '...' : label
+        const font = entry.level === 1 ? fontBold : fontBody
+        currentPage().drawText(truncated, {
+          x: margin + indent,
+          y: cursorY,
+          font,
+          size,
+          color: rgb(0.15, 0.15, 0.2),
+        })
+        cursorY -= lineH
+      }
+      cursorY -= 12 * scale
+      continue
+    }
+
+    if (token.type === 'task-item') {
+      const listSize = 11 * scale
+      const lineH = listSize * 1.5
+      const indent = 24
+      const boxSize = 10 * scale
+      const maxW = pageWidth - margin - indent - boxSize - 8
+      const lines = wrapText(token.text, fontBody, listSize, maxW)
+      for (let li = 0; li < lines.length; li++) {
+        ensurePage(lineH)
+        const page = currentPage()
+        if (li === 0) {
+          const boxY = cursorY + 1
+          page.drawRectangle({
+            x: margin + indent,
+            y: boxY,
+            width: boxSize,
+            height: boxSize,
+            borderColor: rgb(0.4, 0.4, 0.45),
+            borderWidth: 0.8,
+            color: token.checked ? rgb(accent[0], accent[1], accent[2]) : rgb(1, 1, 1),
+          })
+          if (token.checked) {
+            // Simple checkmark
+            page.drawLine({
+              start: { x: margin + indent + 2, y: boxY + boxSize / 2 },
+              end: { x: margin + indent + boxSize / 2 - 1, y: boxY + 2 },
+              thickness: 1.2,
+              color: rgb(1, 1, 1),
+            })
+            page.drawLine({
+              start: { x: margin + indent + boxSize / 2 - 1, y: boxY + 2 },
+              end: { x: margin + indent + boxSize - 1, y: boxY + boxSize - 1 },
+              thickness: 1.2,
+              color: rgb(1, 1, 1),
+            })
+          }
+        }
+        page.drawText(lines[li], {
+          x: margin + indent + boxSize + 8,
+          y: cursorY,
+          font: fontBody,
+          size: listSize,
+          color: rgb(0.15, 0.15, 0.15),
+        })
+        cursorY -= lineH
+      }
+      continue
+    }
+
+    if (token.type === 'table') {
+      const headers = token.headers ?? []
+      const rows = token.rows ?? []
+      if (headers.length === 0 && rows.length === 0) continue
+
+      const colCount = Math.max(headers.length, ...rows.map(r => r.length))
+      const tableW = pageWidth - 2 * margin
+      const cellSize = 10 * scale
+      const cellPad = 6
+      const lineH = cellSize * 1.4
+
+      // Column widths: proportional to longest content
+      const rawWidths: number[] = new Array(colCount).fill(0)
+      const measure = (t: string) => fontBody.widthOfTextAtSize(sanitizePdfText(t), cellSize)
+      for (let c = 0; c < colCount; c++) {
+        rawWidths[c] = Math.max(rawWidths[c], measure(headers[c] ?? ''))
+        for (const r of rows) rawWidths[c] = Math.max(rawWidths[c], measure(r[c] ?? ''))
+      }
+      const rawTotal = rawWidths.reduce((a, b) => a + b, 0) || 1
+      const colWidths = rawWidths.map(w => (w / rawTotal) * (tableW - colCount * cellPad * 2))
+
+      const drawRow = (cells: string[], isHeader: boolean) => {
+        // First compute max lines across cells
+        const wrappedCells = cells.map((cell, ci) => {
+          const w = colWidths[ci] ?? 40
+          return wrapText(cell, isHeader ? fontBold : fontBody, cellSize, w)
+        })
+        const maxLines = Math.max(1, ...wrappedCells.map(l => l.length))
+        const rowH = maxLines * lineH + cellPad * 2
+        ensurePage(rowH)
+        const page = currentPage()
+        if (isHeader) {
+          page.drawRectangle({
+            x: margin,
+            y: cursorY - rowH + lineH,
+            width: tableW,
+            height: rowH,
+            color: rgb(0.95, 0.96, 0.98),
+          })
+        }
+        let x = margin
+        for (let ci = 0; ci < colCount; ci++) {
+          const wrapped = wrappedCells[ci] ?? []
+          const w = colWidths[ci] ?? 40
+          // Cell border
+          page.drawRectangle({
+            x,
+            y: cursorY - rowH + lineH,
+            width: w + cellPad * 2,
+            height: rowH,
+            borderColor: rgb(0.85, 0.85, 0.88),
+            borderWidth: 0.5,
+          })
+          let ty = cursorY
+          for (const line of wrapped) {
+            page.drawText(line, {
+              x: x + cellPad,
+              y: ty,
+              font: isHeader ? fontBold : fontBody,
+              size: cellSize,
+              color: isHeader ? rgb(0.08, 0.08, 0.12) : rgb(0.15, 0.15, 0.18),
+            })
+            ty -= lineH
+          }
+          x += w + cellPad * 2
+        }
+        cursorY -= rowH
+      }
+
+      if (headers.length > 0) drawRow(headers, true)
+      for (const row of rows) drawRow(row, false)
+      cursorY -= 10 * scale
+      continue
+    }
+
+    if (token.type === 'image') {
+      if (!token.src) continue
+      try {
+        let bytes: Uint8Array | null = null
+        let format: 'png' | 'jpg' = 'png'
+        const src = token.src
+        if (src.startsWith('data:')) {
+          const match = /^data:image\/(png|jpe?g);base64,(.*)$/i.exec(src)
+          if (match) {
+            format = match[1].toLowerCase().startsWith('jp') ? 'jpg' : 'png'
+            const bin = atob(match[2])
+            bytes = new Uint8Array(bin.length)
+            for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+          }
+        }
+        if (!bytes) continue
+        const image = format === 'jpg' ? await doc.embedJpg(bytes) : await doc.embedPng(bytes)
+        const maxW = pageWidth - 2 * margin
+        const naturalW = token.width ?? image.width
+        const naturalH = token.height ?? image.height
+        const ratio = Math.min(1, maxW / naturalW)
+        const w = naturalW * ratio
+        const h = naturalH * ratio
+        ensurePage(h + 12)
+        const page = currentPage()
+        page.drawImage(image, {
+          x: margin + (maxW - w) / 2,
+          y: cursorY - h,
+          width: w,
+          height: h,
+        })
+        cursorY -= h + 8
+        if (token.alt) {
+          const captionSize = 9 * scale
+          const alt = sanitizePdfText(token.alt)
+          const w2 = fontItalic.widthOfTextAtSize(alt, captionSize)
+          page.drawText(alt, {
+            x: margin + (maxW - w2) / 2,
+            y: cursorY,
+            font: fontItalic,
+            size: captionSize,
+            color: rgb(0.45, 0.45, 0.5),
+          })
+          cursorY -= captionSize * 1.5
+        }
+        cursorY -= 6 * scale
+      } catch {
+        // skip broken images
+      }
+      continue
+    }
+
+    if (token.type === 'callout') {
+      const variant = token.variant ?? 'note'
+      const palette: Record<string, { bg: [number, number, number]; bar: [number, number, number]; label: string }> = {
+        note: { bg: [0.94, 0.96, 1], bar: [0.15, 0.4, 0.9], label: 'NOTE' },
+        tip: { bg: [0.93, 0.98, 0.94], bar: [0.15, 0.65, 0.35], label: 'TIP' },
+        warning: { bg: [1, 0.97, 0.9], bar: [0.9, 0.6, 0.1], label: 'WARNING' },
+        danger: { bg: [1, 0.93, 0.93], bar: [0.85, 0.2, 0.2], label: 'DANGER' },
+      }
+      const c = palette[variant]
+      const bodySize = 11 * scale
+      const lineH = bodySize * 1.5
+      const labelSize = 9 * scale
+      const indent = 16
+      const maxW = pageWidth - 2 * margin - indent - 12
+      const lines = wrapText(token.text, fontBody, bodySize, maxW)
+      const boxH = labelSize * 1.4 + lines.length * lineH + 12
+      ensurePage(boxH)
+      const page = currentPage()
+      page.drawRectangle({
+        x: margin,
+        y: cursorY - boxH + lineH,
+        width: pageWidth - 2 * margin,
+        height: boxH,
+        color: rgb(c.bg[0], c.bg[1], c.bg[2]),
+      })
+      page.drawRectangle({
+        x: margin,
+        y: cursorY - boxH + lineH,
+        width: 4,
+        height: boxH,
+        color: rgb(c.bar[0], c.bar[1], c.bar[2]),
+      })
+      let y = cursorY - 2
+      page.drawText(c.label, {
+        x: margin + indent,
+        y,
+        font: fontBold,
+        size: labelSize,
+        color: rgb(c.bar[0], c.bar[1], c.bar[2]),
+      })
+      y -= labelSize * 1.6
+      for (const line of lines) {
+        page.drawText(line, {
+          x: margin + indent,
+          y,
+          font: fontBody,
+          size: bodySize,
+          color: rgb(0.15, 0.15, 0.18),
+        })
+        y -= lineH
+      }
+      cursorY = y - 6
+      continue
+    }
   }
+
+  // Add page numbers footer (skip page 1 if it's a cover)
+  const hasCover = tokens.length > 0 && tokens[0].type === 'cover'
+  const totalPages = pages.length
+  for (let pi = 0; pi < totalPages; pi++) {
+    if (hasCover && pi === 0) continue
+    const p = pages[pi]
+    const label = `${pi + 1}`
+    const w = fontBody.widthOfTextAtSize(label, 9)
+    p.drawText(label, {
+      x: pageWidth / 2 - w / 2,
+      y: 24,
+      font: fontBody,
+      size: 9,
+      color: rgb(0.55, 0.55, 0.6),
+    })
+  }
+
+  // Suppress unused warnings for optional theme variants we may use later
+  void fontBoldItalic
+  void fontCodeBold
 
   return doc.save()
 }
@@ -2505,108 +2947,87 @@ export async function markdownToPdf(
   options: ToolOptions,
   onProgress?: (fileIndex: number, pct: number) => void
 ): Promise<ConversionResult[]> {
-  const { marked } = await import('marked')
+  const { parseMarkdown, buildCoverToken, buildTocToken } = await import('./markdown-parser')
 
   const pageSize = (options.pageSize as 'A4' | 'Letter') ?? 'A4'
   const fontSize = typeof options.fontSize === 'number' ? options.fontSize : 12
-
-  type InlineToken = { type: string; text?: string; tokens?: InlineToken[] }
-
-  function parseInline(
-    tokens: InlineToken[]
-  ): Array<{ text: string; bold?: boolean; italic?: boolean; code?: boolean }> {
-    const result: Array<{ text: string; bold?: boolean; italic?: boolean; code?: boolean }> = []
-    for (const tok of tokens) {
-      if (tok.type === 'text') {
-        if (tok.tokens && tok.tokens.length > 0) {
-          result.push(...parseInline(tok.tokens))
-        } else {
-          result.push({ text: sanitizePdfText(tok.text ?? '') })
-        }
-      } else if (tok.type === 'strong') {
-        for (const inner of parseInline(tok.tokens ?? [])) {
-          result.push({ ...inner, bold: true })
-        }
-      } else if (tok.type === 'em') {
-        for (const inner of parseInline(tok.tokens ?? [])) {
-          result.push({ ...inner, italic: true })
-        }
-      } else if (tok.type === 'codespan') {
-        result.push({ text: sanitizePdfText(tok.text ?? ''), code: true })
-      } else if (tok.type === 'link') {
-        for (const inner of parseInline(tok.tokens ?? [])) {
-          result.push(inner)
-        }
-      } else if (tok.type === 'softbreak' || tok.type === 'br') {
-        result.push({ text: ' ' })
-      } else if (tok.text) {
-        result.push({ text: sanitizePdfText(tok.text) })
-      }
-    }
-    return result
-  }
-
-  type MarkedToken = {
-    type: string
-    text?: string
-    depth?: number
-    ordered?: boolean
-    tokens?: MarkedToken[]
-    items?: Array<{ text: string; tokens?: MarkedToken[] }>
-  }
-
-  function tokensToRenderTokens(lexerTokens: MarkedToken[]): RenderToken[] {
-    const out: RenderToken[] = []
-    for (const tok of lexerTokens) {
-      if (tok.type === 'heading') {
-        out.push({
-          type: 'heading',
-          text: sanitizePdfText(tok.text ?? ''),
-          level: (tok.depth as 1 | 2 | 3) ?? 1,
-          inline: parseInline(tok.tokens ?? []),
-        })
-      } else if (tok.type === 'paragraph') {
-        out.push({
-          type: 'paragraph',
-          text: sanitizePdfText(tok.text ?? ''),
-          inline: parseInline(tok.tokens ?? []),
-        })
-      } else if (tok.type === 'code') {
-        out.push({ type: 'code-block', text: tok.text ?? '' })
-      } else if (tok.type === 'list') {
-        const items = tok.items ?? []
-        items.forEach((item, i) => {
-          out.push({
-            type: 'list-item',
-            text: sanitizePdfText(item.text),
-            ordered: tok.ordered ?? false,
-            index: i + 1,
-          })
-        })
-      } else if (tok.type === 'hr') {
-        out.push({ type: 'rule', text: '' })
-      } else if (tok.type === 'blockquote') {
-        const inner = tokensToRenderTokens(tok.tokens ?? [])
-        const firstPara = inner.find(t => t.type === 'paragraph')
-        out.push({ type: 'blockquote', text: sanitizePdfText(firstPara?.text ?? '') })
-      } else if (tok.type === 'space') {
-        out.push({ type: 'space', text: '' })
-      }
-      // other types: skip
-    }
-    return out
-  }
+  const theme = (options.theme as PdfTheme) ?? 'modern'
+  const includeTOC = options.includeTOC !== false
+  const includeCover = options.includeCover !== false
+  const combine = options.combineIntoOne === true
+  const marginMm = typeof options.marginMm === 'number' ? options.marginMm : undefined
+  const renderOpts = { pageSize, fontSize, theme, marginMm }
 
   const results: ConversionResult[] = []
+
+  if (combine && files.length > 1) {
+    // Merge all files into single PDF with page breaks between
+    const allTokens: RenderToken[] = []
+    let firstCover: RenderToken | null = null
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      const text = await file.text()
+      const { tokens, frontMatter, headings } = await parseMarkdown(text)
+      if (i === 0 && includeCover) {
+        firstCover = buildCoverToken(frontMatter, file.name.replace(/\.[^.]+$/, ''))
+      }
+      if (i > 0) allTokens.push({ type: 'page-break', text: '' })
+      // Section heading per file
+      allTokens.push({
+        type: 'heading',
+        level: 1,
+        text: (frontMatter?.title as string) || file.name.replace(/\.[^.]+$/, ''),
+      })
+      allTokens.push(...tokens)
+      onProgress?.(i, Math.round(((i + 1) / files.length) * 80))
+      void headings
+    }
+    // Build TOC from top-level headings of all files
+    const tocEntries: Array<{ level: number; text: string }> = allTokens
+      .filter(t => t.type === 'heading' && (t.level ?? 1) <= 2)
+      .map(t => ({ level: t.level ?? 1, text: t.text }))
+    const finalTokens: RenderToken[] = []
+    if (firstCover) finalTokens.push(firstCover, { type: 'page-break', text: '' })
+    if (includeTOC && tocEntries.length > 0) {
+      finalTokens.push({ type: 'toc', text: 'Table of Contents', entries: tocEntries })
+      finalTokens.push({ type: 'page-break', text: '' })
+    }
+    finalTokens.push(...allTokens)
+    const pdfBytes = await renderTokensToPdf(finalTokens, renderOpts)
+    const outName =
+      files.length === 1
+        ? files[0].name.replace(/\.[^.]+$/, '.pdf')
+        : `combined-${files.length}-files.pdf`
+    results.push(
+      new File([new Uint8Array(pdfBytes.buffer as ArrayBuffer)], outName, { type: 'application/pdf' })
+    )
+    onProgress?.(files.length - 1, 100)
+    return results
+  }
 
   for (let i = 0; i < files.length; i++) {
     const file = files[i]
     const text = await file.text()
-    const lexerTokens = marked.lexer(text) as MarkedToken[]
-    const renderTokens = tokensToRenderTokens(lexerTokens)
-    const pdfBytes = await renderTokensToPdf(renderTokens, { pageSize, fontSize })
+    const { tokens, frontMatter, headings } = await parseMarkdown(text)
+    const finalTokens: RenderToken[] = []
+    const cover = includeCover ? buildCoverToken(frontMatter, file.name.replace(/\.[^.]+$/, '')) : null
+    if (cover) {
+      finalTokens.push(cover, { type: 'page-break', text: '' })
+    }
+    if (includeTOC) {
+      const toc = buildTocToken(headings)
+      if (toc) {
+        finalTokens.push(toc, { type: 'page-break', text: '' })
+      }
+    }
+    finalTokens.push(...tokens)
+    const pdfBytes = await renderTokensToPdf(finalTokens, renderOpts)
     const basename = file.name.replace(/\.[^.]+$/, '')
-    results.push(new File([new Uint8Array(pdfBytes.buffer as ArrayBuffer)], `${basename}.pdf`, { type: 'application/pdf' }))
+    results.push(
+      new File([new Uint8Array(pdfBytes.buffer as ArrayBuffer)], `${basename}.pdf`, {
+        type: 'application/pdf',
+      })
+    )
     onProgress?.(i, 100)
   }
 
