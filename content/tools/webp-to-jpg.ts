@@ -1,11 +1,13 @@
 import { libvipsConvert } from '@/lib/converters/libvips'
 import type { ToolConfig } from '@/lib/types'
+import { WebpToJpgExplainer } from '@/components/webp-to-jpg/explainer'
 
 export const config: ToolConfig = {
   slug: 'webp-to-jpg',
   title: 'WebP to JPG Converter',
   subtitle: 'WebP to universal JPG — compatible with every app, OS, and platform. Batch 1,000+ files at once.',
-  bestFor: 'Best for making WebP images openable in apps, email clients, and tools that don\'t support WebP.',
+  bestFor: 'Best for converting WebP into JPG format for apps, websites, portals, or CMS software that still reject WebP files.',
+  explainer: WebpToJpgExplainer,
   category: 'images',
   accepts: ['image/webp'],
   acceptsExt: ['.webp'],

@@ -238,6 +238,7 @@ export interface ToolConfig {
     description: string   // 140-155 chars
     ogImage?: string
   }
+  explainer?: React.ComponentType
 }
 
 // ── Internal tool-shell state ─────────────────────────────────────────────────

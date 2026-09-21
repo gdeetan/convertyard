@@ -706,6 +706,26 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
 
       {!embedded && afterHowItWorks && <div className="mt-8">{afterHowItWorks}</div>}
 
+      {!embedded && config.explainer && (() => {
+        const Explainer = config.explainer!
+        return (
+          <section className={cn(
+            'mt-12 max-w-none',
+            '[&_h2]:mt-8 [&_h2]:mb-3 [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-fg',
+            '[&_h2:first-child]:mt-0',
+            '[&_p]:mt-3 [&_p]:text-sm [&_p]:leading-relaxed [&_p]:text-fg-muted',
+            '[&_ul]:mt-3 [&_ul]:list-disc [&_ul]:pl-6 [&_ul]:space-y-1.5 [&_ul]:text-sm [&_ul]:text-fg-muted',
+            '[&_ol]:mt-3 [&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:space-y-1.5 [&_ol]:text-sm [&_ol]:text-fg-muted',
+            '[&_li]:leading-relaxed',
+            '[&_strong]:font-semibold [&_strong]:text-fg',
+            '[&_code]:rounded [&_code]:bg-bg-muted [&_code]:px-1 [&_code]:py-0.5 [&_code]:text-[0.85em] [&_code]:font-mono',
+            '[&_a]:text-primary [&_a]:underline hover:[&_a]:text-primary-hover',
+          )}>
+            <Explainer />
+          </section>
+        )
+      })()}
+
       {/* ── FAQ, related tools, related articles (hidden when embedded) ─── */}
       {!embedded && (
         <>
