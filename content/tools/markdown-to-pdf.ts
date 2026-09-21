@@ -78,7 +78,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'What Markdown features are supported?',
-      a: 'Full GitHub-Flavored Markdown: headings, bold, italic, strikethrough, inline and fenced code, ordered/unordered lists, GFM tables, task lists, blockquotes, horizontal rules, and links. Fenced code blocks are syntax-highlighted in the live preview. KaTeX math and Mermaid diagrams render in the preview. Embedded images work when they are base64 data URLs.',
+      a: 'GitHub-Flavored Markdown Support: full support for headings, bold, italics, strikethrough, inline code and fenced code, lists (ordered and unordered), GFM tables, task lists, blockquotes, horizontal rules and links. Code blocks are highlighted in the preview and in exported files. Math equations written in KaTeX language and Mermaid diagrams also render in the preview. Embedded images are also supported when they are base64 data URLs.',
     },
     {
       q: 'How do I add a cover page?',
@@ -86,23 +86,23 @@ export const config: ToolConfig = {
     },
     {
       q: 'Can I combine multiple Markdown files into one PDF?',
-      a: 'Yes. In the Batch tab, drop all your files and enable "Combine all files into a single PDF". Each file becomes a chapter with a page break between them. Turn on "Auto table of contents" to get a linked TOC built from every H1/H2 across the set — ideal for exporting an Obsidian vault, Notion export, or docs folder as a single document.',
+      a: 'Yes. In the Batch tab, you can combine all your files into one PDF. Each file becomes a chapter, and a page break appears between chapters. Also, the &ldquo;Auto table of contents&rdquo; feature will be enabled to generate a linked table of contents from all your H1 and H2 headings across all files in the set. This is especially powerful for exporting an Obsidian vault, a Notion export, or a docs folder as one big document.',
     },
     {
       q: 'Does it support KaTeX math and Mermaid diagrams?',
-      a: 'Yes in the live preview. Wrap inline math in single dollar signs ($E=mc^2$) and block math in double dollars ($$…$$). Mermaid diagrams go inside a ```mermaid fenced code block. PDF export renders the surrounding text; complex math and Mermaid diagrams are best captured by exporting the preview.',
+      a: 'Yes, in the live preview. Use single dollar signs for inline math (<code>$E=mc^2$</code>) and double dollar signs for block math (<code>$$&hellip;$$</code>). For Mermaid diagrams, use a <code>```mermaid</code> code block. PDF export of the live preview does not necessarily render complex math and Mermaid diagrams well, so they are better exported separately.',
     },
     {
       q: 'Can I convert 100+ files at once?',
-      a: 'Yes. The Batch tab handles as many .md files as your browser can hold in memory (typically 1000+ small files). Each file becomes its own PDF, delivered in a ZIP, unless you enable the combine option.',
+      a: 'Yes. In the Batch tab, you can add as many .md files as your browser can hold in memory (for example, 1000+ small files). Each file is converted to a PDF. All files are then packed into a ZIP file unless you disabled this in settings for this conversion.',
     },
     {
       q: 'Why does the PDF look different from GitHub?',
-      a: 'GitHub uses its own web CSS. ConvertYard uses print-optimized typography based on the theme you pick (Modern/Helvetica, Classic/Times, or Mono/Courier). Headings, callouts, tables, and code blocks are styled for readability on paper, not for a browser tab.',
+      a: 'GitHub uses web CSS to style the repository&rsquo;s web pages. ConvertYard&rsquo;s output, however, uses print-optimized typography for the themes you select (e.g., Modern with Helvetica font, Classic with Times font, or Mono with Courier font). Output such as headings, callouts, tables, and code blocks is styled for print-quality output, not for reading in a web browser tab.',
     },
     {
       q: 'What about GitHub-style callouts like [!NOTE] and [!WARNING]?',
-      a: 'Supported. Use the same syntax as GitHub: > [!NOTE] followed by your note text. Recognized types are NOTE, TIP, WARNING, DANGER, CAUTION, and IMPORTANT. Each renders as a colored callout box in both the preview and the PDF.',
+      a: 'Supported. The notes are created with the same syntax as GitHub (e.g., <code>&gt; [!NOTE] This is a note</code>). The following types are recognized: NOTE, TIP, WARNING, DANGER, CAUTION, and IMPORTANT. Each renders as a colored callout box in both the preview and the PDF.',
     },
   ],
   relatedTools: ['csv-to-pdf', 'epub-to-pdf', 'compress-pdf', 'pdf-to-text', 'merge-pdf'],
