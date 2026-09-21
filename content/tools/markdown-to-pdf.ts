@@ -82,7 +82,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'How do I add a cover page?',
-      a: 'Put YAML front-matter at the top of your .md file with title, subtitle, author, and date, then enable the "Cover page from front-matter" option. Example:\n\n---\ntitle: Q3 Roadmap\nsubtitle: Draft for review\nauthor: Alex Chen\ndate: 2026-01-15\n---',
+      a: 'Put YAML front-matter at the top of your .md file with title, subtitle, author, and date, then turn on the "Cover page from front-matter" option. Example:<pre style="margin-top:0.75rem;padding:0.75rem 1rem;background:#f3f4f6;border-radius:6px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:0.85em;line-height:1.5;white-space:pre;overflow-x:auto;">---\ntitle: Q3 Roadmap\nsubtitle: Draft for review\nauthor: Alex Chen\ndate: 2026-01-15\n---</pre>',
     },
     {
       q: 'Can I combine multiple Markdown files into one PDF?',
