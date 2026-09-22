@@ -173,6 +173,59 @@ async function reencodeJpeg(jpegBytes: Uint8Array, quality: number): Promise<Uin
   return new Uint8Array(await outBlob.arrayBuffer())
 }
 
+// Decoded-JPEG cache reused across quality-ladder rungs. Same structural buffer
+// feeds every rung, so identical JPEG XObjects appear each time — decode once,
+// re-encode at each quality.
+type JpegCacheEntry = { canvas: OffscreenCanvas }
+export type JpegDecodeCache = Map<string, JpegCacheEntry>
+
+// Per-image cache cap. Roughly 25 MP → 100 MB RGBA; scans above this stay on
+// the un-cached path so a huge multi-page scan can't balloon browser memory.
+const JPEG_CACHE_MAX_PIXELS = 25_000_000
+
+function fingerprintJpeg(bytes: Uint8Array): string {
+  // FNV-1a over the first 256 bytes + total length. JPEG markers, quantization
+  // tables, and Huffman tables live in the header, so this is a near-zero
+  // collision key for distinct images within a single PDF.
+  const len = Math.min(bytes.byteLength, 256)
+  let h = 2166136261 >>> 0
+  for (let i = 0; i < len; i++) {
+    h ^= bytes[i]
+    h = Math.imul(h, 16777619) >>> 0
+  }
+  return `${bytes.byteLength.toString(36)}:${h.toString(36)}`
+}
+
+async function reencodeJpegCached(
+  jpegBytes: Uint8Array,
+  quality: number,
+  cache?: JpegDecodeCache
+): Promise<Uint8Array> {
+  if (!cache) return reencodeJpeg(jpegBytes, quality)
+
+  const key = fingerprintJpeg(jpegBytes)
+  let entry = cache.get(key)
+  if (!entry) {
+    const blob = new Blob([jpegBytes as unknown as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })
+    const bmp = await createImageBitmap(blob)
+    // Skip caching oversize images — decode once, encode, discard.
+    if (bmp.width * bmp.height > JPEG_CACHE_MAX_PIXELS) {
+      const canvas = new OffscreenCanvas(bmp.width, bmp.height)
+      canvas.getContext('2d')!.drawImage(bmp, 0, 0)
+      bmp.close()
+      const outBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: quality / 100 })
+      return new Uint8Array(await outBlob.arrayBuffer())
+    }
+    const canvas = new OffscreenCanvas(bmp.width, bmp.height)
+    canvas.getContext('2d')!.drawImage(bmp, 0, 0)
+    bmp.close()
+    entry = { canvas }
+    cache.set(key, entry)
+  }
+  const outBlob = await entry.canvas.convertToBlob({ type: 'image/jpeg', quality: quality / 100 })
+  return new Uint8Array(await outBlob.arrayBuffer())
+}
+
 async function recompressImages(
   buffer: ArrayBuffer,
   quality: number,
@@ -222,6 +275,7 @@ async function recompressImagesKeepText(
     sourceDpi: number;
     imageRenderMap?: Record<string, number>;
     flateLevel?: number;
+    jpegCache?: JpegDecodeCache;
   } = { targetDpi: 150, sourceDpi: 300 }
 ): Promise<{ file: File; preservedImages: string[] }> {
   const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
@@ -248,7 +302,7 @@ async function recompressImagesKeepText(
       const jpegObj = obj
       tasks.push((async () => {
         try {
-          const reencoded = await reencodeJpeg(jpegObj.contents, quality)
+          const reencoded = await reencodeJpegCached(jpegObj.contents, quality, opts.jpegCache)
           if (reencoded.byteLength >= jpegObj.contents.byteLength) return null
           return () => {
             jpegObj.dict.set(PDFName.of('Length'), PDFNumber.of(reencoded.byteLength))
@@ -602,6 +656,9 @@ export async function compressPdfKeepText(
   let hitTarget = false
   let step = 0
 
+  // Shared across rungs: decode each JPEG XObject once, re-encode per rung.
+  const jpegCache: JpegDecodeCache = new Map()
+
   while (step < qualityLadder.length) {
     const quality = qualityLadder[step]
     let candidate: Blob | null = null
@@ -615,6 +672,7 @@ export async function compressPdfKeepText(
           sourceDpi: 300,
           imageRenderMap,
           flateLevel: P1_FEATURES.flateLevel9 ? 9 : undefined,
+          jpegCache,
         }
       )
       candidate = file
