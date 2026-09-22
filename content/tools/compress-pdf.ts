@@ -209,8 +209,8 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-pdf-without-uploading-privacy-guide', 'merge-pdf-without-uploading', 'convertyard-vs-adobe-acrobat-pro'],
 
   meta: {
-    title: 'PDF Compressor — ConvertYard',
+    title: 'Compress PDF Files in Your Browser - Nothing Uploads',
     description:
-      'Compress PDF files for email and sharing in your browser. Batch up to 1,000 files — no uploads, no account. Choose Low, Medium, or High compression.',
+      'Compress PDF files to an exact size: 100 KB, 500 KB, 5 MB. Compress between 1 and 1,000 files in your browser. Nothing uploads.',
   },
 }
