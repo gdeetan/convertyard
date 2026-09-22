@@ -18,6 +18,16 @@ export const config: ToolConfig = {
   },
   convertFn: compressPDF,
 
+  optionsWarningFn: (_files, options) => {
+    if (options.level === 'aggressive' && options.targetSizeMode !== true) {
+      return 'Aggressive mode converts every page to an image. Text won\'t be selectable in the output.'
+    }
+    if (options.targetSizeMode === true) {
+      return 'If your target size can\'t be met while keeping text, we\'ll ask before rasterizing. Rasterizing removes searchable text.'
+    }
+    return null
+  },
+
   options: [
     {
       type: 'toggle',
