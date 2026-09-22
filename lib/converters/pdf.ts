@@ -590,13 +590,19 @@ export async function compressPdfKeepText(
   // Quality ladder: try highest quality first, stop at first pass that fits
   // under the target. Matches the "80 → 30% up to six passes" promise in the
   // FAQ. Each pass runs against the same structural+dedup buffer.
+  //
+  // Optimistic skip: after each pass we compare candidate.size / targetBytes.
+  // If the result is far above target, jumping 2–3 rungs at once terminates
+  // faster on inputs that need aggressive quality reduction. Worst case still
+  // walks every remaining rung, so the "up to six passes" contract holds.
   const qualityLadder = [80, 70, 60, 50, 40, 30]
   let best: Blob = structural
   const ladderStart = 40
   const ladderEnd = 85
   let hitTarget = false
+  let step = 0
 
-  for (let step = 0; step < qualityLadder.length; step++) {
+  while (step < qualityLadder.length) {
     const quality = qualityLadder[step]
     let candidate: Blob | null = null
     try {
@@ -628,6 +634,15 @@ export async function compressPdfKeepText(
       hitTarget = true
       break
     }
+
+    // Predict jump size from how far we still are from the target.
+    let jump = 1
+    if (candidate) {
+      const ratio = candidate.size / targetBytes
+      if (ratio > 4) jump = 3
+      else if (ratio > 2) jump = 2
+    }
+    step += jump
   }
 
   // Feature #2: mupdf save-compressed final pass on the smallest candidate.
