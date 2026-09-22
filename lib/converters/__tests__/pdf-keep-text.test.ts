@@ -78,7 +78,7 @@ describe('compressPdfKeepText', () => {
       expect(result.bestBytes).toBeGreaterThan(100)
       expect(result.targetBytes).toBe(100)
       expect(result.passesRun).toContain('structural-cleanup')
-      expect(result.passesRun).toContain('jpeg-recompress')
+      expect(result.passesRun.some((p) => p.startsWith('jpeg-recompress:q'))).toBe(true)
     }
   })
 

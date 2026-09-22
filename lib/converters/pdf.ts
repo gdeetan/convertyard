@@ -569,24 +569,50 @@ export async function compressPdfKeepText(
     }
   }
 
-  const { file: jpegPass } = await recompressImagesKeepText(
-    structuralBuffer,
-    60,
-    input.name,
-    {
-      targetDpi: 150,
-      sourceDpi: 300,
-      imageRenderMap,
-      flateLevel: P1_FEATURES.flateLevel9 ? 9 : undefined,
+  // Quality ladder: try highest quality first, stop at first pass that fits
+  // under the target. Matches the "80 → 30% up to six passes" promise in the
+  // FAQ. Each pass runs against the same structural+dedup buffer.
+  const qualityLadder = [80, 70, 60, 50, 40, 30]
+  let best: Blob = structural
+  const ladderStart = 40
+  const ladderEnd = 85
+  let hitTarget = false
+
+  for (let step = 0; step < qualityLadder.length; step++) {
+    const quality = qualityLadder[step]
+    let candidate: Blob | null = null
+    try {
+      const { file } = await recompressImagesKeepText(
+        structuralBuffer,
+        quality,
+        input.name,
+        {
+          targetDpi: 150,
+          sourceDpi: 300,
+          imageRenderMap,
+          flateLevel: P1_FEATURES.flateLevel9 ? 9 : undefined,
+        }
+      )
+      candidate = file
+      passesRun.push(`jpeg-recompress:q${quality}`)
+    } catch {
+      passesRun.push(`jpeg-recompress:q${quality}:failed`)
     }
-  )
-  passesRun.push('jpeg-recompress')
-  onProgress?.(90)
 
-  // Track the smallest valid pass produced.
-  let best: Blob = jpegPass.size < structural.size ? jpegPass : structural
+    onProgress?.(
+      Math.round(ladderStart + ((step + 1) / qualityLadder.length) * (ladderEnd - ladderStart))
+    )
 
-  // Feature #2: mupdf save-compressed final pass.
+    if (candidate && candidate.size < best.size) {
+      best = candidate
+    }
+    if (candidate && candidate.size <= targetBytes) {
+      hitTarget = true
+      break
+    }
+  }
+
+  // Feature #2: mupdf save-compressed final pass on the smallest candidate.
   if (P1_FEATURES.mupdfSaveCompressed) {
     try {
       const { saveCompressed } = await import('./mupdf-client')
@@ -603,7 +629,7 @@ export async function compressPdfKeepText(
     }
   }
 
-  if (best.size <= targetBytes) {
+  if (hitTarget || best.size <= targetBytes) {
     onProgress?.(100)
     return { ok: true, blob: best, bytes: best.size, passesRun }
   }
