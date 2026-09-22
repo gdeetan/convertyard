@@ -556,26 +556,51 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
                 {config.presetBar && (
                   <config.presetBar onApply={handlePresetApply} />
                 )}
-                {config.advancedOptions && config.advancedOptions.length > 0 && (
-                  <details
-                    open={advancedOpen}
-                    onToggle={(e) => setAdvancedOpen(e.currentTarget.open)}
-                    className="rounded-lg border border-border"
-                  >
-                    <summary className="flex cursor-pointer select-none items-center gap-1 px-4 py-3 text-sm font-medium text-fg hover:text-fg transition-colors list-none">
-                      <span className="mr-1 text-fg-subtle">{advancedOpen ? '▾' : '▸'}</span>
-                      Advanced settings
-                    </summary>
-                    <div className="border-t border-border px-4 pb-4 pt-4">
-                      <OptionsPanel
-                        options={config.advancedOptions}
-                        values={options}
-                        onChange={handleOptionChange}
-                        files={state.entries.map((e) => e.file)}
-                      />
-                    </div>
-                  </details>
-                )}
+                {config.advancedOptions && config.advancedOptions.length > 0 && (() => {
+                  const advancedDisabled = config.advancedDisabledFn?.(options) === true
+                  const effectiveOpen = advancedOpen && !advancedDisabled
+                  return (
+                    <details
+                      open={effectiveOpen}
+                      onToggle={(e) => {
+                        if (advancedDisabled) {
+                          if (e.currentTarget.open) e.currentTarget.open = false
+                          return
+                        }
+                        setAdvancedOpen(e.currentTarget.open)
+                      }}
+                      className={cn(
+                        'rounded-lg border border-border',
+                        advancedDisabled && 'opacity-50'
+                      )}
+                    >
+                      <summary
+                        className={cn(
+                          'flex select-none items-center gap-1 px-4 py-3 text-sm font-medium text-fg transition-colors list-none',
+                          advancedDisabled ? 'cursor-not-allowed' : 'cursor-pointer hover:text-fg'
+                        )}
+                        onClick={(e) => {
+                          if (advancedDisabled) e.preventDefault()
+                        }}
+                        title={advancedDisabled ? 'Not used in Target size mode' : undefined}
+                      >
+                        <span className="mr-1 text-fg-subtle">{effectiveOpen ? '▾' : '▸'}</span>
+                        Advanced settings
+                        {advancedDisabled && (
+                          <span className="ml-2 text-xs font-normal text-fg-muted">(not used in Target size mode)</span>
+                        )}
+                      </summary>
+                      <div className="border-t border-border px-4 pb-4 pt-4">
+                        <OptionsPanel
+                          options={config.advancedOptions}
+                          values={options}
+                          onChange={handleOptionChange}
+                          files={state.entries.map((e) => e.file)}
+                        />
+                      </div>
+                    </details>
+                  )
+                })()}
               </div>
             )}
 

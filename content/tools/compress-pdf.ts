@@ -78,6 +78,8 @@ export const config: ToolConfig = {
 
   enablePresets: true,
 
+  advancedDisabledFn: (options) => options.targetSizeMode === true,
+
   advancedOptions: [
     { type: 'section-header' as const, label: 'Images' },
     {

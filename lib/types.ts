@@ -228,6 +228,7 @@ export interface ToolConfig {
     options?: ToolOptions
   }>
   advancedOptions?: ToolOption[]
+  advancedDisabledFn?: (options: ToolOptions) => boolean // when true, Advanced settings panel is collapsed and non-interactive
   presetBar?: React.ComponentType<{ onApply: (values: ToolOptions) => void }> // hardcoded quick-start presets (renders below OptionsPanel)
   enablePresets?: true // user-saved presets via localStorage (renders above OptionsPanel); safe to combine with presetBar
   faq: FAQItem[]
