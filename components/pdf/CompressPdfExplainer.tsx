@@ -174,43 +174,47 @@ export function CompressPdfExplainer() {
 
       <h2>Why are file uploads risky for PDFs?</h2>
       <p>
-        Tax returns with your Social Security number. Medical records. Bank
-        statements. Signed contracts with your handwritten signature on the
-        last page. Passport scans. Scans you sent to a landlord last year and
-        forgot were still in your &ldquo;downloads&rdquo; folder.
+        Here are some examples: Tax returns that have your Social Security
+        Number. Medical records. Signed contracts with your signature. A
+        passport with your photo, birthday, and passport number &mdash;
+        information hackers can use to steal your identity. Signed contracts
+        with your signature. Scanned documents you sent to your landlord.
       </p>
       <p>
-        Now think about what happens the moment you drop one of those into a
-        &ldquo;free online PDF compressor.&rdquo; Your file is uploaded and
-        dropped onto a server owned by a company you&rsquo;ve never heard of.
-        From that second on, you have no idea.
+        When you upload these types of files into a &ldquo;free online PDF
+        compressor,&rdquo; they are dropped into a server owned by a company
+        you don&rsquo;t know. These websites don&rsquo;t disclose where they
+        store uploaded PDFs. Some give you that option to delete the PDF
+        files, but most users won&rsquo;t bother.
       </p>
       <p>
-        <strong>Who can read it?</strong> Server admins, contractors,
-        third-party analytics tools, and anyone with the right database
-        credentials can open your file. The compressor&rsquo;s marketing page
-        says &ldquo;secure&rdquo; &mdash; that&rsquo;s a claim, not a
-        guarantee.
+        <strong>Who can read it?</strong> A number of people, including
+        server admins, third-party analytics tools, basically, anyone with
+        enough credentials to open these files. The marketing copy on the
+        website says &ldquo;secure,&rdquo; but that&rsquo;s only a claim, not
+        a guarantee.
       </p>
       <p>
-        <strong>How long does it stick around?</strong> Depends on the
-        website. Some say an hour. Others? Thirty minutes. Very few actually
-        prove this to be the case, though. Most companies have various
-        backups, caches, and error logs which contain copies of your files
-        for weeks or even months to come.
+        <strong>How long does it stay uploaded?</strong> That would depend on
+        the website. Some say files are deleted after an hour. Others? Thirty
+        minutes. It varies. However, one thing they don&rsquo;t disclose is
+        whether they automatically back it up for redundancy. This may also
+        include these PDF files. Again, these aren&rsquo;t disclosed.
       </p>
       <p>
-        <strong>Where does it end up?</strong> Your data is stored on
-        multiple servers across various data centers. Copied into staging
-        environments for debugging and occasionally leaked through
-        misconfigured cloud buckets. Search &ldquo;PDF converter data
-        leak&rdquo; to read about specific incidents.
+        <strong>Where does it end up?</strong> Data is usually stored on
+        multiple servers distributed across different data centers. This is
+        to serve data at the shortest possible distance for efficiency. This
+        redundancy helps with the website&rsquo;s core files, but it
+        doesn&rsquo;t protect PDF files: if a misconfigured cloud bucket
+        exposes your data, hackers can access it. Try searching for
+        &ldquo;PDF converter data leak&rdquo; to see what I mean.
       </p>
       <p>
-        <strong>Who&rsquo;s training on it?</strong> A growing number of
-        &ldquo;free&rdquo; tools quietly feed your uploads into AI training
-        pipelines. Your contract may already be in a model&rsquo;s training
-        set.
+        <strong>Who&rsquo;s training on it?</strong> Most people don&rsquo;t
+        realize that there may be some free tools that are quietly passing
+        your uploads directly into AI training pipelines. Your PDF contract
+        may be in a model&rsquo;s next training set.
       </p>
       <p>
         PDFs are worse than images because of the type of data that could
