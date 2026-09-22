@@ -1,3 +1,5 @@
+import { CompressorComparisonTable } from '@/components/pdf/CompressorComparisonTable'
+
 export function CompressPdfExplainer() {
   return (
     <div>
@@ -238,6 +240,9 @@ export function CompressPdfExplainer() {
         the hard copy, then it&rsquo;s sensitive enough that you
         shouldn&rsquo;t upload the PDF version.
       </p>
+
+      <h2>How ConvertYard compares</h2>
+      <CompressorComparisonTable />
     </div>
   )
 }

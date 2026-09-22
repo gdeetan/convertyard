@@ -4,7 +4,6 @@ import { ToolShell, type ToolShellApi } from '@/components/tool-shell/tool-shell
 import { config as baseConfig } from '@/content/tools/compress-pdf'
 import { CompressPdfPreviewPanel } from '@/components/pdf/CompressPdfPreviewPanel'
 import { PresetBar } from '@/components/pdf/PresetBar'
-import { CompressorComparisonTable } from '@/components/pdf/CompressorComparisonTable'
 import { UnachievableTargetCard } from '@/components/pdf/UnachievableTargetCard'
 import { compressPdfKeepText, rasterizeToTargetSize, compressPDF } from '@/lib/converters/pdf'
 import type { CompressionMeta, ConversionResult, ToolOptions } from '@/lib/types'
@@ -171,12 +170,5 @@ export default function Page() {
     </div>
   ) : undefined
 
-  return (
-    <>
-      <ToolShell config={config} onReady={handleReady} notice={notice} />
-      <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-6">
-        <CompressorComparisonTable />
-      </div>
-    </>
-  )
+  return <ToolShell config={config} onReady={handleReady} notice={notice} />
 }

@@ -181,27 +181,27 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Does compression require uploading my PDF?',
-      a: 'No. Compression runs entirely in your browser using WebAssembly. Your PDF is never sent to a server — ConvertYard only delivers the tool code.',
+      a: 'No. This runs in your browser using WebAssembly; the PDF file isn’t uploaded to an external server. Once the tool is loaded in the browser, you can actually compress PDF files even without an internet connection.',
     },
     {
       q: 'Will compressing make the PDF unsearchable?',
-      a: 'No. Text in PDFs is stored as vector data, not pixels, so it stays sharp and fully searchable regardless of compression level. Only embedded images are recompressed. The exception is Aggressive mode, which converts every page to an image — that does make text unselectable.',
+      a: 'No. PDF text is vector data (this includes lines, curves, and font data), and thus stays sharp and searchable regardless of how much compression is applied. Only embedded images are compressed. However, if you choose ‘aggressive’ mode, these layers are flattened and re-encoded as images, so text will no longer be searchable.',
     },
     {
       q: 'Why is my compressed PDF sometimes larger than the original?',
-      a: 'This happens when the original already has heavily compressed images or contains mostly text with few images. There is little left to remove, and re-encoding can add overhead. The tool will return whichever version is smaller.',
+      a: 'This happens when the original file contains heavily compressed images or mostly text with few images. In such cases, there would be little to strip, and the added overhead of re-encoding would typically result in a larger output file than the original.',
     },
     {
       q: 'What does the compression level setting actually change?',
-      a: 'Low cleans up internal structure only. Medium strips metadata and rewrites cross-reference streams. High re-encodes embedded JPEG images at 30% quality in addition to metadata removal. Text and vector graphics are unaffected by any setting except Aggressive.',
+      a: 'Low cleans up the internal structure, or removes unnecessary data. Medium level strips metadata like author name and rebuilds the file into a more compact binary format. High resaves images at a lower quality, usually at 30% - you’ll see more pixelated photos using this preset.',
     },
     {
       q: 'Can I compress a password-protected PDF?',
-      a: 'No. The tool cannot read encrypted PDFs. Remove the password first using the Unlock PDF tool, then compress.',
+      a: 'No. ConvertYard cannot read or write encrypted PDFs. You must first use the <a href="/unlock-pdf/">Unlock PDF tool</a> to remove the PDF password before you can use this tool to compress it.',
     },
     {
       q: 'How does target-size mode differ from the compression level slider?',
-      a: 'Target-size mode runs up to six compression passes automatically — structural cleanup, then progressively lower JPEG quality (80 → 60 → 40 → 30%) — stopping as soon as your size target is met. The slider applies a single fixed pass. Use target-size mode when you have a hard limit (email attachment ceiling, government portal cap).',
+      a: 'Target-size mode will run the compression up to six passes automatically. It first runs the structural cleanup pass, then slowly lowers image quality from 80 to 30%, only stopping when the target size is met. Use this option if you have a hard limit (for example, an email attachment or a government portal).',
     },
   ],
 
