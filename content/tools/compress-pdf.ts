@@ -1,11 +1,13 @@
 import { compressPDF } from '@/lib/converters/pdf'
 import type { ToolConfig } from '@/lib/types'
+import { CompressPdfExplainer } from '@/components/pdf/CompressPdfExplainer'
 
 export const config: ToolConfig = {
   slug: 'compress-pdf',
   title: 'Compress PDF',
   subtitle: 'Hit exact size targets for email limits and government portals. Target-size mode finds the smallest file that meets your threshold.',
   bestFor: 'Best for PDFs too large to email or upload to a government form.',
+  explainer: CompressPdfExplainer,
   category: 'pdf',
   accepts: ['application/pdf'],
   acceptsExt: ['.pdf'],
