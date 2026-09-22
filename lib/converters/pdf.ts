@@ -228,6 +228,12 @@ async function recompressImagesKeepText(
   const context = doc.context
   const preservedImages: string[] = []
 
+  // Collect image work items first so we can run image codecs in parallel.
+  // Each item captures the ref + its dict snapshot; mutation is deferred until
+  // after all async work returns to keep the pdf-lib context single-threaded.
+  type Mutation = () => void
+  const tasks: Array<Promise<Mutation | null>> = []
+
   for (const [ref, obj] of context.enumerateIndirectObjects()) {
     if (!(obj instanceof PDFRawStream)) continue
     const subtype = obj.dict.get(PDFName.of('Subtype'))
@@ -238,14 +244,21 @@ async function recompressImagesKeepText(
 
     // Existing JPEG branch — unchanged behavior.
     if (filterStr === '/DCTDecode') {
-      try {
-        const reencoded = await reencodeJpeg(obj.contents, quality)
-        if (reencoded.byteLength >= obj.contents.byteLength) continue
-        obj.dict.set(PDFName.of('Length'), PDFNumber.of(reencoded.byteLength))
-        context.assign(ref, PDFRawStream.of(obj.dict, reencoded))
-      } catch {
-        preservedImages.push(`${ref.toString()}:jpeg-reencode-failed`)
-      }
+      const jpegRef = ref
+      const jpegObj = obj
+      tasks.push((async () => {
+        try {
+          const reencoded = await reencodeJpeg(jpegObj.contents, quality)
+          if (reencoded.byteLength >= jpegObj.contents.byteLength) return null
+          return () => {
+            jpegObj.dict.set(PDFName.of('Length'), PDFNumber.of(reencoded.byteLength))
+            context.assign(jpegRef, PDFRawStream.of(jpegObj.dict, reencoded))
+          }
+        } catch {
+          preservedImages.push(`${jpegRef.toString()}:jpeg-reencode-failed`)
+          return null
+        }
+      })())
       continue
     }
 
@@ -268,78 +281,83 @@ async function recompressImagesKeepText(
         preservedImages.push(`${ref.toString()}:bpc=${bpc.asNumber()}`)
         continue
       }
-      // Skip if image also has an SMask (alpha) — downsampling to JPEG would
-      // drop the mask and change rendering. Preserve for safety.
       if (obj.dict.get(PDFName.of('SMask'))) {
         preservedImages.push(`${ref.toString()}:has-smask`)
         continue
       }
-      // Skip images with a Decode array — non-default remapping we can't
-      // faithfully carry through JPEG.
       if (obj.dict.get(PDFName.of('Decode'))) {
         preservedImages.push(`${ref.toString()}:has-decode`)
         continue
       }
 
-      try {
-        let effectiveSourceDpi = opts.sourceDpi
-        if (opts.imageRenderMap) {
-          const key = `${width.asNumber()}x${height.asNumber()}`
-          const renderedPoints = opts.imageRenderMap[key]
-          if (typeof renderedPoints === 'number' && renderedPoints > 0) {
-            const dpi = computeEffectiveDpi({
-              pixelWidth: width.asNumber(),
-              renderedPoints,
-            })
-            if (Number.isFinite(dpi) && dpi > 0) effectiveSourceDpi = dpi
-          }
+      const flateRef = ref
+      const flateObj = obj
+      const w = width.asNumber()
+      const h = height.asNumber()
+      const cssnap = csStr
+      let effectiveSourceDpi = opts.sourceDpi
+      if (opts.imageRenderMap) {
+        const key = `${w}x${h}`
+        const renderedPoints = opts.imageRenderMap[key]
+        if (typeof renderedPoints === 'number' && renderedPoints > 0) {
+          const dpi = computeEffectiveDpi({ pixelWidth: w, renderedPoints })
+          if (Number.isFinite(dpi) && dpi > 0) effectiveSourceDpi = dpi
         }
-
-        const result = await downsampleFlateImage(obj.contents, {
-          sourceWidth: width.asNumber(),
-          sourceHeight: height.asNumber(),
-          sourceDpi: effectiveSourceDpi,
-          targetDpi: opts.targetDpi,
-          colorSpace: csStr === '/DeviceRGB' ? 'DeviceRGB' : 'DeviceGray',
-          bitsPerComponent: 8,
-          jpegQuality: quality / 100,
-          flateLevel: opts.flateLevel,
-        })
-
-        if (result.filter === 'FlateDecode') {
-          // No downsample happened — leave object unchanged.
-          continue
-        }
-        if (result.bytes.byteLength >= obj.contents.byteLength) {
-          // JPEG output larger than the Flate source — leave unchanged.
-          continue
-        }
-
-        // Build a new dict for a JPEG image XObject. Preserve the existing
-        // dict entries except those that must change for a DCT-encoded image.
-        const newDict = obj.dict.clone(context)
-        newDict.set(PDFName.of('Filter'), PDFName.of('DCTDecode'))
-        newDict.set(PDFName.of('Width'), PDFNumber.of(result.width))
-        newDict.set(PDFName.of('Height'), PDFNumber.of(result.height))
-        newDict.set(PDFName.of('BitsPerComponent'), PDFNumber.of(8))
-        newDict.set(PDFName.of('ColorSpace'), PDFName.of(
-          csStr === '/DeviceRGB' ? 'DeviceRGB' : 'DeviceGray'
-        ))
-        newDict.set(PDFName.of('Length'), PDFNumber.of(result.bytes.byteLength))
-        // Flate-only decoding hints have no meaning for DCT; drop them.
-        newDict.delete(PDFName.of('DecodeParms'))
-        newDict.delete(PDFName.of('Predictor'))
-
-        context.assign(ref, PDFRawStream.of(newDict, result.bytes))
-      } catch {
-        preservedImages.push(`${ref.toString()}:downsample-failed`)
       }
+
+      tasks.push((async () => {
+        try {
+          const result = await downsampleFlateImage(flateObj.contents, {
+            sourceWidth: w,
+            sourceHeight: h,
+            sourceDpi: effectiveSourceDpi,
+            targetDpi: opts.targetDpi,
+            colorSpace: cssnap === '/DeviceRGB' ? 'DeviceRGB' : 'DeviceGray',
+            bitsPerComponent: 8,
+            jpegQuality: quality / 100,
+            flateLevel: opts.flateLevel,
+          })
+
+          if (result.filter === 'FlateDecode') return null
+          if (result.bytes.byteLength >= flateObj.contents.byteLength) return null
+
+          return () => {
+            const newDict = flateObj.dict.clone(context)
+            newDict.set(PDFName.of('Filter'), PDFName.of('DCTDecode'))
+            newDict.set(PDFName.of('Width'), PDFNumber.of(result.width))
+            newDict.set(PDFName.of('Height'), PDFNumber.of(result.height))
+            newDict.set(PDFName.of('BitsPerComponent'), PDFNumber.of(8))
+            newDict.set(PDFName.of('ColorSpace'), PDFName.of(
+              cssnap === '/DeviceRGB' ? 'DeviceRGB' : 'DeviceGray'
+            ))
+            newDict.set(PDFName.of('Length'), PDFNumber.of(result.bytes.byteLength))
+            newDict.delete(PDFName.of('DecodeParms'))
+            newDict.delete(PDFName.of('Predictor'))
+            context.assign(flateRef, PDFRawStream.of(newDict, result.bytes))
+          }
+        } catch {
+          preservedImages.push(`${flateRef.toString()}:downsample-failed`)
+          return null
+        }
+      })())
       continue
     }
 
     // Any other codec (JPX, JBIG2, CCITT, filter chain) — preserve as-is.
     preservedImages.push(`${ref.toString()}:filter=${filterStr || 'none'}`)
   }
+
+  // Run image codecs in parallel with a concurrency cap so a large PDF with
+  // many images doesn't spawn dozens of decoder pipelines at once.
+  const CONCURRENCY = 4
+  const mutations: Mutation[] = []
+  for (let i = 0; i < tasks.length; i += CONCURRENCY) {
+    const chunk = tasks.slice(i, i + CONCURRENCY)
+    const settled = await Promise.all(chunk)
+    for (const m of settled) if (m) mutations.push(m)
+  }
+  // Apply mutations sequentially — pdf-lib context assumes single-threaded edits.
+  for (const apply of mutations) apply()
 
   const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
   return {
