@@ -866,11 +866,13 @@ export async function compressPDF(
         if (level === 'aggressive') {
           onProgress?.(i, 10)
           const buffer = await files[i].arrayBuffer()
-          const file = grayscale
+          const rasterized = grayscale
             ? await rasterizeGrayscaleForTarget(buffer, files[i].name, targetDpi, jpegQuality)
             : await rasterizeForTarget(buffer, files[i].name, targetDpi, jpegQuality)
           onProgress?.(i, 100)
-          results.push(file)
+          // Guard: rasterization can bloat text/vector-heavy inputs. If the
+          // output isn't smaller, return the original untouched.
+          results.push(rasterized.size < files[i].size ? rasterized : files[i])
         } else {
           onProgress?.(i, 10)
           const buffer = await files[i].arrayBuffer()
@@ -879,14 +881,18 @@ export async function compressPDF(
 
           if (grayscale) {
             const structBuf = await file.arrayBuffer()
-            file = await rasterizeGrayscaleForTarget(structBuf, files[i].name, targetDpi, jpegQuality)
+            const rasterized = await rasterizeGrayscaleForTarget(structBuf, files[i].name, targetDpi, jpegQuality)
+            // Guard: keep whichever is smallest across original, structural, rasterized.
+            if (rasterized.size < file.size) file = rasterized
           } else if (jpegQuality < 80) {
             const structBuf = await file.arrayBuffer()
-            file = await recompressImages(structBuf, jpegQuality, files[i].name)
+            const recompressed = await recompressImages(structBuf, jpegQuality, files[i].name)
+            if (recompressed.size < file.size) file = recompressed
           }
 
           onProgress?.(i, 100)
-          results.push(file)
+          // Final safety: never return larger than input.
+          results.push(file.size < files[i].size ? file : files[i])
         }
       }
     } catch (err) {
