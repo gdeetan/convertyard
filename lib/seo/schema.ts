@@ -81,7 +81,7 @@ export function articleSchema(opts: {
       '@type': 'Organization',
       name: 'ConvertYard',
       url: BASE_URL,
-      logo: `${BASE_URL}/logo.png`,
+      logo: `${BASE_URL}/logo.svg`,
     },
   }
 }
@@ -92,7 +92,7 @@ export function organizationSchema() {
     '@type': 'Organization',
     name: 'ConvertYard',
     url: BASE_URL,
-    logo: `${BASE_URL}/logo.png`,
+    logo: `${BASE_URL}/logo.svg`,
     sameAs: [] as string[],
   }
 }

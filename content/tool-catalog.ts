@@ -8,6 +8,8 @@ export interface CatalogTool {
   category: 'images' | 'pdf' | 'video-audio' | 'developer' | 'web-tools' | 'ai-tools' | 'image-editing' | 'image-to-text'
   status: ToolStatus
   badge?: string
+  /** Manual override for sitemap lastmod. Format: YYYY-MM-DD. If unset, sitemap derives from git commit date. */
+  lastUpdated?: string
 }
 
 export const ALL_TOOLS: CatalogTool[] = [

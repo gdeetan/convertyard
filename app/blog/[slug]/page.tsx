@@ -28,6 +28,11 @@ export async function generateMetadata({
       publishedTime: entry.lastUpdated,
       modifiedTime: entry.lastUpdated,
     },
+    twitter: {
+      card: 'summary_large_image',
+      title: entry.title,
+      description: entry.description,
+    },
   }
 }
 

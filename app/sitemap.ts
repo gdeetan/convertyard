@@ -1,6 +1,9 @@
 // app/sitemap.ts
 export const dynamic = 'force-static'
 
+import { execSync } from 'node:child_process'
+import { existsSync } from 'node:fs'
+import { join } from 'node:path'
 import type { MetadataRoute } from 'next'
 import { tools }        from '@/content/tool-registry'
 import { textTools }    from '@/content/text-tool-registry'
@@ -12,20 +15,49 @@ import { BASE_URL }     from '@/lib/seo/schema'
 
 const BUILD_DATE = new Date()
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  const toolEntries: MetadataRoute.Sitemap = tools.map((t) => ({
-    url: `${BASE_URL}/${t.slug}/`,
-    lastModified: BUILD_DATE,
-    changeFrequency: 'monthly',
-    priority: 0.8,
-  }))
+// Derive last commit date for a tool page from git. Returns undefined if
+// the file has no git history (new/uncommitted) or git is unavailable.
+function gitLastModified(slug: string): Date | undefined {
+  const pagePath = join('app', '(tools)', slug, 'page.tsx')
+  if (!existsSync(pagePath)) return undefined
+  try {
+    const out = execSync(`git log -1 --format=%cI -- "${pagePath}"`, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim()
+    return out ? new Date(out) : undefined
+  } catch {
+    return undefined
+  }
+}
 
-  const textToolEntries: MetadataRoute.Sitemap = textTools.map((t) => ({
-    url: `${BASE_URL}/${t.slug}/`,
-    lastModified: BUILD_DATE,
-    changeFrequency: 'monthly',
-    priority: 0.8,
-  }))
+function resolveToolLastMod(slug: string, manual?: string): Date | undefined {
+  if (manual) return new Date(manual)
+  return gitLastModified(slug)
+}
+
+export default function sitemap(): MetadataRoute.Sitemap {
+  const catalogBySlug = new Map(ALL_TOOLS.map((t) => [t.slug, t]))
+
+  const toolEntries: MetadataRoute.Sitemap = tools.map((t) => {
+    const lastMod = resolveToolLastMod(t.slug, catalogBySlug.get(t.slug)?.lastUpdated)
+    return {
+      url: `${BASE_URL}/${t.slug}/`,
+      ...(lastMod ? { lastModified: lastMod } : {}),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    }
+  })
+
+  const textToolEntries: MetadataRoute.Sitemap = textTools.map((t) => {
+    const lastMod = resolveToolLastMod(t.slug, catalogBySlug.get(t.slug)?.lastUpdated)
+    return {
+      url: `${BASE_URL}/${t.slug}/`,
+      ...(lastMod ? { lastModified: lastMod } : {}),
+      changeFrequency: 'monthly',
+      priority: 0.8,
+    }
+  })
 
   // Catalog-only entries: live tool pages present on disk and in ALL_TOOLS
   // but not wired through the shared-shell registries above. Emitted at a
@@ -36,12 +68,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ])
   const catalogOnlyEntries: MetadataRoute.Sitemap = ALL_TOOLS
     .filter((t) => t.status === 'live' && !registrySlugs.has(t.slug))
-    .map((t) => ({
-      url: `${BASE_URL}/${t.slug}/`,
-      lastModified: BUILD_DATE,
-      changeFrequency: 'monthly',
-      priority: 0.7,
-    }))
+    .map((t) => {
+      const lastMod = resolveToolLastMod(t.slug, t.lastUpdated)
+      return {
+        url: `${BASE_URL}/${t.slug}/`,
+        ...(lastMod ? { lastModified: lastMod } : {}),
+        changeFrequency: 'monthly',
+        priority: 0.7,
+      }
+    })
 
   const articleEntries: MetadataRoute.Sitemap = articles.map((a) => ({
     url: `${BASE_URL}/blog/${a.slug}/`,
