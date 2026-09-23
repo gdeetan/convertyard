@@ -1,6 +1,6 @@
 import { PDFDocument, PDFRawStream, PDFRef, PDFName, PDFNumber, PDFDict, degrees, rgb, StandardFonts, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
 import { zipSync } from 'fflate'
-import { getPageCount, renderPage, renderPagePng, extractText, extractStructuredText, openPdf, closePdf } from './mupdf-client'
+import { getPageCount, renderPage, renderPagePng, extractText, extractStructuredText, openPdf, closePdf, type PdfSource } from './mupdf-client'
 import { isSafari, isIos } from '@/lib/utils/platform'
 import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
@@ -541,6 +541,40 @@ async function recompressImagesKeepText(
   return executeImageRecompress(plan, quality, opts.targetDpi, fileName)
 }
 
+// Pipeline depth: how many renderPage calls to keep in flight against the
+// single mupdf worker. Higher depth = more overlap between worker rendering
+// page N+k and main-thread embed/addPage for page N. Kept small on mobile
+// to bound peak memory (each in-flight JPEG buffer sits in the queue).
+function rasterPipelineDepth(): number {
+  return isMobile() ? 2 : 4
+}
+
+// Consume an ordered async page pipeline: kicks off `depth` renders upfront,
+// yields each page's bytes in order, refilling the queue as pages are drained.
+// The overlap between worker render and main-thread embed/addPage is where
+// the speedup comes from — mupdf serializes inside its worker, but its work
+// runs in parallel with main-thread pdf-lib and canvas work.
+async function* pipelineRasterPages(
+  pageCount: number,
+  depth: number,
+  renderOne: (pageIndex: number) => Promise<Uint8Array>
+): AsyncGenerator<Uint8Array, void, void> {
+  const queue: Promise<Uint8Array>[] = []
+  let next = 0
+  const enqueueNext = () => {
+    if (next < pageCount) {
+      queue.push(renderOne(next))
+      next++
+    }
+  }
+  for (let i = 0; i < Math.min(depth, pageCount); i++) enqueueNext()
+  for (let p = 0; p < pageCount; p++) {
+    const bytes = await queue.shift()!
+    enqueueNext()
+    yield bytes
+  }
+}
+
 async function rasterizePdf(file: File, dpi: number, fileName: string): Promise<File> {
   const buffer = await file.arrayBuffer()
   // Transfer the source PDF to the worker once, then reference by docId.
@@ -551,9 +585,11 @@ async function rasterizePdf(file: File, dpi: number, fileName: string): Promise<
     const pageCount = await getPageCount(handle)
     const doc = await PDFDocument.create()
 
-    for (let p = 0; p < pageCount; p++) {
+    const pages = pipelineRasterPages(pageCount, rasterPipelineDepth(), async (p) => {
       const jpegBuffer = await renderPage(handle, p, dpi, 85)
-      const jpegBytes = new Uint8Array(jpegBuffer)
+      return new Uint8Array(jpegBuffer)
+    })
+    for await (const jpegBytes of pages) {
       const image = await doc.embedJpg(jpegBytes)
       const page = doc.addPage([image.width, image.height])
       page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
@@ -566,21 +602,27 @@ async function rasterizePdf(file: File, dpi: number, fileName: string): Promise<
   }
 }
 
-// Variant that takes an ArrayBuffer directly — used by target-size mode to avoid re-reading File
+// Variant that takes an ArrayBuffer or an already-open mupdf handle. In
+// target-size mode the caller opens the PDF once and reuses the handle
+// across every DPI/quality rung, so we skip the buffer clone + worker
+// re-parse per rung. Legacy callers still pass a buffer.
 async function rasterizeForTarget(
-  buffer: ArrayBuffer,
+  source: PdfSource,
   fileName: string,
   dpi: number,
   quality: number
 ): Promise<File> {
-  const handle = await openPdf(buffer.slice(0))
+  const ownsHandle = source instanceof ArrayBuffer
+  const handle = ownsHandle ? await openPdf(source.slice(0)) : source
   try {
     const pageCount = await getPageCount(handle)
     const doc = await PDFDocument.create()
 
-    for (let p = 0; p < pageCount; p++) {
+    const pages = pipelineRasterPages(pageCount, rasterPipelineDepth(), async (p) => {
       const jpegBuffer = await renderPage(handle, p, dpi, quality)
-      const jpegBytes = new Uint8Array(jpegBuffer)
+      return new Uint8Array(jpegBuffer)
+    })
+    for await (const jpegBytes of pages) {
       const image = await doc.embedJpg(jpegBytes)
       const page = doc.addPage([image.width, image.height])
       page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
@@ -589,23 +631,26 @@ async function rasterizeForTarget(
     const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
     return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
   } finally {
-    await closePdf(handle).catch(() => { /* best effort */ })
+    if (ownsHandle) await closePdf(handle).catch(() => { /* best effort */ })
   }
 }
 
-// Grayscale rasterization — maximum size reduction
+// Grayscale rasterization — maximum size reduction. The OffscreenCanvas
+// filter step runs on the main thread, so pipelining renderPage against it
+// gives a larger overlap win than the plain rasterize path.
 async function rasterizeGrayscaleForTarget(
-  buffer: ArrayBuffer,
+  source: PdfSource,
   fileName: string,
   dpi: number,
   quality: number
 ): Promise<File> {
-  const handle = await openPdf(buffer.slice(0))
+  const ownsHandle = source instanceof ArrayBuffer
+  const handle = ownsHandle ? await openPdf(source.slice(0)) : source
   try {
     const pageCount = await getPageCount(handle)
     const doc = await PDFDocument.create()
 
-    for (let p = 0; p < pageCount; p++) {
+    const pages = pipelineRasterPages(pageCount, rasterPipelineDepth(), async (p) => {
       const jpegBuffer = await renderPage(handle, p, dpi, quality)
       const jpegBytes = new Uint8Array(jpegBuffer)
       const blob = new Blob([jpegBytes as unknown as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })
@@ -616,7 +661,9 @@ async function rasterizeGrayscaleForTarget(
       ctx.drawImage(bmp, 0, 0)
       bmp.close()
       const grayBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: quality / 100 })
-      const grayBytes = new Uint8Array(await grayBlob.arrayBuffer())
+      return new Uint8Array(await grayBlob.arrayBuffer())
+    })
+    for await (const grayBytes of pages) {
       const image = await doc.embedJpg(grayBytes)
       const page = doc.addPage([image.width, image.height])
       page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
@@ -625,7 +672,7 @@ async function rasterizeGrayscaleForTarget(
     const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
     return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
   } finally {
-    await closePdf(handle).catch(() => { /* best effort */ })
+    if (ownsHandle) await closePdf(handle).catch(() => { /* best effort */ })
   }
 }
 
@@ -926,20 +973,26 @@ export async function rasterizeToTargetSize(
 ): Promise<{ file: File; meta: CompressionMeta }> {
   const originalBytes = input.size
   const floor = targetBytes * 0.5
+  // Open the source PDF into mupdf once and reuse the handle across every
+  // rung. Previously each step called openPdf → transferring a fresh clone
+  // of the (potentially 100MB+) buffer to the worker and re-parsing the doc.
+  // On the escalation path that ran 5× per file.
   const inputBuffer = await input.arrayBuffer()
+  const handle = await openPdf(inputBuffer)
 
   const steps: Array<{ label: string; produce: () => Promise<File> }> = [
-    { label: 'rasterize 200 DPI quality 80',     produce: () => rasterizeForTarget(inputBuffer, input.name, 200, 80) },
-    { label: 'rasterize 150 DPI quality 75',     produce: () => rasterizeForTarget(inputBuffer, input.name, 150, 75) },
-    { label: 'rasterize 100 DPI quality 65',     produce: () => rasterizeForTarget(inputBuffer, input.name, 100, 65) },
-    { label: 'rasterize 72 DPI quality 40',      produce: () => rasterizeForTarget(inputBuffer, input.name, 72, 40) },
-    { label: 'rasterize grayscale 72 DPI q 35',  produce: () => rasterizeGrayscaleForTarget(inputBuffer, input.name, 72, 35) },
+    { label: 'rasterize 200 DPI quality 80',     produce: () => rasterizeForTarget(handle, input.name, 200, 80) },
+    { label: 'rasterize 150 DPI quality 75',     produce: () => rasterizeForTarget(handle, input.name, 150, 75) },
+    { label: 'rasterize 100 DPI quality 65',     produce: () => rasterizeForTarget(handle, input.name, 100, 65) },
+    { label: 'rasterize 72 DPI quality 40',      produce: () => rasterizeForTarget(handle, input.name, 72, 40) },
+    { label: 'rasterize grayscale 72 DPI q 35',  produce: () => rasterizeGrayscaleForTarget(handle, input.name, 72, 35) },
   ]
 
   let prevBest: File = input
   let prevBestLabel = 'original'
   let iterationsUsed = 0
 
+  try {
   for (let i = 0; i < steps.length; i++) {
     onProgress?.(Math.round(10 + ((i + 1) / steps.length) * 85))
 
@@ -1014,6 +1067,9 @@ export async function rasterizeToTargetSize(
         ? undefined
         : `Couldn't reach ${formatBytes(targetBytes)} — smallest possible is ${formatBytes(prevBest.size)}`,
     },
+  }
+  } finally {
+    await closePdf(handle).catch(() => { /* best effort */ })
   }
 }
 
