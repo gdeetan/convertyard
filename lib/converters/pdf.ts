@@ -1,7 +1,7 @@
 import { PDFDocument, PDFRawStream, PDFRef, PDFName, PDFNumber, PDFDict, degrees, rgb, StandardFonts, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
 import { zipSync } from 'fflate'
 import { getPageCount, renderPage, renderPagePng, extractText, extractStructuredText, openPdf, closePdf } from './mupdf-client'
-import { isSafari } from '@/lib/utils/platform'
+import { isSafari, isIos } from '@/lib/utils/platform'
 import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
 import { convertPdfToWord } from './pdf-to-word'
@@ -1078,13 +1078,13 @@ export async function compressPdfToTargetSize(
 
 // ── Compress ──────────────────────────────────────────────────────────────────
 
-// Safari's per-tab WebAssembly heap is capped near 2GB and the browser
-// hard-refreshes the tab on OOM without a catchable error. Reject files
-// large enough to blow that budget after mupdf init + rasterization
-// overhead, so the user gets a real message instead of a silent refresh.
-// Threshold picked conservatively: a 200MB PDF plus mupdf's decode buffers
-// and pdf-lib's in-flight PDFDocument routinely peaks past 1.5GB.
-const SAFARI_MAX_PDF_BYTES = 150 * 1024 * 1024
+// Safari's per-tab WebAssembly heap is capped near 2GB on desktop and
+// closer to ~1–1.5GB effective on iOS before the OS reaps the tab.
+// Rasterization peaks at roughly 3× file size (main-thread buffer +
+// worker doc + pixmap + growing pdf-lib doc), so gate on that. Reject
+// oversized files with a real message instead of a silent OOM refresh.
+const SAFARI_DESKTOP_MAX_PDF_BYTES = 300 * 1024 * 1024
+const SAFARI_IOS_MAX_PDF_BYTES = 150 * 1024 * 1024
 
 export async function compressPDF(
   files: File[],
@@ -1096,10 +1096,11 @@ export async function compressPDF(
 
   const safari = isSafari()
   if (safari) {
+    const limit = isIos() ? SAFARI_IOS_MAX_PDF_BYTES : SAFARI_DESKTOP_MAX_PDF_BYTES
     for (let i = 0; i < files.length; i++) {
-      if (files[i].size > SAFARI_MAX_PDF_BYTES) {
+      if (files[i].size > limit) {
         results[i] = new Error(
-          `This PDF is ${formatBytes(files[i].size)}. Safari can't compress files larger than ${formatBytes(SAFARI_MAX_PDF_BYTES)} without refreshing the tab. Try Chrome or Firefox, or split the PDF first.`
+          `This PDF is ${formatBytes(files[i].size)}. Safari can't compress files larger than ${formatBytes(limit)} without refreshing the tab. Try Chrome or Firefox, or split the PDF first.`
         )
       }
     }
