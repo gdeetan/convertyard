@@ -9,17 +9,17 @@ export const config: SizeTargetConfig = {
   subhead:
     "Stay under Outlook's default 10 MB email cap and send design portfolios without cloud links.",
   intro:
-    "10 MB is Microsoft Outlook's default maximum message size — which means most corporate email systems enforce a 10 MB total attachment cap. Design portfolios with embedded images, conference presentation handouts, and long technical documents regularly start at 20–80 MB from their source tools. Compressing to just under 10 MB lets these files travel over corporate email without being bounced by a mail server.",
+    "10 MB is Microsoft Outlook's default maximum message size — which means most corporate email systems enforce a 10 MB total attachment cap. Design portfolios with embedded images, conference presentation handouts, and long technical documents regularly start at 20–80 MB from their source tools. Compressing to just under 10 MB lets these files travel over corporate email without being bounced by a mail server.\n\nMicrosoft Outlook users can send file attachments with a maximum size of 10 MB. If you work for a design studio with high-resolution portfolios, a high-profile company with conference presentation handouts, or technical documents ranging from 20 to 80 MB, compressing them to just under 10 MB will be critical to sending them without the mail server rejecting them.",
   useCases: [
     {
-      label: 'Outlook email attachments (default 10 MB server cap)',
+      label: 'Outlook email file attachments (10 MB Max)',
       description:
-        "Microsoft Exchange Server's default max attachment size is 10 MB per message. Emails above this limit bounce with a 'message size exceeds maximum' error.",
+        "This tool has a max attachment size of 10 MB per message. Sending anything over this will trigger a 'message size exceeds maximum' error.",
     },
     {
       label: 'Design portfolios with embedded images',
       description:
-        'Creative portfolios exported from Adobe InDesign or Figma can exceed 100 MB. Compressing to 10 MB makes them shareable as email attachments without requiring a cloud link.',
+        'Creatives who use Adobe InDesign or Figma easily exceed 100 MB. Compress the PDF output to 10 MB so you can send these as attachments using Outlook and prevent any delays.',
     },
     {
       label: 'Conference presentation handouts',
@@ -27,9 +27,9 @@ export const config: SizeTargetConfig = {
         'PDF handouts distributed at academic conferences or corporate seminars are commonly emailed to attendees; 10 MB is the safe ceiling for broad inbox compatibility.',
     },
     {
-      label: 'Long technical documentation submissions',
+      label: 'Long technical documentation',
       description:
-        'Engineering proposals, architecture specifications, and technical reports submitted to clients or procurement teams via email need to pass corporate mail server limits.',
+        'These include engineering proposals, architecture specifications, and technical reports submitted to clients or procurement teams via email and need to pass corporate mail server limits.',
     },
   ],
   specificFaq: [
