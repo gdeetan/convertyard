@@ -1097,15 +1097,21 @@ export async function compressPDF(
   const safari = isSafari()
   if (safari) {
     const limit = isIos() ? SAFARI_IOS_MAX_PDF_BYTES : SAFARI_DESKTOP_MAX_PDF_BYTES
+    // Track rejections explicitly. `results` is a sparse array from
+    // `new Array(files.length)` and Array.prototype.every SKIPS HOLES —
+    // `[<empty>].every(cb)` returns true vacuously and would silently
+    // short-circuit conversion for every Safari user with a small file.
+    let rejectedCount = 0
     for (let i = 0; i < files.length; i++) {
       if (files[i].size > limit) {
         results[i] = new Error(
           `This PDF is ${formatBytes(files[i].size)}. Safari can't compress files larger than ${formatBytes(limit)} without refreshing the tab. Try Chrome or Firefox, or split the PDF first.`
         )
+        rejectedCount++
       }
     }
     // If every file was rejected, short-circuit.
-    if (results.every((r) => r instanceof Error)) return results
+    if (rejectedCount === files.length && files.length > 0) return results
   }
 
   // Fix 4: for target-size mode, run 2 files concurrently. Each file has its
