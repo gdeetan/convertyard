@@ -121,8 +121,10 @@ export function SizeTargetShell({
       </div>
 
       {/* Intro */}
-      <section className="mb-10">
-        <p className="text-base text-fg-muted leading-relaxed">{config.intro}</p>
+      <section className="mb-10 space-y-4">
+        {(Array.isArray(config.intro) ? config.intro : [config.intro]).map((p, i) => (
+          <p key={i} className="text-base text-fg-muted leading-relaxed">{p}</p>
+        ))}
       </section>
 
       {/* Use cases */}
