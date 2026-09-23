@@ -25,13 +25,16 @@ export const config: ToolConfig = {
     if (options.targetSizeMode === true) {
       const targetKB = typeof options.targetKB === 'number' ? options.targetKB : 500
       const targetBytes = targetKB * 1024
-      // Suppress the text banner when the unachievable case fires — the
-      // compress-pdf page renders a full RasterizeAheadCard for it (with a
-      // Rasterize button that replaces the Convert action). Doubling both
-      // would look like two warnings for the same thing.
+      // When the target is well below what keep-text can hit, the tool
+      // will rasterize (flatten each page to an image) to reach it. Text
+      // stays readable but becomes an image — harder to read at high zoom,
+      // no longer selectable, and screen readers can't parse it. Say so
+      // upfront so it's not a surprise.
       const looksUnachievable = files.some((f) => f.size > targetBytes * 2.5)
-      if (looksUnachievable) return null
-      return 'If your target size can\'t be met while keeping text, we\'ll ask before rasterizing. Rasterizing removes searchable text.'
+      if (looksUnachievable) {
+        return 'Target is aggressive — pages will be flattened to images to hit it. Text will look softer at high zoom and stops being selectable, but the file will hit your target.'
+      }
+      return 'If the target can\'t be met while keeping text, pages will be flattened to images automatically.'
     }
     return null
   },

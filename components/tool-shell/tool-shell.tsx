@@ -37,28 +37,14 @@ const CATEGORY_META: Record<ToolCategory, { label: string; href: string }> = {
 export interface ToolShellApi {
   /** Replace a result file in place (e.g., after user opts in to a lossy alt path). */
   replaceResult: (fileIndex: number, newFile: File) => void
-  /** Programmatically kick off conversion (equivalent to the primary Convert button). */
-  startConversion: () => void
-  /** Mutate a tool option (e.g. a pre-convert card that raises the target size). */
-  setOption: (name: string, value: unknown) => void
 }
-
-/**
- * Notice slot content. Accepts either static ReactNode or a function that
- * receives the shell's current files/options/api — the latter lets pages
- * render a pre-convert card driven by the current selection without
- * mirroring shell state in the parent.
- */
-export type NoticeContent =
-  | React.ReactNode
-  | ((ctx: { files: File[]; options: ToolOptions; api: ToolShellApi }) => React.ReactNode)
 
 interface ToolShellProps {
   config: ToolConfig
   embedded?: boolean
   onResults?: (results: File[]) => void
   initialOptions?: ToolOptions
-  notice?: NoticeContent
+  notice?: React.ReactNode
   belowToolCard?: React.ReactNode
   afterHowItWorks?: React.ReactNode
   /**
@@ -288,18 +274,12 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
 
   const toolCardRef = useRef<HTMLDivElement>(null)
 
-  // Latest-handler refs so the API surface exposed via onReady can call
-  // handlers that depend on state/options without recomputing the API
-  // object each render. onReady fires once on mount with a stable identity.
-  const handleConvertRef = useRef<() => void>(() => {})
-  const handleOptionChangeRef = useRef<(name: string, value: unknown) => void>(() => {})
-
+  // Expose imperative helpers (e.g. manual result swap) exactly once. The
+  // dispatch identity is stable across renders, so this fires on mount only.
   useEffect(() => {
     onReady?.({
       replaceResult: (fileIndex, newFile) =>
         dispatch({ type: 'EDIT_RESULT', fileIndex, newFile }),
-      startConversion: () => handleConvertRef.current(),
-      setOption: (name, value) => handleOptionChangeRef.current(name, value),
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -460,27 +440,6 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
   const actionVerb = config.actionLabel?.verb ?? 'Convert'
   const actionGerund = config.actionLabel?.gerund ?? 'Converting'
 
-  // Keep imperative handler refs pointed at the latest closures so the
-  // stable ToolShellApi handed to onReady always dispatches with current
-  // state/options.
-  handleConvertRef.current = handleConvert
-  handleOptionChangeRef.current = handleOptionChange
-
-  const currentFiles = entries.map((e) => e.file)
-  const hideConvertButton = hasFiles && config.hideConvertWhen?.(currentFiles, options) === true
-
-  const renderedNotice = typeof notice === 'function'
-    ? notice({
-        files: currentFiles,
-        options,
-        api: {
-          replaceResult: (fileIndex, newFile) => dispatch({ type: 'EDIT_RESULT', fileIndex, newFile }),
-          startConversion: () => handleConvertRef.current(),
-          setOption: (name, value) => handleOptionChangeRef.current(name, value),
-        },
-      })
-    : notice
-
   const zipName = `${config.slug}-converted.zip`
 
   const inner = (
@@ -523,7 +482,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
       )}
 
       {/* ── Optional notice banner ──────────────────────────────────────── */}
-      {renderedNotice && <div className="mb-4">{renderedNotice}</div>}
+      {notice && <div className="mb-4">{notice}</div>}
 
       {/* ── Main tool card ───────────────────────────────────────────────── */}
       <div ref={toolCardRef} className="scroll-mt-4 rounded-2xl border border-border bg-bg-elevated p-6 shadow-sm">
@@ -672,21 +631,19 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
               >
                 Clear all
               </button>
-              {!hideConvertButton && (
-                <button
-                  type="button"
-                  onClick={handleConvert}
-                  className={cn(
-                    'flex items-center gap-2 rounded-xl px-6 py-3',
-                    'bg-primary text-primary-fg text-sm font-semibold',
-                    'transition-colors hover:bg-primary-hover',
-                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
-                  )}
-                >
-                  <Upload className="h-4 w-4" aria-hidden="true" />
-                  {actionVerb} {entries.length} file{entries.length > 1 ? 's' : ''}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={handleConvert}
+                className={cn(
+                  'flex items-center gap-2 rounded-xl px-6 py-3',
+                  'bg-primary text-primary-fg text-sm font-semibold',
+                  'transition-colors hover:bg-primary-hover',
+                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+                )}
+              >
+                <Upload className="h-4 w-4" aria-hidden="true" />
+                {actionVerb} {entries.length} file{entries.length > 1 ? 's' : ''}
+              </button>
             </div>
           </div>
         )}

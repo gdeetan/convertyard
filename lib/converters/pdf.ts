@@ -676,6 +676,66 @@ async function rasterizeGrayscaleForTarget(
   }
 }
 
+/**
+ * Bilevel (1-bit) rasterization — for the most aggressive target-size
+ * scenarios on scanned text. Renders each page at high DPI, thresholds
+ * pixels to pure black/white, and embeds as PNG. Text edges stay razor
+ * sharp because there are no JPEG blocks; PNG's Flate filter compresses
+ * two-tone content extremely well (10–20× smaller than grayscale JPEG
+ * at the same DPI). Photos and grayscale illustrations will look bad —
+ * this rung is for text-heavy scans only, applied last.
+ */
+async function rasterizeBilevelForTarget(
+  source: PdfSource,
+  fileName: string,
+  dpi: number
+): Promise<File> {
+  const ownsHandle = source instanceof ArrayBuffer
+  const handle = ownsHandle ? await openPdf(source.slice(0)) : source
+  try {
+    const pageCount = await getPageCount(handle)
+    const doc = await PDFDocument.create()
+
+    const pages = pipelineRasterPages(pageCount, rasterPipelineDepth(), async (p) => {
+      // Render as high-quality JPEG then threshold — cheaper than routing
+      // a new PNG-per-page path through mupdf and enough fidelity for
+      // binarization (we're about to snap every pixel to 0/255 anyway).
+      const jpegBuffer = await renderPage(handle, p, dpi, 90)
+      const blob = new Blob([new Uint8Array(jpegBuffer) as unknown as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })
+      const bmp = await createImageBitmap(blob)
+      const canvas = new OffscreenCanvas(bmp.width, bmp.height)
+      const ctx = canvas.getContext('2d')!
+      ctx.drawImage(bmp, 0, 0)
+      bmp.close()
+      const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
+      const data = img.data
+      // Threshold at luma 176 (slightly above midpoint) — biases toward
+      // white background on faintly-off-white scans without eating thin
+      // strokes. Standard Rec. 709 luma weights.
+      for (let k = 0; k < data.length; k += 4) {
+        const luma = data[k] * 0.2126 + data[k + 1] * 0.7152 + data[k + 2] * 0.0722
+        const v = luma >= 176 ? 255 : 0
+        data[k] = v
+        data[k + 1] = v
+        data[k + 2] = v
+      }
+      ctx.putImageData(img, 0, 0)
+      const pngBlob = await canvas.convertToBlob({ type: 'image/png' })
+      return new Uint8Array(await pngBlob.arrayBuffer())
+    })
+    for await (const pngBytes of pages) {
+      const image = await doc.embedPng(pngBytes)
+      const page = doc.addPage([image.width, image.height])
+      page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+    }
+
+    const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+    return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
+  } finally {
+    if (ownsHandle) await closePdf(handle).catch(() => { /* best effort */ })
+  }
+}
+
 // WinAnsi (Windows-1252) only covers specific Unicode code points. Any char
 // outside that set causes pdf-lib to throw. Map common symbols to ASCII
 // equivalents, then strip anything still outside the safe range.
@@ -962,9 +1022,10 @@ export async function compressPdfKeepText(
 }
 
 /**
- * Rasterize escalation extracted from the legacy `compressPdfToTargetSize`
- * pipeline. Only invoke after user opts in via UnachievableTargetCard.
- * Preserves the original 200→72 DPI passes + grayscale finale.
+ * Rasterize escalation. Called automatically when keep-text can't reach
+ * the target — walks a ladder that keeps DPI high (≥ 120) and leans on
+ * quality reduction, grayscale, then bilevel PNG so scanned text stays
+ * sharp even at aggressive targets.
  */
 export async function rasterizeToTargetSize(
   input: File,
@@ -980,12 +1041,24 @@ export async function rasterizeToTargetSize(
   const inputBuffer = await input.arrayBuffer()
   const handle = await openPdf(inputBuffer)
 
+  // Ladder ordering rule: DPI is what makes scan text sharp — text edges
+  // need pixels. Dropping DPI from 200 → 72 saves ~85% of bytes but shreds
+  // legibility. Dropping JPEG quality from 80 → 40 saves ~50% and stays
+  // readable. Grayscale is a free ~60% win with zero sharpness cost.
+  // So we exhaust quality + grayscale before we ever touch DPI, and never
+  // fall below 120 DPI on the final rung.
   const steps: Array<{ label: string; produce: () => Promise<File> }> = [
-    { label: 'rasterize 200 DPI quality 80',     produce: () => rasterizeForTarget(handle, input.name, 200, 80) },
-    { label: 'rasterize 150 DPI quality 75',     produce: () => rasterizeForTarget(handle, input.name, 150, 75) },
-    { label: 'rasterize 100 DPI quality 65',     produce: () => rasterizeForTarget(handle, input.name, 100, 65) },
-    { label: 'rasterize 72 DPI quality 40',      produce: () => rasterizeForTarget(handle, input.name, 72, 40) },
-    { label: 'rasterize grayscale 72 DPI q 35',  produce: () => rasterizeGrayscaleForTarget(handle, input.name, 72, 35) },
+    { label: 'rasterize 200 DPI quality 80',      produce: () => rasterizeForTarget(handle, input.name, 200, 80) },
+    { label: 'rasterize 200 DPI quality 60',      produce: () => rasterizeForTarget(handle, input.name, 200, 60) },
+    { label: 'rasterize grayscale 200 DPI q 65',  produce: () => rasterizeGrayscaleForTarget(handle, input.name, 200, 65) },
+    { label: 'rasterize grayscale 200 DPI q 45',  produce: () => rasterizeGrayscaleForTarget(handle, input.name, 200, 45) },
+    { label: 'rasterize grayscale 150 DPI q 45',  produce: () => rasterizeGrayscaleForTarget(handle, input.name, 150, 45) },
+    { label: 'rasterize grayscale 120 DPI q 35',  produce: () => rasterizeGrayscaleForTarget(handle, input.name, 120, 35) },
+    // Final rung: bilevel PNG at 200 DPI. Keeps text edges perfectly sharp
+    // (no JPEG mush) while producing a tiny file for text-heavy scans.
+    // Photos on the page will look bad, so this only fires when every
+    // lossy grayscale rung above still missed the target.
+    { label: 'rasterize bilevel 200 DPI',          produce: () => rasterizeBilevelForTarget(handle, input.name, 200) },
   ]
 
   let prevBest: File = input
@@ -1079,9 +1152,10 @@ export async function rasterizeToTargetSize(
  * Retained because size-target landing pages (/compress-pdf/to-100kb, etc.)
  * still route through `compressPDF` and rely on the auto-escalate-to-rasterize
  * behavior to hit their advertised size caps without user interaction. The
- * /compress-pdf tool page itself now bypasses this adapter and gates
- * `rasterizeToTargetSize` behind explicit user consent via
- * `UnachievableTargetCard`. Do NOT add new callers.
+ * /compress-pdf tool page itself now bypasses this adapter and calls
+ * `compressPdfKeepText` + `rasterizeToTargetSize` directly so it can show
+ * a soft warning and auto-fall-through without user consent. Do NOT add
+ * new callers.
  */
 export async function compressPdfToTargetSize(
   input: File,
