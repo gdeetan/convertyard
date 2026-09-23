@@ -14,6 +14,18 @@ import { config as compressMp3Config } from '@/content/tools/compress-mp3'
 import { CompressVideoEngineBanner } from '@/components/tool-shell/compress-video-engine-banner'
 import type { SizeTargetConfig, ToolConfig, ToolOption } from '@/lib/types'
 
+// Renders **bold** spans inline in use-case descriptions.
+function renderInline(text: string) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((p, i) =>
+    p.startsWith('**') && p.endsWith('**') ? (
+      <strong key={i} className="font-semibold text-fg">{p.slice(2, -2)}</strong>
+    ) : (
+      <span key={i}>{p}</span>
+    )
+  )
+}
+
 const INHERITED_FAQ_INDICES: Record<string, number[]> = {
   'compress-pdf':   [4, 5], // "Are files uploaded?" + "Can I batch?"
   'compress-image': [6],    // "Are my images uploaded to your servers?"
@@ -136,7 +148,7 @@ export function SizeTargetShell({
           {config.useCases.map((uc, i) => (
             <li key={i}>
               {uc.label && <span className="font-medium text-fg">{uc.label}. </span>}
-              {uc.description}
+              {renderInline(uc.description)}
             </li>
           ))}
         </ol>
