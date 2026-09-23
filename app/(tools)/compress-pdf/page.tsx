@@ -47,6 +47,12 @@ export default function Page() {
       const nextPending: Record<number, PendingEntry> = {}
       const results: ConversionResult[] = []
 
+      // Same heuristic as the pre-convert warning in the tool config: when
+      // the target is under a third of the input, keep-text almost never
+      // hits it. Skip straight to rasterize so the user isn't waiting on a
+      // doomed keep-text pass just to be offered rasterize afterward.
+      const UNACHIEVABLE_RATIO = 3
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
         try {
@@ -63,6 +69,21 @@ export default function Page() {
             }
             const r: ConversionResult = { file, meta }
             onProgress?.(i, 100)
+            onResult?.(i, r)
+            results.push(r)
+            continue
+          }
+
+          // Upfront skip: if the ratio predicts keep-text can't hit target,
+          // rasterize directly. Feeds progress through the shell's normal
+          // per-file bar so the user sees continuous feedback.
+          if (file.size > targetBytes * UNACHIEVABLE_RATIO) {
+            const { file: rasterized, meta } = await rasterizeToTargetSize(
+              file,
+              targetBytes,
+              (pct) => onProgress?.(i, pct)
+            )
+            const r: ConversionResult = { file: rasterized, meta }
             onResult?.(i, r)
             results.push(r)
             continue

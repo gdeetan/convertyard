@@ -18,11 +18,21 @@ export const config: ToolConfig = {
   },
   convertFn: compressPDF,
 
-  optionsWarningFn: (_files, options) => {
+  optionsWarningFn: (files, options) => {
     if (options.level === 'aggressive' && options.targetSizeMode !== true) {
       return 'Aggressive mode converts every page to an image. Text won\'t be selectable in the output.'
     }
     if (options.targetSizeMode === true) {
+      const targetKB = typeof options.targetKB === 'number' ? options.targetKB : 500
+      const targetBytes = targetKB * 1024
+      // Keep-text passes typically reclaim only 30–60%. When the target is
+      // <1/3 of the input, keep-text almost never hits it — the pipeline
+      // just wastes time before offering rasterize. Warn upfront and skip
+      // straight to rasterizing so the user isn't waiting on a doomed pass.
+      const looksUnachievable = files.some((f) => f.size > targetBytes * 3)
+      if (looksUnachievable) {
+        return 'Your target is much smaller than the input, so we\'ll skip straight to rasterizing (text becomes an image) — trying keep-text first would just add wait time. Raise the target or turn off target-size mode to keep text searchable.'
+      }
       return 'If your target size can\'t be met while keeping text, we\'ll ask before rasterizing. Rasterizing removes searchable text.'
     }
     return null
