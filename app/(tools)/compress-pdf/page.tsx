@@ -48,10 +48,10 @@ export default function Page() {
       const results: ConversionResult[] = []
 
       // Same heuristic as the pre-convert warning in the tool config: when
-      // the target is under a third of the input, keep-text almost never
-      // hits it. Skip straight to rasterize so the user isn't waiting on a
+      // the target is under ~40% of the input, keep-text almost never hits
+      // it. Skip straight to rasterize so the user isn't waiting on a
       // doomed keep-text pass just to be offered rasterize afterward.
-      const UNACHIEVABLE_RATIO = 3
+      const UNACHIEVABLE_RATIO = 2.5
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i]

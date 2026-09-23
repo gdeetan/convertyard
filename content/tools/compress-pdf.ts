@@ -29,9 +29,9 @@ export const config: ToolConfig = {
       // <1/3 of the input, keep-text almost never hits it — the pipeline
       // just wastes time before offering rasterize. Warn upfront and skip
       // straight to rasterizing so the user isn't waiting on a doomed pass.
-      const looksUnachievable = files.some((f) => f.size > targetBytes * 3)
+      const looksUnachievable = files.some((f) => f.size > targetBytes * 2.5)
       if (looksUnachievable) {
-        return 'Your target is much smaller than the input, so we\'ll skip straight to rasterizing (text becomes an image) — trying keep-text first would just add wait time. Raise the target or turn off target-size mode to keep text searchable.'
+        return 'Your target is much smaller than the input, so we\'ll skip straight to rasterizing (each page becomes an image). Text stays readable on screen, but you\'ll lose: search, copy/paste, clickable links, form fields, screen-reader access, and crisp zoom-in. Raise the target or turn off target-size mode to keep these.'
       }
       return 'If your target size can\'t be met while keeping text, we\'ll ask before rasterizing. Rasterizing removes searchable text.'
     }
