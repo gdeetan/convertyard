@@ -31,7 +31,7 @@ export const config: ToolConfig = {
       // straight to rasterizing so the user isn't waiting on a doomed pass.
       const looksUnachievable = files.some((f) => f.size > targetBytes * 2.5)
       if (looksUnachievable) {
-        return 'Your target is much smaller than the input, so we\'ll skip straight to rasterizing (each page becomes an image). Text stays readable on screen, but you\'ll lose: search, copy/paste, clickable links, form fields, screen-reader access, and crisp zoom-in. Raise the target or turn off target-size mode to keep these.'
+        return 'Your target is much smaller than the input, so we\'ll skip straight to rasterizing (each page is flattened and becomes an image). Text stays readable on screen, but you\'ll lose: search, copy/paste, clickable links, form fields, screen-reader access, and crisp zoom-in. Raise the target or turn off target-size mode to keep these.'
       }
       return 'If your target size can\'t be met while keeping text, we\'ll ask before rasterizing. Rasterizing removes searchable text.'
     }
