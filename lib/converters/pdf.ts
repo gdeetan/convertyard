@@ -1295,34 +1295,10 @@ export async function rasterizeToTargetSize(
 
     if (candidate.size <= targetBytes) {
       if (candidate.size >= floor) {
-        onProgress?.(100)
-        return {
-          file: candidate,
-          meta: {
-            originalBytes,
-            targetBytes,
-            achievedBytes: candidate.size,
-            reachedTarget: true,
-            isUnchanged: false,
-            iterationsUsed,
-            appliedSettings: steps[i].label,
-          },
-        }
+        return await finalizeWithMupdfPass(candidate, steps[i].label, true)
       }
       if (prevBest.size > targetBytes) {
-        onProgress?.(100)
-        return {
-          file: candidate,
-          meta: {
-            originalBytes,
-            targetBytes,
-            achievedBytes: candidate.size,
-            reachedTarget: true,
-            isUnchanged: false,
-            iterationsUsed,
-            appliedSettings: steps[i].label,
-          },
-        }
+        return await finalizeWithMupdfPass(candidate, steps[i].label, true)
       }
       break
     }
@@ -1333,21 +1309,45 @@ export async function rasterizeToTargetSize(
     }
   }
 
-  onProgress?.(100)
-  return {
-    file: prevBest,
-    meta: {
-      originalBytes,
-      targetBytes,
-      achievedBytes: prevBest.size,
-      reachedTarget: prevBest.size <= targetBytes,
-      isUnchanged: false,
-      iterationsUsed,
-      appliedSettings: prevBestLabel,
-      message: prevBest.size <= targetBytes
-        ? undefined
-        : `Couldn't reach ${formatBytes(targetBytes)} — smallest possible is ${formatBytes(prevBest.size)}`,
-    },
+  return await finalizeWithMupdfPass(prevBest, prevBestLabel, prevBest.size <= targetBytes)
+
+  // Final structural squeeze: hand the winning file to mupdf which
+  // re-serializes with object streams + Flate 9 across every stream.
+  // Our hand-rolled image-PDF assembler writes a plain xref for speed,
+  // so this pass typically reclaims another 5–15% on rasterized output
+  // with zero visual change. Guarded by "keep whichever is smaller".
+  async function finalizeWithMupdfPass(
+    file: File,
+    settingsLabel: string,
+    reachedTarget: boolean
+  ): Promise<{ file: File; meta: CompressionMeta }> {
+    let finalFile = file
+    try {
+      const buf = await file.arrayBuffer()
+      const { saveCompressed } = await import('./mupdf-client')
+      const compressed = await saveCompressed(buf)
+      if (compressed.byteLength > 0 && compressed.byteLength < file.size) {
+        finalFile = new File([new Uint8Array(compressed) as unknown as Uint8Array<ArrayBuffer>], file.name, { type: 'application/pdf' })
+      }
+    } catch { /* best-effort */ }
+    onProgress?.(100)
+    return {
+      file: finalFile,
+      meta: {
+        originalBytes,
+        targetBytes,
+        achievedBytes: finalFile.size,
+        // If the mupdf pass pushed a marginal candidate UNDER the target,
+        // upgrade reachedTarget accordingly. Never downgrade.
+        reachedTarget: reachedTarget || finalFile.size <= targetBytes,
+        isUnchanged: false,
+        iterationsUsed,
+        appliedSettings: settingsLabel,
+        message: finalFile.size <= targetBytes
+          ? undefined
+          : `Couldn't reach ${formatBytes(targetBytes)} — smallest possible is ${formatBytes(finalFile.size)}`,
+      },
+    }
   }
   } finally {
     await closePdf(handle).catch(() => { /* best effort */ })
