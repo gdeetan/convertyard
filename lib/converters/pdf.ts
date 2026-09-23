@@ -610,7 +610,8 @@ async function rasterizeForTarget(
   source: PdfSource,
   fileName: string,
   dpi: number,
-  quality: number
+  quality: number,
+  onProgress?: (fraction: number) => void
 ): Promise<File> {
   const ownsHandle = source instanceof ArrayBuffer
   const handle = ownsHandle ? await openPdf(source.slice(0)) : source
@@ -622,13 +623,18 @@ async function rasterizeForTarget(
       const jpegBuffer = await renderPage(handle, p, dpi, quality)
       return new Uint8Array(jpegBuffer)
     })
+    let pagesDone = 0
     for await (const jpegBytes of pages) {
       const image = await doc.embedJpg(jpegBytes)
       const page = doc.addPage([image.width, image.height])
       page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+      pagesDone++
+      // Reserve ~5% for the final doc.save() serialize on large PDFs.
+      onProgress?.(Math.min(0.95, pagesDone / pageCount))
     }
 
     const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+    onProgress?.(1)
     return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
   } finally {
     if (ownsHandle) await closePdf(handle).catch(() => { /* best effort */ })
@@ -642,7 +648,8 @@ async function rasterizeGrayscaleForTarget(
   source: PdfSource,
   fileName: string,
   dpi: number,
-  quality: number
+  quality: number,
+  onProgress?: (fraction: number) => void
 ): Promise<File> {
   const ownsHandle = source instanceof ArrayBuffer
   const handle = ownsHandle ? await openPdf(source.slice(0)) : source
@@ -663,13 +670,17 @@ async function rasterizeGrayscaleForTarget(
       const grayBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: quality / 100 })
       return new Uint8Array(await grayBlob.arrayBuffer())
     })
+    let pagesDone = 0
     for await (const grayBytes of pages) {
       const image = await doc.embedJpg(grayBytes)
       const page = doc.addPage([image.width, image.height])
       page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+      pagesDone++
+      onProgress?.(Math.min(0.95, pagesDone / pageCount))
     }
 
     const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+    onProgress?.(1)
     return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
   } finally {
     if (ownsHandle) await closePdf(handle).catch(() => { /* best effort */ })
@@ -688,7 +699,8 @@ async function rasterizeGrayscaleForTarget(
 async function rasterizeBilevelForTarget(
   source: PdfSource,
   fileName: string,
-  dpi: number
+  dpi: number,
+  onProgress?: (fraction: number) => void
 ): Promise<File> {
   const ownsHandle = source instanceof ArrayBuffer
   const handle = ownsHandle ? await openPdf(source.slice(0)) : source
@@ -723,13 +735,17 @@ async function rasterizeBilevelForTarget(
       const pngBlob = await canvas.convertToBlob({ type: 'image/png' })
       return new Uint8Array(await pngBlob.arrayBuffer())
     })
+    let pagesDone = 0
     for await (const pngBytes of pages) {
       const image = await doc.embedPng(pngBytes)
       const page = doc.addPage([image.width, image.height])
       page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+      pagesDone++
+      onProgress?.(Math.min(0.95, pagesDone / pageCount))
     }
 
     const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+    onProgress?.(1)
     return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
   } finally {
     if (ownsHandle) await closePdf(handle).catch(() => { /* best effort */ })
@@ -1047,19 +1063,49 @@ export async function rasterizeToTargetSize(
   // readable. Grayscale is a free ~60% win with zero sharpness cost.
   // So we exhaust quality + grayscale before we ever touch DPI, and never
   // fall below 120 DPI on the final rung.
-  const steps: Array<{ label: string; produce: () => Promise<File> }> = [
-    { label: 'rasterize 200 DPI quality 80',      produce: () => rasterizeForTarget(handle, input.name, 200, 80) },
-    { label: 'rasterize 200 DPI quality 60',      produce: () => rasterizeForTarget(handle, input.name, 200, 60) },
-    { label: 'rasterize grayscale 200 DPI q 65',  produce: () => rasterizeGrayscaleForTarget(handle, input.name, 200, 65) },
-    { label: 'rasterize grayscale 200 DPI q 45',  produce: () => rasterizeGrayscaleForTarget(handle, input.name, 200, 45) },
-    { label: 'rasterize grayscale 150 DPI q 45',  produce: () => rasterizeGrayscaleForTarget(handle, input.name, 150, 45) },
-    { label: 'rasterize grayscale 120 DPI q 35',  produce: () => rasterizeGrayscaleForTarget(handle, input.name, 120, 35) },
+  //
+  // `produce` takes a fractional progress callback so we can move the
+  // outer bar continuously per page inside a rung instead of leaping at
+  // rung boundaries. `weight` is a rough wall-time estimate (proportional
+  // to pixels × color-channels) so heavy rungs get a proportionally
+  // larger slice of the outer 0–95% budget.
+  const steps: Array<{
+    label: string
+    weight: number
+    produce: (op?: (frac: number) => void) => Promise<File>
+  }> = [
+    { label: 'rasterize 200 DPI quality 80',      weight: 1.00, produce: (op) => rasterizeForTarget(handle, input.name, 200, 80, op) },
+    { label: 'rasterize 200 DPI quality 60',      weight: 1.00, produce: (op) => rasterizeForTarget(handle, input.name, 200, 60, op) },
+    { label: 'rasterize grayscale 200 DPI q 65',  weight: 0.60, produce: (op) => rasterizeGrayscaleForTarget(handle, input.name, 200, 65, op) },
+    { label: 'rasterize grayscale 200 DPI q 45',  weight: 0.60, produce: (op) => rasterizeGrayscaleForTarget(handle, input.name, 200, 45, op) },
+    { label: 'rasterize grayscale 150 DPI q 45',  weight: 0.35, produce: (op) => rasterizeGrayscaleForTarget(handle, input.name, 150, 45, op) },
+    { label: 'rasterize grayscale 120 DPI q 35',  weight: 0.22, produce: (op) => rasterizeGrayscaleForTarget(handle, input.name, 120, 35, op) },
     // Final rung: bilevel PNG at 200 DPI. Keeps text edges perfectly sharp
     // (no JPEG mush) while producing a tiny file for text-heavy scans.
     // Photos on the page will look bad, so this only fires when every
     // lossy grayscale rung above still missed the target.
-    { label: 'rasterize bilevel 200 DPI',          produce: () => rasterizeBilevelForTarget(handle, input.name, 200) },
+    { label: 'rasterize bilevel 200 DPI',         weight: 0.75, produce: (op) => rasterizeBilevelForTarget(handle, input.name, 200, op) },
   ]
+
+  const totalWeight = steps.reduce((s, r) => s + r.weight, 0)
+  const cumulativeWeight: number[] = []
+  {
+    let acc = 0
+    for (const r of steps) {
+      cumulativeWeight.push(acc)
+      acc += r.weight
+    }
+  }
+  // Reserve 5% for the initial mupdf open + 5% for the final result
+  // handoff so the bar never sits at 0 or 100 during real work.
+  const OUTER_BASE = 5
+  const OUTER_SPAN = 90
+  const reportRungProgress = (rungIdx: number, frac: number) => {
+    const base = OUTER_BASE + (cumulativeWeight[rungIdx] / totalWeight) * OUTER_SPAN
+    const span = (steps[rungIdx].weight / totalWeight) * OUTER_SPAN
+    onProgress?.(Math.round(base + Math.min(1, Math.max(0, frac)) * span))
+  }
+  onProgress?.(OUTER_BASE)
 
   let prevBest: File = input
   let prevBestLabel = 'original'
@@ -1067,15 +1113,17 @@ export async function rasterizeToTargetSize(
 
   try {
   for (let i = 0; i < steps.length; i++) {
-    onProgress?.(Math.round(10 + ((i + 1) / steps.length) * 85))
-
     let candidate: File
     try {
-      candidate = await steps[i].produce()
+      candidate = await steps[i].produce((frac) => reportRungProgress(i, frac))
     } catch {
+      // Rung failed — advance the bar to the rung boundary so the user
+      // isn't stuck watching a stalled percent while we try the next one.
+      reportRungProgress(i, 1)
       iterationsUsed++
       continue
     }
+    reportRungProgress(i, 1)
 
     const bytes = new Uint8Array(await candidate.arrayBuffer())
     if (!isValidPdf(bytes)) {

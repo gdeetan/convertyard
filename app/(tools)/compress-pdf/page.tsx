@@ -66,10 +66,13 @@ export default function Page() {
             continue
           }
 
+          // Split the outer progress bar between phases we might run:
+          // keep-text 0–35% (short leap to 100% if it hits target),
+          // auto-rasterize fallback 35–100% (longer, more variable).
+          // The 35% cap is chosen because keep-text is usually ~2–4×
+          // faster than rasterize, so this reflects real wall-time share.
           const keepText = await compressPdfKeepText(file, targetBytes, (pct) =>
-            // Cap keep-text progress at 50% so the auto-rasterize fallback
-            // has room to show progress in the same bar.
-            onProgress?.(i, Math.round(pct * 0.5))
+            onProgress?.(i, Math.round(pct * 0.35))
           )
 
           if (keepText.ok) {
@@ -95,7 +98,7 @@ export default function Page() {
             const { file: rasterizedFile, meta: rasterMeta } = await rasterizeToTargetSize(
               file,
               targetBytes,
-              (pct) => onProgress?.(i, 50 + Math.round(pct * 0.5))
+              (pct) => onProgress?.(i, 35 + Math.round(pct * 0.65))
             )
             const rasterized = rasterizedFile
             const keptBestFile = new File([keepText.bestBlob], file.name, { type: 'application/pdf' })
