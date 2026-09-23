@@ -17,6 +17,8 @@ interface PendingEntry {
 export default function Page() {
   const apiRef = useRef<ToolShellApi | null>(null)
   const [pending, setPending] = useState<Record<number, PendingEntry>>({})
+  const [rasterizing, setRasterizing] = useState<Record<number, { progress: number }>>({})
+  const [rasterizeErrors, setRasterizeErrors] = useState<Record<number, string>>({})
 
   const handleReady = useCallback((api: ToolShellApi) => {
     apiRef.current = api
@@ -37,6 +39,8 @@ export default function Page() {
 
       // Fresh run — clear any card state from a previous convert.
       setPending({})
+      setRasterizing({})
+      setRasterizeErrors({})
 
       const targetKB = typeof options.targetKB === 'number' ? options.targetKB : 500
       const targetBytes = targetKB * 1024
@@ -98,11 +102,17 @@ export default function Page() {
               message: `Best possible without rasterizing: ${Math.round(keepText.bestBytes / 1024)} KB`,
             }
             const r: ConversionResult = { file: bestFile, meta }
-            nextPending[i] = {
+            const entry: PendingEntry = {
               input: file,
               bestBytes: keepText.bestBytes,
               targetBytes,
             }
+            nextPending[i] = entry
+            // Publish the card the moment keep-text fails for this file
+            // instead of waiting for the whole batch to finish — otherwise
+            // the yellow "Rasterize" prompt appears well after the result
+            // is already visible.
+            setPending((prev) => ({ ...prev, [i]: entry }))
             onResult?.(i, r)
             results.push(r)
           }
@@ -113,7 +123,9 @@ export default function Page() {
         }
       }
 
-      if (Object.keys(nextPending).length > 0) setPending(nextPending)
+      // pending state was updated incrementally inside the loop; nothing to
+      // publish here. `nextPending` is retained only for legibility.
+      void nextPending
       return results
     },
     []
@@ -131,11 +143,35 @@ export default function Page() {
   const handleRasterize = useCallback(async (fileIndex: number) => {
     const entry = pending[fileIndex]
     if (!entry) return
+    // Immediate visual ack: disable buttons + show spinner. Prior to this
+    // the click gave zero feedback and looked broken on large files where
+    // rasterization takes 30s+.
+    setRasterizing((prev) => ({ ...prev, [fileIndex]: { progress: 0 } }))
+    setRasterizeErrors((prev) => {
+      if (!(fileIndex in prev)) return prev
+      const next = { ...prev }
+      delete next[fileIndex]
+      return next
+    })
     try {
-      const { file } = await rasterizeToTargetSize(entry.input, entry.targetBytes)
+      const { file } = await rasterizeToTargetSize(entry.input, entry.targetBytes, (pct) => {
+        setRasterizing((prev) =>
+          prev[fileIndex] ? { ...prev, [fileIndex]: { progress: pct } } : prev
+        )
+      })
       apiRef.current?.replaceResult(fileIndex, file)
-    } finally {
+      // Success: clear the card.
       setPending((prev) => {
+        if (!(fileIndex in prev)) return prev
+        const next = { ...prev }
+        delete next[fileIndex]
+        return next
+      })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Rasterization failed'
+      setRasterizeErrors((prev) => ({ ...prev, [fileIndex]: msg }))
+    } finally {
+      setRasterizing((prev) => {
         if (!(fileIndex in prev)) return prev
         const next = { ...prev }
         delete next[fileIndex]
@@ -164,6 +200,9 @@ export default function Page() {
             targetBytes={entry.targetBytes}
             onKeep={() => handleKeep(idx)}
             onRasterize={() => handleRasterize(idx)}
+            busy={idx in rasterizing}
+            progress={rasterizing[idx]?.progress ?? null}
+            error={rasterizeErrors[idx] ?? null}
           />
         )
       })}
