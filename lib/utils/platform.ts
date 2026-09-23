@@ -1,3 +1,10 @@
+export function isSafari(): boolean {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent
+  // Safari on macOS/iOS: contains "Safari/" but not Chrome/Chromium/Edg/Firefox tokens.
+  return /Safari\//.test(ua) && !/Chrom(e|ium)|CriOS|FxiOS|Edg|OPR\//.test(ua)
+}
+
 export function isIos(): boolean {
   if (typeof navigator === 'undefined') return false
   const ua = navigator.userAgent

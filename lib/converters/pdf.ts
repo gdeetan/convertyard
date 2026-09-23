@@ -1,6 +1,7 @@
 import { PDFDocument, PDFRawStream, PDFRef, PDFName, PDFNumber, PDFDict, degrees, rgb, StandardFonts, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
 import { zipSync } from 'fflate'
-import { getPageCount, renderPage, renderPagePng, extractText, extractStructuredText } from './mupdf-client'
+import { getPageCount, renderPage, renderPagePng, extractText, extractStructuredText, openPdf, closePdf } from './mupdf-client'
+import { isSafari } from '@/lib/utils/platform'
 import { formatBytes } from '@/lib/utils/download'
 import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types'
 import { convertPdfToWord } from './pdf-to-word'
@@ -542,19 +543,27 @@ async function recompressImagesKeepText(
 
 async function rasterizePdf(file: File, dpi: number, fileName: string): Promise<File> {
   const buffer = await file.arrayBuffer()
-  const pageCount = await getPageCount(buffer)
-  const doc = await PDFDocument.create()
+  // Transfer the source PDF to the worker once, then reference by docId.
+  // Prior code cloned `buffer` on every renderPage call → ~2× memory per page
+  // and Safari OOM-refresh on files ≥ ~150MB.
+  const handle = await openPdf(buffer)
+  try {
+    const pageCount = await getPageCount(handle)
+    const doc = await PDFDocument.create()
 
-  for (let p = 0; p < pageCount; p++) {
-    const jpegBuffer = await renderPage(buffer, p, dpi, 85)
-    const jpegBytes = new Uint8Array(jpegBuffer)
-    const image = await doc.embedJpg(jpegBytes)
-    const page = doc.addPage([image.width, image.height])
-    page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+    for (let p = 0; p < pageCount; p++) {
+      const jpegBuffer = await renderPage(handle, p, dpi, 85)
+      const jpegBytes = new Uint8Array(jpegBuffer)
+      const image = await doc.embedJpg(jpegBytes)
+      const page = doc.addPage([image.width, image.height])
+      page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+    }
+
+    const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+    return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
+  } finally {
+    await closePdf(handle).catch(() => { /* best effort */ })
   }
-
-  const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
-  return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
 }
 
 // Variant that takes an ArrayBuffer directly — used by target-size mode to avoid re-reading File
@@ -564,19 +573,24 @@ async function rasterizeForTarget(
   dpi: number,
   quality: number
 ): Promise<File> {
-  const pageCount = await getPageCount(buffer)
-  const doc = await PDFDocument.create()
+  const handle = await openPdf(buffer.slice(0))
+  try {
+    const pageCount = await getPageCount(handle)
+    const doc = await PDFDocument.create()
 
-  for (let p = 0; p < pageCount; p++) {
-    const jpegBuffer = await renderPage(buffer, p, dpi, quality)
-    const jpegBytes = new Uint8Array(jpegBuffer)
-    const image = await doc.embedJpg(jpegBytes)
-    const page = doc.addPage([image.width, image.height])
-    page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+    for (let p = 0; p < pageCount; p++) {
+      const jpegBuffer = await renderPage(handle, p, dpi, quality)
+      const jpegBytes = new Uint8Array(jpegBuffer)
+      const image = await doc.embedJpg(jpegBytes)
+      const page = doc.addPage([image.width, image.height])
+      page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+    }
+
+    const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+    return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
+  } finally {
+    await closePdf(handle).catch(() => { /* best effort */ })
   }
-
-  const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
-  return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
 }
 
 // Grayscale rasterization — maximum size reduction
@@ -586,28 +600,33 @@ async function rasterizeGrayscaleForTarget(
   dpi: number,
   quality: number
 ): Promise<File> {
-  const pageCount = await getPageCount(buffer)
-  const doc = await PDFDocument.create()
+  const handle = await openPdf(buffer.slice(0))
+  try {
+    const pageCount = await getPageCount(handle)
+    const doc = await PDFDocument.create()
 
-  for (let p = 0; p < pageCount; p++) {
-    const jpegBuffer = await renderPage(buffer, p, dpi, quality)
-    const jpegBytes = new Uint8Array(jpegBuffer)
-    const blob = new Blob([jpegBytes as unknown as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })
-    const bmp = await createImageBitmap(blob)
-    const canvas = new OffscreenCanvas(bmp.width, bmp.height)
-    const ctx = canvas.getContext('2d')!
-    ctx.filter = 'grayscale(1)'
-    ctx.drawImage(bmp, 0, 0)
-    bmp.close()
-    const grayBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: quality / 100 })
-    const grayBytes = new Uint8Array(await grayBlob.arrayBuffer())
-    const image = await doc.embedJpg(grayBytes)
-    const page = doc.addPage([image.width, image.height])
-    page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+    for (let p = 0; p < pageCount; p++) {
+      const jpegBuffer = await renderPage(handle, p, dpi, quality)
+      const jpegBytes = new Uint8Array(jpegBuffer)
+      const blob = new Blob([jpegBytes as unknown as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })
+      const bmp = await createImageBitmap(blob)
+      const canvas = new OffscreenCanvas(bmp.width, bmp.height)
+      const ctx = canvas.getContext('2d')!
+      ctx.filter = 'grayscale(1)'
+      ctx.drawImage(bmp, 0, 0)
+      bmp.close()
+      const grayBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: quality / 100 })
+      const grayBytes = new Uint8Array(await grayBlob.arrayBuffer())
+      const image = await doc.embedJpg(grayBytes)
+      const page = doc.addPage([image.width, image.height])
+      page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+    }
+
+    const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+    return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
+  } finally {
+    await closePdf(handle).catch(() => { /* best effort */ })
   }
-
-  const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
-  return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
 }
 
 // WinAnsi (Windows-1252) only covers specific Unicode code points. Any char
@@ -1059,6 +1078,14 @@ export async function compressPdfToTargetSize(
 
 // ── Compress ──────────────────────────────────────────────────────────────────
 
+// Safari's per-tab WebAssembly heap is capped near 2GB and the browser
+// hard-refreshes the tab on OOM without a catchable error. Reject files
+// large enough to blow that budget after mupdf init + rasterization
+// overhead, so the user gets a real message instead of a silent refresh.
+// Threshold picked conservatively: a 200MB PDF plus mupdf's decode buffers
+// and pdf-lib's in-flight PDFDocument routinely peaks past 1.5GB.
+const SAFARI_MAX_PDF_BYTES = 150 * 1024 * 1024
+
 export async function compressPDF(
   files: File[],
   options: ToolOptions,
@@ -1066,6 +1093,19 @@ export async function compressPDF(
 ): Promise<Array<File | Error | { file: File; meta: CompressionMeta }>> {
   const targetSizeMode = options.targetSizeMode === true
   const results: Array<File | Error | { file: File; meta: CompressionMeta }> = new Array(files.length)
+
+  const safari = isSafari()
+  if (safari) {
+    for (let i = 0; i < files.length; i++) {
+      if (files[i].size > SAFARI_MAX_PDF_BYTES) {
+        results[i] = new Error(
+          `This PDF is ${formatBytes(files[i].size)}. Safari can't compress files larger than ${formatBytes(SAFARI_MAX_PDF_BYTES)} without refreshing the tab. Try Chrome or Firefox, or split the PDF first.`
+        )
+      }
+    }
+    // If every file was rejected, short-circuit.
+    if (results.every((r) => r instanceof Error)) return results
+  }
 
   // Fix 4: for target-size mode, run 2 files concurrently. Each file has its
   // own PDFDocument + jpegCache, and the JPEG worker pool is shared, so parallel
@@ -1081,6 +1121,8 @@ export async function compressPDF(
       const chunkResults = await Promise.all(
         chunk.map(async (file, offset) => {
           const i = start + offset
+          // Preserve Safari size-gate rejection from above.
+          if (results[i] instanceof Error) return results[i] as Error
           try {
             return await compressPdfToTargetSize(file, targetBytes, (pct) => onProgress?.(i, pct))
           } catch (err) {
@@ -1096,6 +1138,8 @@ export async function compressPDF(
   }
 
   for (let i = 0; i < files.length; i++) {
+    // Preserve Safari size-gate rejection from above.
+    if (results[i] instanceof Error) continue
     try {
       if (targetSizeMode) {
         // unreachable — handled above

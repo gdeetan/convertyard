@@ -25,11 +25,17 @@ function getMupdf(): Promise<any> {
   return mupdfReady
 }
 
+// Doc cache: lets callers open a PDF once (transferring the ArrayBuffer)
+// and reuse it across many operations without cloning the buffer per call.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const docCache = new Map<string, any>()
+
 self.onmessage = async (e: MessageEvent) => {
-  const { id, type, fileBuffer, pageIndex, dpi, quality, transparent, password, userPassword, ownerPassword, encryptStrength, permissions } = e.data as {
+  const { id, type, fileBuffer, docId, pageIndex, dpi, quality, transparent, password, userPassword, ownerPassword, encryptStrength, permissions } = e.data as {
     id: string
-    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text' | 'page-sizes' | 'unlock-pdf' | 'protect-pdf' | 'save-compressed' | 'get-image-bboxes'
-    fileBuffer: ArrayBuffer
+    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text' | 'page-sizes' | 'unlock-pdf' | 'protect-pdf' | 'save-compressed' | 'get-image-bboxes' | 'open-doc' | 'close-doc'
+    fileBuffer?: ArrayBuffer
+    docId?: string
     pageIndex?: number
     dpi?: number
     quality?: number
@@ -45,16 +51,51 @@ self.onmessage = async (e: MessageEvent) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mupdf: any = await getMupdf()
 
-    if (type === 'page-count') {
+    // Resolve a document handle. When docId is provided, reuse the cached
+    // document (no buffer copy). Otherwise open a fresh doc from fileBuffer
+    // and destroy it at the end of the handler (tracked via `ownedDoc`).
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const getDoc = (): { doc: any; owned: boolean } => {
+      if (docId) {
+        const cached = docCache.get(docId)
+        if (!cached) throw new Error(`docId ${docId} not found (expired or never opened)`)
+        return { doc: cached, owned: false }
+      }
+      if (!fileBuffer) throw new Error('missing fileBuffer or docId')
+      return { doc: mupdf.Document.openDocument(fileBuffer, 'application/pdf'), owned: true }
+    }
+
+    if (type === 'open-doc') {
+      if (!fileBuffer) throw new Error('open-doc requires fileBuffer')
       const doc = mupdf.Document.openDocument(fileBuffer, 'application/pdf')
+      const newId = crypto.randomUUID()
+      docCache.set(newId, doc)
+      self.postMessage({ id, type: 'open-doc', docId: newId })
+      return
+    }
+
+    if (type === 'close-doc') {
+      if (docId) {
+        const cached = docCache.get(docId)
+        if (cached) {
+          try { cached.destroy() } catch { /* ignore */ }
+          docCache.delete(docId)
+        }
+      }
+      self.postMessage({ id, type: 'close-doc' })
+      return
+    }
+
+    if (type === 'page-count') {
+      const { doc, owned } = getDoc()
       const count = doc.countPages()
-      doc.destroy()
+      if (owned) doc.destroy()
       self.postMessage({ id, type: 'page-count', count })
       return
     }
 
     if (type === 'render-page') {
-      const doc = mupdf.Document.openDocument(fileBuffer, 'application/pdf')
+      const { doc, owned } = getDoc()
       const page = doc.loadPage(pageIndex ?? 0)
       const scale = (dpi ?? 150) / 72
       const matrix = mupdf.Matrix.scale(scale, scale)
@@ -62,14 +103,14 @@ self.onmessage = async (e: MessageEvent) => {
       const jpegData: Uint8Array = pixmap.asJPEG(quality ?? 85)
       pixmap.destroy()
       page.destroy()
-      doc.destroy()
+      if (owned) doc.destroy()
       const buffer = jpegData.buffer.slice(jpegData.byteOffset, jpegData.byteOffset + jpegData.byteLength)
       self.postMessage({ id, type: 'result', data: buffer }, [buffer])
       return
     }
 
     if (type === 'render-page-png') {
-      const doc = mupdf.Document.openDocument(fileBuffer, 'application/pdf')
+      const { doc, owned } = getDoc()
       const page = doc.loadPage(pageIndex ?? 0)
       const scale = (dpi ?? 150) / 72
       const matrix = mupdf.Matrix.scale(scale, scale)
@@ -78,7 +119,7 @@ self.onmessage = async (e: MessageEvent) => {
       const pngData: Uint8Array = pixmap.asPNG()
       pixmap.destroy()
       page.destroy()
-      doc.destroy()
+      if (owned) doc.destroy()
       const buffer = pngData.buffer.slice(pngData.byteOffset, pngData.byteOffset + pngData.byteLength)
       self.postMessage({ id, type: 'result', data: buffer }, [buffer])
       return

@@ -60,38 +60,66 @@ function send<T>(
   })
 }
 
-export async function getPageCount(fileBuffer: ArrayBuffer): Promise<number> {
-  const clone = fileBuffer.slice(0)
-  const res = await send<{ count: number }>('page-count', { fileBuffer: clone }, [clone])
+// A source can be either an ArrayBuffer (opens+destroys a doc per call) or a
+// docId (reuses a doc opened via openPdf — no buffer copy). Preferring docId
+// on the hot rasterize path avoids Safari OOMs on large PDFs.
+export type PdfSource = ArrayBuffer | { docId: string }
+
+function sourcePayload(src: PdfSource): { payload: Record<string, unknown>; transfer: Transferable[] } {
+  if (src instanceof ArrayBuffer) {
+    const clone = src.slice(0)
+    return { payload: { fileBuffer: clone }, transfer: [clone] }
+  }
+  return { payload: { docId: src.docId }, transfer: [] }
+}
+
+/**
+ * Transfer a PDF ArrayBuffer to the worker once and get a docId back.
+ * The buffer is neutered on the caller side after this call. Use the
+ * returned docId for subsequent page-count / render-page calls to
+ * avoid re-cloning ~200MB across postMessage on every page.
+ */
+export async function openPdf(fileBuffer: ArrayBuffer): Promise<{ docId: string }> {
+  const res = await send<{ docId: string }>('open-doc', { fileBuffer }, [fileBuffer])
+  return { docId: res.docId }
+}
+
+export async function closePdf(handle: { docId: string }): Promise<void> {
+  await send<{ ok: true }>('close-doc', { docId: handle.docId }, [])
+}
+
+export async function getPageCount(source: PdfSource): Promise<number> {
+  const { payload, transfer } = sourcePayload(source)
+  const res = await send<{ count: number }>('page-count', payload, transfer)
   return res.count
 }
 
 export async function renderPage(
-  fileBuffer: ArrayBuffer,
+  source: PdfSource,
   pageIndex: number,
   dpi: number,
   quality: number
 ): Promise<ArrayBuffer> {
-  const clone = fileBuffer.slice(0)
+  const { payload, transfer } = sourcePayload(source)
   const res = await send<{ data: ArrayBuffer }>(
     'render-page',
-    { fileBuffer: clone, pageIndex, dpi, quality },
-    [clone]
+    { ...payload, pageIndex, dpi, quality },
+    transfer
   )
   return res.data
 }
 
 export async function renderPagePng(
-  fileBuffer: ArrayBuffer,
+  source: PdfSource,
   pageIndex: number,
   dpi: number,
   transparent: boolean = false
 ): Promise<ArrayBuffer> {
-  const clone = fileBuffer.slice(0)
+  const { payload, transfer } = sourcePayload(source)
   const res = await send<{ data: ArrayBuffer }>(
     'render-page-png',
-    { fileBuffer: clone, pageIndex, dpi, transparent },
-    [clone]
+    { ...payload, pageIndex, dpi, transparent },
+    transfer
   )
   return res.data
 }
