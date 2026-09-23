@@ -305,6 +305,9 @@ export type KeepTextPlan = {
   preservedImages: string[]
   flateLevel?: number
   jpegCache?: JpegDecodeCache
+  // Fix 2: pristine bytes cache. Computed on the first no-op rung and reused
+  // by subsequent no-op rungs to avoid re-serializing an unchanged doc.
+  pristineBytes?: Uint8Array
 }
 
 async function planImageRecompress(
@@ -402,7 +405,7 @@ async function executeImageRecompress(
   quality: number,
   targetDpi: number,
   fileName: string
-): Promise<{ file: File; preservedImages: string[] }> {
+): Promise<{ file: File; preservedImages: string[]; mutationCount: number }> {
   const { doc, items, jpegCache, flateLevel } = plan
   const context = doc.context
   const preservedImages: string[] = [...plan.preservedImages]
@@ -484,6 +487,20 @@ async function executeImageRecompress(
     const settled = await Promise.all(chunk)
     for (const m of settled) if (m) mutations.push(m)
   }
+  // Fix 2: if no image reduced its own size, the resulting doc is byte-identical
+  // to the pristine plan state. Serialize once, cache, and reuse.
+  if (mutations.length === 0) {
+    if (!plan.pristineBytes) {
+      const pristine = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+      plan.pristineBytes = pristine as Uint8Array
+    }
+    return {
+      file: new File([plan.pristineBytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' }),
+      preservedImages,
+      mutationCount: 0,
+    }
+  }
+
   for (const { apply } of mutations) apply()
 
   const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
@@ -497,6 +514,7 @@ async function executeImageRecompress(
   return {
     file: new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' }),
     preservedImages,
+    mutationCount: mutations.length,
   }
 }
 
@@ -770,7 +788,6 @@ export async function compressPdfKeepText(
   const ladderStart = 40
   const ladderEnd = 85
   let hitTarget = false
-  let step = 0
 
   // Shared across rungs: decode each JPEG XObject once, re-encode per rung.
   const jpegCache: JpegDecodeCache = new Map()
@@ -786,13 +803,28 @@ export async function compressPdfKeepText(
     jpegCache,
   })
 
+  // Fix 1: predictive ladder start. When structural output is already close to
+  // the target, skip the top rungs (Q80/Q70) that would just overshoot and
+  // waste a serialize each. Ratios come from real measurements on scan PDFs.
+  const startRatio = structural.size / targetBytes
+  let step =
+    startRatio <= 1.15 ? 0 :
+    startRatio <= 1.5  ? 1 :
+    startRatio <= 2.0  ? 2 :
+    startRatio <= 3.0  ? 3 :
+    startRatio <= 4.0  ? 4 :
+                          5
+  if (step > 0) passesRun.push(`ladder-start:step${step}`)
+
   while (step < qualityLadder.length) {
     const { q: quality, dpi: targetDpi } = qualityLadder[step]
     let candidate: Blob | null = null
+    let mutationCount = 0
     try {
-      const { file } = await executeImageRecompress(plan, quality, targetDpi, input.name)
-      candidate = file
-      passesRun.push(`jpeg-recompress:q${quality}@dpi${targetDpi}`)
+      const res = await executeImageRecompress(plan, quality, targetDpi, input.name)
+      candidate = res.file
+      mutationCount = res.mutationCount
+      passesRun.push(`jpeg-recompress:q${quality}@dpi${targetDpi}${mutationCount === 0 ? ':noop' : ''}`)
     } catch {
       passesRun.push(`jpeg-recompress:q${quality}@dpi${targetDpi}:failed`)
     }
@@ -809,9 +841,17 @@ export async function compressPdfKeepText(
       break
     }
 
-    // Predict jump size from how far we still are from the target.
+    // Fix 2: if no image was reduced at this rung, the same-DPI rungs below
+    // won't help either — JPEG quality alone can't shrink these images.
+    // Skip to the next DPI tier.
     let jump = 1
-    if (candidate) {
+    if (mutationCount === 0) {
+      const currentDpi = qualityLadder[step].dpi
+      let next = step + 1
+      while (next < qualityLadder.length && qualityLadder[next].dpi === currentDpi) next++
+      jump = Math.max(1, next - step)
+    } else if (candidate) {
+      // Predict jump size from how far we still are from the target.
       const ratio = candidate.size / targetBytes
       if (ratio > 4) jump = 3
       else if (ratio > 2) jump = 2
@@ -1022,18 +1062,39 @@ export async function compressPDF(
   onProgress?: (fileIndex: number, pct: number) => void
 ): Promise<Array<File | Error | { file: File; meta: CompressionMeta }>> {
   const targetSizeMode = options.targetSizeMode === true
-  const results: Array<File | Error | { file: File; meta: CompressionMeta }> = []
+  const results: Array<File | Error | { file: File; meta: CompressionMeta }> = new Array(files.length)
+
+  // Fix 4: for target-size mode, run 2 files concurrently. Each file has its
+  // own PDFDocument + jpegCache, and the JPEG worker pool is shared, so parallel
+  // files overlap main-thread pdf-lib work with worker JPEG encoding.
+  if (targetSizeMode) {
+    const targetKB = typeof options.targetKB === 'number' ? options.targetKB : 500
+    const targetBytes = targetKB * 1024
+    const CONCURRENCY = 2
+    for (let start = 0; start < files.length; start += CONCURRENCY) {
+      const chunk = files.slice(start, start + CONCURRENCY)
+      const chunkResults = await Promise.all(
+        chunk.map(async (file, offset) => {
+          const i = start + offset
+          try {
+            return await compressPdfToTargetSize(file, targetBytes, (pct) => onProgress?.(i, pct))
+          } catch (err) {
+            return new Error(err instanceof Error ? err.message : 'Compression failed')
+          }
+        })
+      )
+      for (let offset = 0; offset < chunkResults.length; offset++) {
+        results[start + offset] = chunkResults[offset]
+      }
+    }
+    return results
+  }
 
   for (let i = 0; i < files.length; i++) {
     try {
       if (targetSizeMode) {
-        const targetKB = typeof options.targetKB === 'number' ? options.targetKB : 500
-        const result = await compressPdfToTargetSize(
-          files[i],
-          targetKB * 1024,
-          (pct) => onProgress?.(i, pct)
-        )
-        results.push(result)
+        // unreachable — handled above
+        void 0
       } else {
         const level = (options.level as 'low' | 'medium' | 'high' | 'aggressive') ?? 'medium'
         const targetDpi = typeof options.targetDpi === 'number' ? options.targetDpi : 150
@@ -1061,7 +1122,7 @@ export async function compressPDF(
           onProgress?.(i, 100)
           // Guard: rasterization can bloat text/vector-heavy inputs. If the
           // output isn't smaller, return the original untouched.
-          results.push(rasterized.size < files[i].size ? rasterized : files[i])
+          results[i] = rasterized.size < files[i].size ? rasterized : files[i]
         } else {
           onProgress?.(i, 10)
           const buffer = await files[i].arrayBuffer()
@@ -1081,11 +1142,11 @@ export async function compressPDF(
 
           onProgress?.(i, 100)
           // Final safety: never return larger than input.
-          results.push(file.size < files[i].size ? file : files[i])
+          results[i] = file.size < files[i].size ? file : files[i]
         }
       }
     } catch (err) {
-      results.push(new Error(err instanceof Error ? err.message : 'Compression failed'))
+      results[i] = new Error(err instanceof Error ? err.message : 'Compression failed')
     }
   }
 
