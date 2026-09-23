@@ -25,14 +25,12 @@ export const config: ToolConfig = {
     if (options.targetSizeMode === true) {
       const targetKB = typeof options.targetKB === 'number' ? options.targetKB : 500
       const targetBytes = targetKB * 1024
-      // Keep-text passes typically reclaim only 30–60%. When the target is
-      // <1/3 of the input, keep-text almost never hits it — the pipeline
-      // just wastes time before offering rasterize. Warn upfront and skip
-      // straight to rasterizing so the user isn't waiting on a doomed pass.
+      // Suppress the text banner when the unachievable case fires — the
+      // compress-pdf page renders a full RasterizeAheadCard for it (with a
+      // Rasterize button that replaces the Convert action). Doubling both
+      // would look like two warnings for the same thing.
       const looksUnachievable = files.some((f) => f.size > targetBytes * 2.5)
-      if (looksUnachievable) {
-        return 'Your target is much smaller than the input, so we\'ll skip straight to rasterizing (each page is flattened and becomes an image). Text stays readable on screen, but you\'ll lose: search, copy/paste, clickable links, form fields, screen-reader access, and crisp zoom-in. Raise the target or turn off target-size mode to keep these.'
-      }
+      if (looksUnachievable) return null
       return 'If your target size can\'t be met while keeping text, we\'ll ask before rasterizing. Rasterizing removes searchable text.'
     }
     return null

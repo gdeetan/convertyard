@@ -5,8 +5,22 @@ import { config as baseConfig } from '@/content/tools/compress-pdf'
 import { CompressPdfPreviewPanel } from '@/components/pdf/CompressPdfPreviewPanel'
 import { PresetBar } from '@/components/pdf/PresetBar'
 import { UnachievableTargetCard } from '@/components/pdf/UnachievableTargetCard'
+import { RasterizeAheadCard } from '@/components/pdf/RasterizeAheadCard'
 import { compressPdfKeepText, rasterizeToTargetSize, compressPDF } from '@/lib/converters/pdf'
 import type { CompressionMeta, ConversionResult, ToolOptions } from '@/lib/types'
+
+// Ratio above which the keep-text ladder almost never hits the target
+// (target < ~40% of input). Kept in sync with the same threshold used
+// during convertFn (line ~54) — moving both would break the pre-convert
+// rasterize prompt without ever running the doomed keep-text pass.
+const UNACHIEVABLE_RATIO = 2.5
+
+function isUnachievableForFiles(files: File[], options: ToolOptions): boolean {
+  if (options.targetSizeMode !== true) return false
+  const targetKB = typeof options.targetKB === 'number' ? options.targetKB : 500
+  const targetBytes = targetKB * 1024
+  return files.some((f) => f.size > targetBytes * UNACHIEVABLE_RATIO)
+}
 
 interface PendingEntry {
   input: File
@@ -47,11 +61,8 @@ export default function Page() {
       const nextPending: Record<number, PendingEntry> = {}
       const results: ConversionResult[] = []
 
-      // Same heuristic as the pre-convert warning in the tool config: when
-      // the target is under ~40% of the input, keep-text almost never hits
-      // it. Skip straight to rasterize so the user isn't waiting on a
-      // doomed keep-text pass just to be offered rasterize afterward.
-      const UNACHIEVABLE_RATIO = 2.5
+      // UNACHIEVABLE_RATIO defined at module scope so the pre-convert
+      // RasterizeAheadCard predicate uses the same threshold.
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i]
@@ -206,11 +217,16 @@ export default function Page() {
     previewPanel: CompressPdfPreviewPanel,
     presetBar: PresetBar,
     convertFn,
+    // Hide the primary Convert button when the pre-convert rasterize prompt
+    // is showing — the card owns the action from that point on.
+    hideConvertWhen: isUnachievableForFiles,
   }
 
   const pendingEntries = Object.entries(pending)
 
-  const notice = pendingEntries.length > 0 ? (
+  // Post-convert card (unchanged): appears when keep-text finishes but
+  // couldn't reach the target. Static ReactNode passed straight through.
+  const postConvertNotice = pendingEntries.length > 0 ? (
     <div>
       {pendingEntries.map(([idxStr, entry]) => {
         const idx = Number(idxStr)
@@ -228,7 +244,36 @@ export default function Page() {
         )
       })}
     </div>
-  ) : undefined
+  ) : null
+
+  // Combined notice slot: post-convert card takes precedence if present;
+  // otherwise render the pre-convert card via a function so the shell
+  // supplies current files/options/api.
+  const notice = postConvertNotice
+    ? postConvertNotice
+    : (({ files, options, api }: { files: File[]; options: ToolOptions; api: ToolShellApi }) => {
+        if (!isUnachievableForFiles(files, options)) return null
+        const targetKB = typeof options.targetKB === 'number' ? options.targetKB : 500
+        const targetBytes = targetKB * 1024
+        const largestBytes = files.reduce((m, f) => Math.max(m, f.size), 0)
+        // Pick a target that clears the 2.5× threshold with a small buffer
+        // (2× ratio) so the card doesn't immediately re-appear after clicking
+        // "Raise target". Round up to the next 10 KB for a clean value.
+        const suggestedTargetKB = Math.max(
+          targetKB + 1,
+          Math.ceil(largestBytes / 2 / 1024 / 10) * 10
+        )
+        return (
+          <RasterizeAheadCard
+            fileCount={files.length}
+            targetBytes={targetBytes}
+            largestInputBytes={largestBytes}
+            suggestedTargetKB={suggestedTargetKB}
+            onRasterize={() => api.startConversion()}
+            onRaiseTarget={() => api.setOption('targetKB', suggestedTargetKB)}
+          />
+        )
+      })
 
   return <ToolShell config={config} onReady={handleReady} notice={notice} />
 }

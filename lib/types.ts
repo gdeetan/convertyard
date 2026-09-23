@@ -206,6 +206,10 @@ export interface ToolConfig {
   // subset of options to override (e.g. {resolution: '720p'} when a large
   // iOS file was dropped). ToolShell applies these via handleOptionChange.
   derivedOptionsFn?: (files: File[], options: ToolOptions) => Partial<ToolOptions>
+  // When true for the current (files, options), the shell hides its primary
+  // Convert button. Used by tools that render a custom pre-convert card
+  // (e.g. compress-pdf's "Rasterize now" prompt) to take over the action.
+  hideConvertWhen?: (files: File[], options: ToolOptions) => boolean
   previewPanel?: React.ComponentType<{
     files: File[]
     results: (File | null)[]
