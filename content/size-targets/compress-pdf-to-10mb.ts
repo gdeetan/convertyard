@@ -9,7 +9,7 @@ export const config: SizeTargetConfig = {
   subhead:
     "Stay under Outlook's default 10 MB email cap and send design portfolios without cloud links.",
   intro:
-    "10 MB is Microsoft Outlook's default maximum message size — which means most corporate email systems enforce a 10 MB total attachment cap. Design portfolios with embedded images, conference presentation handouts, and long technical documents regularly start at 20–80 MB from their source tools. Compressing to just under 10 MB lets these files travel over corporate email without being bounced by a mail server.\n\nMicrosoft Outlook users can send file attachments with a maximum size of 10 MB. If you work for a design studio with high-resolution portfolios, a high-profile company with conference presentation handouts, or technical documents ranging from 20 to 80 MB, compressing them to just under 10 MB will be critical to sending them without the mail server rejecting them.",
+    "Microsoft Outlook has a default limit of 10 MB per message. This means the text and file attachments must not exceed 10 megabytes. So if you work with image-heavy PDFs, like conference presentation handouts, or long technical documents, these files can easily balloon to 20, 40, sometimes 80 MB.\n\nCompressing to just under 10 MB lets these files travel over corporate email without being bounced by a mail server. Microsoft Outlook users can send file attachments with a maximum size of 10 MB. If you work for a design studio with high-resolution portfolios, a high-profile company with conference presentation handouts, or technical documents ranging from 20 to 80 MB, compressing them to just under 10 MB will be critical to sending them without the mail server rejecting them.",
   useCases: [
     {
       label: 'Outlook email file attachments (10 MB Max)',
@@ -24,7 +24,7 @@ export const config: SizeTargetConfig = {
     {
       label: 'Conference presentation handouts',
       description:
-        'PDF handouts distributed at academic conferences or corporate seminars are commonly emailed to attendees; 10 MB is the safe ceiling for broad inbox compatibility.',
+        "PDF documentation in seminars are usually emailed to attendees. If you're using Outlook, compressing these files to 10 MB (or just under it) is essential to send these out en masse.",
     },
     {
       label: 'Long technical documentation',
