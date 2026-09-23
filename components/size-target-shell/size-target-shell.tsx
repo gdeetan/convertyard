@@ -41,11 +41,62 @@ interface SizeTargetShellProps {
   parentCategoryHref: string  // e.g. "/tools#pdf"
 }
 
+// Canonical compress-pdf size targets to cross-link in the How it works step 2.
+const COMPRESS_PDF_CROSSLINKS: Array<{ slug: string; label: string }> = [
+  { slug: 'to-100kb', label: '100 KB' },
+  { slug: 'to-200kb', label: '200 KB' },
+  { slug: 'to-300kb', label: '300 KB' },
+  { slug: 'to-500kb', label: '500 KB' },
+  { slug: 'to-1mb',   label: '1 MB'  },
+  { slug: 'to-5mb',   label: '5 MB'  },
+  { slug: 'to-20mb',  label: '20 MB' },
+  { slug: 'to-25mb',  label: '25 MB' },
+]
+
+function renderCompressPdfCrosslinks(currentSlug: string) {
+  const others = COMPRESS_PDF_CROSSLINKS.filter(l => l.slug !== currentSlug)
+  return others.map((l, i) => {
+    const sep =
+      i === others.length - 1 ? ', and ' :
+      i === 0                 ? ''       :
+                                ', '
+    return (
+      <span key={l.slug}>
+        {sep}
+        <Link href={`/compress-pdf/${l.slug}/`} className="text-primary underline hover:no-underline">
+          {l.label}
+        </Link>
+      </span>
+    )
+  })
+}
+
 function buildPrefilledConfig(parentConfig: ToolConfig, config: SizeTargetConfig): ToolConfig {
   const targetKB = Math.round(config.targetBytes / 1024)
   if (config.parentTool === 'compress-pdf' || config.parentTool === 'compress-video') {
+    const howItWorks =
+      config.parentTool === 'compress-pdf'
+        ? [
+            {
+              label: 'Drop your files',
+              desc: 'Drag and drop, or click to browse PDF files. For larger files over 5 MB, do smaller batches of 5 to 10. For smaller files, you can do batches of up to 250.',
+            },
+            {
+              label: 'Choose settings',
+              desc: (
+                <>
+                  This page is specifically for compressing PDFs to {config.targetLabel}. Other fixed size options include{' '}
+                  {renderCompressPdfCrosslinks(config.slug)}.
+                </>
+              ),
+            },
+            { label: 'Click Compress', desc: 'Everything runs in your browser via WebAssembly. Compression happens locally — no server involved.' },
+            { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+          ]
+        : parentConfig.howItWorks
     return {
       ...parentConfig,
+      howItWorks,
       options: parentConfig.options?.map(opt => {
         if (opt.type === 'section-header') return opt
         if (opt.name === 'targetSizeMode') return { ...opt, default: true }

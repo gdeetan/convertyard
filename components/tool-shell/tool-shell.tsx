@@ -960,7 +960,7 @@ function HowItWorks({
 }: {
   title: string
   hasOptions: boolean
-  override?: Array<{ label: string; desc: string }>
+  override?: Array<{ label: string; desc: React.ReactNode }>
   actionVerb?: string
 }) {
   const verb = actionVerb ?? 'Convert'

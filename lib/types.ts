@@ -191,7 +191,7 @@ export interface ToolConfig {
   }
   // Per-tool override for the shared "How it works" steps. Numbering is
   // computed automatically. Leave undefined to use the shell defaults.
-  howItWorks?: Array<{ label: string; desc: string }>
+  howItWorks?: Array<{ label: string; desc: React.ReactNode }>
   // Where the "How it works" block renders. Default renders after belowToolCard.
   // Set to 'below-drop' to place it immediately after the tool card, before belowToolCard.
   howItWorksPosition?: 'default' | 'below-drop'
