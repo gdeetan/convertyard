@@ -8,28 +8,27 @@ export const config: SizeTargetConfig = {
   h1: 'Compress PDF to 20 MB',
   subhead:
     'Hit the corporate Outlook ceiling and meet government tender document upload limits.',
-  intro:
-    "20 MB is the most common raised corporate Outlook limit and marks the upper boundary of what most recipients consider email-safe. Government tender portals (GeM, CPPP, state e-procurement) often set 20 MB per document as the ceiling for bid submissions. Large scanned legal documents — property records, court filings, multi-party contracts — frequently need to come down from 50–200 MB to a transmittable size, and 20 MB represents the upper boundary of what most email servers and portals accept without complaint.",
+  intro: [
+    'Microsoft Outlook and most email applications allow users to send a 20 MB file attachment without issues. Some companies may increase that maximum file size by upgrading to a corporate account, but most will not upgrade due to the additional costs.',
+    'Government websites that allow companies to submit documents usually set a 20 MB file size limit. Scanned documents like property deeds, court documents, and long contracts, depending on their resolution and the volume of images included, will easily exceed this limit.',
+    'These files need to be reduced to 20MB or less to send via email. Files less than 20MB in size will almost always reach their destination, while files larger than this will get blocked by email servers.',
+  ],
   useCases: [
     {
-      label: 'Corporate Outlook with raised 20 MB limit',
       description:
-        'Many organisations upgrade Exchange or M365 attachment limits to 20 MB. This is the most common non-default corporate email attachment ceiling.',
+        '**Corporate Outlook with a raised 20 MB limit.** The most common non-default corporate email attachment limit for Exchange or M365 accounts is 20 MB.',
     },
     {
-      label: 'Government tender and procurement document submissions',
       description:
-        "India's GeM (Government e-Marketplace) and state e-procurement portals typically allow bid documents up to 20 MB per upload.",
+        "**Submitting documents to Government portals.** India's GeM (Government e-Marketplace) and state e-procurement portals usually allow documents up to 20 MB to be uploaded for 'tender' submissions. These are documents that private firms submit for bidding.",
     },
     {
-      label: 'Large scanned legal documents',
       description:
-        'Property registration documents, multi-party agreements, and court filings scanned at 300 dpi from thick paper files routinely exceed 100 MB and need to be compressed for portal submission.',
+        '**Scanned documents (300 dpi)** that go over this threshold, like property registration documents, court filings, etc.',
     },
     {
-      label: 'Architectural and engineering drawings',
       description:
-        'PDF exports of AutoCAD drawings, building plans, and engineering schematics with embedded raster content often need to stay under 20 MB for submission to regulatory portals.',
+        '**Architectural and engineering drawings:** PDF versions of AutoCAD drawings, building plans and design schematics often contain embedded raster images. These must be compressed to below 20MB in order to be uploaded to online regulatory portals.',
     },
   ],
   specificFaq: [
