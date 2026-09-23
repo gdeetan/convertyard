@@ -76,27 +76,42 @@ const PRESETS: Array<{ name: string; icon: string; description: string; values: 
 
 interface PresetBarProps {
   onApply: (values: ToolOptions) => void
+  currentValues?: ToolOptions
 }
 
-export function PresetBar({ onApply }: PresetBarProps) {
+function matchesPreset(current: ToolOptions | undefined, preset: ToolOptions): boolean {
+  if (!current) return false
+  for (const key of Object.keys(preset) as Array<keyof ToolOptions>) {
+    if (current[key] !== preset[key]) return false
+  }
+  return true
+}
+
+export function PresetBar({ onApply, currentValues }: PresetBarProps) {
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-xs font-medium text-fg-muted">Presets:</span>
-      {PRESETS.map(({ name, icon, description, values }) => (
-        <button
-          key={name}
-          type="button"
-          onClick={() => onApply(values)}
-          title={description}
-          className={cn(
-            'rounded-full border border-border bg-bg-elevated px-3 py-1 text-xs font-medium text-fg',
-            'transition-colors hover:border-primary/50 hover:text-primary',
-            'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
-          )}
-        >
-          {icon} {name}
-        </button>
-      ))}
+      {PRESETS.map(({ name, icon, description, values }) => {
+        const isSelected = matchesPreset(currentValues, values)
+        return (
+          <button
+            key={name}
+            type="button"
+            onClick={() => onApply(values)}
+            title={description}
+            aria-pressed={isSelected}
+            className={cn(
+              'rounded-full border-2 px-3 py-1 text-xs font-medium transition-colors',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary',
+              isSelected
+                ? 'border-primary bg-bg-muted text-primary font-bold'
+                : 'border-border bg-bg-elevated text-fg hover:border-primary/50 hover:text-primary'
+            )}
+          >
+            {icon} {name}
+          </button>
+        )
+      })}
     </div>
   )
 }

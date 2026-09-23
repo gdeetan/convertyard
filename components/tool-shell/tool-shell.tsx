@@ -554,7 +554,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
             {(config.presetBar || (config.advancedOptions && config.advancedOptions.length > 0)) && (
               <div className="space-y-2">
                 {config.presetBar && (
-                  <config.presetBar onApply={handlePresetApply} />
+                  <config.presetBar onApply={handlePresetApply} currentValues={options} />
                 )}
                 {config.advancedOptions && config.advancedOptions.length > 0 && (() => {
                   const advancedDisabled = config.advancedDisabledFn?.(options) === true
