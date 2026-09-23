@@ -7,6 +7,7 @@ import { convertPdfToWord } from './pdf-to-word'
 import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 import { downsampleFlateImage } from '@/lib/pdf/image-downsample'
 import { computeEffectiveDpi } from '../pdf/effective-dpi'
+import { isMobile } from '@/lib/utils/is-mobile'
 
 // P1 efficiency features. Flip individually to false if triage requires it.
 const P1_FEATURES = {
@@ -749,9 +750,11 @@ export async function compressPdfKeepText(
     }
   }
 
-  // Feature #1: fetch per-image render map from mupdf if enabled.
+  // Feature #1: fetch per-image render map from mupdf if enabled. Skipped on
+  // mobile — the mupdf-wasm parse costs 0.5–1.5 s and the DPI precision gain
+  // is small vs. how much users care about wall time on phones.
   let imageRenderMap: Record<string, number> | undefined
-  if (P1_FEATURES.perImageDpi) {
+  if (P1_FEATURES.perImageDpi && !isMobile()) {
     try {
       const { getImageBboxes } = await import('./mupdf-client')
       imageRenderMap = await getImageBboxes(structuralBuffer)
@@ -1070,7 +1073,9 @@ export async function compressPDF(
   if (targetSizeMode) {
     const targetKB = typeof options.targetKB === 'number' ? options.targetKB : 500
     const targetBytes = targetKB * 1024
-    const CONCURRENCY = 2
+    // Mobile: run sequentially. Two files in parallel doubles peak RAM and
+    // usually slows total wall time due to thermal throttling.
+    const CONCURRENCY = isMobile() ? 1 : 2
     for (let start = 0; start < files.length; start += CONCURRENCY) {
       const chunk = files.slice(start, start + CONCURRENCY)
       const chunkResults = await Promise.all(

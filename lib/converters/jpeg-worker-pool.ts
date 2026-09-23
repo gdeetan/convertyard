@@ -4,6 +4,10 @@
 //
 // Falls back to `null` when Worker/OffscreenCanvas are unavailable (SSR,
 // happy-dom test env). Callers must handle null and run the main-thread path.
+//
+// On mobile, pool size is halved and each worker's cache pixel cap is halved
+// so a scan-heavy PDF can't push peak RAM past ~500 MB and get the tab killed.
+import { isMobile } from '@/lib/utils/is-mobile'
 
 type EncodeRes =
   | { type: 'encoded'; reqId: number; bytes: Uint8Array }
@@ -19,7 +23,7 @@ class JpegWorkerPool {
   private nextReqId = 1
   private pending = new Map<number, Pending>()
 
-  constructor(size: number) {
+  constructor(size: number, cachePixelCap: number) {
     for (let i = 0; i < size; i++) {
       const w = new Worker(new URL('./jpeg.worker.ts', import.meta.url), { type: 'module' })
       w.addEventListener('message', (ev: MessageEvent<EncodeRes>) => {
@@ -30,6 +34,7 @@ class JpegWorkerPool {
         if (msg.type === 'encoded') p.resolve(msg.bytes)
         else p.reject(new Error(msg.message))
       })
+      w.postMessage({ type: 'init', cachePixelCap })
       this.workers.push(w)
     }
   }
@@ -77,8 +82,10 @@ export function getJpegWorkerPool(): JpegWorkerPool | null {
     const hc = typeof navigator !== 'undefined' && typeof navigator.hardwareConcurrency === 'number'
       ? navigator.hardwareConcurrency
       : 2
-    const size = Math.max(1, Math.min(4, hc))
-    pool = new JpegWorkerPool(size)
+    const mobile = isMobile()
+    const size = Math.max(1, Math.min(mobile ? 2 : 4, hc))
+    const cachePixelCap = mobile ? 10_000_000 : 25_000_000
+    pool = new JpegWorkerPool(size, cachePixelCap)
     return pool
   } catch {
     pool = null

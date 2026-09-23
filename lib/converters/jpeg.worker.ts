@@ -1,11 +1,12 @@
 /// <reference lib="webworker" />
 
 // Per-worker decode cache. Same fingerprint → skip decode on subsequent rungs.
-// Cap matches the main-thread cache so a huge scan doesn't balloon memory.
-const JPEG_CACHE_MAX_PIXELS = 25_000_000
+// Cap is set by the pool at worker init so mobile can halve it.
+let cachePixelCap = 25_000_000
 type Entry = { canvas: OffscreenCanvas }
 const cache = new Map<string, Entry>()
 
+type InitReq = { type: 'init'; cachePixelCap: number }
 type EncodeReq = {
   type: 'encode'
   reqId: number
@@ -13,13 +14,18 @@ type EncodeReq = {
   jpegBytes: Uint8Array
   quality: number
 }
+type Req = InitReq | EncodeReq
 
 type EncodeRes =
   | { type: 'encoded'; reqId: number; bytes: Uint8Array }
   | { type: 'error'; reqId: number; message: string }
 
-self.addEventListener('message', async (ev: MessageEvent<EncodeReq>) => {
+self.addEventListener('message', async (ev: MessageEvent<Req>) => {
   const msg = ev.data
+  if (msg.type === 'init') {
+    cachePixelCap = msg.cachePixelCap
+    return
+  }
   if (msg.type !== 'encode') return
   const { reqId, fingerprint, jpegBytes, quality } = msg
   try {
@@ -30,7 +36,7 @@ self.addEventListener('message', async (ev: MessageEvent<EncodeReq>) => {
       const canvas = new OffscreenCanvas(bmp.width, bmp.height)
       canvas.getContext('2d')!.drawImage(bmp, 0, 0)
       bmp.close()
-      if (canvas.width * canvas.height <= JPEG_CACHE_MAX_PIXELS) {
+      if (canvas.width * canvas.height <= cachePixelCap) {
         entry = { canvas }
         cache.set(fingerprint, entry)
       } else {
