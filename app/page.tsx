@@ -15,11 +15,11 @@ import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
 // ── Metadata ──────────────────────────────────────────────────────────────
 
 export const metadata: Metadata = {
-  title: 'Convertyard - Batch Image, Video, Audio, PDF File Coverter. All Local. Nothing Uploads.',
+  title: 'Convert Images, Video, Audio, PDF in Browser — ConvertYard',
   description:
     'Batch convert or compress images, videos, audio, pdf files,  up to 1,000 images in one go. All done in your browser. Nothing uploads. No Paywall or sign ups. 100% free.',
   openGraph: {
-    title: 'Convertyard - Batch Image, Video, Audio, PDF File Coverter. All Local. Nothing Uploads.',
+    title: 'Convert Images, Video, Audio, PDF in Browser — ConvertYard',
     description:
       `Convert thousands of images, PDFs, videos, and audio files entirely in your browser. No uploads, no accounts. ${liveToolCount} free tools.`,
     url: 'https://convertyard.com/',
