@@ -14,19 +14,16 @@ export const config: SizeTargetConfig = {
   ],
   useCases: [
     {
-      label: 'Sending a PDF as a Gmail attachment',
       description:
-        "Gmail caps its file attachment size at 25 MB. Anything over it will be converted to a Google Drive link and not an attachment, so the recipient must be logged in to their Google account and have permission to view it. If the sender forgets to set the proper permissions, the recipient can’t open the file, which wastes time and causes frustration.",
+        "Sending a PDF file as a Gmail attachment. Gmail caps its file attachment size at 25 MB. Anything over it will be converted to a Google Drive link and not an attachment, so the recipient must be logged in to their Google account and have permission to view it. If the sender forgets to set the proper permissions, the recipient can’t open the file, which wastes time and causes frustration.",
     },
     {
-      label: 'High-resolution scans of books, reports, and manuals',
       description:
         'High-resolution scans of books, reports, research publications, and reference manuals can reach upwards of 200 MB. Compressing these documents to a more manageable 25 MB helps keep storage manageable without relying too much on Cloud storage.',
     },
     {
-      label: 'Bundled PDFs you need to email, not upload',
       description:
-        "Contracts, audit packages, project handovers, due-diligence reports — files you’d rather send as an attachment than a cloud link. Compressing keeps them under Gmail’s 25 MB cap so they go through directly.",
+        "Bundled PDFs you need to email, not upload. Contracts, audit packages, project handovers, due-diligence reports — files you’d rather send as an attachment than a cloud link. Compressing keeps them under Gmail’s 25 MB cap so they go through directly.",
     },
   ],
   specificFaq: [

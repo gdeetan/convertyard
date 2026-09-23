@@ -271,7 +271,7 @@ export interface SizeTargetConfig {
   h1: string
   subhead: string
   intro: string | string[]
-  useCases: { label: string; description: string }[]
+  useCases: { label?: string; description: string }[]
   specificFaq: FAQItem[]
   relatedSizes: string[]
   relatedVerticals: string[]

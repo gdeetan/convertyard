@@ -130,21 +130,16 @@ export function SizeTargetShell({
       {/* Use cases */}
       <section className="mb-10" aria-labelledby="use-cases-heading">
         <h2 id="use-cases-heading" className="text-xl font-semibold text-fg mb-4">
-          When you need {config.targetLabel}
+          When do you need {config.targetLabel}?
         </h2>
-        <ul className="space-y-3">
+        <ol className="list-decimal pl-6 space-y-3 text-base text-fg-muted leading-relaxed">
           {config.useCases.map((uc, i) => (
-            <li key={i} className="flex gap-3">
-              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-primary" aria-hidden="true" />
-              <div>
-                <span className="font-medium text-fg">{uc.label}</span>
-                {uc.description && (
-                  <p className="mt-0.5 text-sm text-fg-muted">{uc.description}</p>
-                )}
-              </div>
+            <li key={i}>
+              {uc.label && <span className="font-medium text-fg">{uc.label}. </span>}
+              {uc.description}
             </li>
           ))}
-        </ul>
+        </ol>
       </section>
 
       {/* FAQ */}
