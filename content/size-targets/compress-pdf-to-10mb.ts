@@ -47,7 +47,7 @@ export const config: SizeTargetConfig = {
     },
     {
       q: 'Can I compress a password-protected PDF?',
-      a: "Nope. ConvertYard won't be able to read or write encrypted PDF files. One workaround is using the Unlock PDF tool to remove the password, then compress that file. If it contains sensitive data, you can re-add the password using the Protect PDF tool.",
+      a: 'Nope. ConvertYard won\'t be able to read or write encrypted PDF files. One workaround is using the <a href="/unlock-pdf">Unlock PDF tool</a> to remove the password, then compress that file. If it contains sensitive data, you can re-add the password using the <a href="/protect-pdf">Protect PDF tool</a>.',
     },
     {
       q: 'How does target-size mode differ from the compression level slider?',
