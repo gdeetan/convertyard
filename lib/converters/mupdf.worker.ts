@@ -236,6 +236,29 @@ self.onmessage = async (e: MessageEvent) => {
       return
     }
 
+    if (type === 'save-compressed') {
+      // Structural re-serialization via mupdf. Deduplicates objects,
+      // Flate-compresses every stream, and repacks with object streams.
+      // No image touch — safe at every compression level. Callers wrap
+      // in a "keep whichever is smaller" guard so a bad case can't
+      // regress. Handler was declared in the type union in 0568306 but
+      // its implementation was never landed, so every previous callsite
+      // (compress-pdf low/medium/high, keep-text ladder's final pass)
+      // was silently hitting the "Unknown message type" fallback.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const doc: any = mupdf.Document.openDocument(fileBuffer, 'application/pdf')
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pdfDoc: any = doc.asPDF ? doc.asPDF() : doc
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const buf: any = pdfDoc.saveToBuffer('garbage=deduplicate,compress=yes')
+      const u8: Uint8Array = buf.asUint8Array()
+      const outBuf = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength)
+      buf.destroy()
+      doc.destroy()
+      self.postMessage({ id, type: 'result', data: outBuf }, [outBuf])
+      return
+    }
+
     if (type === 'get-image-bboxes') {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const doc: any = mupdf.Document.openDocument(fileBuffer, 'application/pdf')

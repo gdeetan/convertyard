@@ -597,6 +597,140 @@ async function* pipelineRasterPages(
   }
 }
 
+/**
+ * Read a JPEG's SOF marker to get intrinsic dimensions + component count.
+ * Component count picks the correct /ColorSpace when embedding: 1 = Gray,
+ * 3 = RGB, 4 = CMYK. Walks segments cheaply; only needs the header.
+ */
+function parseJpegDims(bytes: Uint8Array): { width: number; height: number; components: number } {
+  if (bytes.length < 4 || bytes[0] !== 0xFF || bytes[1] !== 0xD8) throw new Error('not a JPEG')
+  let i = 2
+  while (i < bytes.length - 9) {
+    if (bytes[i] !== 0xFF) throw new Error('bad JPEG marker')
+    const marker = bytes[i + 1]
+    // SOFn (0xC0..0xCF except 0xC4 DHT, 0xC8 JPG, 0xCC DAC) — has the frame header.
+    if (marker >= 0xC0 && marker <= 0xCF && marker !== 0xC4 && marker !== 0xC8 && marker !== 0xCC) {
+      const height = (bytes[i + 5] << 8) | bytes[i + 6]
+      const width = (bytes[i + 7] << 8) | bytes[i + 8]
+      const components = bytes[i + 9]
+      return { width, height, components }
+    }
+    // Stand-alone markers (SOI, EOI, RSTn) have no length; the rest do.
+    if (marker === 0xD8 || marker === 0xD9 || (marker >= 0xD0 && marker <= 0xD7)) {
+      i += 2
+      continue
+    }
+    const segLen = (bytes[i + 2] << 8) | bytes[i + 3]
+    if (segLen < 2) throw new Error('bad JPEG segment length')
+    i += 2 + segLen
+  }
+  throw new Error('no SOF marker in JPEG')
+}
+
+/**
+ * Hand-rolled PDF writer for image-only pages. Skips pdf-lib entirely:
+ * on 1000-page scans, pdf-lib's per-page embedJpg + addPage + drawImage
+ * plus the final save() serialize is the wall-time bottleneck (single-
+ * threaded, tens of seconds). This assembler writes one XObject +
+ * content stream + page dict per page and streams them into a flat
+ * byte array with a classic xref — no object parsing, no re-encoding.
+ *
+ * Output PDF is a plain 1.5 file with an uncompressed xref. Not as
+ * compact as pdf-lib's object-stream output but faster to produce and
+ * still passes through mupdf's save-compressed at the end for the
+ * final structural squeeze.
+ */
+function assembleImagePdf(
+  pages: Array<{ jpegBytes: Uint8Array; width: number; height: number; components: number }>
+): Uint8Array {
+  const enc = new TextEncoder()
+  const chunks: Uint8Array[] = []
+  let bytePos = 0
+  const write = (v: string | Uint8Array) => {
+    const c = typeof v === 'string' ? enc.encode(v) : v
+    chunks.push(c)
+    bytePos += c.length
+  }
+
+  const totalObjs = 2 + pages.length * 3 // catalog, pages tree, then 3 per page
+  const offsets = new Array<number>(totalObjs + 1).fill(0)
+  const catalogNum = 1
+  const pagesNum = 2
+
+  const startObj = (num: number) => {
+    offsets[num] = bytePos
+    write(`${num} 0 obj\n`)
+  }
+  const endObj = () => write('endobj\n')
+
+  write('%PDF-1.5\n%\xE2\xE3\xCF\xD3\n')
+
+  // Catalog
+  startObj(catalogNum)
+  write(`<< /Type /Catalog /Pages ${pagesNum} 0 R >>\n`)
+  endObj()
+
+  // Pages tree — collect page dict object numbers first
+  const pageDictNums: number[] = []
+  for (let k = 0; k < pages.length; k++) {
+    pageDictNums.push(2 + 3 * k + 3) // page dict is the third object per page
+  }
+  startObj(pagesNum)
+  write(`<< /Type /Pages /Kids [${pageDictNums.map((n) => `${n} 0 R`).join(' ')}] /Count ${pages.length} >>\n`)
+  endObj()
+
+  // Per-page objects: image XObject, content stream, page dict
+  for (let k = 0; k < pages.length; k++) {
+    const imageNum = 2 + 3 * k + 1
+    const contentNum = 2 + 3 * k + 2
+    const pageNum = 2 + 3 * k + 3
+    const { jpegBytes, width, height, components } = pages[k]
+    const colorSpace = components === 1 ? '/DeviceGray' : components === 4 ? '/DeviceCMYK' : '/DeviceRGB'
+
+    // Image XObject
+    startObj(imageNum)
+    write(`<< /Type /XObject /Subtype /Image /Width ${width} /Height ${height} /ColorSpace ${colorSpace} /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpegBytes.length} >>\nstream\n`)
+    write(jpegBytes)
+    write('\nendstream\n')
+    endObj()
+
+    // Content stream — draw image at MediaBox size (1:1 with pixel dims,
+    // matches prior pdf-lib output so page rendering stays visually identical).
+    const contentStr = `q ${width} 0 0 ${height} 0 0 cm /Im Do Q`
+    const contentBytes = enc.encode(contentStr)
+    startObj(contentNum)
+    write(`<< /Length ${contentBytes.length} >>\nstream\n`)
+    write(contentBytes)
+    write('\nendstream\n')
+    endObj()
+
+    // Page dict
+    startObj(pageNum)
+    write(`<< /Type /Page /Parent ${pagesNum} 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /XObject << /Im ${imageNum} 0 R >> >> /Contents ${contentNum} 0 R >>\n`)
+    endObj()
+  }
+
+  // xref
+  const xrefOffset = bytePos
+  write(`xref\n0 ${totalObjs + 1}\n`)
+  write('0000000000 65535 f \n')
+  for (let n = 1; n <= totalObjs; n++) {
+    const off = offsets[n].toString().padStart(10, '0')
+    write(`${off} 00000 n \n`)
+  }
+
+  write(`trailer\n<< /Size ${totalObjs + 1} /Root ${catalogNum} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`)
+
+  // Concat once at the end.
+  const out = new Uint8Array(bytePos)
+  let pos = 0
+  for (const c of chunks) {
+    out.set(c, pos)
+    pos += c.length
+  }
+  return out
+}
+
 async function rasterizePdf(file: File, dpi: number, fileName: string): Promise<File> {
   const buffer = await file.arrayBuffer()
   // Transfer the source PDF to the worker once, then reference by docId.
@@ -639,25 +773,27 @@ async function rasterizeForTarget(
   const handle = ownsHandle ? await openPdf(source.slice(0)) : source
   try {
     const pageCount = await getPageCount(handle)
-    const doc = await PDFDocument.create()
 
+    // Accumulate rendered pages, then assemble the PDF ourselves. On
+    // 1000-page scans this replaces pdf-lib's per-page embedJpg + doc.save
+    // (single-threaded, tens of seconds) with a flat byte writer.
+    const assembled: Array<{ jpegBytes: Uint8Array; width: number; height: number; components: number }> = []
     const pages = pipelineRasterPages(pageCount, rasterPipelineDepth(), async (p) => {
       const jpegBuffer = await renderPage(handle, p, dpi, quality)
       return new Uint8Array(jpegBuffer)
     })
     let pagesDone = 0
     for await (const jpegBytes of pages) {
-      const image = await doc.embedJpg(jpegBytes)
-      const page = doc.addPage([image.width, image.height])
-      page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+      const { width, height, components } = parseJpegDims(jpegBytes)
+      assembled.push({ jpegBytes, width, height, components })
       pagesDone++
-      // Reserve ~5% for the final doc.save() serialize on large PDFs.
+      // Reserve ~5% for the final assemble step on large PDFs.
       onProgress?.(Math.min(0.95, pagesDone / pageCount))
     }
 
-    const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+    const bytes = assembleImagePdf(assembled)
     onProgress?.(1)
-    return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
+    return new File([bytes as unknown as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
   } finally {
     if (ownsHandle) await closePdf(handle).catch(() => { /* best effort */ })
   }
@@ -677,8 +813,8 @@ async function rasterizeGrayscaleForTarget(
   const handle = ownsHandle ? await openPdf(source.slice(0)) : source
   try {
     const pageCount = await getPageCount(handle)
-    const doc = await PDFDocument.create()
 
+    const assembled: Array<{ jpegBytes: Uint8Array; width: number; height: number; components: number }> = []
     const pages = pipelineRasterPages(pageCount, rasterPipelineDepth(), async (p) => {
       const jpegBuffer = await renderPage(handle, p, dpi, quality)
       const jpegBytes = new Uint8Array(jpegBuffer)
@@ -694,16 +830,18 @@ async function rasterizeGrayscaleForTarget(
     })
     let pagesDone = 0
     for await (const grayBytes of pages) {
-      const image = await doc.embedJpg(grayBytes)
-      const page = doc.addPage([image.width, image.height])
-      page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+      // Canvas emits RGB JPEG even when drawn content is grayscale, so
+      // parseJpegDims usually returns components=3. That's fine — the PDF
+      // is still visually grayscale; storage overhead is ~10%.
+      const { width, height, components } = parseJpegDims(grayBytes)
+      assembled.push({ jpegBytes: grayBytes, width, height, components })
       pagesDone++
       onProgress?.(Math.min(0.95, pagesDone / pageCount))
     }
 
-    const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+    const bytes = assembleImagePdf(assembled)
     onProgress?.(1)
-    return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
+    return new File([bytes as unknown as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
   } finally {
     if (ownsHandle) await closePdf(handle).catch(() => { /* best effort */ })
   }
