@@ -35,15 +35,23 @@ export const config: SizeTargetConfig = {
   specificFaq: [
     {
       q: "My company's Outlook accepts 20 MB. Why does this page target 10 MB?",
-      a: "The 10 MB default applies to unmodified Microsoft Exchange configurations. Many IT teams raise the limit to 20–25 MB, but you cannot know the recipient's server limit in advance. Compressing to 10 MB ensures your email reaches inboxes on default-configured servers without bounce errors.",
+      a: "The default email file size limit of Microsoft Outlook is 10 MB; this is set to keep storage usage manageable. But some companies' IT departments modify this setting and increase the limit to 20 MB (or more). Regardless, we won't know these email servers' size limits in advance, so 10 MB is a good starting point.",
     },
     {
-      q: "I compressed my portfolio to 10 MB but Gmail still won't send it. Why?",
-      a: "Gmail's attachment limit is 25 MB, so 10 MB should send fine. If Gmail is still blocking it, the issue may be the total message size (inline images plus attachments combined), not just the PDF. Check whether the email body contains large embedded images.",
+      q: "I compressed my portfolio to 10 MB, but Gmail still won't send it. Why?",
+      a: "Gmail's attachment cap is 25 MB, so sending a 10 MB attachment should be fine. However, if Gmail blocks the email, the issue could be the total message size. There may be other attachments included along with the PDF file, or there are embedded photos in the message itself.",
     },
     {
       q: 'Does compressing to 10 MB affect vector graphics or charts in a PDF?',
-      a: 'Vector data (lines, shapes, paths) is not affected by PDF image compression — only embedded raster images (photos, screenshots, scanned pages) lose quality. Charts and diagrams created in PowerPoint or Illustrator remain sharp at any compression level.',
+      a: 'Vector elements (such as lines, shapes and paths) will not be affected by PDF image compression, whereas embedded raster elements (photos, screenshots and other scanned images) will degrade in quality. Charts and other diagrams created in PowerPoint or Illustrator will remain crisp and clear regardless of the level of compression applied.',
+    },
+    {
+      q: 'Can I compress a password-protected PDF?',
+      a: "Nope. ConvertYard won't be able to read or write encrypted PDF files. One workaround is using the Unlock PDF tool to remove the password, then compress that file. If it contains sensitive data, you can re-add the password using the Protect PDF tool.",
+    },
+    {
+      q: 'How does target-size mode differ from the compression level slider?',
+      a: 'The target-size mode will run compression passes up to six times. The first pass is a structural cleanup pass; then the succeeding passes gradually lower image quality from 80 to 30%, stopping only when the target size is reached. This option is best if you have a hard file size cap - usually email attachments or government portals.',
     },
   ],
   relatedSizes: ['to-5mb', 'to-20mb', 'to-25mb'],
