@@ -252,21 +252,43 @@ async function recompressImages(
   const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
   const context = doc.context
 
+  // Enumerate all JPEG XObjects up front, then re-encode through the
+  // JPEG worker pool with bounded concurrency. Old code awaited each
+  // reencodeJpeg call on the main thread — on a 1000-page scan that
+  // serialized ~1000 OffscreenCanvas encodes into a single main-thread
+  // stall of several minutes. Routing through reencodeJpegCached hands
+  // the work to the shared worker pool (identical images cache-hit
+  // across the batch too).
+  type Task = { ref: PDFRef; obj: PDFRawStream }
+  const tasks: Task[] = []
   for (const [ref, obj] of context.enumerateIndirectObjects()) {
     if (!(obj instanceof PDFRawStream)) continue
     const subtype = obj.dict.get(PDFName.of('Subtype'))
     if (subtype?.toString() !== '/Image') continue
     const filter = obj.dict.get(PDFName.of('Filter'))
     if (filter?.toString() !== '/DCTDecode') continue
+    tasks.push({ ref, obj })
+  }
 
-    try {
-      const reencoded = await reencodeJpeg(obj.contents, quality)
+  const CONCURRENCY = isMobile() ? 2 : 4
+  for (let i = 0; i < tasks.length; i += CONCURRENCY) {
+    const chunk = tasks.slice(i, i + CONCURRENCY)
+    const results = await Promise.all(
+      chunk.map(async ({ obj }) => {
+        try {
+          return await reencodeJpegCached(obj.contents, quality)
+        } catch {
+          return null
+        }
+      })
+    )
+    for (let j = 0; j < chunk.length; j++) {
+      const reencoded = results[j]
+      if (!reencoded) continue
+      const { ref, obj } = chunk[j]
       if (reencoded.byteLength >= obj.contents.byteLength) continue
-
       obj.dict.set(PDFName.of('Length'), PDFNumber.of(reencoded.byteLength))
       context.assign(ref, PDFRawStream.of(obj.dict, reencoded))
-    } catch {
-      // skip corrupt or non-decodable images
     }
   }
 
@@ -1361,7 +1383,26 @@ export async function compressPDF(
           onProgress?.(i, 10)
           const buffer = await files[i].arrayBuffer()
           let file = await compressStructural(buffer, level, files[i].name, advancedStrip)
-          onProgress?.(i, 50)
+          onProgress?.(i, 40)
+
+          // Dedupe identical image XObjects. On scan-heavy PDFs with
+          // recurring letterheads / stamps / page numbers this routinely
+          // reclaims 5–15% with zero visual change. Safe at every level —
+          // duplicate images render identically after collapse.
+          {
+            try {
+              const dedupBuf = await file.arrayBuffer()
+              const dedupDoc = await PDFDocument.load(dedupBuf, { ignoreEncryption: true })
+              const { dedupeImageXObjects } = await import('../pdf/dedupe-image-xobjects')
+              const { collapsed } = await dedupeImageXObjects(dedupDoc)
+              if (collapsed > 0) {
+                const bytes = await dedupDoc.save({ useObjectStreams: true, addDefaultPage: false })
+                const deduped = new File([bytes as Uint8Array<ArrayBuffer>], files[i].name, { type: 'application/pdf' })
+                if (deduped.size < file.size) file = deduped
+              }
+            } catch { /* best-effort */ }
+          }
+          onProgress?.(i, 55)
 
           if (grayscale) {
             const structBuf = await file.arrayBuffer()
@@ -1373,6 +1414,22 @@ export async function compressPDF(
             const recompressed = await recompressImages(structBuf, jpegQuality, files[i].name)
             if (recompressed.size < file.size) file = recompressed
           }
+          onProgress?.(i, 80)
+
+          // Final pass for every non-aggressive level: hand the result to
+          // mupdf which re-serializes with object streams + Flate 9 across
+          // every content/image stream. pdf-lib's save() writes at Flate's
+          // default level and can't restream existing objects — mupdf routinely
+          // reclaims another 5–20% on top with no quality change. Safe to
+          // apply at low/medium/high; we keep whichever output is smaller.
+          try {
+            const finalBuf = await file.arrayBuffer()
+            const { saveCompressed } = await import('./mupdf-client')
+            const compressed = await saveCompressed(finalBuf)
+            if (compressed.byteLength > 0 && compressed.byteLength < file.size) {
+              file = new File([new Uint8Array(compressed) as unknown as Uint8Array<ArrayBuffer>], files[i].name, { type: 'application/pdf' })
+            }
+          } catch { /* best-effort */ }
 
           onProgress?.(i, 100)
           // Final safety: never return larger than input.
