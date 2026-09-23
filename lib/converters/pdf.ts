@@ -1,4 +1,4 @@
-import { PDFDocument, PDFRawStream, PDFName, PDFNumber, PDFDict, degrees, rgb, StandardFonts, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
+import { PDFDocument, PDFRawStream, PDFRef, PDFName, PDFNumber, PDFDict, degrees, rgb, StandardFonts, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
 import { zipSync } from 'fflate'
 import { getPageCount, renderPage, renderPagePng, extractText, extractStructuredText } from './mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
@@ -14,6 +14,9 @@ const P1_FEATURES = {
   mupdfSaveCompressed: true,
   dedupeImageXObjects: true,
   flateLevel9: true,
+  // Route JPEG re-encode through a Web Worker pool. Falls back to main-thread
+  // reencodeJpeg when workers/OffscreenCanvas are unavailable.
+  jpegWorkerPool: true,
 } as const
 
 // ── Merge ─────────────────────────────────────────────────────────────────────
@@ -201,9 +204,22 @@ async function reencodeJpegCached(
   quality: number,
   cache?: JpegDecodeCache
 ): Promise<Uint8Array> {
+  const key = fingerprintJpeg(jpegBytes)
+
+  // Item 2: prefer the worker pool. Each worker keeps its own decode cache,
+  // routed by fingerprint hash. On pool failure, fall through to main thread.
+  if (P1_FEATURES.jpegWorkerPool) {
+    try {
+      const { getJpegWorkerPool } = await import('./jpeg-worker-pool')
+      const pool = getJpegWorkerPool()
+      if (pool) return await pool.encode(key, jpegBytes, quality)
+    } catch {
+      // fall through
+    }
+  }
+
   if (!cache) return reencodeJpeg(jpegBytes, quality)
 
-  const key = fingerprintJpeg(jpegBytes)
   let entry = cache.get(key)
   if (!entry) {
     const blob = new Blob([jpegBytes as unknown as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })
@@ -266,27 +282,44 @@ async function recompressImages(
  * The JPEG (`/DCTDecode`) path here matches `recompressImages` exactly so
  * behavior is preserved for the keep-text pipeline.
  */
-async function recompressImagesKeepText(
+// Item 5: plan/execute split. Parse the buffer once, enumerate image XObjects
+// once, then reuse across every ladder rung. Between rungs, mutated refs are
+// restored to their original PDFRawStream so the next rung starts pristine.
+type JpegPlanItem = {
+  kind: 'jpeg'
+  ref: PDFRef
+  originalObj: PDFRawStream
+}
+type FlatePlanItem = {
+  kind: 'flate'
+  ref: PDFRef
+  originalObj: PDFRawStream
+  w: number
+  h: number
+  cssnap: '/DeviceRGB' | '/DeviceGray'
+  effectiveSourceDpi: number
+}
+export type KeepTextPlan = {
+  doc: PDFDocument
+  items: Array<JpegPlanItem | FlatePlanItem>
+  preservedImages: string[]
+  flateLevel?: number
+  jpegCache?: JpegDecodeCache
+}
+
+async function planImageRecompress(
   buffer: ArrayBuffer,
-  quality: number,
-  fileName: string,
   opts: {
-    targetDpi: number;
-    sourceDpi: number;
-    imageRenderMap?: Record<string, number>;
-    flateLevel?: number;
-    jpegCache?: JpegDecodeCache;
-  } = { targetDpi: 150, sourceDpi: 300 }
-): Promise<{ file: File; preservedImages: string[] }> {
+    sourceDpi: number
+    imageRenderMap?: Record<string, number>
+    flateLevel?: number
+    jpegCache?: JpegDecodeCache
+  }
+): Promise<KeepTextPlan> {
   const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
   const context = doc.context
   const preservedImages: string[] = []
-
-  // Collect image work items first so we can run image codecs in parallel.
-  // Each item captures the ref + its dict snapshot; mutation is deferred until
-  // after all async work returns to keep the pdf-lib context single-threaded.
-  type Mutation = () => void
-  const tasks: Array<Promise<Mutation | null>> = []
+  const items: Array<JpegPlanItem | FlatePlanItem> = []
 
   for (const [ref, obj] of context.enumerateIndirectObjects()) {
     if (!(obj instanceof PDFRawStream)) continue
@@ -296,27 +329,11 @@ async function recompressImagesKeepText(
     const filter = obj.dict.get(PDFName.of('Filter'))
     const filterStr = filter?.toString() ?? ''
 
-    // Existing JPEG branch — unchanged behavior.
     if (filterStr === '/DCTDecode') {
-      const jpegRef = ref
-      const jpegObj = obj
-      tasks.push((async () => {
-        try {
-          const reencoded = await reencodeJpegCached(jpegObj.contents, quality, opts.jpegCache)
-          if (reencoded.byteLength >= jpegObj.contents.byteLength) return null
-          return () => {
-            jpegObj.dict.set(PDFName.of('Length'), PDFNumber.of(reencoded.byteLength))
-            context.assign(jpegRef, PDFRawStream.of(jpegObj.dict, reencoded))
-          }
-        } catch {
-          preservedImages.push(`${jpegRef.toString()}:jpeg-reencode-failed`)
-          return null
-        }
-      })())
+      items.push({ kind: 'jpeg', ref, originalObj: obj })
       continue
     }
 
-    // Flate/PNG branch — only DeviceRGB or DeviceGray, BPC 8, no filter chain.
     if (filterStr === '/FlateDecode') {
       const cs = obj.dict.get(PDFName.of('ColorSpace'))
       const csStr = cs?.toString() ?? ''
@@ -344,11 +361,8 @@ async function recompressImagesKeepText(
         continue
       }
 
-      const flateRef = ref
-      const flateObj = obj
       const w = width.asNumber()
       const h = height.asNumber()
-      const cssnap = csStr
       let effectiveSourceDpi = opts.sourceDpi
       if (opts.imageRenderMap) {
         const key = `${w}x${h}`
@@ -359,23 +373,89 @@ async function recompressImagesKeepText(
         }
       }
 
+      items.push({
+        kind: 'flate',
+        ref,
+        originalObj: obj,
+        w,
+        h,
+        cssnap: csStr as '/DeviceRGB' | '/DeviceGray',
+        effectiveSourceDpi,
+      })
+      continue
+    }
+
+    preservedImages.push(`${ref.toString()}:filter=${filterStr || 'none'}`)
+  }
+
+  return {
+    doc,
+    items,
+    preservedImages,
+    flateLevel: opts.flateLevel,
+    jpegCache: opts.jpegCache,
+  }
+}
+
+async function executeImageRecompress(
+  plan: KeepTextPlan,
+  quality: number,
+  targetDpi: number,
+  fileName: string
+): Promise<{ file: File; preservedImages: string[] }> {
+  const { doc, items, jpegCache, flateLevel } = plan
+  const context = doc.context
+  const preservedImages: string[] = [...plan.preservedImages]
+
+  type Mutation = { ref: PDFRef; apply: () => void }
+  const tasks: Array<Promise<Mutation | null>> = []
+
+  for (const item of items) {
+    if (item.kind === 'jpeg') {
+      const { ref: jpegRef, originalObj: jpegObj } = item
       tasks.push((async () => {
         try {
-          const result = await downsampleFlateImage(flateObj.contents, {
-            sourceWidth: w,
-            sourceHeight: h,
-            sourceDpi: effectiveSourceDpi,
-            targetDpi: opts.targetDpi,
-            colorSpace: cssnap === '/DeviceRGB' ? 'DeviceRGB' : 'DeviceGray',
-            bitsPerComponent: 8,
-            jpegQuality: quality / 100,
-            flateLevel: opts.flateLevel,
-          })
+          const reencoded = await reencodeJpegCached(jpegObj.contents, quality, jpegCache)
+          if (reencoded.byteLength >= jpegObj.contents.byteLength) return null
+          return {
+            ref: jpegRef,
+            apply: () => {
+              // Clone the dict so the original PDFRawStream stays intact for
+              // restore between rungs.
+              const newDict = jpegObj.dict.clone(context)
+              newDict.set(PDFName.of('Length'), PDFNumber.of(reencoded.byteLength))
+              context.assign(jpegRef, PDFRawStream.of(newDict, reencoded))
+            },
+          }
+        } catch {
+          preservedImages.push(`${jpegRef.toString()}:jpeg-reencode-failed`)
+          return null
+        }
+      })())
+      continue
+    }
 
-          if (result.filter === 'FlateDecode') return null
-          if (result.bytes.byteLength >= flateObj.contents.byteLength) return null
+    // flate
+    const { ref: flateRef, originalObj: flateObj, w, h, cssnap, effectiveSourceDpi } = item
+    tasks.push((async () => {
+      try {
+        const result = await downsampleFlateImage(flateObj.contents, {
+          sourceWidth: w,
+          sourceHeight: h,
+          sourceDpi: effectiveSourceDpi,
+          targetDpi,
+          colorSpace: cssnap === '/DeviceRGB' ? 'DeviceRGB' : 'DeviceGray',
+          bitsPerComponent: 8,
+          jpegQuality: quality / 100,
+          flateLevel,
+        })
 
-          return () => {
+        if (result.filter === 'FlateDecode') return null
+        if (result.bytes.byteLength >= flateObj.contents.byteLength) return null
+
+        return {
+          ref: flateRef,
+          apply: () => {
             const newDict = flateObj.dict.clone(context)
             newDict.set(PDFName.of('Filter'), PDFName.of('DCTDecode'))
             newDict.set(PDFName.of('Width'), PDFNumber.of(result.width))
@@ -388,21 +468,15 @@ async function recompressImagesKeepText(
             newDict.delete(PDFName.of('DecodeParms'))
             newDict.delete(PDFName.of('Predictor'))
             context.assign(flateRef, PDFRawStream.of(newDict, result.bytes))
-          }
-        } catch {
-          preservedImages.push(`${flateRef.toString()}:downsample-failed`)
-          return null
+          },
         }
-      })())
-      continue
-    }
-
-    // Any other codec (JPX, JBIG2, CCITT, filter chain) — preserve as-is.
-    preservedImages.push(`${ref.toString()}:filter=${filterStr || 'none'}`)
+      } catch {
+        preservedImages.push(`${flateRef.toString()}:downsample-failed`)
+        return null
+      }
+    })())
   }
 
-  // Run image codecs in parallel with a concurrency cap so a large PDF with
-  // many images doesn't spawn dozens of decoder pipelines at once.
   const CONCURRENCY = 4
   const mutations: Mutation[] = []
   for (let i = 0; i < tasks.length; i += CONCURRENCY) {
@@ -410,14 +484,41 @@ async function recompressImagesKeepText(
     const settled = await Promise.all(chunk)
     for (const m of settled) if (m) mutations.push(m)
   }
-  // Apply mutations sequentially — pdf-lib context assumes single-threaded edits.
-  for (const apply of mutations) apply()
+  for (const { apply } of mutations) apply()
 
   const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+
+  // Restore mutated refs so the next rung starts from the pristine plan state.
+  for (const { ref } of mutations) {
+    const item = items.find((it) => it.ref === ref)
+    if (item) context.assign(ref, item.originalObj)
+  }
+
   return {
     file: new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' }),
     preservedImages,
   }
+}
+
+async function recompressImagesKeepText(
+  buffer: ArrayBuffer,
+  quality: number,
+  fileName: string,
+  opts: {
+    targetDpi: number;
+    sourceDpi: number;
+    imageRenderMap?: Record<string, number>;
+    flateLevel?: number;
+    jpegCache?: JpegDecodeCache;
+  } = { targetDpi: 150, sourceDpi: 300 }
+): Promise<{ file: File; preservedImages: string[] }> {
+  const plan = await planImageRecompress(buffer, {
+    sourceDpi: opts.sourceDpi,
+    imageRenderMap: opts.imageRenderMap,
+    flateLevel: opts.flateLevel,
+    jpegCache: opts.jpegCache,
+  })
+  return executeImageRecompress(plan, quality, opts.targetDpi, fileName)
 }
 
 async function rasterizePdf(file: File, dpi: number, fileName: string): Promise<File> {
@@ -649,7 +750,22 @@ export async function compressPdfKeepText(
   // If the result is far above target, jumping 2–3 rungs at once terminates
   // faster on inputs that need aggressive quality reduction. Worst case still
   // walks every remaining rung, so the "up to six passes" contract holds.
-  const qualityLadder = [80, 70, 60, 50, 40, 30]
+  // Ladder is now (quality, targetDpi) pairs. First 6 rungs match the legacy
+  // ladder at 150 DPI. Last 3 rungs progressively downsample Flate/PNG images
+  // (120 → 100 → 90 DPI) so scan-heavy PDFs can reach small targets without
+  // rasterizing. Non-monotonic quality on the low-DPI tail is intentional:
+  // fewer pixels dominates, and `best` tracks the smallest candidate seen.
+  const qualityLadder: Array<{ q: number; dpi: number }> = [
+    { q: 80, dpi: 150 },
+    { q: 70, dpi: 150 },
+    { q: 60, dpi: 150 },
+    { q: 50, dpi: 150 },
+    { q: 40, dpi: 150 },
+    { q: 30, dpi: 150 },
+    { q: 40, dpi: 120 },
+    { q: 35, dpi: 100 },
+    { q: 30, dpi: 90 },
+  ]
   let best: Blob = structural
   const ladderStart = 40
   const ladderEnd = 85
@@ -659,26 +775,26 @@ export async function compressPdfKeepText(
   // Shared across rungs: decode each JPEG XObject once, re-encode per rung.
   const jpegCache: JpegDecodeCache = new Map()
 
+  // Item 5: plan the image-recompress work once, then execute per rung. Every
+  // rung reuses the same parsed PDFDocument + enumerated XObject list, saving
+  // 1× PDFDocument.load per rung on large PDFs. Between rungs, the plan is
+  // restored so each rung starts from the pristine structural output.
+  const plan = await planImageRecompress(structuralBuffer, {
+    sourceDpi: 300,
+    imageRenderMap,
+    flateLevel: P1_FEATURES.flateLevel9 ? 9 : undefined,
+    jpegCache,
+  })
+
   while (step < qualityLadder.length) {
-    const quality = qualityLadder[step]
+    const { q: quality, dpi: targetDpi } = qualityLadder[step]
     let candidate: Blob | null = null
     try {
-      const { file } = await recompressImagesKeepText(
-        structuralBuffer,
-        quality,
-        input.name,
-        {
-          targetDpi: 150,
-          sourceDpi: 300,
-          imageRenderMap,
-          flateLevel: P1_FEATURES.flateLevel9 ? 9 : undefined,
-          jpegCache,
-        }
-      )
+      const { file } = await executeImageRecompress(plan, quality, targetDpi, input.name)
       candidate = file
-      passesRun.push(`jpeg-recompress:q${quality}`)
+      passesRun.push(`jpeg-recompress:q${quality}@dpi${targetDpi}`)
     } catch {
-      passesRun.push(`jpeg-recompress:q${quality}:failed`)
+      passesRun.push(`jpeg-recompress:q${quality}@dpi${targetDpi}:failed`)
     }
 
     onProgress?.(
