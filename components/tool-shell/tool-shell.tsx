@@ -53,6 +53,12 @@ interface ToolShellProps {
    * duplicating the shell's state machine.
    */
   onReady?: (api: ToolShellApi) => void
+  /**
+   * Called with the current file set whenever it changes. Lets a parent page
+   * render advisory UI (e.g. compress-pdf's split-first banner for large scans)
+   * without duplicating the shell's file state.
+   */
+  onFilesChange?: (files: File[]) => void
 }
 
 // ── State ──────────────────────────────────────────────────────────────────
@@ -235,7 +241,7 @@ export function ToolShell(props: { config: AnyToolConfig } & Omit<ToolShellProps
   return <ConverterShell {...(props as ToolShellProps)} />
 }
 
-function ConverterShell({ config, embedded = false, onResults, initialOptions, notice, belowToolCard, afterHowItWorks, onReady }: ToolShellProps) {
+function ConverterShell({ config, embedded = false, onResults, initialOptions, notice, belowToolCard, afterHowItWorks, onReady, onFilesChange }: ToolShellProps) {
   const [state, dispatch] = useReducer(reducer, {
     entries: [],
     phase: 'idle',
@@ -327,6 +333,12 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
       return next
     })
   }, [])
+
+  // Notify the parent page whenever the file set changes. Lets pages render
+  // advisory UI keyed on the current input without re-implementing state.
+  useEffect(() => {
+    onFilesChange?.(state.entries.map((e) => e.file))
+  }, [state.entries, onFilesChange])
 
   // Async warning probe. Runs once when the file set changes — cancelled
   // via `active` flag if a new set arrives mid-probe. Deferred so the

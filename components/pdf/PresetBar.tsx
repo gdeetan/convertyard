@@ -55,12 +55,13 @@ const PRESETS: Array<{ name: string; icon: string; description: string; values: 
   {
     name: 'Maximum',
     icon: '🔥',
-    description: 'Smallest possible file',
+    description: '1-bit CCITT G4 — best for scanned text',
     values: {
       dpiMode: true,
       targetDpi: 72,
       jpegQuality: 40,
       grayscale: true,
+      bilevel: true,
       removeUnusedFonts: true,
       stripMetadata: true,
       stripAnnotations: true,

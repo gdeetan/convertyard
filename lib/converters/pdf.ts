@@ -10,6 +10,8 @@ import { downsampleFlateImage } from '@/lib/pdf/image-downsample'
 import { chooseRungForTarget } from '@/lib/pdf/size-model'
 import { computeEffectiveDpi } from '../pdf/effective-dpi'
 import { isMobile } from '@/lib/utils/is-mobile'
+import { getBilevelWorkerPool } from './pdf-bilevel-pool'
+import { assembleBilevelPdf } from './assembleBilevelPdf'
 
 // P1 efficiency features. Flip individually to false if triage requires it.
 const P1_FEATURES = {
@@ -701,12 +703,12 @@ function rasterPipelineDepth(): number {
 // The overlap between worker render and main-thread embed/addPage is where
 // the speedup comes from — mupdf serializes inside its worker, but its work
 // runs in parallel with main-thread pdf-lib and canvas work.
-async function* pipelineRasterPages(
+async function* pipelineRasterPages<T>(
   pageCount: number,
   depth: number,
-  renderOne: (pageIndex: number) => Promise<Uint8Array>
-): AsyncGenerator<Uint8Array, void, void> {
-  const queue: Promise<Uint8Array>[] = []
+  renderOne: (pageIndex: number) => Promise<T>
+): AsyncGenerator<T, void, void> {
+  const queue: Promise<T>[] = []
   let next = 0
   const enqueueNext = () => {
     if (next < pageCount) {
@@ -991,47 +993,27 @@ async function rasterizeBilevelForTarget(
   const handle = ownsHandle ? await openPdf(source.slice(0)) : source
   try {
     const pageCount = await getPageCount(handle)
-    const doc = await PDFDocument.create()
+    const pool = getBilevelWorkerPool()
+    if (!pool) throw new Error('bilevel worker pool unavailable (worker/OffscreenCanvas missing)')
 
-    const pages = pipelineRasterPages(pageCount, rasterPipelineDepth(), async (p) => {
-      // Render as high-quality JPEG then threshold — cheaper than routing
-      // a new PNG-per-page path through mupdf and enough fidelity for
-      // binarization (we're about to snap every pixel to 0/255 anyway).
-      const jpegBuffer = await renderPage(handle, p, dpi, 90)
-      const blob = new Blob([new Uint8Array(jpegBuffer) as unknown as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })
-      const bmp = await createImageBitmap(blob)
-      const canvas = new OffscreenCanvas(bmp.width, bmp.height)
-      const ctx = canvas.getContext('2d')!
-      ctx.drawImage(bmp, 0, 0)
-      bmp.close()
-      const img = ctx.getImageData(0, 0, canvas.width, canvas.height)
-      const data = img.data
-      // Threshold at luma 176 (slightly above midpoint) — biases toward
-      // white background on faintly-off-white scans without eating thin
-      // strokes. Standard Rec. 709 luma weights.
-      for (let k = 0; k < data.length; k += 4) {
-        const luma = data[k] * 0.2126 + data[k + 1] * 0.7152 + data[k + 2] * 0.0722
-        const v = luma >= 176 ? 255 : 0
-        data[k] = v
-        data[k + 1] = v
-        data[k + 2] = v
-      }
-      ctx.putImageData(img, 0, 0)
-      const pngBlob = await canvas.convertToBlob({ type: 'image/png' })
-      return new Uint8Array(await pngBlob.arrayBuffer())
-    })
+    const pages: Array<{ ccittBytes: Uint8Array; width: number; height: number }> = new Array(pageCount)
     let pagesDone = 0
-    for await (const pngBytes of pages) {
-      const image = await doc.embedPng(pngBytes)
-      const page = doc.addPage([image.width, image.height])
-      page.drawImage(image, { x: 0, y: 0, width: image.width, height: image.height })
+
+    const producer = pipelineRasterPages(pageCount, rasterPipelineDepth(), async (p) => {
+      const jpegBuffer = await renderPage(handle, p, dpi, 90)
+      const encoded = await pool.encode(new Uint8Array(jpegBuffer))
+      return { pageIndex: p, ...encoded }
+    })
+
+    for await (const { pageIndex, ccittBytes, width, height } of producer) {
+      pages[pageIndex] = { ccittBytes, width, height }
       pagesDone++
       onProgress?.(Math.min(0.95, pagesDone / pageCount))
     }
 
-    const bytes = await doc.save({ useObjectStreams: true, addDefaultPage: false })
+    const bytes = assembleBilevelPdf(pages)
     onProgress?.(1)
-    return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
+    return new File([bytes as unknown as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
   } finally {
     if (ownsHandle) await closePdf(handle).catch(() => { /* best effort */ })
   }
@@ -1744,7 +1726,11 @@ export async function compressPDF(
 
           if (grayscale) {
             const structBuf = await file.arrayBuffer()
-            const rasterized = await rasterizeGrayscaleForTarget(structBuf, files[i].name, targetDpi, jpegQuality)
+            const bilevel = options.bilevel === true
+            const rasterProgress = (f: number) => { onProgress?.(i, 55 + Math.round(f * 25)) }
+            const rasterized = bilevel
+              ? await rasterizeBilevelForTarget(structBuf, files[i].name, Math.max(150, targetDpi * 2), rasterProgress)
+              : await rasterizeGrayscaleForTarget(structBuf, files[i].name, targetDpi, jpegQuality, rasterProgress)
             // Guard: keep whichever is smallest across original, structural, rasterized.
             if (rasterized.size < file.size) file = rasterized
           } else {

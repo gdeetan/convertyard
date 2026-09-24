@@ -1,5 +1,6 @@
 'use client'
-import { useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
 import { ToolShell } from '@/components/tool-shell/tool-shell'
 import { config as baseConfig } from '@/content/tools/compress-pdf'
 import { CompressPdfPreviewPanel } from '@/components/pdf/CompressPdfPreviewPanel'
@@ -13,7 +14,44 @@ import type { CompressionMeta, ConversionResult, ToolOptions } from '@/lib/types
 // instead of running a doomed keep-text pass first.
 const UNACHIEVABLE_RATIO = 2.5
 
+// Files above this size take 1-3 hours in-browser on typical hardware.
+// Advise users to split, compress, and merge — same output, ~15 minutes.
+const LARGE_FILE_ADVISORY_BYTES = 75 * 1024 * 1024
+
+function LargeFileAdvisory({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+      <p className="flex-1">
+        Large scan detected. For fastest results, split into ~10 parts first with our{' '}
+        <Link href="/split-pdf" className="underline hover:no-underline">
+          Split PDF
+        </Link>{' '}
+        tool, compress each, then merge back with{' '}
+        <Link href="/merge-pdf" className="underline hover:no-underline">
+          Merge PDF
+        </Link>
+        .
+      </p>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss advisory"
+        className="shrink-0 rounded p-0.5 text-amber-800/70 hover:text-amber-900 dark:text-amber-200/70 dark:hover:text-amber-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      >
+        <span aria-hidden="true">✕</span>
+      </button>
+    </div>
+  )
+}
+
 export default function Page() {
+  const [currentFiles, setCurrentFiles] = useState<File[]>([])
+  const [advisoryDismissedKey, setAdvisoryDismissedKey] = useState<string | null>(null)
+  const onFilesChangeRef = useRef((files: File[]) => setCurrentFiles(files))
+  const fileSetKey = currentFiles.map((f) => `${f.name}:${f.size}`).join('|')
+  const showAdvisory =
+    currentFiles.some((f) => f.size > LARGE_FILE_ADVISORY_BYTES) &&
+    advisoryDismissedKey !== fileSetKey
   useEffect(() => {
     const trigger = () => { void preloadPdfWasm() }
     const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => number })
@@ -168,5 +206,15 @@ export default function Page() {
     convertFn,
   }
 
-  return <ToolShell config={config} />
+  return (
+    <ToolShell
+      config={config}
+      onFilesChange={onFilesChangeRef.current}
+      notice={
+        showAdvisory ? (
+          <LargeFileAdvisory onDismiss={() => setAdvisoryDismissedKey(fileSetKey)} />
+        ) : undefined
+      }
+    />
+  )
 }
