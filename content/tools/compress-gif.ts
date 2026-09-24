@@ -19,6 +19,13 @@ export const config: ToolConfig = {
   previewPanel: GifCompressionPreview,
   interactivePanel: GifInputPreview,
 
+  howItWorks: [
+    { label: 'Drop your files', desc: 'Drag and drop, click to browse, or paste from clipboard. Up to 1,000 files at once.' },
+    { label: 'Choose settings', desc: 'Choose compression level, or a target size. If you need more control, use the advanced settings for more control.' },
+    { label: 'Click Compress', desc: 'Everything runs in your browser via WebAssembly. GIF Compressor happens locally — nothing is uploaded.' },
+    { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+  ],
+
   options: [
     {
       type: 'radio',
