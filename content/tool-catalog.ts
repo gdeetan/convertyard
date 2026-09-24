@@ -59,6 +59,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   // Image editing — coming soon
   { slug: 'background-remover', title: 'Background Remover', description: 'Remove backgrounds with AI, no account needed.', category: 'image-editing', status: 'live', badge: 'AI' },
   { slug: 'compress-image',     title: 'Image Compressor',   description: 'Batch compress any image format.', category: 'image-editing', status: 'live' },
+  { slug: 'compress-gif',       title: 'GIF Compressor',     description: 'Compress animated or static GIFs in your browser. Batch up to 1,000 files, target-size mode, no uploads.', category: 'image-editing', status: 'live' },
   { slug: 'image-resizer',      title: 'Image Resizer',      description: 'Resize to exact pixels or percent — batch.', category: 'image-editing', status: 'live' },
   { slug: 'image-cropper',      title: 'Image Cropper',      description: 'Crop to exact ratios — 1:1, passport, and more.', category: 'image-editing', status: 'live' },
   { slug: 'exif-viewer',        title: 'EXIF Viewer',        description: 'View EXIF, GPS, IPTC, XMP, and AI-provenance metadata from any image. Batch up to 1000.', category: 'image-editing', status: 'live' },
