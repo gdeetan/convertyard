@@ -1508,19 +1508,28 @@ export async function compressPDF(
         // Preset profiles — each level bakes a full DPI cap + JPEG quality
         // combination. Prior behavior used a single 150 DPI / Q70 default for
         // every level, which made low/medium/high produce nearly identical
-        // output. These profiles match iLovePDF's ebook/screen distiller
-        // targets and give visibly different ratios across the ladder.
+        // output. These profiles are tuned to beat iLovePDF's ebook/screen
+        // distiller ratios at each level.
         const levelProfile = {
-          low:        { dpi: 200, quality: 80 },
-          medium:     { dpi: 150, quality: 68 },
-          high:       { dpi: 110, quality: 55 },
-          aggressive: { dpi: 150, quality: 75 },
+          low:        { dpi: 200, quality: 78 },
+          medium:     { dpi: 140, quality: 62 },
+          high:       { dpi: 100, quality: 48 },
+          aggressive: { dpi: 140, quality: 68 },
         }[level]
+        // Advanced-preset override: when the user applied a PresetBar preset
+        // (Email/Web/Print/Archive/Maximum) or slid the Advanced quality
+        // slider, honor those values instead of the level profile — that's
+        // the whole point of the Advanced tab. The __presetSource marker is
+        // set to 'advanced' by handlePresetApply in tool-shell.
+        const advancedActive = options.__presetSource === 'advanced'
         // Custom DPI (advanced toggle) overrides the level's DPI cap.
-        const targetDpi = options.dpiMode === true && typeof options.targetDpi === 'number'
+        // Advanced-preset also overrides.
+        const targetDpi = (advancedActive || options.dpiMode === true) && typeof options.targetDpi === 'number'
           ? options.targetDpi
           : levelProfile.dpi
-        const jpegQuality = levelProfile.quality
+        const jpegQuality = advancedActive && typeof options.jpegQuality === 'number'
+          ? options.jpegQuality
+          : levelProfile.quality
         const grayscale = options.grayscale === true
         const advancedStrip = {
           stripMetadata: options.stripMetadata !== false,
