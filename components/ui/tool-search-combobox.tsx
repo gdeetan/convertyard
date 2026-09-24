@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef, useEffect, useId } from 'react'
-import Link from 'next/link'
 import { Search, X } from 'lucide-react'
 import { cn } from '@/lib/utils/cn'
 import { ALL_TOOLS } from '@/content/tool-catalog'
@@ -75,10 +74,12 @@ export function ToolSearchCombobox({
     return () => document.removeEventListener('mousedown', handleClick)
   }, [showDropdown])
 
-  function closeAndClear() {
-    setQuery('')
-    setOpen(false)
-    onNavigate?.()
+  function navigateTo(slug: string) {
+    // Full-page navigation is deterministic with static export and sidesteps
+    // a Next.js router race: on the /tools page the parent onChange calls
+    // history.replaceState on every keystroke, which collides with router.push
+    // and drops the push on the first cold click.
+    window.location.assign(`/${slug}/`)
   }
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
@@ -99,10 +100,7 @@ export function ToolSearchCombobox({
     } else if (e.key === 'Enter') {
       e.preventDefault()
       const target = activeIndex >= 0 ? results[activeIndex] : results[0]
-      if (target) {
-        closeAndClear()
-        window.location.href = `/${target.slug}`
-      }
+      if (target) navigateTo(target.slug)
     } else if (e.key === 'Escape') {
       setOpen(false)
       setQuery('')
@@ -197,9 +195,24 @@ export function ToolSearchCombobox({
                 aria-selected={i === activeIndex}
                 onMouseEnter={() => setActiveIndex(i)}
               >
-                <Link
-                  href={`/${tool.slug}`}
-                  onClick={closeAndClear}
+                <a
+                  href={`/${tool.slug}/`}
+                  onClick={(e) => {
+                    // Modifier / non-left clicks use native anchor behavior
+                    // (open-in-new-tab, download). Plain clicks use
+                    // window.location.assign — see navigateTo for why.
+                    if (
+                      e.metaKey ||
+                      e.ctrlKey ||
+                      e.shiftKey ||
+                      e.altKey ||
+                      e.button !== 0
+                    ) {
+                      return
+                    }
+                    e.preventDefault()
+                    navigateTo(tool.slug)
+                  }}
                   className={cn(
                     'flex items-center justify-between px-4 py-2.5',
                     'text-sm transition-colors',
@@ -214,7 +227,7 @@ export function ToolSearchCombobox({
                   <span className="ml-4 shrink-0 text-xs text-fg-subtle">
                     {CATEGORY_LABELS[tool.category] ?? tool.category}
                   </span>
-                </Link>
+                </a>
               </li>
             ))
           )}

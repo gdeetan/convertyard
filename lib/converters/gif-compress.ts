@@ -70,9 +70,9 @@ async function probeFrameCount(file: File): Promise<number | null> {
       input: [{ file: buf, name: 'in.gif' }],
       command: ['--info in.gif -o /out/info.txt'],
     })
-    const infoFile = out?.[0]?.file
+    const infoFile = out?.[0]
     if (!infoFile) return null
-    const text = new TextDecoder().decode(infoFile)
+    const text = await infoFile.text()
     // "  loop forever" + "  + image #0 ..." lines — count '+ image #'
     const matches = text.match(/\+ image #/g)
     return matches ? matches.length : null
@@ -93,10 +93,10 @@ async function runOnce(
     input: [{ file: buf, name: 'in.gif' }],
     command: [command],
   })
-  const outFile = out?.[0]?.file
+  const outFile = out?.[0]
   if (!outFile) throw new Error('gifsicle worker was blocked or produced no output — this usually means a browser extension (NoScript, strict uBlock, corporate CSP) is blocking blob: workers. Try incognito mode or disable strict content policies for this site.')
   const outName = file.name.replace(/\.gif$/i, '') + '-compressed.gif'
-  return new File([outFile.buffer as ArrayBuffer], outName, { type: 'image/gif' })
+  return new File([outFile], outName, { type: 'image/gif' })
 }
 
 // Binary-search lossy level to hit target size (±5%). Up to 6 iterations.
