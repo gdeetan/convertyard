@@ -251,7 +251,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
   const { record } = useRecentTools()
 
   const handlePresetApply = useCallback((values: ToolOptions) => {
-    setOptions(prev => ({ ...prev, ...values }))
+    setOptions(prev => ({ ...prev, ...values, __presetSource: 'advanced' }))
     setAdvancedOpen(true)
   }, [])
 
@@ -317,7 +317,15 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
   }, [progressGate])
 
   const handleOptionChange = useCallback((name: string, value: unknown) => {
-    setOptions((prev) => ({ ...prev, [name]: value }))
+    setOptions((prev) => {
+      const next: ToolOptions = { ...prev, [name]: value }
+      if (name === 'level' || name === 'targetKB') {
+        next.__presetSource = 'standard'
+      } else {
+        delete next.__presetSource
+      }
+      return next
+    })
   }, [])
 
   // Async warning probe. Runs once when the file set changes — cancelled

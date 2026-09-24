@@ -92,7 +92,9 @@ export function PresetBar({ onApply, currentValues }: PresetBarProps) {
     <div className="flex flex-wrap items-center gap-2">
       <span className="text-xs font-medium text-fg-muted">Presets:</span>
       {PRESETS.map(({ name, icon, description, values }) => {
-        const isSelected = matchesPreset(currentValues, values)
+        const isSelected =
+          matchesPreset(currentValues, values) &&
+          currentValues?.__presetSource === 'advanced'
         return (
           <button
             key={name}

@@ -195,7 +195,9 @@ function OptionRow({
                 <legend className="sr-only">{opt.label}</legend>
                 <div className="flex flex-wrap gap-2">
                   {radio.choices.map((c) => {
-                    const isSelected = value === c.value
+                    const suppressHighlight =
+                      opt.name === 'level' && values.__presetSource === 'advanced'
+                    const isSelected = value === c.value && !suppressHighlight
                     const isDisabled = disabledSet.has(c.value)
                     return (
                       <label
@@ -312,6 +314,9 @@ function OptionRow({
             opt={opt as NumberWithChipsOption}
             value={value}
             onChange={onChange}
+            suppressChipHighlight={
+              opt.name === 'targetKB' && values.__presetSource === 'advanced'
+            }
           />
         )}
 
@@ -335,10 +340,12 @@ function NumberWithChipsControl({
   opt,
   value,
   onChange,
+  suppressChipHighlight = false,
 }: {
   opt: NumberWithChipsOption
   value: unknown
   onChange: (name: string, value: unknown) => void
+  suppressChipHighlight?: boolean
 }) {
   const rawKB = typeof value === 'number' ? value : opt.default
   const hasUnits = (opt.unitChoices?.length ?? 0) > 1
@@ -402,7 +409,7 @@ function NumberWithChipsControl({
               onClick={() => handleChipClick(chip.valueKB)}
               className={cn(
                 'rounded-full border px-2.5 py-0.5 text-xs transition-colors',
-                rawKB === chip.valueKB
+                rawKB === chip.valueKB && !suppressChipHighlight
                   ? 'border-primary bg-primary/10 text-primary font-medium'
                   : 'border-border bg-bg-elevated text-fg-muted hover:border-primary/50 hover:text-fg'
               )}
