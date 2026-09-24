@@ -24,7 +24,7 @@ const P1_FEATURES = {
 
 const P2_FEATURES = {
   oneShotRung: true,
-}
+} as const
 
 // ── Merge ─────────────────────────────────────────────────────────────────────
 
