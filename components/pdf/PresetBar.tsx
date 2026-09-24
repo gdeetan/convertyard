@@ -55,13 +55,12 @@ const PRESETS: Array<{ name: string; icon: string; description: string; values: 
   {
     name: 'Maximum',
     icon: '🔥',
-    description: '1-bit rasterize — best for scanned text',
+    description: 'Smallest possible file',
     values: {
       dpiMode: true,
       targetDpi: 72,
       jpegQuality: 40,
       grayscale: true,
-      bilevel: true,
       removeUnusedFonts: true,
       stripMetadata: true,
       stripAnnotations: true,
