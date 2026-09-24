@@ -1714,8 +1714,12 @@ export async function compressPDF(
 
           if (grayscale) {
             const structBuf = await file.arrayBuffer()
-            const rasterized = await rasterizeGrayscaleForTarget(structBuf, files[i].name, targetDpi, jpegQuality)
-            // Guard: keep whichever is smallest across original, structural, rasterized.
+            const bilevel = options.bilevel === true
+            // Bilevel needs 2× DPI (min 150) to keep text sharp without AA;
+            // 1-bit still nets a big win vs grayscale JPEG at same DPI.
+            const rasterized = bilevel
+              ? await rasterizeBilevelForTarget(structBuf, files[i].name, Math.max(150, targetDpi * 2))
+              : await rasterizeGrayscaleForTarget(structBuf, files[i].name, targetDpi, jpegQuality)
             if (rasterized.size < file.size) file = rasterized
           } else {
             // Preset image pass. Previously called `recompressImages`, which
