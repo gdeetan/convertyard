@@ -1079,15 +1079,17 @@ export async function compressPdfKeepText(
   // (120 → 100 → 90 DPI) so scan-heavy PDFs can reach small targets without
   // rasterizing. Non-monotonic quality on the low-DPI tail is intentional:
   // fewer pixels dominates, and `best` tracks the smallest candidate seen.
+  // Ladder trimmed from 9 rungs to 5. Each rung serializes the whole PDF
+  // via pdf-lib, so cutting rungs directly cuts wall time. Predictive start
+  // (below) and ratio-jump still let us skip further when the input is far
+  // from target. Bigger quality steps between rungs mean the winning rung
+  // may overshoot the target more (better compression), which is fine —
+  // callers only care about ≤ target.
   const qualityLadder: Array<{ q: number; dpi: number }> = [
     { q: 80, dpi: 150 },
-    { q: 70, dpi: 150 },
     { q: 60, dpi: 150 },
-    { q: 50, dpi: 150 },
     { q: 40, dpi: 150 },
-    { q: 30, dpi: 150 },
-    { q: 40, dpi: 120 },
-    { q: 35, dpi: 100 },
+    { q: 45, dpi: 110 },
     { q: 30, dpi: 90 },
   ]
   let best: Blob = structural
@@ -1115,11 +1117,10 @@ export async function compressPdfKeepText(
   const startRatio = structural.size / targetBytes
   let step =
     startRatio <= 1.15 ? 0 :
-    startRatio <= 1.5  ? 1 :
-    startRatio <= 2.0  ? 2 :
-    startRatio <= 3.0  ? 3 :
-    startRatio <= 4.0  ? 4 :
-                          5
+    startRatio <= 2.0  ? 1 :
+    startRatio <= 3.5  ? 2 :
+    startRatio <= 5.0  ? 3 :
+                          4
   if (step > 0) passesRun.push(`ladder-start:step${step}`)
 
   while (step < qualityLadder.length) {
@@ -1230,23 +1231,35 @@ export async function rasterizeToTargetSize(
   // rung boundaries. `weight` is a rough wall-time estimate (proportional
   // to pixels × color-channels) so heavy rungs get a proportionally
   // larger slice of the outer 0–95% budget.
+  // Ladder trimmed from 7 rungs to 6. Each rung renders every page — on a
+  // 100-page scan that's 100 mupdf renders per rung. Bigger quality steps
+  // between rungs mean the winning rung fewer rungs deep. Bilevel stays as
+  // the final rung for text-heavy scans.
   const steps: Array<{
     label: string
     weight: number
     produce: (op?: (frac: number) => void) => Promise<File>
   }> = [
     { label: 'rasterize 200 DPI quality 80',      weight: 1.00, produce: (op) => rasterizeForTarget(handle, input.name, 200, 80, op) },
-    { label: 'rasterize 200 DPI quality 60',      weight: 1.00, produce: (op) => rasterizeForTarget(handle, input.name, 200, 60, op) },
-    { label: 'rasterize grayscale 200 DPI q 65',  weight: 0.60, produce: (op) => rasterizeGrayscaleForTarget(handle, input.name, 200, 65, op) },
-    { label: 'rasterize grayscale 200 DPI q 45',  weight: 0.60, produce: (op) => rasterizeGrayscaleForTarget(handle, input.name, 200, 45, op) },
-    { label: 'rasterize grayscale 150 DPI q 45',  weight: 0.35, produce: (op) => rasterizeGrayscaleForTarget(handle, input.name, 150, 45, op) },
-    { label: 'rasterize grayscale 120 DPI q 35',  weight: 0.22, produce: (op) => rasterizeGrayscaleForTarget(handle, input.name, 120, 35, op) },
-    // Final rung: bilevel PNG at 200 DPI. Keeps text edges perfectly sharp
-    // (no JPEG mush) while producing a tiny file for text-heavy scans.
-    // Photos on the page will look bad, so this only fires when every
-    // lossy grayscale rung above still missed the target.
+    { label: 'rasterize 200 DPI quality 55',      weight: 1.00, produce: (op) => rasterizeForTarget(handle, input.name, 200, 55, op) },
+    { label: 'rasterize grayscale 200 DPI q 55',  weight: 0.60, produce: (op) => rasterizeGrayscaleForTarget(handle, input.name, 200, 55, op) },
+    { label: 'rasterize grayscale 150 DPI q 40',  weight: 0.35, produce: (op) => rasterizeGrayscaleForTarget(handle, input.name, 150, 40, op) },
+    { label: 'rasterize grayscale 120 DPI q 30',  weight: 0.22, produce: (op) => rasterizeGrayscaleForTarget(handle, input.name, 120, 30, op) },
     { label: 'rasterize bilevel 200 DPI',         weight: 0.75, produce: (op) => rasterizeBilevelForTarget(handle, input.name, 200, op) },
   ]
+
+  // Predictive start: input:target ratios above ~3× mean the first rungs
+  // will definitely overshoot. Rough per-rung compression estimates for
+  // typical scan PDFs give us a starting point that skips wasted renders.
+  // The last (bilevel) rung is never a start — it's a last resort for
+  // text-heavy scans, not a color-preserving target.
+  const inputTargetRatio = input.size / targetBytes
+  const startRung =
+    inputTargetRatio <= 2.0 ? 0 :
+    inputTargetRatio <= 3.5 ? 1 :
+    inputTargetRatio <= 6.0 ? 2 :
+    inputTargetRatio <= 10  ? 3 :
+                              4
 
   const totalWeight = steps.reduce((s, r) => s + r.weight, 0)
   const cumulativeWeight: number[] = []
@@ -1273,7 +1286,7 @@ export async function rasterizeToTargetSize(
   let iterationsUsed = 0
 
   try {
-  for (let i = 0; i < steps.length; i++) {
+  for (let i = startRung; i < steps.length; i++) {
     let candidate: File
     try {
       candidate = await steps[i].produce((frac) => reportRungProgress(i, frac))
