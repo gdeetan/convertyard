@@ -1,5 +1,5 @@
-import { PDFDocument, PDFRawStream, PDFRef, PDFName, PDFNumber, PDFDict, degrees, rgb, StandardFonts, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
-import { zipSync } from 'fflate'
+import { PDFDocument, PDFRawStream, PDFRef, PDFName, PDFNumber, PDFArray, PDFDict, degrees, rgb, StandardFonts, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
+import { zipSync, inflateSync } from 'fflate'
 import { getPageCount, renderPage, renderPagePng, extractText, extractStructuredText, openPdf, closePdf, type PdfSource } from './mupdf-client'
 import { isSafari, isIos } from '@/lib/utils/platform'
 import { formatBytes } from '@/lib/utils/download'
@@ -349,6 +349,13 @@ type JpegPlanItem = {
   w?: number
   h?: number
   effectiveSourceDpi?: number
+  // Raw JPEG bytes. For plain /DCTDecode this is a reference to
+  // `originalObj.contents`. For chained filters like `[ /FlateDecode /DCTDecode ]`
+  // (JPEG wrapped in an outer Flate layer) this holds the inflated bytes so
+  // the encoder sees pure JPEG. When set alongside `unwrapFlate`, apply()
+  // rewrites the dict with a single /DCTDecode filter.
+  jpegBytes: Uint8Array
+  unwrapFlate?: boolean
 }
 type FlatePlanItem = {
   kind: 'flate'
@@ -392,7 +399,34 @@ async function planImageRecompress(
     const filter = obj.dict.get(PDFName.of('Filter'))
     const filterStr = filter?.toString() ?? ''
 
+    // Detect JPEG payload. Plain `/DCTDecode` is the common case. Some PDFs
+    // (notably scan-heavy exports) wrap JPEG in an outer Flate layer, stored
+    // as a filter array `[ /FlateDecode /DCTDecode ]`. Without this branch
+    // ~90% of a 181 MB scanned encyclopedia was skipped entirely.
+    let jpegBytes: Uint8Array | null = null
+    let unwrapFlate = false
     if (filterStr === '/DCTDecode') {
+      jpegBytes = obj.contents
+    } else if (filter instanceof PDFArray) {
+      const filters = filter.asArray().map((f) => f.toString())
+      const last = filters[filters.length - 1]
+      if (last === '/DCTDecode') {
+        // Any leading filters (typically /FlateDecode) must be applied to
+        // decode down to the raw JPEG. Anything unexpected → preserve.
+        let buf = obj.contents
+        let ok = true
+        for (let fi = 0; fi < filters.length - 1; fi++) {
+          if (filters[fi] === '/FlateDecode') {
+            try { buf = inflateSync(buf) } catch { ok = false; break }
+          } else { ok = false; break }
+        }
+        if (ok) {
+          jpegBytes = buf
+          unwrapFlate = filters.length > 1
+        }
+      }
+    }
+    if (jpegBytes) {
       const jw = obj.dict.get(PDFName.of('Width'))
       const jh = obj.dict.get(PDFName.of('Height'))
       if (jw instanceof PDFNumber && jh instanceof PDFNumber) {
@@ -407,9 +441,9 @@ async function planImageRecompress(
             if (Number.isFinite(dpi) && dpi > 0) effectiveSourceDpi = dpi
           }
         }
-        items.push({ kind: 'jpeg', ref, originalObj: obj, w, h, effectiveSourceDpi })
+        items.push({ kind: 'jpeg', ref, originalObj: obj, w, h, effectiveSourceDpi, jpegBytes, unwrapFlate })
       } else {
-        items.push({ kind: 'jpeg', ref, originalObj: obj })
+        items.push({ kind: 'jpeg', ref, originalObj: obj, jpegBytes, unwrapFlate })
       }
       continue
     }
@@ -492,11 +526,7 @@ async function executeImageRecompress(
 
   for (const item of items) {
     if (item.kind === 'jpeg') {
-      const { ref: jpegRef, originalObj: jpegObj, w: jw, h: jh, effectiveSourceDpi: jSrcDpi } = item
-      // Compute downsample target dims when we know source dims + rendered
-      // DPI. Without imageRenderMap we assume `sourceDpi` (default 300), so
-      // Low/Medium/High still shrink JPEGs even when we can't measure the
-      // exact rendered DPI.
+      const { ref: jpegRef, originalObj: jpegObj, w: jw, h: jh, effectiveSourceDpi: jSrcDpi, jpegBytes, unwrapFlate } = item
       let targetWidth: number | undefined
       let targetHeight: number | undefined
       if (jw && jh && jSrcDpi && jSrcDpi > targetDpi) {
@@ -507,20 +537,32 @@ async function executeImageRecompress(
       tasks.push((async () => {
         try {
           const reencoded = await reencodeJpegCached(
-            jpegObj.contents,
+            jpegBytes,
             quality,
             jpegCache,
             targetWidth,
             targetHeight,
           )
-          if (reencoded.byteLength >= jpegObj.contents.byteLength) return null
+          // Compare against stored size (post-any-Flate-wrap). When the
+          // original was Flate+DCT, dropping the outer Flate wrap alone can
+          // shrink storage; we still want to gate on final stored bytes.
+          if (reencoded.byteLength >= jpegObj.contents.byteLength && !unwrapFlate) return null
+          if (reencoded.byteLength >= jpegBytes.byteLength && unwrapFlate) {
+            // Even after unwrap, re-encode didn't help. Skip so we don't
+            // trade lossless Flate wrap for a no-op re-encode.
+            return null
+          }
           const didResize = !!(targetWidth && targetHeight && jw && jh && (targetWidth < jw || targetHeight < jh))
           return {
             ref: jpegRef,
             apply: () => {
-              // Clone the dict so the original PDFRawStream stays intact for
-              // restore between rungs.
               const newDict = jpegObj.dict.clone(context)
+              if (unwrapFlate) {
+                // Rewrite filter chain as plain /DCTDecode — the outer Flate
+                // wrap is dropped because we're storing raw JPEG bytes.
+                newDict.set(PDFName.of('Filter'), PDFName.of('DCTDecode'))
+                newDict.delete(PDFName.of('DecodeParms'))
+              }
               newDict.set(PDFName.of('Length'), PDFNumber.of(reencoded.byteLength))
               if (didResize) {
                 newDict.set(PDFName.of('Width'), PDFNumber.of(targetWidth!))
