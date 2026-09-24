@@ -1,5 +1,5 @@
 import { PDFDocument, PDFRawStream, PDFRef, PDFName, PDFNumber, PDFArray, PDFDict, degrees, rgb, StandardFonts, PDFTextField, PDFCheckBox, PDFRadioGroup, PDFDropdown } from 'pdf-lib'
-import { zipSync, inflateSync } from 'fflate'
+import { zipSync, unzlibSync } from 'fflate'
 import { getPageCount, renderPage, renderPagePng, extractText, extractStructuredText, openPdf, closePdf, type PdfSource } from './mupdf-client'
 import { isSafari, isIos } from '@/lib/utils/platform'
 import { formatBytes } from '@/lib/utils/download'
@@ -417,7 +417,10 @@ async function planImageRecompress(
         let ok = true
         for (let fi = 0; fi < filters.length - 1; fi++) {
           if (filters[fi] === '/FlateDecode') {
-            try { buf = inflateSync(buf) } catch { ok = false; break }
+            // PDF /FlateDecode is zlib-wrapped (RFC 1950), not raw deflate.
+            // fflate.unzlibSync handles the 78 9c... zlib header; inflateSync
+            // (raw deflate) fails with "unexpected EOF" on zlib streams.
+            try { buf = unzlibSync(buf) } catch { ok = false; break }
           } else { ok = false; break }
         }
         if (ok) {
