@@ -12,7 +12,7 @@ export async function preloadPdfWasm(): Promise<void> {
   try {
     await Promise.all(
       WASM_URLS.map((u) =>
-        fetch(u, { credentials: 'omit', cache: 'force-cache' }).catch(() => {})
+        fetch(u, { credentials: 'same-origin', cache: 'force-cache' }).catch(() => {})
       )
     )
   } catch {}
