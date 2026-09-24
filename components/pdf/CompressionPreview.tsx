@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react'
 import { ComparisonSlider } from '@/components/ui/ComparisonSlider'
-import { renderPagePng, getPageCount } from '@/lib/converters/mupdf-client'
+import { renderPagePng, getPageCount, openPdf, closePdf } from '@/lib/converters/mupdf-client'
 import { formatBytes } from '@/lib/utils/download'
 import { cn } from '@/lib/utils/cn'
 
@@ -17,7 +17,10 @@ interface CompressionPreviewProps {
 type RenderState = 'idle' | 'rendering-original' | 'ready-original' | 'rendering-compressed' | 'ready-both'
 type ZoomLevel = 1 | 2 | 3
 
-const ZOOM_DPI: Record<ZoomLevel, number> = { 1: 96, 2: 192, 3: 288 }
+// Lowered from 96 to 72 at zoom=1 — ~44% fewer pixels to render, which
+// dominates preview wall time on the initial page load. 72 DPI is still
+// crisp for a thumbnail preview; zoom-in ladder covers detail inspection.
+const ZOOM_DPI: Record<ZoomLevel, number> = { 1: 72, 2: 144, 3: 216 }
 const CONTAINER_HEIGHT: Record<ZoomLevel, string> = {
   1: 'h-[420px]',
   2: 'h-[680px]',
@@ -95,13 +98,41 @@ export function CompressionPreview({
   const currentResult = results[selectedIndex] ?? null
   const renderDpi = ZOOM_DPI[zoom]
 
+  // Persist an open mupdf doc handle for the current original + compressed
+  // file. Every subsequent getPageCount / renderPagePng call is a cheap
+  // "look up docId in worker cache" — no parse. Prior code re-transferred
+  // + re-parsed the whole PDF into the worker for both page count and
+  // render, which on a 10 MB PDF is a wasted ~50–150 ms per parse.
+  const originalDocIdRef = useRef<string | null>(null)
+  const compressedDocIdRef = useRef<string | null>(null)
+
+  // Open the original doc when the file changes. Close prior handle first.
   useEffect(() => {
     if (!currentFile) return
     let cancelled = false
-    currentFile.arrayBuffer().then(buf =>
-      getPageCount(buf).then(n => { if (!cancelled) setPageCount(n) }).catch(() => {})
-    )
-    return () => { cancelled = true }
+    const prev = originalDocIdRef.current
+    originalDocIdRef.current = null
+    if (prev) closePdf({ docId: prev }).catch(() => {})
+    ;(async () => {
+      try {
+        const buffer = await currentFile.arrayBuffer()
+        const handle = await openPdf(buffer)
+        if (cancelled) {
+          closePdf(handle).catch(() => {})
+          return
+        }
+        originalDocIdRef.current = handle.docId
+        // Page count kicks off the picker; render happens in the next effect
+        // once selectedPage/renderDpi settle. Both share the same docId.
+        try {
+          const n = await getPageCount(handle)
+          if (!cancelled) setPageCount(n)
+        } catch { /* best-effort */ }
+      } catch { /* best-effort */ }
+    })()
+    return () => {
+      cancelled = true
+    }
   }, [currentFile])
 
   // Reset page when file changes
@@ -122,8 +153,18 @@ export function CompressionPreview({
     let cancelled = false
     ;(async () => {
       try {
-        const buffer = await currentFile.arrayBuffer()
-        const pngBuffer = await renderPagePng(buffer, selectedPage, renderDpi)
+        // Wait for the doc-open effect to hand us a docId. Poll cheaply —
+        // openPdf typically resolves within a few tens of ms.
+        let docId = originalDocIdRef.current
+        for (let i = 0; docId === null && i < 200 && !cancelled; i++) {
+          await new Promise((r) => setTimeout(r, 10))
+          docId = originalDocIdRef.current
+        }
+        if (cancelled) return
+        const source = docId
+          ? { docId }
+          : (await currentFile.arrayBuffer())
+        const pngBuffer = await renderPagePng(source, selectedPage, renderDpi)
         if (cancelled) return
         const blob = new Blob([pngBuffer], { type: 'image/png' })
         setOriginalUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
@@ -144,8 +185,20 @@ export function CompressionPreview({
     let cancelled = false
     ;(async () => {
       try {
-        const buffer = await currentResult.arrayBuffer()
-        const pngBuffer = await renderPagePng(buffer, selectedPage, renderDpi)
+        // Compressed doc is opened lazily on first render — the result
+        // arrives after compression, so there's no upfront open effect.
+        // Cache the handle across zoom/page changes.
+        if (!compressedDocIdRef.current) {
+          const buffer = await currentResult.arrayBuffer()
+          const handle = await openPdf(buffer)
+          if (cancelled) {
+            closePdf(handle).catch(() => {})
+            return
+          }
+          compressedDocIdRef.current = handle.docId
+        }
+        const docId = compressedDocIdRef.current!
+        const pngBuffer = await renderPagePng({ docId }, selectedPage, renderDpi)
         if (cancelled) return
         const blob = new Blob([pngBuffer], { type: 'image/png' })
         setCompressedUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
@@ -157,6 +210,25 @@ export function CompressionPreview({
 
     return () => { cancelled = true }
   }, [currentResult, selectedPage, renderDpi])
+
+  // Reset compressed handle when result changes.
+  useEffect(() => {
+    const prev = compressedDocIdRef.current
+    compressedDocIdRef.current = null
+    if (prev) closePdf({ docId: prev }).catch(() => {})
+  }, [currentResult])
+
+  // Close both handles on unmount.
+  useEffect(() => {
+    return () => {
+      const a = originalDocIdRef.current
+      const b = compressedDocIdRef.current
+      originalDocIdRef.current = null
+      compressedDocIdRef.current = null
+      if (a) closePdf({ docId: a }).catch(() => {})
+      if (b) closePdf({ docId: b }).catch(() => {})
+    }
+  }, [])
 
   if (!currentFile) return null
 
