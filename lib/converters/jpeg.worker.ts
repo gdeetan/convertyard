@@ -36,6 +36,8 @@ type EncodeReq = {
   fingerprint: string
   jpegBytes: Uint8Array
   quality: number
+  targetWidth?: number
+  targetHeight?: number
 }
 type Req = InitReq | EncodeReq
 
@@ -73,6 +75,20 @@ async function encodeCanvasFallback(imageData: ImageData, quality: number): Prom
   return new Uint8Array(await outBlob.arrayBuffer())
 }
 
+function maybeResize(src: ImageData, targetWidth?: number, targetHeight?: number): ImageData {
+  if (!targetWidth || !targetHeight) return src
+  if (targetWidth >= src.width || targetHeight >= src.height) return src
+  if (targetWidth < 1 || targetHeight < 1) return src
+  const srcCanvas = new OffscreenCanvas(src.width, src.height)
+  srcCanvas.getContext('2d')!.putImageData(src, 0, 0)
+  const dst = new OffscreenCanvas(targetWidth, targetHeight)
+  const dctx = dst.getContext('2d')!
+  dctx.imageSmoothingEnabled = true
+  dctx.imageSmoothingQuality = 'high'
+  dctx.drawImage(srcCanvas, 0, 0, targetWidth, targetHeight)
+  return dctx.getImageData(0, 0, targetWidth, targetHeight)
+}
+
 async function encode(imageData: ImageData, quality: number): Promise<Uint8Array> {
   try {
     return await encodeMoz(imageData, quality)
@@ -88,7 +104,7 @@ self.addEventListener('message', async (ev: MessageEvent<Req>) => {
     return
   }
   if (msg.type !== 'encode') return
-  const { reqId, fingerprint, jpegBytes, quality } = msg
+  const { reqId, fingerprint, jpegBytes, quality, targetWidth, targetHeight } = msg
   try {
     let entry = cache.get(fingerprint)
     if (!entry) {
@@ -98,14 +114,15 @@ self.addEventListener('message', async (ev: MessageEvent<Req>) => {
         entry = { imageData }
         cache.set(fingerprint, entry)
       } else {
-        // Too large to cache — encode and drop.
-        const out = await encode(imageData, quality)
+        const resized = maybeResize(imageData, targetWidth, targetHeight)
+        const out = await encode(resized, quality)
         const res: EncodeRes = { type: 'encoded', reqId, bytes: out }
         ;(self as unknown as Worker).postMessage(res, [out.buffer])
         return
       }
     }
-    const out = await encode(entry.imageData, quality)
+    const resized = maybeResize(entry.imageData, targetWidth, targetHeight)
+    const out = await encode(resized, quality)
     const res: EncodeRes = { type: 'encoded', reqId, bytes: out }
     ;(self as unknown as Worker).postMessage(res, [out.buffer])
   } catch (err) {

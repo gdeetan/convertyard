@@ -168,12 +168,29 @@ async function compressStructural(
   return new File([bytes as Uint8Array<ArrayBuffer>], fileName, { type: 'application/pdf' })
 }
 
-async function reencodeJpeg(jpegBytes: Uint8Array, quality: number): Promise<Uint8Array> {
+async function reencodeJpeg(
+  jpegBytes: Uint8Array,
+  quality: number,
+  targetWidth?: number,
+  targetHeight?: number,
+): Promise<Uint8Array> {
   const blob = new Blob([jpegBytes as unknown as Uint8Array<ArrayBuffer>], { type: 'image/jpeg' })
   const bmp = await createImageBitmap(blob)
-  const canvas = new OffscreenCanvas(bmp.width, bmp.height)
+  const shouldResize =
+    !!targetWidth && !!targetHeight &&
+    targetWidth >= 1 && targetHeight >= 1 &&
+    targetWidth < bmp.width && targetHeight < bmp.height
+  const outW = shouldResize ? targetWidth! : bmp.width
+  const outH = shouldResize ? targetHeight! : bmp.height
+  const canvas = new OffscreenCanvas(outW, outH)
   const ctx = canvas.getContext('2d')!
-  ctx.drawImage(bmp, 0, 0)
+  if (shouldResize) {
+    ctx.imageSmoothingEnabled = true
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(bmp, 0, 0, outW, outH)
+  } else {
+    ctx.drawImage(bmp, 0, 0)
+  }
   bmp.close()
   const outBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: quality / 100 })
   return new Uint8Array(await outBlob.arrayBuffer())
@@ -205,7 +222,9 @@ function fingerprintJpeg(bytes: Uint8Array): string {
 async function reencodeJpegCached(
   jpegBytes: Uint8Array,
   quality: number,
-  cache?: JpegDecodeCache
+  cache?: JpegDecodeCache,
+  targetWidth?: number,
+  targetHeight?: number,
 ): Promise<Uint8Array> {
   const key = fingerprintJpeg(jpegBytes)
 
@@ -215,13 +234,13 @@ async function reencodeJpegCached(
     try {
       const { getJpegWorkerPool } = await import('./jpeg-worker-pool')
       const pool = getJpegWorkerPool()
-      if (pool) return await pool.encode(key, jpegBytes, quality)
+      if (pool) return await pool.encode(key, jpegBytes, quality, targetWidth, targetHeight)
     } catch {
       // fall through
     }
   }
 
-  if (!cache) return reencodeJpeg(jpegBytes, quality)
+  if (!cache) return reencodeJpeg(jpegBytes, quality, targetWidth, targetHeight)
 
   let entry = cache.get(key)
   if (!entry) {
@@ -229,17 +248,27 @@ async function reencodeJpegCached(
     const bmp = await createImageBitmap(blob)
     // Skip caching oversize images — decode once, encode, discard.
     if (bmp.width * bmp.height > JPEG_CACHE_MAX_PIXELS) {
-      const canvas = new OffscreenCanvas(bmp.width, bmp.height)
-      canvas.getContext('2d')!.drawImage(bmp, 0, 0)
       bmp.close()
-      const outBlob = await canvas.convertToBlob({ type: 'image/jpeg', quality: quality / 100 })
-      return new Uint8Array(await outBlob.arrayBuffer())
+      return reencodeJpeg(jpegBytes, quality, targetWidth, targetHeight)
     }
     const canvas = new OffscreenCanvas(bmp.width, bmp.height)
     canvas.getContext('2d')!.drawImage(bmp, 0, 0)
     bmp.close()
     entry = { canvas }
     cache.set(key, entry)
+  }
+  const shouldResize =
+    !!targetWidth && !!targetHeight &&
+    targetWidth >= 1 && targetHeight >= 1 &&
+    targetWidth < entry.canvas.width && targetHeight < entry.canvas.height
+  if (shouldResize) {
+    const dst = new OffscreenCanvas(targetWidth!, targetHeight!)
+    const dctx = dst.getContext('2d')!
+    dctx.imageSmoothingEnabled = true
+    dctx.imageSmoothingQuality = 'high'
+    dctx.drawImage(entry.canvas, 0, 0, targetWidth!, targetHeight!)
+    const outBlob = await dst.convertToBlob({ type: 'image/jpeg', quality: quality / 100 })
+    return new Uint8Array(await outBlob.arrayBuffer())
   }
   const outBlob = await entry.canvas.convertToBlob({ type: 'image/jpeg', quality: quality / 100 })
   return new Uint8Array(await outBlob.arrayBuffer())
@@ -314,6 +343,12 @@ type JpegPlanItem = {
   kind: 'jpeg'
   ref: PDFRef
   originalObj: PDFRawStream
+  // Populated when /Width and /Height are readable off the image dict. Used
+  // to downsample JPEG pixels to `targetDpi` before re-encoding — matching
+  // what Ghostscript/iLovePDF distiller presets do. Absent → quality-only.
+  w?: number
+  h?: number
+  effectiveSourceDpi?: number
 }
 type FlatePlanItem = {
   kind: 'flate'
@@ -358,7 +393,24 @@ async function planImageRecompress(
     const filterStr = filter?.toString() ?? ''
 
     if (filterStr === '/DCTDecode') {
-      items.push({ kind: 'jpeg', ref, originalObj: obj })
+      const jw = obj.dict.get(PDFName.of('Width'))
+      const jh = obj.dict.get(PDFName.of('Height'))
+      if (jw instanceof PDFNumber && jh instanceof PDFNumber) {
+        const w = jw.asNumber()
+        const h = jh.asNumber()
+        let effectiveSourceDpi = opts.sourceDpi
+        if (opts.imageRenderMap) {
+          const key = `${w}x${h}`
+          const renderedPoints = opts.imageRenderMap[key]
+          if (typeof renderedPoints === 'number' && renderedPoints > 0) {
+            const dpi = computeEffectiveDpi({ pixelWidth: w, renderedPoints })
+            if (Number.isFinite(dpi) && dpi > 0) effectiveSourceDpi = dpi
+          }
+        }
+        items.push({ kind: 'jpeg', ref, originalObj: obj, w, h, effectiveSourceDpi })
+      } else {
+        items.push({ kind: 'jpeg', ref, originalObj: obj })
+      }
       continue
     }
 
@@ -440,11 +492,29 @@ async function executeImageRecompress(
 
   for (const item of items) {
     if (item.kind === 'jpeg') {
-      const { ref: jpegRef, originalObj: jpegObj } = item
+      const { ref: jpegRef, originalObj: jpegObj, w: jw, h: jh, effectiveSourceDpi: jSrcDpi } = item
+      // Compute downsample target dims when we know source dims + rendered
+      // DPI. Without imageRenderMap we assume `sourceDpi` (default 300), so
+      // Low/Medium/High still shrink JPEGs even when we can't measure the
+      // exact rendered DPI.
+      let targetWidth: number | undefined
+      let targetHeight: number | undefined
+      if (jw && jh && jSrcDpi && jSrcDpi > targetDpi) {
+        const scale = targetDpi / jSrcDpi
+        targetWidth = Math.max(1, Math.round(jw * scale))
+        targetHeight = Math.max(1, Math.round(jh * scale))
+      }
       tasks.push((async () => {
         try {
-          const reencoded = await reencodeJpegCached(jpegObj.contents, quality, jpegCache)
+          const reencoded = await reencodeJpegCached(
+            jpegObj.contents,
+            quality,
+            jpegCache,
+            targetWidth,
+            targetHeight,
+          )
           if (reencoded.byteLength >= jpegObj.contents.byteLength) return null
+          const didResize = !!(targetWidth && targetHeight && jw && jh && (targetWidth < jw || targetHeight < jh))
           return {
             ref: jpegRef,
             apply: () => {
@@ -452,6 +522,10 @@ async function executeImageRecompress(
               // restore between rungs.
               const newDict = jpegObj.dict.clone(context)
               newDict.set(PDFName.of('Length'), PDFNumber.of(reencoded.byteLength))
+              if (didResize) {
+                newDict.set(PDFName.of('Width'), PDFNumber.of(targetWidth!))
+                newDict.set(PDFName.of('Height'), PDFNumber.of(targetHeight!))
+              }
               context.assign(jpegRef, PDFRawStream.of(newDict, reencoded))
             },
           }

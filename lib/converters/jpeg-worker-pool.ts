@@ -49,7 +49,13 @@ class JpegWorkerPool {
     return this.workers[h % this.workers.length]
   }
 
-  encode(fingerprint: string, jpegBytes: Uint8Array, quality: number): Promise<Uint8Array> {
+  encode(
+    fingerprint: string,
+    jpegBytes: Uint8Array,
+    quality: number,
+    targetWidth?: number,
+    targetHeight?: number,
+  ): Promise<Uint8Array> {
     const worker = this.pickWorker(fingerprint)
     const reqId = this.nextReqId++
     return new Promise<Uint8Array>((resolve, reject) => {
@@ -58,7 +64,7 @@ class JpegWorkerPool {
       const copy = new Uint8Array(jpegBytes.byteLength)
       copy.set(jpegBytes)
       worker.postMessage(
-        { type: 'encode', reqId, fingerprint, jpegBytes: copy, quality },
+        { type: 'encode', reqId, fingerprint, jpegBytes: copy, quality, targetWidth, targetHeight },
         [copy.buffer]
       )
     })
