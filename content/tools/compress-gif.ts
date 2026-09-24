@@ -1,5 +1,6 @@
 import { gifCompress } from '@/lib/converters/gif-compress'
 import { GifCompressionPreview } from '@/components/gif/GifCompressionPreview'
+import { GifInputPreview } from '@/components/gif/GifInputPreview'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -16,6 +17,7 @@ export const config: ToolConfig = {
   convertFn: (files, opts, onProgress, onResult) => gifCompress(files, opts, onProgress, onResult),
 
   previewPanel: GifCompressionPreview,
+  interactivePanel: GifInputPreview,
 
   options: [
     {

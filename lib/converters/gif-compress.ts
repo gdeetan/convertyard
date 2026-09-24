@@ -94,7 +94,7 @@ async function runOnce(
     command: [command],
   })
   const outFile = out?.[0]?.file
-  if (!outFile) throw new Error('gifsicle returned no output')
+  if (!outFile) throw new Error('gifsicle worker was blocked or produced no output — this usually means a browser extension (NoScript, strict uBlock, corporate CSP) is blocking blob: workers. Try incognito mode or disable strict content policies for this site.')
   const outName = file.name.replace(/\.gif$/i, '') + '-compressed.gif'
   return new File([outFile.buffer as ArrayBuffer], outName, { type: 'image/gif' })
 }
