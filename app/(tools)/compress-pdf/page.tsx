@@ -1,10 +1,11 @@
 'use client'
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
 import { ToolShell } from '@/components/tool-shell/tool-shell'
 import { config as baseConfig } from '@/content/tools/compress-pdf'
 import { CompressPdfPreviewPanel } from '@/components/pdf/CompressPdfPreviewPanel'
 import { PresetBar } from '@/components/pdf/PresetBar'
 import { compressPdfKeepText, rasterizeToTargetSize, compressPDF } from '@/lib/converters/pdf'
+import { preloadPdfWasm } from '@/lib/pdf/wasm-preload'
 import type { CompressionMeta, ConversionResult, ToolOptions } from '@/lib/types'
 
 // Ratio above which the keep-text ladder almost never hits the target
@@ -13,6 +14,30 @@ import type { CompressionMeta, ConversionResult, ToolOptions } from '@/lib/types
 const UNACHIEVABLE_RATIO = 2.5
 
 export default function Page() {
+  useEffect(() => {
+    const trigger = () => { void preloadPdfWasm() }
+    const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => number })
+      .requestIdleCallback
+    const idleId = ric ? ric(trigger) : window.setTimeout(trigger, 1500)
+    const onDragEnter = () => { void preloadPdfWasm() }
+    const onFocusIn = (e: FocusEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && t.tagName === 'INPUT' && (t as HTMLInputElement).type === 'file') {
+        void preloadPdfWasm()
+      }
+    }
+    window.addEventListener('dragenter', onDragEnter)
+    window.addEventListener('focusin', onFocusIn)
+    return () => {
+      const cic = (window as unknown as { cancelIdleCallback?: (id: number) => void })
+        .cancelIdleCallback
+      if (ric && cic) cic(idleId as number)
+      else window.clearTimeout(idleId as number)
+      window.removeEventListener('dragenter', onDragEnter)
+      window.removeEventListener('focusin', onFocusIn)
+    }
+  }, [])
+
   const convertFn = useCallback(
     async (
       files: File[],

@@ -7,6 +7,7 @@ import type { ConversionResult, ToolOptions, CompressionMeta } from '@/lib/types
 import { convertPdfToWord } from './pdf-to-word'
 import { recognizePage, terminateOcrWorker } from '@/lib/ocr/tesseract-client'
 import { downsampleFlateImage } from '@/lib/pdf/image-downsample'
+import { chooseRungForTarget } from '@/lib/pdf/size-model'
 import { computeEffectiveDpi } from '../pdf/effective-dpi'
 import { isMobile } from '@/lib/utils/is-mobile'
 
@@ -19,6 +20,10 @@ const P1_FEATURES = {
   // Route JPEG re-encode through a Web Worker pool. Falls back to main-thread
   // reencodeJpeg when workers/OffscreenCanvas are unavailable.
   jpegWorkerPool: true,
+} as const
+
+const P2_FEATURES = {
+  oneShotRung: true,
 } as const
 
 // ── Merge ─────────────────────────────────────────────────────────────────────
@@ -1241,6 +1246,31 @@ export async function compressPdfKeepText(
     startRatio <= 5.0  ? 3 :
                           4
   if (step > 0) passesRun.push(`ladder-start:step${step}`)
+
+  if (P2_FEATURES.oneShotRung && plan.items.length > 0) {
+    let totalPixels = 0
+    for (const item of plan.items) {
+      if ('w' in item && 'h' in item && item.w && item.h) {
+        totalPixels += item.w * item.h
+      }
+    }
+    if (totalPixels > 0) {
+      const modelRungs = qualityLadder.map((r) => ({
+        quality: r.q,
+        dpiRatio: r.dpi / 300,
+      }))
+      const jumpIdx = chooseRungForTarget({
+        rungs: modelRungs,
+        totalPixels,
+        baselineBytes: structural.size,
+        targetBytes,
+      })
+      if (jumpIdx > step) {
+        step = jumpIdx
+        passesRun.push(`one-shot-jump:step${step}`)
+      }
+    }
+  }
 
   while (step < qualityLadder.length) {
     const { q: quality, dpi: targetDpi } = qualityLadder[step]
