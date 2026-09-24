@@ -7,3 +7,9 @@
   Content-Type: application/wasm
   Cross-Origin-Embedder-Policy: require-corp
   Cross-Origin-Resource-Policy: cross-origin
+
+/opengraph-image
+  Content-Type: image/png
+
+/*/opengraph-image-*
+  Content-Type: image/png
