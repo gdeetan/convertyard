@@ -83,12 +83,15 @@ export function getJpegWorkerPool(): JpegWorkerPool | null {
       ? navigator.hardwareConcurrency
       : 2
     const mobile = isMobile()
-    // Desktop: leave one core for the main thread + mupdf worker, cap at 8
-    // so 16-core machines don't spawn workers whose per-worker decode cache
-    // dwarfs the RAM budget. Mobile stays at 2 to keep peak under ~500 MB.
+    // Pool size tuned for MozJPEG encoder: each worker instantiates its own
+    // ~8–16 MB WASM heap for @jsquash/jpeg. Desktop caps at 4 so a 16-core
+    // machine doesn't spawn 15 workers whose combined WASM heap + decode
+    // cache eats hundreds of MB. Mobile stays at 2. Throughput at 4 MozJPEG
+    // workers still beats 8 canvas workers because MozJPEG output is ~20%
+    // smaller per image — the network handoff never dominates the batch.
     const size = mobile
       ? Math.max(1, Math.min(2, hc))
-      : Math.max(2, Math.min(8, hc - 1))
+      : Math.max(2, Math.min(4, hc - 1))
     const cachePixelCap = mobile ? 10_000_000 : 25_000_000
     pool = new JpegWorkerPool(size, cachePixelCap)
     return pool
