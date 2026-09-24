@@ -60,9 +60,9 @@ export const config: ToolConfig = {
       default: 'medium',
       dependsOn: { name: 'targetSizeMode', value: 'false' },
       conditionalHints: {
-        low:        'Cleans up internal structure. Text and images untouched.',
-        medium:     'Strips metadata + optimises structure.',
-        high:       'Maximum metadata removal + JPEG re-encoding at 30%.',
+        low:        'Gentle: images capped at 200 DPI, JPEG quality 80. Best when quality matters most.',
+        medium:     'Balanced: 150 DPI, JPEG quality 68. Recommended for most documents.',
+        high:       'Aggressive: 110 DPI, JPEG quality 55. Smaller files, still keeps text selectable.',
         aggressive: 'Converts every page to an image. Text won\'t be selectable. Best for scanned documents.',
       },
     },

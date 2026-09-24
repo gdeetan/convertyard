@@ -78,13 +78,14 @@ async function compressStructural(
   }
 ): Promise<File> {
   const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
-  if ((level === 'medium' || level === 'high') && advanced?.stripMetadata !== false) {
+  if (advanced?.stripMetadata !== false) {
     doc.setTitle('')
     doc.setAuthor('')
     doc.setSubject('')
     doc.setKeywords([])
     doc.setProducer('')
     doc.setCreator('')
+    void level
   }
 
   if (advanced?.stripBookmarks) {
@@ -1491,8 +1492,22 @@ export async function compressPDF(
         void 0
       } else {
         const level = (options.level as 'low' | 'medium' | 'high' | 'aggressive') ?? 'medium'
-        const targetDpi = typeof options.targetDpi === 'number' ? options.targetDpi : 150
-        const jpegQuality = typeof options.jpegQuality === 'number' ? options.jpegQuality : 70
+        // Preset profiles — each level bakes a full DPI cap + JPEG quality
+        // combination. Prior behavior used a single 150 DPI / Q70 default for
+        // every level, which made low/medium/high produce nearly identical
+        // output. These profiles match iLovePDF's ebook/screen distiller
+        // targets and give visibly different ratios across the ladder.
+        const levelProfile = {
+          low:        { dpi: 200, quality: 80 },
+          medium:     { dpi: 150, quality: 68 },
+          high:       { dpi: 110, quality: 55 },
+          aggressive: { dpi: 150, quality: 75 },
+        }[level]
+        // Custom DPI (advanced toggle) overrides the level's DPI cap.
+        const targetDpi = options.dpiMode === true && typeof options.targetDpi === 'number'
+          ? options.targetDpi
+          : levelProfile.dpi
+        const jpegQuality = levelProfile.quality
         const grayscale = options.grayscale === true
         const advancedStrip = {
           stripMetadata: options.stripMetadata !== false,
@@ -1510,9 +1525,23 @@ export async function compressPDF(
         if (level === 'aggressive') {
           onProgress?.(i, 10)
           const buffer = await files[i].arrayBuffer()
-          const rasterized = grayscale
+          let rasterized = grayscale
             ? await rasterizeGrayscaleForTarget(buffer, files[i].name, targetDpi, jpegQuality)
             : await rasterizeForTarget(buffer, files[i].name, targetDpi, jpegQuality)
+          onProgress?.(i, 85)
+          // Final mupdf pass: the hand-rolled image-PDF writer emits a plain
+          // uncompressed xref. mupdf's saveCompressed re-serializes with
+          // object streams + Flate 9, routinely reclaiming another 5–15% on
+          // scan-heavy output. Skipped on the original preset path (was a
+          // silent gap vs. non-aggressive levels).
+          try {
+            const rBuf = await rasterized.arrayBuffer()
+            const { saveCompressed } = await import('./mupdf-client')
+            const compressed = await saveCompressed(rBuf)
+            if (compressed.byteLength > 0 && compressed.byteLength < rasterized.size) {
+              rasterized = new File([new Uint8Array(compressed) as unknown as Uint8Array<ArrayBuffer>], files[i].name, { type: 'application/pdf' })
+            }
+          } catch { /* best-effort */ }
           onProgress?.(i, 100)
           // Guard: rasterization can bloat text/vector-heavy inputs. If the
           // output isn't smaller, return the original untouched.
@@ -1547,10 +1576,38 @@ export async function compressPDF(
             const rasterized = await rasterizeGrayscaleForTarget(structBuf, files[i].name, targetDpi, jpegQuality)
             // Guard: keep whichever is smallest across original, structural, rasterized.
             if (rasterized.size < file.size) file = rasterized
-          } else if (jpegQuality < 80) {
+          } else {
+            // Preset image pass. Previously called `recompressImages`, which
+            // only re-encoded existing JPEG XObjects at the requested quality
+            // — no downsampling, no touch on Flate/PNG images. Switching to
+            // the keep-text pipeline gives us per-image DPI downsampling for
+            // both JPEG (via cap on rendered DPI) and Flate images (via
+            // downsampleFlateImage), which is where iLovePDF's presets pull
+            // most of their compression ratio.
             const structBuf = await file.arrayBuffer()
-            const recompressed = await recompressImages(structBuf, jpegQuality, files[i].name)
-            if (recompressed.size < file.size) file = recompressed
+            let imageRenderMap: Record<string, number> | undefined
+            if (P1_FEATURES.perImageDpi && !isMobile()) {
+              try {
+                const { getImageBboxes } = await import('./mupdf-client')
+                imageRenderMap = await getImageBboxes(structBuf)
+              } catch {
+                imageRenderMap = undefined
+              }
+            }
+            try {
+              const { file: recompressed } = await recompressImagesKeepText(
+                structBuf,
+                jpegQuality,
+                files[i].name,
+                {
+                  targetDpi,
+                  sourceDpi: 300,
+                  imageRenderMap,
+                  flateLevel: P1_FEATURES.flateLevel9 ? 9 : undefined,
+                }
+              )
+              if (recompressed.size < file.size) file = recompressed
+            } catch { /* best-effort — keep structural output */ }
           }
           onProgress?.(i, 80)
 

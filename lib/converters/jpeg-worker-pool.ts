@@ -83,7 +83,12 @@ export function getJpegWorkerPool(): JpegWorkerPool | null {
       ? navigator.hardwareConcurrency
       : 2
     const mobile = isMobile()
-    const size = Math.max(1, Math.min(mobile ? 2 : 4, hc))
+    // Desktop: leave one core for the main thread + mupdf worker, cap at 8
+    // so 16-core machines don't spawn workers whose per-worker decode cache
+    // dwarfs the RAM budget. Mobile stays at 2 to keep peak under ~500 MB.
+    const size = mobile
+      ? Math.max(1, Math.min(2, hc))
+      : Math.max(2, Math.min(8, hc - 1))
     const cachePixelCap = mobile ? 10_000_000 : 25_000_000
     pool = new JpegWorkerPool(size, cachePixelCap)
     return pool
