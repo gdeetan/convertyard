@@ -64,7 +64,7 @@ export async function mergePDFs(
 
 // ── Compress helpers ──────────────────────────────────────────────────────────
 
-async function compressStructural(
+export async function compressStructural(
   buffer: ArrayBuffer,
   level: 'low' | 'medium' | 'high',
   fileName: string,
@@ -91,6 +91,18 @@ async function compressStructural(
     doc.setProducer('')
     doc.setCreator('')
     void level
+
+    // Default-on: matches SmallPDF's baseline aggressiveness. Users who need
+    // XMP or ICC preserved should pick a preset that sets stripMetadata: false.
+    for (const page of doc.getPages()) {
+      page.node.delete(PDFName.of('Thumb'))
+    }
+    doc.catalog.delete(PDFName.of('PieceInfo'))
+    for (const page of doc.getPages()) {
+      page.node.delete(PDFName.of('PieceInfo'))
+    }
+    doc.catalog.delete(PDFName.of('Metadata'))
+    doc.catalog.delete(PDFName.of('OutputIntents'))
   }
 
   if (advanced?.stripBookmarks) {
@@ -158,14 +170,7 @@ async function compressStructural(
   }
 
   if (advanced?.stripPrivateAppData) {
-    doc.catalog.delete(PDFName.of('PieceInfo'))
-    for (const page of doc.getPages()) {
-      page.node.delete(PDFName.of('PieceInfo'))
-    }
-    const metadata = doc.catalog.lookup(PDFName.of('Metadata'))
-    if (metadata) {
-      doc.catalog.delete(PDFName.of('Metadata'))
-    }
+    // Kept for backward compat with old preset saves — the strips it did are now default.
   }
   // advanced?.linearize is wired but no-op until mupdf-client exposes linearize-save
 
