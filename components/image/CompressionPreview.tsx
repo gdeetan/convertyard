@@ -54,6 +54,7 @@ function PreviewSlot({
   const baseQuality = typeof initialOptions.quality === 'number' ? initialOptions.quality : 80
 
   const [mode, setMode] = useState<'split' | 'side'>('split')
+  const [fullscreen, setFullscreen] = useState(false)
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [dividerX, setDividerX] = useState(50)
@@ -182,27 +183,54 @@ function PreviewSlot({
   const savedPct = currentResult ? pctSmaller(file.size, currentResult.size) : '—'
   const qualityChanged = quality !== baseQuality
 
+  // Escape to exit fullscreen
+  useEffect(() => {
+    if (!fullscreen) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setFullscreen(false) }
+    window.addEventListener('keydown', onKey)
+    const prevOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prevOverflow
+    }
+  }, [fullscreen])
+
+  const viewerHeight = fullscreen ? '100%' : 360
+
   if (!originalUrl) return null
 
   return (
-    <div className="space-y-2 rounded-lg border border-border bg-bg-elevated p-3">
-      {/* Filename + mode toggle */}
+    <div className={fullscreen
+      ? 'fixed inset-0 z-50 flex flex-col gap-2 bg-bg p-4'
+      : 'space-y-2 rounded-lg border border-border bg-bg-elevated p-3'}>
+      {/* Filename + mode toggle + fullscreen */}
       <div className="flex items-center justify-between gap-2">
         <span className="truncate text-xs font-medium text-fg" title={file.name}>{file.name}</span>
-        <div className="flex shrink-0 items-center gap-1 rounded border border-border bg-bg p-0.5">
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="flex items-center gap-1 rounded border border-border bg-bg p-0.5">
+            <button
+              type="button"
+              onClick={() => setMode('split')}
+              className={`rounded px-2 py-0.5 text-xs transition-colors ${mode === 'split' ? 'bg-primary text-white' : 'text-fg-muted hover:text-fg'}`}
+            >
+              Split
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('side')}
+              className={`rounded px-2 py-0.5 text-xs transition-colors ${mode === 'side' ? 'bg-primary text-white' : 'text-fg-muted hover:text-fg'}`}
+            >
+              Side-by-side
+            </button>
+          </div>
           <button
             type="button"
-            onClick={() => setMode('split')}
-            className={`rounded px-2 py-0.5 text-xs transition-colors ${mode === 'split' ? 'bg-primary text-white' : 'text-fg-muted hover:text-fg'}`}
+            onClick={() => setFullscreen((v) => !v)}
+            title={fullscreen ? 'Exit fullscreen (Esc)' : 'Fullscreen'}
+            className="rounded border border-border bg-bg px-2 py-0.5 text-xs text-fg-muted transition-colors hover:text-fg"
           >
-            Split
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('side')}
-            className={`rounded px-2 py-0.5 text-xs transition-colors ${mode === 'side' ? 'bg-primary text-white' : 'text-fg-muted hover:text-fg'}`}
-          >
-            Side-by-side
+            {fullscreen ? 'Exit' : 'Fullscreen'}
           </button>
         </div>
       </div>
@@ -234,8 +262,8 @@ function PreviewSlot({
       {mode === 'split' ? (
         <div
           ref={containerRef}
-          className="relative select-none overflow-hidden rounded border border-border bg-[repeating-conic-gradient(#e5e7eb_0%_25%,white_0%_50%)] bg-[length:16px_16px]"
-          style={{ height: 320 }}
+          className={`relative select-none overflow-hidden rounded border border-border bg-[repeating-conic-gradient(#e5e7eb_0%_25%,white_0%_50%)] bg-[length:16px_16px] ${fullscreen ? 'min-h-0 flex-1' : ''}`}
+          style={fullscreen ? undefined : { height: viewerHeight }}
         >
           <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - dividerX}% 0 0)` }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -282,8 +310,8 @@ function PreviewSlot({
       ) : (
         <div
           ref={containerRef}
-          className={`grid grid-cols-2 gap-1 overflow-hidden rounded border border-border ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
-          style={{ height: 320 }}
+          className={`grid grid-cols-2 gap-1 overflow-hidden rounded border border-border ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''} ${fullscreen ? 'min-h-0 flex-1' : ''}`}
+          style={fullscreen ? undefined : { height: viewerHeight }}
           onPointerDown={zoom > 1 ? onPanPointerDown : undefined}
           onPointerMove={zoom > 1 ? onPanPointerMove : undefined}
           onPointerUp={zoom > 1 ? onPanPointerUp : undefined}
@@ -357,7 +385,6 @@ export function ImageCompressionPreview({ files, results, options, onResultEdit 
   if (slots.length === 0) return null
 
   const remaining = files.length - slots.length
-  const gridCols = slots.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'
 
   return (
     <div className="space-y-3">
@@ -370,7 +397,7 @@ export function ImageCompressionPreview({ files, results, options, onResultEdit 
         )}
       </div>
 
-      <div className={`grid gap-3 ${gridCols}`}>
+      <div className="flex flex-col gap-3">
         {slots.map((s) => (
           <PreviewSlot
             key={`${s.file.name}-${s.file.size}-${s.index}`}
