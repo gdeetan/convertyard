@@ -371,9 +371,17 @@ type FlatePlanItem = {
   cssnap: '/DeviceRGB' | '/DeviceGray'
   effectiveSourceDpi: number
 }
+type ExoticPlanItem = {
+  kind: 'exotic'
+  ref: PDFRef
+  obj: PDFRawStream
+  originalFilter: string       // '/JBIG2Decode' or '/JPXDecode'
+  width: number
+  height: number
+}
 export type KeepTextPlan = {
   doc: PDFDocument
-  items: Array<JpegPlanItem | FlatePlanItem>
+  items: Array<JpegPlanItem | FlatePlanItem | ExoticPlanItem>
   preservedImages: string[]
   flateLevel?: number
   jpegCache?: JpegDecodeCache
@@ -524,7 +532,7 @@ async function planImageRecompress(
   const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
   const context = doc.context
   const preservedImages: string[] = []
-  const items: Array<JpegPlanItem | FlatePlanItem> = []
+  const items: Array<JpegPlanItem | FlatePlanItem | ExoticPlanItem> = []
 
   for (const [ref, obj] of context.enumerateIndirectObjects()) {
     if (!(obj instanceof PDFRawStream)) continue
@@ -582,6 +590,17 @@ async function planImageRecompress(
         items.push({ kind: 'jpeg', ref, originalObj: obj, w, h, effectiveSourceDpi, jpegBytes, unwrapFlate })
       } else {
         items.push({ kind: 'jpeg', ref, originalObj: obj, jpegBytes, unwrapFlate })
+      }
+      continue
+    }
+
+    if (filterStr === '/JBIG2Decode' || filterStr === '/JPXDecode') {
+      const widthVal = obj.dict.get(PDFName.of('Width'))
+      const heightVal = obj.dict.get(PDFName.of('Height'))
+      const width = widthVal ? Number(widthVal.toString()) : 0
+      const height = heightVal ? Number(heightVal.toString()) : 0
+      if (width > 0 && height > 0) {
+        items.push({ kind: 'exotic', ref, obj, originalFilter: filterStr, width, height })
       }
       continue
     }
