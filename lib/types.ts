@@ -210,6 +210,7 @@ export interface ToolConfig {
     files: File[]
     results: (File | null)[]
     options: ToolOptions
+    onResultEdit?: (index: number, newFile: File) => void
   }>
   interactivePanel?: React.ComponentType<{
     files: File[]

@@ -678,6 +678,9 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
                 files={entries.map(e => e.file)}
                 results={entries.map(e => e.result ?? null)}
                 options={options}
+                onResultEdit={(index, newFile) =>
+                  dispatch({ type: 'EDIT_RESULT', fileIndex: index, newFile })
+                }
               />
             )}
             {config.reviewPanel && (

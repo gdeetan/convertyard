@@ -1,11 +1,18 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { imageCompress } from '@/lib/converters/image-compress'
+import type { ToolOptions } from '@/lib/types'
 
 interface Props {
   files: File[]
   results: (File | null)[]
-  options: Record<string, unknown>
+  options: ToolOptions
+  onResultEdit?: (index: number, newFile: File) => void
 }
+
+const MAX_PREVIEW = 4
+const MIN_ZOOM = 1
+const MAX_ZOOM = 8
 
 function formatBytes(bytes: number): string {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
@@ -13,7 +20,7 @@ function formatBytes(bytes: number): string {
   return `${bytes} B`
 }
 
-function pct(original: number, compressed: number): string {
+function pctSmaller(original: number, compressed: number): string {
   if (original === 0) return '0%'
   return `${Math.round((1 - compressed / original) * 100)}%`
 }
@@ -29,72 +36,133 @@ function useObjectUrl(file: File | null): string | null {
   return url
 }
 
-// ── Comparison slider with zoom + pan ────────────────────────────────────────
+// ── Single preview slot ──────────────────────────────────────────────────────
 
-function ComparisonSlider({
-  originalUrl,
-  compressedUrl,
-  originalSize,
-  compressedSize,
+function PreviewSlot({
+  index,
+  file,
+  initialResult,
+  initialOptions,
+  onResultEdit,
 }: {
-  originalUrl: string
-  compressedUrl: string
-  originalSize: number
-  compressedSize: number
+  index: number
+  file: File
+  initialResult: File
+  initialOptions: ToolOptions
+  onResultEdit?: (index: number, newFile: File) => void
 }) {
-  const containerRef = useRef<HTMLDivElement>(null)
+  const baseQuality = typeof initialOptions.quality === 'number' ? initialOptions.quality : 80
 
-  // Divider
-  const [dividerX, setDividerX] = useState(50) // % of container width
-  const dividerDragging = useRef(false)
-
-  // Zoom + pan — transform-origin: top-left (0 0)
+  const [mode, setMode] = useState<'split' | 'side'>('split')
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [dividerX, setDividerX] = useState(50)
+  const [quality, setQuality] = useState<number>(baseQuality)
+  const [currentResult, setCurrentResult] = useState<File>(initialResult)
+  const [reCompressing, setReCompressing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const optionsRef = useRef(initialOptions)
+  useEffect(() => { optionsRef.current = initialOptions }, [initialOptions])
+
+  // Reset view when the underlying source file changes (not when initialResult
+  // updates — that would clobber the user's per-image quality override, since
+  // onResultEdit flows back through ToolShell and updates initialResult).
+  const seededForFile = useRef<File | null>(null)
+  useEffect(() => {
+    if (seededForFile.current === file) return
+    seededForFile.current = file
+    setZoom(1); setPan({ x: 0, y: 0 }); setDividerX(50)
+    setQuality(baseQuality)
+    setCurrentResult(initialResult)
+    setError(null)
+    lastAppliedQuality.current = baseQuality
+  }, [file, initialResult, baseQuality])
+
+  // Debounced re-compress on quality change
+  const jobId = useRef(0)
+  const lastAppliedQuality = useRef(baseQuality)
+  useEffect(() => {
+    if (quality === lastAppliedQuality.current) return
+    const myId = ++jobId.current
+    setReCompressing(true)
+    setError(null)
+    const t = setTimeout(async () => {
+      try {
+        const res = await imageCompress([file], { ...optionsRef.current, quality })
+        if (myId !== jobId.current) return
+        const r = res[0]
+        let outFile: File | null = null
+        if (r instanceof File) outFile = r
+        else if (r && !(r instanceof Error) && 'file' in r) outFile = r.file
+        if (outFile) {
+          setCurrentResult(outFile)
+          lastAppliedQuality.current = quality
+          onResultEdit?.(index, outFile)
+        } else if (r instanceof Error) {
+          setError(r.message)
+        }
+      } catch (e) {
+        if (myId === jobId.current) setError(e instanceof Error ? e.message : 'Re-compression failed')
+      } finally {
+        if (myId === jobId.current) setReCompressing(false)
+      }
+    }, 350)
+    return () => clearTimeout(t)
+  }, [quality, file, index, onResultEdit])
+
+  const originalUrl = useObjectUrl(file)
+  const compressedUrl = useObjectUrl(currentResult)
+
+  // ── Pan drag ──
+  const containerRef = useRef<HTMLDivElement>(null)
   const panDragging = useRef(false)
   const panStart = useRef({ clientX: 0, clientY: 0, panX: 0, panY: 0 })
 
-  // Reset zoom/pan when images change
-  useEffect(() => {
-    setZoom(1)
-    setPan({ x: 0, y: 0 })
-    setDividerX(50)
-  }, [originalUrl, compressedUrl])
+  const onPanPointerDown = (e: React.PointerEvent) => {
+    if (zoom <= 1) return
+    panDragging.current = true
+    ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
+    panStart.current = { clientX: e.clientX, clientY: e.clientY, panX: pan.x, panY: pan.y }
+  }
+  const onPanPointerMove = (e: React.PointerEvent) => {
+    if (!panDragging.current) return
+    setPan({
+      x: panStart.current.panX + (e.clientX - panStart.current.clientX),
+      y: panStart.current.panY + (e.clientY - panStart.current.clientY),
+    })
+  }
+  const onPanPointerUp = () => { panDragging.current = false }
 
-  // Wheel zoom: zoom centered on cursor position
+  // Wheel zoom (bonus — slider is primary)
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
     const handler = (e: WheelEvent) => {
       e.preventDefault()
       const rect = el.getBoundingClientRect()
-      // Cursor relative to container top-left
       const cx = e.clientX - rect.left
       const cy = e.clientY - rect.top
       const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15
       setZoom((z) => {
-        const newZoom = Math.max(1, Math.min(10, z * factor))
-        const ratio = newZoom / z
-        // Keep the point under the cursor stationary
-        setPan((p) => ({
-          x: cx - ratio * (cx - p.x),
-          y: cy - ratio * (cy - p.y),
-        }))
-        return newZoom
+        const nz = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, z * factor))
+        const ratio = nz / z
+        setPan((p) => ({ x: cx - ratio * (cx - p.x), y: cy - ratio * (cy - p.y) }))
+        return nz
       })
     }
     el.addEventListener('wheel', handler, { passive: false })
     return () => el.removeEventListener('wheel', handler)
   }, [])
 
-  // ── Divider drag ────────────────────────────────────────────────────────
+  // ── Divider drag (split mode only) ──
+  const dividerDragging = useRef(false)
   const updateDivider = useCallback((clientX: number) => {
     const el = containerRef.current
     if (!el) return
     const rect = el.getBoundingClientRect()
     setDividerX(Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)))
   }, [])
-
   const onDividerPointerDown = (e: React.PointerEvent) => {
     e.stopPropagation()
     dividerDragging.current = true
@@ -106,198 +174,203 @@ function ComparisonSlider({
   }
   const onDividerPointerUp = () => { dividerDragging.current = false }
 
-  // ── Pan drag ─────────────────────────────────────────────────────────
-  const onPanPointerDown = (e: React.PointerEvent) => {
-    if (zoom <= 1) return // nothing to pan at 1×
-    panDragging.current = true
-    ;(e.currentTarget as Element).setPointerCapture(e.pointerId)
-    panStart.current = { clientX: e.clientX, clientY: e.clientY, panX: pan.x, panY: pan.y }
-  }
-  const onPanPointerMove = (e: React.PointerEvent) => {
-    if (!panDragging.current) return
-    const dx = e.clientX - panStart.current.clientX
-    const dy = e.clientY - panStart.current.clientY
-    setPan({ x: panStart.current.panX + dx, y: panStart.current.panY + dy })
-  }
-  const onPanPointerUp = () => { panDragging.current = false }
+  const imgTransform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
+  const savedPct = pctSmaller(file.size, currentResult.size)
+  const qualityChanged = quality !== baseQuality
 
-  // Clamp pan so image can't drift entirely off-screen
-  const clampedPan = pan // we could clamp here but it interrupts inertia feel; skip
-
-  const imgTransform = `translate(${clampedPan.x}px, ${clampedPan.y}px) scale(${zoom})`
+  if (!originalUrl || !compressedUrl) return null
 
   return (
-    <div className="space-y-2">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-fg-subtle">Zoom:</span>
+    <div className="space-y-2 rounded-lg border border-border bg-bg-elevated p-3">
+      {/* Filename + mode toggle */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="truncate text-xs font-medium text-fg" title={file.name}>{file.name}</span>
+        <div className="flex shrink-0 items-center gap-1 rounded border border-border bg-bg p-0.5">
           <button
             type="button"
-            onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }}
-            className={`rounded px-2 py-0.5 text-xs transition-colors ${zoom === 1 ? 'bg-primary text-white' : 'bg-bg-elevated text-fg hover:bg-bg-hover'}`}
+            onClick={() => setMode('split')}
+            className={`rounded px-2 py-0.5 text-xs transition-colors ${mode === 'split' ? 'bg-primary text-white' : 'text-fg-muted hover:text-fg'}`}
           >
-            Fit
+            Split
           </button>
           <button
             type="button"
-            onClick={() => { setZoom(2); setPan({ x: 0, y: 0 }) }}
-            className={`rounded px-2 py-0.5 text-xs transition-colors ${zoom === 2 ? 'bg-primary text-white' : 'bg-bg-elevated text-fg hover:bg-bg-hover'}`}
+            onClick={() => setMode('side')}
+            className={`rounded px-2 py-0.5 text-xs transition-colors ${mode === 'side' ? 'bg-primary text-white' : 'text-fg-muted hover:text-fg'}`}
           >
-            2×
+            Side-by-side
           </button>
-          <button
-            type="button"
-            onClick={() => { setZoom(4); setPan({ x: 0, y: 0 }) }}
-            className={`rounded px-2 py-0.5 text-xs transition-colors ${zoom === 4 ? 'bg-primary text-white' : 'bg-bg-elevated text-fg hover:bg-bg-hover'}`}
-          >
-            4×
-          </button>
-          {zoom !== 1 && zoom !== 2 && zoom !== 4 && (
-            <span className="text-xs text-fg-subtle">{zoom.toFixed(1)}×</span>
-          )}
         </div>
-        <span className="text-xs text-fg-subtle">
-          {zoom > 1 ? 'Drag to pan · scroll to zoom' : 'Scroll to zoom · drag divider to compare'}
-        </span>
+      </div>
+
+      {/* Zoom slider */}
+      <div className="flex items-center gap-2">
+        <span className="w-10 shrink-0 text-xs text-fg-subtle">Zoom</span>
+        <input
+          type="range"
+          min={MIN_ZOOM}
+          max={MAX_ZOOM}
+          step={0.1}
+          value={zoom}
+          onChange={(e) => setZoom(parseFloat(e.target.value))}
+          className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-border accent-primary"
+        />
+        <span className="w-10 shrink-0 text-right text-xs tabular-nums text-fg-muted">{zoom.toFixed(1)}×</span>
+        <button
+          type="button"
+          onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }}
+          disabled={zoom === 1 && pan.x === 0 && pan.y === 0}
+          className="shrink-0 rounded px-2 py-0.5 text-xs text-fg-muted transition-colors hover:bg-bg-hover disabled:opacity-40"
+        >
+          Fit
+        </button>
       </div>
 
       {/* Viewer */}
-      <div
-        ref={containerRef}
-        className="relative select-none overflow-hidden rounded-lg border border-border bg-[repeating-conic-gradient(#e5e7eb_0%_25%,white_0%_50%)] bg-[length:16px_16px]"
-        style={{ height: 400 }}
-      >
-        {/* Original image (left side — everything left of divider) */}
-        <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - dividerX}% 0 0)` }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={originalUrl}
-            alt="Original"
-            className="absolute inset-0 h-full w-full object-contain"
-            style={{ transform: imgTransform, transformOrigin: '0 0' }}
-            draggable={false}
-          />
-        </div>
-
-        {/* Compressed image (right side — everything right of divider) */}
-        <div className="absolute inset-0" style={{ clipPath: `inset(0 0 0 ${dividerX}%)` }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={compressedUrl}
-            alt="Compressed"
-            className="absolute inset-0 h-full w-full object-contain"
-            style={{ transform: imgTransform, transformOrigin: '0 0' }}
-            draggable={false}
-          />
-        </div>
-
-        {/* Divider line */}
+      {mode === 'split' ? (
         <div
-          className="pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.25)]"
-          style={{ left: `${dividerX}%`, transform: 'translateX(-50%)' }}
-        />
-
-        {/* Divider handle — higher z-index than pan overlay */}
-        <div
-          className="absolute top-1/2 z-20 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize touch-none items-center justify-center rounded-full border border-border bg-white shadow-md"
-          style={{ left: `${dividerX}%` }}
-          onPointerDown={onDividerPointerDown}
-          onPointerMove={onDividerPointerMove}
-          onPointerUp={onDividerPointerUp}
+          ref={containerRef}
+          className="relative select-none overflow-hidden rounded border border-border bg-[repeating-conic-gradient(#e5e7eb_0%_25%,white_0%_50%)] bg-[length:16px_16px]"
+          style={{ height: 320 }}
         >
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
-            <path d="M4 3L1 6L4 9M8 3L11 6L8 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
+          <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - dividerX}% 0 0)` }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={originalUrl} alt="Original" className="absolute inset-0 h-full w-full object-contain"
+              style={{ transform: imgTransform, transformOrigin: '0 0' }} draggable={false} />
+          </div>
+          <div className="absolute inset-0" style={{ clipPath: `inset(0 0 0 ${dividerX}%)` }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={compressedUrl} alt="Compressed" className="absolute inset-0 h-full w-full object-contain"
+              style={{ transform: imgTransform, transformOrigin: '0 0' }} draggable={false} />
+          </div>
+          <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.25)]"
+            style={{ left: `${dividerX}%`, transform: 'translateX(-50%)' }} />
+          <div
+            className="absolute top-1/2 z-20 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize touch-none items-center justify-center rounded-full border border-border bg-white shadow-md"
+            style={{ left: `${dividerX}%` }}
+            onPointerDown={onDividerPointerDown}
+            onPointerMove={onDividerPointerMove}
+            onPointerUp={onDividerPointerUp}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+              <path d="M4 3L1 6L4 9M8 3L11 6L8 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+          <div
+            className={`absolute inset-0 z-10 touch-none ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-ew-resize'}`}
+            onPointerDown={zoom > 1 ? onPanPointerDown : undefined}
+            onPointerMove={zoom > 1 ? onPanPointerMove : undefined}
+            onPointerUp={zoom > 1 ? onPanPointerUp : undefined}
+          />
+          <div className="pointer-events-none absolute bottom-1.5 left-1.5 z-30 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+            Original · {formatBytes(file.size)}
+          </div>
+          <div className="pointer-events-none absolute bottom-1.5 right-1.5 z-30 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+            Compressed · {formatBytes(currentResult.size)} · {savedPct} smaller
+          </div>
         </div>
-
-        {/* Pan overlay — behind handle, cursor changes with zoom */}
+      ) : (
         <div
-          className={`absolute inset-0 z-10 touch-none ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-ew-resize'}`}
+          ref={containerRef}
+          className={`grid grid-cols-2 gap-1 overflow-hidden rounded border border-border ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          style={{ height: 320 }}
           onPointerDown={zoom > 1 ? onPanPointerDown : undefined}
           onPointerMove={zoom > 1 ? onPanPointerMove : undefined}
           onPointerUp={zoom > 1 ? onPanPointerUp : undefined}
-        />
-
-        {/* Labels */}
-        <div className="pointer-events-none absolute bottom-2 left-2 z-30 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
-          Original · {formatBytes(originalSize)}
-        </div>
-        <div className="pointer-events-none absolute bottom-2 right-2 z-30 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
-          Compressed · {formatBytes(compressedSize)} · {pct(originalSize, compressedSize)} smaller
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Thumbnail ─────────────────────────────────────────────────────────────────
-
-function Thumbnail({ file, active, onClick }: { file: File; active: boolean; onClick: () => void }) {
-  const url = useObjectUrl(file)
-  if (!url) return null
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`shrink-0 rounded border-2 transition-colors ${
-        active ? 'border-primary' : 'border-border hover:border-border-hover'
-      }`}
-      title={file.name}
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt={file.name} className="h-12 w-12 rounded object-cover" />
-    </button>
-  )
-}
-
-// ── Root export ───────────────────────────────────────────────────────────────
-
-export function ImageCompressionPreview({ files, results }: Props) {
-  const [activeIdx, setActiveIdx] = useState(0)
-
-  useEffect(() => {
-    const firstDone = results.findIndex((r) => r !== null)
-    if (firstDone >= 0) setActiveIdx(firstDone)
-  }, [results])
-
-  const doneCount = results.filter(Boolean).length
-  if (doneCount === 0) return null
-
-  const activeFile = files[activeIdx] ?? null
-  const activeResult = results[activeIdx] ?? null
-
-  const originalUrl = useObjectUrl(activeFile)
-  const compressedUrl = useObjectUrl(activeResult)
-
-  if (!originalUrl || !compressedUrl || !activeFile || !activeResult) return null
-
-  return (
-    <div className="space-y-3">
-      <span className="text-sm font-medium text-fg">Before / After</span>
-
-      <ComparisonSlider
-        originalUrl={originalUrl}
-        compressedUrl={compressedUrl}
-        originalSize={activeFile.size}
-        compressedSize={activeResult.size}
-      />
-
-      {files.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-1">
-          {files.map((file, i) => {
-            if (!results[i]) return null
+        >
+          {(['original', 'compressed'] as const).map((side) => {
+            const url = side === 'original' ? originalUrl : compressedUrl
+            const label = side === 'original'
+              ? `Original · ${formatBytes(file.size)}`
+              : `Compressed · ${formatBytes(currentResult.size)} · ${savedPct} smaller`
             return (
-              <Thumbnail
-                key={`${file.name}-${file.size}`}
-                file={file}
-                active={i === activeIdx}
-                onClick={() => setActiveIdx(i)}
-              />
+              <div key={side} className="relative select-none overflow-hidden bg-[repeating-conic-gradient(#e5e7eb_0%_25%,white_0%_50%)] bg-[length:16px_16px]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={url}
+                  alt={side}
+                  className="absolute inset-0 h-full w-full object-contain"
+                  style={{ transform: imgTransform, transformOrigin: '0 0' }}
+                  draggable={false}
+                />
+                <div className="pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
+                  {label}
+                </div>
+              </div>
             )
           })}
         </div>
       )}
+
+      {/* Quality slider */}
+      <div className="flex items-center gap-2">
+        <span className="w-10 shrink-0 text-xs text-fg-subtle">Quality</span>
+        <input
+          type="range"
+          min={1}
+          max={100}
+          step={1}
+          value={quality}
+          onChange={(e) => setQuality(parseInt(e.target.value, 10))}
+          className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-border accent-primary"
+        />
+        <span className="w-10 shrink-0 text-right text-xs tabular-nums text-fg-muted">{quality}</span>
+        <span className="w-24 shrink-0 text-right text-[10px] text-fg-subtle">
+          {reCompressing ? 'Re-compressing…' : qualityChanged ? 'Override applied' : ` `}
+        </span>
+      </div>
+
+      {error && <div className="text-[11px] text-red-600">{error}</div>}
+    </div>
+  )
+}
+
+// ── Root export ──────────────────────────────────────────────────────────────
+
+export function ImageCompressionPreview({ files, results, options, onResultEdit }: Props) {
+  // Only preview the first MAX_PREVIEW that have finished.
+  const slots = useMemo(() => {
+    const out: Array<{ index: number; file: File; result: File }> = []
+    for (let i = 0; i < files.length && out.length < MAX_PREVIEW; i++) {
+      const r = results[i]
+      if (r) out.push({ index: i, file: files[i], result: r })
+    }
+    return out
+  }, [files, results])
+
+  if (slots.length === 0) return null
+
+  const remaining = files.length - slots.length
+  const gridCols = slots.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-baseline justify-between">
+        <span className="text-sm font-medium text-fg">Before / After preview</span>
+        {remaining > 0 && (
+          <span className="text-xs text-fg-subtle">
+            Showing first {slots.length} of {files.length}. The rest are ready in the results below.
+          </span>
+        )}
+      </div>
+
+      <div className={`grid gap-3 ${gridCols}`}>
+        {slots.map((s) => (
+          <PreviewSlot
+            key={`${s.file.name}-${s.file.size}-${s.index}`}
+            index={s.index}
+            file={s.file}
+            initialResult={s.result}
+            initialOptions={options}
+            onResultEdit={onResultEdit}
+          />
+        ))}
+      </div>
+
+      <p className="text-[11px] text-fg-subtle">
+        Tip: adjust each image&rsquo;s Quality slider to fine-tune — changes are applied to that file&rsquo;s
+        download and to the ZIP.
+      </p>
     </div>
   )
 }
