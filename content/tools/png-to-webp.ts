@@ -17,6 +17,13 @@ export const config: ToolConfig = {
 
   previewPanel: WebpConversionPreview,
 
+  howItWorks: [
+    { label: 'Drop your files', desc: 'Drag and drop, click to browse, or paste from clipboard. Up to 1,000 files at once.' },
+    { label: 'Choose settings', desc: 'Adjust the quality slider and check the quality in real time to see if the image quality is acceptable. Choose between lossy or lossless, set a custom dimension (optional), or strip metadata.' },
+    { label: 'Click Convert', desc: 'Everything runs in your browser via WebAssembly. PNG to WebP Converter happens locally — no server involved.' },
+    { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+  ],
+
   options: [
     {
       type: 'slider',
@@ -81,11 +88,11 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Does PNG to WebP preserve transparency?',
-      a: 'Yes. Both lossy and lossless WebP support full alpha transparency. A PNG with a transparent background converts to WebP with the same transparency intact. The only edge case is partially-transparent pixels — lossy WebP at low quality settings can introduce slight artifacts around soft alpha edges. Use lossless mode if pixel-perfect transparency is required.',
+      a: 'Yes. PNG supports lossy and lossless compression and full alpha transparency. A PNG file converted to WebP will retain the same transparent background but with a much smaller file size. However, for images with faded edges (e.g., shadows or smooth logo outlines), WebP files may leave a faint smudge or outline. One workaround is to turn on lossless mode, but it comes at the cost of a larger file size.',
     },
     {
       q: 'How much smaller will my WebP files be compared to PNG?',
-      a: 'Lossy WebP (default) is typically 60–80% smaller than an equivalent PNG. Lossless WebP is 25–35% smaller than PNG using the same image data. The savings are largest on photos and complex gradients; simpler images with flat colors or sharp edges see smaller gains. ConvertYard shows the exact byte savings per file so you can see the difference immediately.',
+      a: 'Lossy WebP, based on tests, can be between 35 and 70% smaller than a PNG file. With lossless WebP files, that can go up to 90% or more at 80% quality. Users will get the highest savings from photographs like landscape shots with lots of detail. Simpler graphic files like logos won’t gain as much savings. With ConvertYard, you’ll see the exact byte savings before you compress the file.',
     },
     {
       q: 'When should I use lossless mode?',
@@ -93,11 +100,11 @@ export const config: ToolConfig = {
     },
     {
       q: 'Will WebP work everywhere PNG does?',
-      a: 'WebP is supported in all modern browsers: Chrome, Edge, Firefox, and Safari since version 14 (2020). It covers over 97% of web traffic. Some older design tools, image editors, and CMS platforms still expect PNG. If you\'re delivering web assets, WebP is the right default. If you need to share files with colleagues using older software, PNG may be safer.',
+      a: 'Yes. Most modern browsers like Chrome, Edge, Safari (after 2020), and Firefox support WebP. So that’s around 97% of web traffic. However, some image editors and CMS platforms don’t support WebP, only PNG or other legacy formats like JPG; check the manual if you’re not sure. If you’re uploading these images on a modern CMS like WordPress, it will support WebP, but if you’re sending files to colleagues who may be using legacy software, using the PNG format will be safer.',
     },
     {
       q: 'Can I convert 1,000 PNGs at once?',
-      a: 'Yes. Drop them all in and ConvertYard converts them entirely in your browser — no uploads, no server. Speed depends on file sizes and your device. Large PNGs (3000px+) take longer than small ones. Download everything as a ZIP when done.',
+      a: 'Yes. You can convert batches up to 1,000 files. One limiting factor will be your computer’s memory. If you’re using an older laptop, you can want to limit it to batches of 100 to 200. If you’re converting large files, then limit them to batches of 25 to 50 so your computer doesn’t stall. The preview slider will only appear on the first four images as a safeguard to prevent the computer from locking up.',
     },
   ],
 
