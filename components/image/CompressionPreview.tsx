@@ -47,7 +47,7 @@ function PreviewSlot({
 }: {
   index: number
   file: File
-  initialResult: File
+  initialResult: File | null
   initialOptions: ToolOptions
   onResultEdit?: (index: number, newFile: File) => void
 }) {
@@ -58,12 +58,16 @@ function PreviewSlot({
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [dividerX, setDividerX] = useState(50)
   const [quality, setQuality] = useState<number>(baseQuality)
-  const [currentResult, setCurrentResult] = useState<File>(initialResult)
+  const [currentResult, setCurrentResult] = useState<File | null>(initialResult)
   const [reCompressing, setReCompressing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const optionsRef = useRef(initialOptions)
   useEffect(() => { optionsRef.current = initialOptions }, [initialOptions])
+
+  // Debounced re-compress on quality change (and initial seed when no result yet)
+  const jobId = useRef(0)
+  const lastAppliedQuality = useRef<number | null>(initialResult ? baseQuality : null)
 
   // Reset view when the underlying source file changes (not when initialResult
   // updates — that would clobber the user's per-image quality override, since
@@ -76,17 +80,17 @@ function PreviewSlot({
     setQuality(baseQuality)
     setCurrentResult(initialResult)
     setError(null)
-    lastAppliedQuality.current = baseQuality
+    lastAppliedQuality.current = initialResult ? baseQuality : null
   }, [file, initialResult, baseQuality])
 
-  // Debounced re-compress on quality change
-  const jobId = useRef(0)
-  const lastAppliedQuality = useRef(baseQuality)
   useEffect(() => {
-    if (quality === lastAppliedQuality.current) return
+    // Run when quality drifts from the last applied value, OR when we've never
+    // compressed this file yet (initial seed on idle-phase drop).
+    if (lastAppliedQuality.current === quality) return
     const myId = ++jobId.current
     setReCompressing(true)
     setError(null)
+    const delay = lastAppliedQuality.current === null ? 0 : 350
     const t = setTimeout(async () => {
       try {
         const res = await imageCompress([file], { ...optionsRef.current, quality })
@@ -107,7 +111,7 @@ function PreviewSlot({
       } finally {
         if (myId === jobId.current) setReCompressing(false)
       }
-    }, 350)
+    }, delay)
     return () => clearTimeout(t)
   }, [quality, file, index, onResultEdit])
 
@@ -175,10 +179,10 @@ function PreviewSlot({
   const onDividerPointerUp = () => { dividerDragging.current = false }
 
   const imgTransform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
-  const savedPct = pctSmaller(file.size, currentResult.size)
+  const savedPct = currentResult ? pctSmaller(file.size, currentResult.size) : '—'
   const qualityChanged = quality !== baseQuality
 
-  if (!originalUrl || !compressedUrl) return null
+  if (!originalUrl) return null
 
   return (
     <div className="space-y-2 rounded-lg border border-border bg-bg-elevated p-3">
@@ -239,9 +243,13 @@ function PreviewSlot({
               style={{ transform: imgTransform, transformOrigin: '0 0' }} draggable={false} />
           </div>
           <div className="absolute inset-0" style={{ clipPath: `inset(0 0 0 ${dividerX}%)` }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={compressedUrl} alt="Compressed" className="absolute inset-0 h-full w-full object-contain"
-              style={{ transform: imgTransform, transformOrigin: '0 0' }} draggable={false} />
+            {compressedUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={compressedUrl} alt="Compressed" className="absolute inset-0 h-full w-full object-contain"
+                style={{ transform: imgTransform, transformOrigin: '0 0' }} draggable={false} />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xs text-fg-subtle">Compressing…</div>
+            )}
           </div>
           <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.25)]"
             style={{ left: `${dividerX}%`, transform: 'translateX(-50%)' }} />
@@ -266,7 +274,9 @@ function PreviewSlot({
             Original · {formatBytes(file.size)}
           </div>
           <div className="pointer-events-none absolute bottom-1.5 right-1.5 z-30 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
-            Compressed · {formatBytes(currentResult.size)} · {savedPct} smaller
+            {currentResult
+              ? `Compressed · ${formatBytes(currentResult.size)} · ${savedPct} smaller`
+              : 'Compressing…'}
           </div>
         </div>
       ) : (
@@ -282,17 +292,23 @@ function PreviewSlot({
             const url = side === 'original' ? originalUrl : compressedUrl
             const label = side === 'original'
               ? `Original · ${formatBytes(file.size)}`
-              : `Compressed · ${formatBytes(currentResult.size)} · ${savedPct} smaller`
+              : currentResult
+                ? `Compressed · ${formatBytes(currentResult.size)} · ${savedPct} smaller`
+                : 'Compressing…'
             return (
               <div key={side} className="relative select-none overflow-hidden bg-[repeating-conic-gradient(#e5e7eb_0%_25%,white_0%_50%)] bg-[length:16px_16px]">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={url}
-                  alt={side}
-                  className="absolute inset-0 h-full w-full object-contain"
-                  style={{ transform: imgTransform, transformOrigin: '0 0' }}
-                  draggable={false}
-                />
+                {url ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={url}
+                    alt={side}
+                    className="absolute inset-0 h-full w-full object-contain"
+                    style={{ transform: imgTransform, transformOrigin: '0 0' }}
+                    draggable={false}
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-xs text-fg-subtle">Compressing…</div>
+                )}
                 <div className="pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
                   {label}
                 </div>
@@ -328,12 +344,12 @@ function PreviewSlot({
 // ── Root export ──────────────────────────────────────────────────────────────
 
 export function ImageCompressionPreview({ files, results, options, onResultEdit }: Props) {
-  // Only preview the first MAX_PREVIEW that have finished.
+  // Preview the first MAX_PREVIEW files. Result can be null (idle phase before
+  // Compress is clicked) — the slot will run its own initial compression.
   const slots = useMemo(() => {
-    const out: Array<{ index: number; file: File; result: File }> = []
+    const out: Array<{ index: number; file: File; result: File | null }> = []
     for (let i = 0; i < files.length && out.length < MAX_PREVIEW; i++) {
-      const r = results[i]
-      if (r) out.push({ index: i, file: files[i], result: r })
+      out.push({ index: i, file: files[i], result: results[i] ?? null })
     }
     return out
   }, [files, results])
