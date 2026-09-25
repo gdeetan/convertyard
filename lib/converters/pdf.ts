@@ -371,15 +371,159 @@ type FlatePlanItem = {
   cssnap: '/DeviceRGB' | '/DeviceGray'
   effectiveSourceDpi: number
 }
+type ExoticPlanItem = {
+  kind: 'exotic'
+  ref: PDFRef
+  originalObj: PDFRawStream
+  originalFilter: string       // '/JBIG2Decode' or '/JPXDecode'
+  width: number
+  height: number
+}
 export type KeepTextPlan = {
   doc: PDFDocument
-  items: Array<JpegPlanItem | FlatePlanItem>
+  items: Array<JpegPlanItem | FlatePlanItem | ExoticPlanItem>
   preservedImages: string[]
   flateLevel?: number
   jpegCache?: JpegDecodeCache
   // Fix 2: pristine bytes cache. Computed on the first no-op rung and reused
   // by subsequent no-op rungs to avoid re-serializing an unchanged doc.
   pristineBytes?: Uint8Array
+  // Source buffer retained so exotic-branch executor can pass it to mupdf-client
+  // as a PdfSource for extractImagePixmap calls.
+  sourceBuffer: ArrayBuffer
+  // Per-image render map forwarded from planImageRecompress opts; used by the
+  // exotic branch executor to compute target dimensions from rendered bbox.
+  imageRenderMap?: Record<string, number>
+}
+
+// ── Exotic-image preflight classifier ─────────────────────────────────────────
+
+export interface XObjectEntry {
+  ref: PDFRef
+  filter: string
+  streamLen: number
+  width: number | null
+  height: number | null
+}
+
+export interface PreflightResult {
+  exoticHeavy: boolean
+  hasTextLayer: boolean
+  xobjectList: XObjectEntry[]
+}
+
+/**
+ * Classify a PDF buffer into one of three compression lanes:
+ *   - exoticHeavy=false → standard JPEG/Flate pipeline
+ *   - exoticHeavy=true, hasTextLayer=false → pure scan; full rasterise
+ *   - exoticHeavy=true, hasTextLayer=true  → hybrid OCR; rasterise + preserve text
+ *
+ * Text detection is done entirely via pdf-lib content stream parsing so this
+ * function works in Node (vitest) without a WASM worker. A text layer is any
+ * BT block containing Tj/TJ/'/\" operators, regardless of render mode — this
+ * includes invisible OCR overlays (render mode 3) which must be preserved.
+ */
+export async function preflightClassify(
+  buffer: ArrayBuffer,
+  fileSize: number
+): Promise<PreflightResult> {
+  try {
+    const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+    const xobjectList: XObjectEntry[] = []
+    let totalImageBytes = 0
+    let exoticImageBytes = 0
+
+    for (const [ref, obj] of doc.context.enumerateIndirectObjects()) {
+      if (!(obj instanceof PDFRawStream)) continue
+      const dict = obj.dict
+      if (dict.get(PDFName.of('Subtype'))?.toString() !== '/Image') continue
+
+      const filterVal = dict.get(PDFName.of('Filter'))
+      let filterStr: string
+      if (filterVal instanceof PDFArray) {
+        filterStr = '[' + filterVal.asArray().map((x) => x.toString()).join(' ') + ']'
+      } else {
+        filterStr = filterVal?.toString() ?? '(none)'
+      }
+
+      const streamLen = obj.contents.byteLength
+      const widthVal = dict.get(PDFName.of('Width'))
+      const heightVal = dict.get(PDFName.of('Height'))
+      const width = widthVal ? Number(widthVal.toString()) : null
+      const height = heightVal ? Number(heightVal.toString()) : null
+
+      xobjectList.push({ ref, filter: filterStr, streamLen, width, height })
+      totalImageBytes += streamLen
+      if (filterStr.includes('JBIG2Decode') || filterStr.includes('JPXDecode')) {
+        exoticImageBytes += streamLen
+      }
+    }
+
+    const EXOTIC_RATIO = 0.5
+    const IMAGE_OF_FILE_RATIO = 0.5
+    const exoticHeavy =
+      totalImageBytes > 0 &&
+      exoticImageBytes / totalImageBytes > EXOTIC_RATIO &&
+      totalImageBytes / fileSize > IMAGE_OF_FILE_RATIO
+
+    // Detect text layer by scanning page content streams for BT blocks that
+    // contain visible text (render mode ≠ 3). Render mode 3 = invisible/clip
+    // text used in scan-behind-text OCR; it does NOT constitute a usable text
+    // layer for our purposes.
+    let hasTextLayer = false
+    try {
+      const pages = doc.getPages()
+      outer: for (const page of pages) {
+        const node = page.node
+        const contentsVal = node.get(PDFName.of('Contents'))
+        if (!contentsVal) continue
+
+        // Contents may be a single stream ref or an array of refs.
+        const streamRefs: PDFRawStream[] = []
+        if (contentsVal instanceof PDFArray) {
+          for (const item of contentsVal.asArray()) {
+            const resolved = doc.context.lookup(item)
+            if (resolved instanceof PDFRawStream) streamRefs.push(resolved)
+          }
+        } else {
+          const resolved = doc.context.lookup(contentsVal)
+          if (resolved instanceof PDFRawStream) streamRefs.push(resolved)
+        }
+
+        for (const stream of streamRefs) {
+          let bytes = stream.contents
+          // Decompress /FlateDecode if needed.
+          const streamFilter = stream.dict.get(PDFName.of('Filter'))
+          if (streamFilter?.toString() === '/FlateDecode') {
+            try {
+              bytes = unzlibSync(bytes)
+            } catch {
+              continue
+            }
+          }
+          const text = new TextDecoder('latin1').decode(bytes)
+
+          // Find all BT…ET blocks that contain any text-showing operators
+          // (Tj, TJ, ', "). Count ALL render modes, including mode 3
+          // (invisible/OCR overlay) — invisible text is still a real text
+          // layer that must be preserved through LANE C.
+          const btBlocks = text.match(/BT[\s\S]*?ET/g) ?? []
+          for (const block of btBlocks) {
+            if (/\bTj\b|\bTJ\b|'\s|\"\s/.test(block)) {
+              hasTextLayer = true
+              break outer
+            }
+          }
+        }
+      }
+    } catch {
+      hasTextLayer = false
+    }
+
+    return { exoticHeavy, hasTextLayer, xobjectList }
+  } catch {
+    return { exoticHeavy: false, hasTextLayer: false, xobjectList: [] }
+  }
 }
 
 async function planImageRecompress(
@@ -394,7 +538,7 @@ async function planImageRecompress(
   const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
   const context = doc.context
   const preservedImages: string[] = []
-  const items: Array<JpegPlanItem | FlatePlanItem> = []
+  const items: Array<JpegPlanItem | FlatePlanItem | ExoticPlanItem> = []
 
   for (const [ref, obj] of context.enumerateIndirectObjects()) {
     if (!(obj instanceof PDFRawStream)) continue
@@ -452,6 +596,17 @@ async function planImageRecompress(
         items.push({ kind: 'jpeg', ref, originalObj: obj, w, h, effectiveSourceDpi, jpegBytes, unwrapFlate })
       } else {
         items.push({ kind: 'jpeg', ref, originalObj: obj, jpegBytes, unwrapFlate })
+      }
+      continue
+    }
+
+    if (filterStr === '/JBIG2Decode' || filterStr === '/JPXDecode') {
+      const widthVal = obj.dict.get(PDFName.of('Width'))
+      const heightVal = obj.dict.get(PDFName.of('Height'))
+      const width = widthVal ? Number(widthVal.toString()) : 0
+      const height = heightVal ? Number(heightVal.toString()) : 0
+      if (width > 0 && height > 0) {
+        items.push({ kind: 'exotic', ref, originalObj: obj, originalFilter: filterStr, width, height })
       }
       continue
     }
@@ -516,6 +671,8 @@ async function planImageRecompress(
     preservedImages,
     flateLevel: opts.flateLevel,
     jpegCache: opts.jpegCache,
+    sourceBuffer: buffer,
+    imageRenderMap: opts.imageRenderMap,
   }
 }
 
@@ -587,6 +744,82 @@ async function executeImageRecompress(
       continue
     }
 
+    // exotic (JBIG2/JPX): decode raw pixels via mupdf, downsample, re-encode as JPEG
+    if (item.kind === 'exotic') {
+      const exoticItem = item
+      tasks.push((async () => {
+        try {
+          const { extractImagePixmap } = await import('./mupdf-client')
+          const pixmap = await extractImagePixmap(
+            plan.sourceBuffer,
+            exoticItem.ref.objectNumber,
+            exoticItem.ref.generationNumber,
+          )
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const diag = ((globalThis as any).__exoticDiag ||= { total: 0, nullFromExtract: 0, unsupportedCS: 0, thrownFirst: null as string | null, thrown: 0, encoded: 0, filters: {} as Record<string, number> })
+          diag.total++
+          diag.filters[exoticItem.originalFilter] = (diag.filters[exoticItem.originalFilter] || 0) + 1
+          if (!pixmap) { diag.nullFromExtract++; return null }  // bilevel or decode failure — leave stream intact
+          // Guard against exotic colorspaces we can't safely re-encode as JPEG.
+          if (pixmap.colorspace !== 'Gray' && pixmap.colorspace !== 'RGB' && pixmap.colorspace !== 'CMYK') {
+            diag.unsupportedCS++
+            return null
+          }
+          // Narrow type — colorspace is now guaranteed to be one of the three supported.
+          const safePixmap = pixmap as { width: number; height: number; colorspace: 'Gray' | 'RGB' | 'CMYK'; bytes: Uint8Array }
+
+          // Compute target pixel dimensions. Use imageRenderMap bbox × targetDpi
+          // when available; else fall back to keeping native pixels.
+          const renderMapKey = `${exoticItem.width}x${exoticItem.height}`
+          const renderedPoints = plan.imageRenderMap?.[renderMapKey]
+          const effectiveTargetDpi = targetDpi
+          let targetW = safePixmap.width
+          let targetH = safePixmap.height
+          if (typeof renderedPoints === 'number' && renderedPoints > 0) {
+            const renderedInches = renderedPoints / 72  // PDF points → inches
+            const cappedPixels = Math.round(renderedInches * effectiveTargetDpi)
+            if (cappedPixels > 0 && cappedPixels < targetW) {
+              const scale = cappedPixels / targetW
+              targetW = cappedPixels
+              targetH = Math.max(1, Math.round(safePixmap.height * scale))
+            }
+          }
+
+          const downsampled = targetW < safePixmap.width
+            ? await downsampleRawPixmap(safePixmap, targetW, targetH)
+            : safePixmap
+
+          const jpegBytes = await encodePixmapToJpeg(downsampled, quality)
+          diag.encoded++
+
+          return {
+            ref: exoticItem.ref,
+            apply: () => {
+              const newDict = exoticItem.originalObj.dict.clone(context)
+              newDict.set(PDFName.of('Filter'), PDFName.of('DCTDecode'))
+              newDict.delete(PDFName.of('DecodeParms'))
+              newDict.delete(PDFName.of('BitsPerComponent'))  // JPEG is always 8bpc
+              newDict.set(PDFName.of('Width'), PDFNumber.of(downsampled.width))
+              newDict.set(PDFName.of('Height'), PDFNumber.of(downsampled.height))
+              newDict.set(PDFName.of('ColorSpace'),
+                downsampled.colorspace === 'Gray' ? PDFName.of('DeviceGray')
+                : downsampled.colorspace === 'CMYK' ? PDFName.of('DeviceCMYK')
+                : PDFName.of('DeviceRGB'))
+              newDict.set(PDFName.of('Length'), PDFNumber.of(jpegBytes.length))
+              context.assign(exoticItem.ref, PDFRawStream.of(newDict, jpegBytes))
+            },
+          }
+        } catch (err) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const diag = ((globalThis as any).__exoticDiag ||= { total: 0, nullFromExtract: 0, unsupportedCS: 0, thrownFirst: null as string | null, thrown: 0, encoded: 0, filters: {} as Record<string, number> })
+          diag.thrown++
+          if (!diag.thrownFirst) diag.thrownFirst = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+          return null
+        }
+      })())
+      continue
+    }
+
     // flate
     const { ref: flateRef, originalObj: flateObj, w, h, cssnap, effectiveSourceDpi } = item
     tasks.push((async () => {
@@ -636,6 +869,13 @@ async function executeImageRecompress(
     const settled = await Promise.all(chunk)
     for (const m of settled) if (m) mutations.push(m)
   }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const diag = (globalThis as any).__exoticDiag
+  if (diag && diag.total > 0) {
+    console.log(`[compress-pdf][exotic] ${JSON.stringify(diag)} mutations=${mutations.length}`)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (globalThis as any).__exoticDiag
+  }
   // Fix 2: if no image reduced its own size, the resulting doc is byte-identical
   // to the pristine plan state. Serialize once, cache, and reuse.
   if (mutations.length === 0) {
@@ -665,6 +905,83 @@ async function executeImageRecompress(
     preservedImages,
     mutationCount: mutations.length,
   }
+}
+
+// ── Exotic-image helpers ──────────────────────────────────────────────────────
+
+/**
+ * Nearest-neighbour box-filter downsampler for raw pixel arrays.
+ * Supports Gray (1ch), RGB (3ch), and CMYK (4ch) layouts.
+ */
+async function downsampleRawPixmap(
+  src: { width: number; height: number; colorspace: 'Gray' | 'RGB' | 'CMYK'; bytes: Uint8Array },
+  targetW: number,
+  targetH: number
+): Promise<{ width: number; height: number; colorspace: 'Gray' | 'RGB' | 'CMYK'; bytes: Uint8Array }> {
+  const channels = src.colorspace === 'Gray' ? 1 : src.colorspace === 'CMYK' ? 4 : 3
+  const out = new Uint8Array(targetW * targetH * channels)
+  const xRatio = src.width / targetW
+  const yRatio = src.height / targetH
+  for (let y = 0; y < targetH; y++) {
+    const srcY = Math.floor(y * yRatio)
+    for (let x = 0; x < targetW; x++) {
+      const srcX = Math.floor(x * xRatio)
+      const srcOff = (srcY * src.width + srcX) * channels
+      const dstOff = (y * targetW + x) * channels
+      for (let c = 0; c < channels; c++) out[dstOff + c] = src.bytes[srcOff + c]
+    }
+  }
+  return { width: targetW, height: targetH, colorspace: src.colorspace, bytes: out }
+}
+
+/**
+ * Encode a raw pixmap to JPEG via OffscreenCanvas.convertToBlob.
+ * Uses the same browser-native path as reencodeJpeg.
+ * CMYK is converted to RGB first (naive ink-on-white model).
+ */
+async function encodePixmapToJpeg(
+  src: { width: number; height: number; colorspace: 'Gray' | 'RGB' | 'CMYK'; bytes: Uint8Array },
+  quality: number
+): Promise<Uint8Array> {
+  // Build an RGBA ImageData the browser can paint.
+  const { width, height } = src
+  const rgba = new Uint8ClampedArray(width * height * 4)
+
+  if (src.colorspace === 'Gray') {
+    for (let i = 0; i < width * height; i++) {
+      const v = src.bytes[i]
+      rgba[i * 4 + 0] = v
+      rgba[i * 4 + 1] = v
+      rgba[i * 4 + 2] = v
+      rgba[i * 4 + 3] = 255
+    }
+  } else if (src.colorspace === 'CMYK') {
+    // Naive CMYK→RGB: R = 255*(1-C/255)*(1-K/255), etc.
+    for (let i = 0; i < width * height; i++) {
+      const c = src.bytes[i * 4 + 0] / 255
+      const m = src.bytes[i * 4 + 1] / 255
+      const y = src.bytes[i * 4 + 2] / 255
+      const k = src.bytes[i * 4 + 3] / 255
+      rgba[i * 4 + 0] = Math.round(255 * (1 - c) * (1 - k))
+      rgba[i * 4 + 1] = Math.round(255 * (1 - m) * (1 - k))
+      rgba[i * 4 + 2] = Math.round(255 * (1 - y) * (1 - k))
+      rgba[i * 4 + 3] = 255
+    }
+  } else {
+    // RGB → RGBA
+    for (let i = 0; i < width * height; i++) {
+      rgba[i * 4 + 0] = src.bytes[i * 3 + 0]
+      rgba[i * 4 + 1] = src.bytes[i * 3 + 1]
+      rgba[i * 4 + 2] = src.bytes[i * 3 + 2]
+      rgba[i * 4 + 3] = 255
+    }
+  }
+
+  const canvas = new OffscreenCanvas(width, height)
+  const ctx = canvas.getContext('2d')!
+  ctx.putImageData(new ImageData(rgba, width, height), 0, 0)
+  const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: quality / 100 })
+  return new Uint8Array(await blob.arrayBuffer())
 }
 
 async function recompressImagesKeepText(
@@ -1718,8 +2035,42 @@ export async function compressPDF(
           // output isn't smaller, return the original untouched.
           results[i] = rasterized.size < files[i].size ? rasterized : files[i]
         } else {
-          onProgress?.(i, 10)
+          onProgress?.(i, 5)
           const buffer = await files[i].arrayBuffer()
+          const preflight = await preflightClassify(buffer, files[i].size)
+          const exoticCount = preflight.xobjectList.filter(x => x.filter.includes('JBIG2Decode') || x.filter.includes('JPXDecode')).length
+          const lane = !preflight.exoticHeavy ? 'A' : (!preflight.hasTextLayer || isMobile()) ? 'B' : 'C'
+          console.log(`[compress-pdf] file=${files[i].name} size=${files[i].size} preflight=${JSON.stringify({exoticHeavy: preflight.exoticHeavy, hasTextLayer: preflight.hasTextLayer, xobjectTotal: preflight.xobjectList.length, exoticCount, isMobile: isMobile()})} → LANE ${lane}`)
+
+          // LANE B: exotic-heavy scan without a text layer, OR any exotic-heavy on
+          // mobile → rasterize via the Aggressive path. Preserves preset grayscale +
+          // strip options.
+          if (preflight.exoticHeavy && (!preflight.hasTextLayer || isMobile())) {
+            onProgress?.(i, 15)
+            let rasterized = grayscale
+              ? await rasterizeGrayscaleForTarget(buffer, files[i].name, targetDpi, jpegQuality)
+              : await rasterizeForTarget(buffer, files[i].name, targetDpi, jpegQuality)
+            onProgress?.(i, 85)
+            try {
+              const rBuf = await rasterized.arrayBuffer()
+              const { saveCompressed } = await import('./mupdf-client')
+              const compressed = await saveCompressed(rBuf)
+              if (compressed.byteLength > 0 && compressed.byteLength < rasterized.size) {
+                rasterized = new File(
+                  [new Uint8Array(compressed) as unknown as Uint8Array<ArrayBuffer>],
+                  files[i].name,
+                  { type: 'application/pdf' }
+                )
+              }
+            } catch { /* best-effort */ }
+            onProgress?.(i, 100)
+            results[i] = rasterized.size < files[i].size ? rasterized : files[i]
+            continue
+          }
+
+          // LANE A and LANE C fall through: extended planner/executor handles the
+          // exotic items in LANE C, no additional branching needed.
+          onProgress?.(i, 10)
           let file = await compressStructural(buffer, level, files[i].name, advancedStrip)
           onProgress?.(i, 40)
 

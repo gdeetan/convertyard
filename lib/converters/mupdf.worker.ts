@@ -31,9 +31,9 @@ function getMupdf(): Promise<any> {
 const docCache = new Map<string, any>()
 
 self.onmessage = async (e: MessageEvent) => {
-  const { id, type, fileBuffer, docId, pageIndex, dpi, quality, transparent, password, userPassword, ownerPassword, encryptStrength, permissions } = e.data as {
+  const { id, type, fileBuffer, docId, pageIndex, dpi, quality, transparent, password, userPassword, ownerPassword, encryptStrength, permissions, objectNum, generation } = e.data as {
     id: string
-    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text' | 'page-sizes' | 'unlock-pdf' | 'protect-pdf' | 'save-compressed' | 'get-image-bboxes' | 'open-doc' | 'close-doc'
+    type: 'render-page' | 'render-page-png' | 'page-count' | 'extract-text' | 'extract-structured-text' | 'page-sizes' | 'unlock-pdf' | 'protect-pdf' | 'save-compressed' | 'get-image-bboxes' | 'open-doc' | 'close-doc' | 'extract-image-pixmap'
     fileBuffer?: ArrayBuffer
     docId?: string
     pageIndex?: number
@@ -45,6 +45,8 @@ self.onmessage = async (e: MessageEvent) => {
     ownerPassword?: string
     encryptStrength?: 'aes-128' | 'aes-256'
     permissions?: number
+    objectNum?: number
+    generation?: number
   }
 
   try {
@@ -256,6 +258,37 @@ self.onmessage = async (e: MessageEvent) => {
       buf.destroy()
       doc.destroy()
       self.postMessage({ id, type: 'result', data: outBuf }, [outBuf])
+      return
+    }
+
+    if (type === 'extract-image-pixmap') {
+      if (typeof objectNum !== 'number') throw new Error('extract-image-pixmap requires objectNum')
+      const { doc, owned } = getDoc()
+      try {
+        const ref = mupdf.PDFObject.newIndirect(doc, objectNum, generation ?? 0)
+        // Resolve as Image XObject. mupdf throws if the ref isn't an image stream.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const image: any = doc.loadImage(ref)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const pixmap: any = image.toPixmap()
+        const width = pixmap.getWidth()
+        const height = pixmap.getHeight()
+        const cs = pixmap.getColorSpace()
+        const csName: string = cs?.getName?.() ?? 'Unknown'
+        let colorspace: 'Gray' | 'RGB' | 'CMYK' | 'Bilevel'
+        if (csName === 'DeviceGray' || csName === 'Gray') colorspace = 'Gray'
+        else if (csName === 'DeviceRGB' || csName === 'RGB') colorspace = 'RGB'
+        else if (csName === 'DeviceCMYK' || csName === 'CMYK') colorspace = 'CMYK'
+        else colorspace = 'RGB'
+        const bpc = image.getBitsPerComponent?.() ?? 8
+        if (bpc === 1) colorspace = 'Bilevel'
+        const bytes = new Uint8Array(pixmap.getPixels())
+        self.postMessage({ id, type: 'extract-image-pixmap', width, height, colorspace, bytes }, [bytes.buffer])
+        pixmap.destroy?.()
+        image.destroy?.()
+      } finally {
+        if (owned) doc.destroy?.()
+      }
       return
     }
 
