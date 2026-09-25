@@ -2018,8 +2018,39 @@ export async function compressPDF(
           // output isn't smaller, return the original untouched.
           results[i] = rasterized.size < files[i].size ? rasterized : files[i]
         } else {
-          onProgress?.(i, 10)
+          onProgress?.(i, 5)
           const buffer = await files[i].arrayBuffer()
+          const preflight = await preflightClassify(buffer, files[i].size)
+
+          // LANE B: exotic-heavy scan without a text layer, OR any exotic-heavy on
+          // mobile → rasterize via the Aggressive path. Preserves preset grayscale +
+          // strip options.
+          if (preflight.exoticHeavy && (!preflight.hasTextLayer || isMobile())) {
+            onProgress?.(i, 15)
+            let rasterized = grayscale
+              ? await rasterizeGrayscaleForTarget(buffer, files[i].name, targetDpi, jpegQuality)
+              : await rasterizeForTarget(buffer, files[i].name, targetDpi, jpegQuality)
+            onProgress?.(i, 85)
+            try {
+              const rBuf = await rasterized.arrayBuffer()
+              const { saveCompressed } = await import('./mupdf-client')
+              const compressed = await saveCompressed(rBuf)
+              if (compressed.byteLength > 0 && compressed.byteLength < rasterized.size) {
+                rasterized = new File(
+                  [new Uint8Array(compressed) as unknown as Uint8Array<ArrayBuffer>],
+                  files[i].name,
+                  { type: 'application/pdf' }
+                )
+              }
+            } catch { /* best-effort */ }
+            onProgress?.(i, 100)
+            results[i] = rasterized.size < files[i].size ? rasterized : files[i]
+            continue
+          }
+
+          // LANE A and LANE C fall through: extended planner/executor handles the
+          // exotic items in LANE C, no additional branching needed.
+          onProgress?.(i, 10)
           let file = await compressStructural(buffer, level, files[i].name, advancedStrip)
           onProgress?.(i, 40)
 
