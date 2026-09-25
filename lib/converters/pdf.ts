@@ -755,9 +755,14 @@ async function executeImageRecompress(
             exoticItem.ref.objectNumber,
             exoticItem.ref.generationNumber,
           )
-          if (!pixmap) return null  // bilevel or decode failure — leave stream intact
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const diag = ((globalThis as any).__exoticDiag ||= { total: 0, nullFromExtract: 0, unsupportedCS: 0, thrownFirst: null as string | null, thrown: 0, encoded: 0, filters: {} as Record<string, number> })
+          diag.total++
+          diag.filters[exoticItem.originalFilter] = (diag.filters[exoticItem.originalFilter] || 0) + 1
+          if (!pixmap) { diag.nullFromExtract++; return null }  // bilevel or decode failure — leave stream intact
           // Guard against exotic colorspaces we can't safely re-encode as JPEG.
           if (pixmap.colorspace !== 'Gray' && pixmap.colorspace !== 'RGB' && pixmap.colorspace !== 'CMYK') {
+            diag.unsupportedCS++
             return null
           }
           // Narrow type — colorspace is now guaranteed to be one of the three supported.
@@ -785,6 +790,7 @@ async function executeImageRecompress(
             : safePixmap
 
           const jpegBytes = await encodePixmapToJpeg(downsampled, quality)
+          diag.encoded++
 
           return {
             ref: exoticItem.ref,
@@ -803,7 +809,11 @@ async function executeImageRecompress(
               context.assign(exoticItem.ref, PDFRawStream.of(newDict, jpegBytes))
             },
           }
-        } catch {
+        } catch (err) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const diag = ((globalThis as any).__exoticDiag ||= { total: 0, nullFromExtract: 0, unsupportedCS: 0, thrownFirst: null as string | null, thrown: 0, encoded: 0, filters: {} as Record<string, number> })
+          diag.thrown++
+          if (!diag.thrownFirst) diag.thrownFirst = err instanceof Error ? `${err.name}: ${err.message}` : String(err)
           return null
         }
       })())
@@ -858,6 +868,13 @@ async function executeImageRecompress(
     const chunk = tasks.slice(i, i + CONCURRENCY)
     const settled = await Promise.all(chunk)
     for (const m of settled) if (m) mutations.push(m)
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const diag = (globalThis as any).__exoticDiag
+  if (diag && diag.total > 0) {
+    console.log(`[compress-pdf][exotic] ${JSON.stringify(diag)} mutations=${mutations.length}`)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (globalThis as any).__exoticDiag
   }
   // Fix 2: if no image reduced its own size, the resulting doc is byte-identical
   // to the pristine plan state. Serialize once, cache, and reuse.
@@ -2021,6 +2038,9 @@ export async function compressPDF(
           onProgress?.(i, 5)
           const buffer = await files[i].arrayBuffer()
           const preflight = await preflightClassify(buffer, files[i].size)
+          const exoticCount = preflight.xobjectList.filter(x => x.filter.includes('JBIG2Decode') || x.filter.includes('JPXDecode')).length
+          const lane = !preflight.exoticHeavy ? 'A' : (!preflight.hasTextLayer || isMobile()) ? 'B' : 'C'
+          console.log(`[compress-pdf] file=${files[i].name} size=${files[i].size} preflight=${JSON.stringify({exoticHeavy: preflight.exoticHeavy, hasTextLayer: preflight.hasTextLayer, xobjectTotal: preflight.xobjectList.length, exoticCount, isMobile: isMobile()})} → LANE ${lane}`)
 
           // LANE B: exotic-heavy scan without a text layer, OR any exotic-heavy on
           // mobile → rasterize via the Aggressive path. Preserves preset grayscale +
