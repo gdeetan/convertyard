@@ -405,8 +405,9 @@ export interface PreflightResult {
  *   - exoticHeavy=true, hasTextLayer=true  → hybrid OCR; rasterise + preserve text
  *
  * Text detection is done entirely via pdf-lib content stream parsing so this
- * function works in Node (vitest) without a WASM worker. Visible text is any
- * BT block that does NOT exclusively use render mode 3 (invisible/clip).
+ * function works in Node (vitest) without a WASM worker. A text layer is any
+ * BT block containing Tj/TJ/'/\" operators, regardless of render mode — this
+ * includes invisible OCR overlays (render mode 3) which must be preserved.
  */
 export async function preflightClassify(
   buffer: ArrayBuffer,
@@ -488,21 +489,15 @@ export async function preflightClassify(
           }
           const text = new TextDecoder('latin1').decode(bytes)
 
-          // Find all BT…ET blocks and check for visible text operators.
-          // A block is "visible" if it doesn't set render mode 3 before any
-          // text-showing operator (Tj, TJ, ', ").
+          // Find all BT…ET blocks that contain any text-showing operators
+          // (Tj, TJ, ', "). Count ALL render modes, including mode 3
+          // (invisible/OCR overlay) — invisible text is still a real text
+          // layer that must be preserved through LANE C.
           const btBlocks = text.match(/BT[\s\S]*?ET/g) ?? []
           for (const block of btBlocks) {
-            // Render mode 3 = "3 Tr". If block sets a different Tr, or has no
-            // Tr at all, text is visible.
-            const trMatch = block.match(/(\d+)\s+Tr/)
-            const renderMode = trMatch ? parseInt(trMatch[1], 10) : 0
-            if (renderMode !== 3) {
-              // Make sure there's actually a text-showing op.
-              if (/\bTj\b|\bTJ\b|'\s|\"\s/.test(block)) {
-                hasTextLayer = true
-                break outer
-              }
+            if (/\bTj\b|\bTJ\b|'\s|\"\s/.test(block)) {
+              hasTextLayer = true
+              break outer
             }
           }
         }
