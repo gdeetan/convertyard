@@ -280,12 +280,8 @@ self.onmessage = async (e: MessageEvent) => {
         else if (csName === 'DeviceRGB' || csName === 'RGB') colorspace = 'RGB'
         else if (csName === 'DeviceCMYK' || csName === 'CMYK') colorspace = 'CMYK'
         else colorspace = 'RGB'
-        // Bilevel (1-bpp) source images: mupdf's toPixmap() already returns an 8bpc
-        // Gray pixmap, so we let them through as 'Gray' and downsample+JPEG-encode
-        // them like any other gray image. At High preset (100 DPI) JPEG-gray beats
-        // native JBIG2 by a wide margin.
         const bpc = image.getBitsPerComponent?.() ?? 8
-        void bpc // bpc kept for potential future use; bilevel now falls through as Gray
+        if (bpc === 1) colorspace = 'Bilevel'
         const bytes = new Uint8Array(pixmap.getPixels())
         self.postMessage({ id, type: 'extract-image-pixmap', width, height, colorspace, bytes }, [bytes.buffer])
         pixmap.destroy?.()
