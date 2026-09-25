@@ -198,6 +198,28 @@ export async function saveCompressed(fileBuffer: ArrayBuffer): Promise<ArrayBuff
   return res.data
 }
 
+export interface ExtractedPixmap {
+  width: number
+  height: number
+  colorspace: 'Gray' | 'RGB' | 'CMYK' | 'Bilevel'
+  bytes: Uint8Array
+}
+
+export async function extractImagePixmap(
+  source: PdfSource,
+  objectNum: number,
+  generation = 0
+): Promise<ExtractedPixmap | null> {
+  try {
+    const { payload, transfer } = sourcePayload(source)
+    const res = await send<ExtractedPixmap>('extract-image-pixmap', { ...payload, objectNum, generation }, transfer)
+    if (res.colorspace === 'Bilevel') return null
+    return res
+  } catch {
+    return null
+  }
+}
+
 export interface ImageRenderMap {
   /** Key: "<pixelWidth>x<pixelHeight>". Value: max rendered width in PDF points. */
   [dimensionsKey: string]: number
