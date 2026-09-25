@@ -382,6 +382,141 @@ export type KeepTextPlan = {
   pristineBytes?: Uint8Array
 }
 
+// ── Exotic-image preflight classifier ─────────────────────────────────────────
+
+export interface XObjectEntry {
+  ref: PDFRef
+  filter: string
+  streamLen: number
+  width: number | null
+  height: number | null
+}
+
+export interface PreflightResult {
+  exoticHeavy: boolean
+  hasTextLayer: boolean
+  xobjectList: XObjectEntry[]
+}
+
+/**
+ * Classify a PDF buffer into one of three compression lanes:
+ *   - exoticHeavy=false → standard JPEG/Flate pipeline
+ *   - exoticHeavy=true, hasTextLayer=false → pure scan; full rasterise
+ *   - exoticHeavy=true, hasTextLayer=true  → hybrid OCR; rasterise + preserve text
+ *
+ * Text detection is done entirely via pdf-lib content stream parsing so this
+ * function works in Node (vitest) without a WASM worker. Visible text is any
+ * BT block that does NOT exclusively use render mode 3 (invisible/clip).
+ */
+export async function preflightClassify(
+  buffer: ArrayBuffer,
+  fileSize: number
+): Promise<PreflightResult> {
+  try {
+    const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+    const xobjectList: XObjectEntry[] = []
+    let totalImageBytes = 0
+    let exoticImageBytes = 0
+
+    for (const [ref, obj] of doc.context.enumerateIndirectObjects()) {
+      if (!(obj instanceof PDFRawStream)) continue
+      const dict = obj.dict
+      if (dict.get(PDFName.of('Subtype'))?.toString() !== '/Image') continue
+
+      const filterVal = dict.get(PDFName.of('Filter'))
+      let filterStr: string
+      if (filterVal instanceof PDFArray) {
+        filterStr = '[' + filterVal.asArray().map((x) => x.toString()).join(' ') + ']'
+      } else {
+        filterStr = filterVal?.toString() ?? '(none)'
+      }
+
+      const streamLen = obj.contents.byteLength
+      const widthVal = dict.get(PDFName.of('Width'))
+      const heightVal = dict.get(PDFName.of('Height'))
+      const width = widthVal ? Number(widthVal.toString()) : null
+      const height = heightVal ? Number(heightVal.toString()) : null
+
+      xobjectList.push({ ref, filter: filterStr, streamLen, width, height })
+      totalImageBytes += streamLen
+      if (filterStr.includes('JBIG2Decode') || filterStr.includes('JPXDecode')) {
+        exoticImageBytes += streamLen
+      }
+    }
+
+    const EXOTIC_RATIO = 0.5
+    const IMAGE_OF_FILE_RATIO = 0.5
+    const exoticHeavy =
+      totalImageBytes > 0 &&
+      exoticImageBytes / totalImageBytes > EXOTIC_RATIO &&
+      totalImageBytes / fileSize > IMAGE_OF_FILE_RATIO
+
+    // Detect text layer by scanning page content streams for BT blocks that
+    // contain visible text (render mode ≠ 3). Render mode 3 = invisible/clip
+    // text used in scan-behind-text OCR; it does NOT constitute a usable text
+    // layer for our purposes.
+    let hasTextLayer = false
+    try {
+      const pages = doc.getPages()
+      outer: for (const page of pages) {
+        const node = page.node
+        const contentsVal = node.get(PDFName.of('Contents'))
+        if (!contentsVal) continue
+
+        // Contents may be a single stream ref or an array of refs.
+        const streamRefs: PDFRawStream[] = []
+        if (contentsVal instanceof PDFArray) {
+          for (const item of contentsVal.asArray()) {
+            const resolved = doc.context.lookup(item)
+            if (resolved instanceof PDFRawStream) streamRefs.push(resolved)
+          }
+        } else {
+          const resolved = doc.context.lookup(contentsVal)
+          if (resolved instanceof PDFRawStream) streamRefs.push(resolved)
+        }
+
+        for (const stream of streamRefs) {
+          let bytes = stream.contents
+          // Decompress /FlateDecode if needed.
+          const streamFilter = stream.dict.get(PDFName.of('Filter'))
+          if (streamFilter?.toString() === '/FlateDecode') {
+            try {
+              bytes = unzlibSync(bytes)
+            } catch {
+              continue
+            }
+          }
+          const text = new TextDecoder('latin1').decode(bytes)
+
+          // Find all BT…ET blocks and check for visible text operators.
+          // A block is "visible" if it doesn't set render mode 3 before any
+          // text-showing operator (Tj, TJ, ', ").
+          const btBlocks = text.match(/BT[\s\S]*?ET/g) ?? []
+          for (const block of btBlocks) {
+            // Render mode 3 = "3 Tr". If block sets a different Tr, or has no
+            // Tr at all, text is visible.
+            const trMatch = block.match(/(\d+)\s+Tr/)
+            const renderMode = trMatch ? parseInt(trMatch[1], 10) : 0
+            if (renderMode !== 3) {
+              // Make sure there's actually a text-showing op.
+              if (/\bTj\b|\bTJ\b|'\s|\"\s/.test(block)) {
+                hasTextLayer = true
+                break outer
+              }
+            }
+          }
+        }
+      }
+    } catch {
+      hasTextLayer = false
+    }
+
+    return { exoticHeavy, hasTextLayer, xobjectList }
+  } catch {
+    return { exoticHeavy: false, hasTextLayer: false, xobjectList: [] }
+  }
+}
+
 async function planImageRecompress(
   buffer: ArrayBuffer,
   opts: {
