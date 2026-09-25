@@ -213,7 +213,6 @@ export async function extractImagePixmap(
   try {
     const { payload, transfer } = sourcePayload(source)
     const res = await send<ExtractedPixmap>('extract-image-pixmap', { ...payload, objectNum, generation }, transfer)
-    if (res.colorspace === 'Bilevel') return null
     return res
   } catch {
     return null
