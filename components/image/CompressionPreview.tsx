@@ -1,13 +1,22 @@
 'use client'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { imageCompress } from '@/lib/converters/image-compress'
-import type { ToolOptions } from '@/lib/types'
+import { libvipsConvert } from '@/lib/converters/libvips'
+import type { ConversionResult, ToolOptions } from '@/lib/types'
+
+type PreviewConvertFn = (file: File, options: ToolOptions) => Promise<ConversionResult[]>
 
 interface Props {
   files: File[]
   results: (File | null)[]
   options: ToolOptions
   onResultEdit?: (index: number, newFile: File) => void
+}
+
+interface SlotProps extends Props {
+  convertFn: PreviewConvertFn
+  afterLabel: string
+  headerLabel: string
 }
 
 const MAX_PREVIEW = 4
@@ -44,12 +53,16 @@ function PreviewSlot({
   initialResult,
   initialOptions,
   onResultEdit,
+  convertFn,
+  afterLabel,
 }: {
   index: number
   file: File
   initialResult: File | null
   initialOptions: ToolOptions
   onResultEdit?: (index: number, newFile: File) => void
+  convertFn: PreviewConvertFn
+  afterLabel: string
 }) {
   const baseQuality = typeof initialOptions.quality === 'number' ? initialOptions.quality : 80
 
@@ -94,7 +107,7 @@ function PreviewSlot({
     const delay = lastAppliedQuality.current === null ? 0 : 350
     const t = setTimeout(async () => {
       try {
-        const res = await imageCompress([file], { ...optionsRef.current, quality })
+        const res = await convertFn(file, { ...optionsRef.current, quality })
         if (myId !== jobId.current) return
         const r = res[0]
         let outFile: File | null = null
@@ -108,7 +121,7 @@ function PreviewSlot({
           setError(r.message)
         }
       } catch (e) {
-        if (myId === jobId.current) setError(e instanceof Error ? e.message : 'Re-compression failed')
+        if (myId === jobId.current) setError(e instanceof Error ? e.message : 'Preview failed')
       } finally {
         if (myId === jobId.current) setReCompressing(false)
       }
@@ -276,7 +289,7 @@ function PreviewSlot({
               <img src={compressedUrl} alt="Compressed" className="absolute inset-0 h-full w-full object-contain"
                 style={{ transform: imgTransform, transformOrigin: '0 0' }} draggable={false} />
             ) : (
-              <div className="flex h-full w-full items-center justify-center text-xs text-fg-subtle">Compressing…</div>
+              <div className="flex h-full w-full items-center justify-center text-xs text-fg-subtle">Processing…</div>
             )}
           </div>
           <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.25)]"
@@ -303,8 +316,8 @@ function PreviewSlot({
           </div>
           <div className="pointer-events-none absolute bottom-1.5 right-1.5 z-30 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
             {currentResult
-              ? `Compressed · ${formatBytes(currentResult.size)} · ${savedPct} smaller`
-              : 'Compressing…'}
+              ? `${afterLabel} · ${formatBytes(currentResult.size)} · ${savedPct} smaller`
+              : 'Processing…'}
           </div>
         </div>
       ) : (
@@ -321,8 +334,8 @@ function PreviewSlot({
             const label = side === 'original'
               ? `Original · ${formatBytes(file.size)}`
               : currentResult
-                ? `Compressed · ${formatBytes(currentResult.size)} · ${savedPct} smaller`
-                : 'Compressing…'
+                ? `${afterLabel} · ${formatBytes(currentResult.size)} · ${savedPct} smaller`
+                : 'Processing…'
             return (
               <div key={side} className="relative select-none overflow-hidden bg-[repeating-conic-gradient(#e5e7eb_0%_25%,white_0%_50%)] bg-[length:16px_16px]">
                 {url ? (
@@ -335,7 +348,7 @@ function PreviewSlot({
                     draggable={false}
                   />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-xs text-fg-subtle">Compressing…</div>
+                  <div className="flex h-full w-full items-center justify-center text-xs text-fg-subtle">Processing…</div>
                 )}
                 <div className="pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
                   {label}
@@ -371,9 +384,15 @@ function PreviewSlot({
 
 // ── Root export ──────────────────────────────────────────────────────────────
 
-export function ImageCompressionPreview({ files, results, options, onResultEdit }: Props) {
-  // Preview the first MAX_PREVIEW files. Result can be null (idle phase before
-  // Compress is clicked) — the slot will run its own initial compression.
+function ConversionPreview({
+  files,
+  results,
+  options,
+  onResultEdit,
+  convertFn,
+  afterLabel,
+  headerLabel,
+}: SlotProps) {
   const slots = useMemo(() => {
     const out: Array<{ index: number; file: File; result: File | null }> = []
     for (let i = 0; i < files.length && out.length < MAX_PREVIEW; i++) {
@@ -389,7 +408,7 @@ export function ImageCompressionPreview({ files, results, options, onResultEdit 
   return (
     <div className="space-y-3">
       <div className="flex items-baseline justify-between">
-        <span className="text-sm font-medium text-fg">Before / After preview</span>
+        <span className="text-sm font-medium text-fg">{headerLabel}</span>
         {remaining > 0 && (
           <span className="text-xs text-fg-subtle">
             Showing first {slots.length} of {files.length}. The rest are ready in the results below.
@@ -406,6 +425,8 @@ export function ImageCompressionPreview({ files, results, options, onResultEdit 
             initialResult={s.result}
             initialOptions={options}
             onResultEdit={onResultEdit}
+            convertFn={convertFn}
+            afterLabel={afterLabel}
           />
         ))}
       </div>
@@ -415,5 +436,27 @@ export function ImageCompressionPreview({ files, results, options, onResultEdit 
         download and to the ZIP.
       </p>
     </div>
+  )
+}
+
+export function ImageCompressionPreview(props: Props) {
+  return (
+    <ConversionPreview
+      {...props}
+      convertFn={(file, options) => imageCompress([file], options)}
+      afterLabel="Compressed"
+      headerLabel="Before / After preview"
+    />
+  )
+}
+
+export function WebpConversionPreview(props: Props) {
+  return (
+    <ConversionPreview
+      {...props}
+      convertFn={(file, options) => libvipsConvert([file], 'webp', options)}
+      afterLabel="WebP"
+      headerLabel="Before / After WebP preview"
+    />
   )
 }
