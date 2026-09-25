@@ -46,7 +46,7 @@ export const config: ViewerToolConfig = {
     { q: 'Can I export EXIF data for a whole folder at once?',
       a: 'Yes. Drop as many images as you like — up to 1000 — and click Download CSV for a spreadsheet, or Download JSON (ZIP) for one report per file.' },
     { q: 'Can I check EXIF from an image URL / link?',
-      a: 'Yes, for certain websites that allow direct downloads (Imgur or Wikipedia). However, platforms like Twitter, Reddit, Instagram, and Facebook block access to their CDNs, so you can\'t get EXIF data through links. Download the image and drop the file on this tool instead.' },
+      a: 'Yes, for certain websites that allow direct downloads (Imgur or Unsplash). However, platforms like Twitter, Reddit, Instagram, and Facebook block access to their CDNs, so you can\'t get EXIF data through links. Download the image and drop the file on this tool instead.' },
   ],
   relatedTools: ['ai-image-detector', 'edit-metadata', 'alt-text-generator', 'compress-image', 'background-remover'],
   relatedArticles: [],
