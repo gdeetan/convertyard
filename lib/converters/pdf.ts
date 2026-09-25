@@ -374,7 +374,7 @@ type FlatePlanItem = {
 type ExoticPlanItem = {
   kind: 'exotic'
   ref: PDFRef
-  obj: PDFRawStream
+  originalObj: PDFRawStream
   originalFilter: string       // '/JBIG2Decode' or '/JPXDecode'
   width: number
   height: number
@@ -388,6 +388,12 @@ export type KeepTextPlan = {
   // Fix 2: pristine bytes cache. Computed on the first no-op rung and reused
   // by subsequent no-op rungs to avoid re-serializing an unchanged doc.
   pristineBytes?: Uint8Array
+  // Source buffer retained so exotic-branch executor can pass it to mupdf-client
+  // as a PdfSource for extractImagePixmap calls.
+  sourceBuffer: ArrayBuffer
+  // Per-image render map forwarded from planImageRecompress opts; used by the
+  // exotic branch executor to compute target dimensions from rendered bbox.
+  imageRenderMap?: Record<string, number>
 }
 
 // ── Exotic-image preflight classifier ─────────────────────────────────────────
@@ -600,7 +606,7 @@ async function planImageRecompress(
       const width = widthVal ? Number(widthVal.toString()) : 0
       const height = heightVal ? Number(heightVal.toString()) : 0
       if (width > 0 && height > 0) {
-        items.push({ kind: 'exotic', ref, obj, originalFilter: filterStr, width, height })
+        items.push({ kind: 'exotic', ref, originalObj: obj, originalFilter: filterStr, width, height })
       }
       continue
     }
@@ -665,6 +671,8 @@ async function planImageRecompress(
     preservedImages,
     flateLevel: opts.flateLevel,
     jpegCache: opts.jpegCache,
+    sourceBuffer: buffer,
+    imageRenderMap: opts.imageRenderMap,
   }
 }
 
@@ -730,6 +738,72 @@ async function executeImageRecompress(
           }
         } catch {
           preservedImages.push(`${jpegRef.toString()}:jpeg-reencode-failed`)
+          return null
+        }
+      })())
+      continue
+    }
+
+    // exotic (JBIG2/JPX): decode raw pixels via mupdf, downsample, re-encode as JPEG
+    if (item.kind === 'exotic') {
+      const exoticItem = item
+      tasks.push((async () => {
+        try {
+          const { extractImagePixmap } = await import('./mupdf-client')
+          const pixmap = await extractImagePixmap(
+            plan.sourceBuffer,
+            exoticItem.ref.objectNumber,
+            exoticItem.ref.generationNumber,
+          )
+          if (!pixmap) return null  // bilevel or decode failure — leave stream intact
+          // Guard against exotic colorspaces we can't safely re-encode as JPEG.
+          if (pixmap.colorspace !== 'Gray' && pixmap.colorspace !== 'RGB' && pixmap.colorspace !== 'CMYK') {
+            return null
+          }
+          // Narrow type — colorspace is now guaranteed to be one of the three supported.
+          const safePixmap = pixmap as { width: number; height: number; colorspace: 'Gray' | 'RGB' | 'CMYK'; bytes: Uint8Array }
+
+          // Compute target pixel dimensions. Use imageRenderMap bbox × targetDpi
+          // when available; else fall back to keeping native pixels.
+          const renderMapKey = `${exoticItem.width}x${exoticItem.height}`
+          const renderedPoints = plan.imageRenderMap?.[renderMapKey]
+          const effectiveTargetDpi = targetDpi
+          let targetW = safePixmap.width
+          let targetH = safePixmap.height
+          if (typeof renderedPoints === 'number' && renderedPoints > 0) {
+            const renderedInches = renderedPoints / 72  // PDF points → inches
+            const cappedPixels = Math.round(renderedInches * effectiveTargetDpi)
+            if (cappedPixels > 0 && cappedPixels < targetW) {
+              const scale = cappedPixels / targetW
+              targetW = cappedPixels
+              targetH = Math.max(1, Math.round(safePixmap.height * scale))
+            }
+          }
+
+          const downsampled = targetW < safePixmap.width
+            ? await downsampleRawPixmap(safePixmap, targetW, targetH)
+            : safePixmap
+
+          const jpegBytes = await encodePixmapToJpeg(downsampled, quality)
+
+          return {
+            ref: exoticItem.ref,
+            apply: () => {
+              const newDict = exoticItem.originalObj.dict.clone(context)
+              newDict.set(PDFName.of('Filter'), PDFName.of('DCTDecode'))
+              newDict.delete(PDFName.of('DecodeParms'))
+              newDict.delete(PDFName.of('BitsPerComponent'))  // JPEG is always 8bpc
+              newDict.set(PDFName.of('Width'), PDFNumber.of(downsampled.width))
+              newDict.set(PDFName.of('Height'), PDFNumber.of(downsampled.height))
+              newDict.set(PDFName.of('ColorSpace'),
+                downsampled.colorspace === 'Gray' ? PDFName.of('DeviceGray')
+                : downsampled.colorspace === 'CMYK' ? PDFName.of('DeviceCMYK')
+                : PDFName.of('DeviceRGB'))
+              newDict.set(PDFName.of('Length'), PDFNumber.of(jpegBytes.length))
+              context.assign(exoticItem.ref, PDFRawStream.of(newDict, jpegBytes))
+            },
+          }
+        } catch {
           return null
         }
       })())
@@ -814,6 +888,83 @@ async function executeImageRecompress(
     preservedImages,
     mutationCount: mutations.length,
   }
+}
+
+// ── Exotic-image helpers ──────────────────────────────────────────────────────
+
+/**
+ * Nearest-neighbour box-filter downsampler for raw pixel arrays.
+ * Supports Gray (1ch), RGB (3ch), and CMYK (4ch) layouts.
+ */
+async function downsampleRawPixmap(
+  src: { width: number; height: number; colorspace: 'Gray' | 'RGB' | 'CMYK'; bytes: Uint8Array },
+  targetW: number,
+  targetH: number
+): Promise<{ width: number; height: number; colorspace: 'Gray' | 'RGB' | 'CMYK'; bytes: Uint8Array }> {
+  const channels = src.colorspace === 'Gray' ? 1 : src.colorspace === 'CMYK' ? 4 : 3
+  const out = new Uint8Array(targetW * targetH * channels)
+  const xRatio = src.width / targetW
+  const yRatio = src.height / targetH
+  for (let y = 0; y < targetH; y++) {
+    const srcY = Math.floor(y * yRatio)
+    for (let x = 0; x < targetW; x++) {
+      const srcX = Math.floor(x * xRatio)
+      const srcOff = (srcY * src.width + srcX) * channels
+      const dstOff = (y * targetW + x) * channels
+      for (let c = 0; c < channels; c++) out[dstOff + c] = src.bytes[srcOff + c]
+    }
+  }
+  return { width: targetW, height: targetH, colorspace: src.colorspace, bytes: out }
+}
+
+/**
+ * Encode a raw pixmap to JPEG via OffscreenCanvas.convertToBlob.
+ * Uses the same browser-native path as reencodeJpeg.
+ * CMYK is converted to RGB first (naive ink-on-white model).
+ */
+async function encodePixmapToJpeg(
+  src: { width: number; height: number; colorspace: 'Gray' | 'RGB' | 'CMYK'; bytes: Uint8Array },
+  quality: number
+): Promise<Uint8Array> {
+  // Build an RGBA ImageData the browser can paint.
+  const { width, height } = src
+  const rgba = new Uint8ClampedArray(width * height * 4)
+
+  if (src.colorspace === 'Gray') {
+    for (let i = 0; i < width * height; i++) {
+      const v = src.bytes[i]
+      rgba[i * 4 + 0] = v
+      rgba[i * 4 + 1] = v
+      rgba[i * 4 + 2] = v
+      rgba[i * 4 + 3] = 255
+    }
+  } else if (src.colorspace === 'CMYK') {
+    // Naive CMYK→RGB: R = 255*(1-C/255)*(1-K/255), etc.
+    for (let i = 0; i < width * height; i++) {
+      const c = src.bytes[i * 4 + 0] / 255
+      const m = src.bytes[i * 4 + 1] / 255
+      const y = src.bytes[i * 4 + 2] / 255
+      const k = src.bytes[i * 4 + 3] / 255
+      rgba[i * 4 + 0] = Math.round(255 * (1 - c) * (1 - k))
+      rgba[i * 4 + 1] = Math.round(255 * (1 - m) * (1 - k))
+      rgba[i * 4 + 2] = Math.round(255 * (1 - y) * (1 - k))
+      rgba[i * 4 + 3] = 255
+    }
+  } else {
+    // RGB → RGBA
+    for (let i = 0; i < width * height; i++) {
+      rgba[i * 4 + 0] = src.bytes[i * 3 + 0]
+      rgba[i * 4 + 1] = src.bytes[i * 3 + 1]
+      rgba[i * 4 + 2] = src.bytes[i * 3 + 2]
+      rgba[i * 4 + 3] = 255
+    }
+  }
+
+  const canvas = new OffscreenCanvas(width, height)
+  const ctx = canvas.getContext('2d')!
+  ctx.putImageData(new ImageData(rgba, width, height), 0, 0)
+  const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: quality / 100 })
+  return new Uint8Array(await blob.arrayBuffer())
 }
 
 async function recompressImagesKeepText(
