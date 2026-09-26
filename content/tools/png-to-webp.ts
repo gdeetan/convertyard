@@ -104,7 +104,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Can I convert 1,000 PNGs at once?',
-      a: 'Yes. You can convert batches up to 1,000 files. One limiting factor will be your computer’s memory. If you’re using an older laptop, you can want to limit it to batches of 100 to 200. If you’re converting large files, then limit them to batches of 25 to 50 so your computer doesn’t stall. The preview slider will only appear on the first four images as a safeguard to prevent the computer from locking up.',
+      a: 'Yes. You can convert batches up to 1,000 files. One limiting factor will be your computer’s memory. If you’re using an older laptop, you can want to limit it to batches of 100 to 200. If you’re converting large files, then limit them to batches of 25 to 50 so your computer doesn’t stall. The preview slider will only appear on the first three images as a safeguard to prevent the computer from locking up.',
     },
   ],
 

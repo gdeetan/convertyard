@@ -19,7 +19,7 @@ interface SlotProps extends Props {
   headerLabel: string
 }
 
-const MAX_PREVIEW = 4
+const MAX_PREVIEW = 3
 const MIN_ZOOM = 1
 const MAX_ZOOM = 8
 
@@ -76,16 +76,21 @@ function PreviewSlot({
   const [reCompressing, setReCompressing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const optionsRef = useRef(initialOptions)
-  useEffect(() => { optionsRef.current = initialOptions }, [initialOptions])
+  // Serialize the options-panel state so any field change (lossless,
+  // maxDimension, stripMetadata, sharpen, method, quality, …) becomes a
+  // single stable dependency for the recompress effect below.
+  const optionsKey = useMemo(() => JSON.stringify(initialOptions), [initialOptions])
 
-  // Debounced re-compress on quality change (and initial seed when no result yet)
+  // Debounced re-compress on quality/options change (and initial seed
+  // when no result yet).
   const jobId = useRef(0)
   const lastAppliedQuality = useRef<number | null>(initialResult ? baseQuality : null)
+  const lastAppliedOptionsKey = useRef<string | null>(initialResult ? optionsKey : null)
 
-  // Reset view when the underlying source file changes (not when initialResult
-  // updates — that would clobber the user's per-image quality override, since
-  // onResultEdit flows back through ToolShell and updates initialResult).
+  // Reset view when the underlying source file changes (not when
+  // initialResult updates — that would clobber the user's per-image
+  // quality override, since onResultEdit flows back through ToolShell
+  // and updates initialResult).
   const seededForFile = useRef<File | null>(null)
   useEffect(() => {
     if (seededForFile.current === file) return
@@ -95,19 +100,31 @@ function PreviewSlot({
     setCurrentResult(initialResult)
     setError(null)
     lastAppliedQuality.current = initialResult ? baseQuality : null
-  }, [file, initialResult, baseQuality])
+    lastAppliedOptionsKey.current = initialResult ? optionsKey : null
+  }, [file, initialResult, baseQuality, optionsKey])
+
+  // When the options panel changes its quality baseline, adopt it as the
+  // slot's quality too — the options panel is the master control.
+  useEffect(() => {
+    setQuality(baseQuality)
+  }, [baseQuality])
 
   useEffect(() => {
-    // Run when quality drifts from the last applied value, OR when we've never
-    // compressed this file yet (initial seed on idle-phase drop).
-    if (lastAppliedQuality.current === quality) return
+    // Run when quality or any other option drifts from what we last
+    // applied — or when we've never compressed this file yet.
+    if (
+      lastAppliedQuality.current === quality &&
+      lastAppliedOptionsKey.current === optionsKey
+    ) return
     const myId = ++jobId.current
     setReCompressing(true)
     setError(null)
-    const delay = lastAppliedQuality.current === null ? 0 : 350
+    const isSeed =
+      lastAppliedQuality.current === null || lastAppliedOptionsKey.current === null
+    const delay = isSeed ? 0 : 350
     const t = setTimeout(async () => {
       try {
-        const res = await convertFn(file, { ...optionsRef.current, quality })
+        const res = await convertFn(file, { ...initialOptions, quality })
         if (myId !== jobId.current) return
         const r = res[0]
         let outFile: File | null = null
@@ -116,6 +133,7 @@ function PreviewSlot({
         if (outFile) {
           setCurrentResult(outFile)
           lastAppliedQuality.current = quality
+          lastAppliedOptionsKey.current = optionsKey
           onResultEdit?.(index, outFile)
         } else if (r instanceof Error) {
           setError(r.message)
@@ -127,7 +145,7 @@ function PreviewSlot({
       }
     }, delay)
     return () => clearTimeout(t)
-  }, [quality, file, index, onResultEdit])
+  }, [quality, optionsKey, file, index, onResultEdit, initialOptions, convertFn])
 
   const originalUrl = useObjectUrl(file)
   const compressedUrl = useObjectUrl(currentResult)
