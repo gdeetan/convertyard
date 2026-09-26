@@ -1,4 +1,5 @@
 import { libvipsConvert } from '@/lib/converters/libvips'
+import { PngConversionPreview } from '@/components/image/CompressionPreview'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -13,6 +14,8 @@ export const config: ToolConfig = {
   convertFn: (files, opts, onProgress, onResult) =>
       libvipsConvert(files, 'png', opts, onProgress, onResult),
   enablePresets: true,
+
+  previewPanel: PngConversionPreview,
 
   options: [
     {

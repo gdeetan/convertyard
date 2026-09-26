@@ -478,3 +478,58 @@ export function WebpConversionPreview(props: Props) {
     />
   )
 }
+
+export function AvifConversionPreview(props: Props) {
+  return (
+    <ConversionPreview
+      {...props}
+      convertFn={(file, options) => libvipsConvert([file], 'avif', options)}
+      afterLabel="AVIF"
+      headerLabel="Before / After AVIF preview"
+    />
+  )
+}
+
+export function PngConversionPreview(props: Props) {
+  return (
+    <ConversionPreview
+      {...props}
+      convertFn={(file, options) => libvipsConvert([file], 'png', options)}
+      afterLabel="PNG"
+      headerLabel="Before / After PNG preview"
+    />
+  )
+}
+
+export function JpgConversionPreview(props: Props) {
+  return (
+    <ConversionPreview
+      {...props}
+      convertFn={(file, options) => libvipsConvert([file], 'jpg', options)}
+      afterLabel="JPG"
+      headerLabel="Before / After JPG preview"
+    />
+  )
+}
+
+export function BmpConversionPreview(props: Props) {
+  return (
+    <ConversionPreview
+      {...props}
+      convertFn={(file, options) => libvipsConvert([file], 'bmp', options)}
+      afterLabel="BMP"
+      headerLabel="Before / After BMP preview"
+    />
+  )
+}
+
+export function TiffConversionPreview(props: Props) {
+  return (
+    <ConversionPreview
+      {...props}
+      convertFn={(file, options) => libvipsConvert([file], 'tiff', options)}
+      afterLabel="TIFF"
+      headerLabel="Before / After TIFF preview"
+    />
+  )
+}

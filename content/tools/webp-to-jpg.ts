@@ -1,4 +1,5 @@
 import { libvipsConvert } from '@/lib/converters/libvips'
+import { JpgConversionPreview } from '@/components/image/CompressionPreview'
 import type { ToolConfig } from '@/lib/types'
 import { WebpToJpgExplainer } from '@/components/webp-to-jpg/explainer'
 
@@ -14,6 +15,7 @@ export const config: ToolConfig = {
   outputExt: '.jpg',
   convertFn: (files, opts, onProgress, onResult) =>
       libvipsConvert(files, 'jpg', opts, onProgress, onResult),
+  previewPanel: JpgConversionPreview,
   enablePresets: true,
 
   options: [

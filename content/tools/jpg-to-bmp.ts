@@ -1,4 +1,5 @@
 import { libvipsConvert } from '@/lib/converters/libvips'
+import { BmpConversionPreview } from '@/components/image/CompressionPreview'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -11,6 +12,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg'],
   outputExt: '.bmp',
   convertFn: (files, opts, onProgress, onResult) => libvipsConvert(files, 'bmp', opts, onProgress, onResult),
+  previewPanel: BmpConversionPreview,
   options: [
     {
       type: 'toggle',

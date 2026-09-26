@@ -1,4 +1,5 @@
 import { libvipsConvert } from '@/lib/converters/libvips'
+import { WebpConversionPreview } from '@/components/image/CompressionPreview'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -13,6 +14,8 @@ export const config: ToolConfig = {
   convertFn: (files, opts, onProgress, onResult) =>
       libvipsConvert(files, 'webp', opts, onProgress, onResult),
   enablePresets: true,
+
+  previewPanel: WebpConversionPreview,
 
   options: [
     {

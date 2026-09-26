@@ -1,4 +1,5 @@
 import { libvipsConvert } from '@/lib/converters/libvips'
+import { TiffConversionPreview } from '@/components/image/CompressionPreview'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -11,6 +12,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.jpg', '.jpeg'],
   outputExt: '.tiff',
   convertFn: (files, opts, onProgress, onResult) => libvipsConvert(files, 'tiff', opts, onProgress, onResult),
+  previewPanel: TiffConversionPreview,
   enablePresets: true,
   options: [
     {
