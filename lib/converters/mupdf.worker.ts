@@ -247,6 +247,7 @@ self.onmessage = async (e: MessageEvent) => {
       // was silently hitting the "Unknown message type" fallback.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const doc: any = mupdf.Document.openDocument(fileBuffer, 'application/pdf')
+      const inputPageCount: number = doc.countPages()
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pdfDoc: any = doc.asPDF ? doc.asPDF() : doc
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -255,6 +256,28 @@ self.onmessage = async (e: MessageEvent) => {
       const outBuf = u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength)
       buf.destroy()
       doc.destroy()
+
+      // Validity check: on inputs with corrupt object streams, mupdf can
+      // silently emit a well-formed but zero-page PDF (~300 bytes). The
+      // caller-side byte-count guard (`>0 && <file.size`) accepts that
+      // garbage and hands users an unreadable download. Re-open the output
+      // and confirm it has the same page count as the input; on mismatch,
+      // return an empty buffer so callers fall back to the pre-mupdf file.
+      let outputValid = false
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const verifyDoc: any = mupdf.Document.openDocument(outBuf.slice(0), 'application/pdf')
+        const outputPageCount: number = verifyDoc.countPages()
+        verifyDoc.destroy()
+        outputValid = outputPageCount === inputPageCount && outputPageCount > 0
+      } catch {
+        outputValid = false
+      }
+      if (!outputValid) {
+        const emptyBuf = new ArrayBuffer(0)
+        self.postMessage({ id, type: 'result', data: emptyBuf }, [emptyBuf])
+        return
+      }
       self.postMessage({ id, type: 'result', data: outBuf }, [outBuf])
       return
     }

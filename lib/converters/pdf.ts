@@ -1797,6 +1797,28 @@ export async function compressPDF(
             }
           } catch { /* best-effort */ }
 
+          // Auto-escalate for 'high' preset when structural + keep-text
+          // savings are minimal (<15%). Common trigger: scanned PDFs with
+          // JPX (JPEG2000) / JBIG2 images that recompressImagesKeepText
+          // can't touch — it only re-encodes JPEG (DCTDecode) and Flate.
+          // Rasterize from the original: mupdf's page renderer decodes
+          // JPX/JBIG2 natively, then re-encodes at high's DPI/quality.
+          // Keep whichever is smaller. Grayscale + aggressive already
+          // rasterize in their own branches.
+          if (level === 'high' && !grayscale && file.size > files[i].size * 0.85) {
+            try {
+              const origBuf = await files[i].arrayBuffer()
+              const rasterized = await rasterizeForTarget(
+                origBuf,
+                files[i].name,
+                targetDpi,
+                jpegQuality,
+                (frac) => onProgress?.(i, 80 + Math.round(frac * 19))
+              )
+              if (rasterized.size < file.size) file = rasterized
+            } catch { /* best-effort */ }
+          }
+
           onProgress?.(i, 100)
           // Final safety: never return larger than input.
           results[i] = file.size < files[i].size ? file : files[i]
