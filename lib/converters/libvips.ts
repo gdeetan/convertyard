@@ -1,5 +1,16 @@
 import type { ToolOptions, ConversionResult } from '@/lib/types'
 import { convertViaWorker } from './vips-client'
+import { readFileBytes } from '@/lib/utils/materialize-file'
+
+// createImageBitmap(file) can throw NotReadableError when the OS
+// invalidates the File reference (Firefox/macOS, files touched by another
+// process). Reading bytes through the fallback chain first and wrapping
+// them in a fresh Blob sidesteps the direct-file path.
+async function bitmapFromFile(file: File): Promise<ImageBitmap> {
+  const bytes = await readFileBytes(file)
+  const blob = new Blob([bytes], { type: file.type || 'application/octet-stream' })
+  return await createImageBitmap(blob)
+}
 
 function isHeic(file: File): boolean {
   return (
@@ -14,10 +25,12 @@ function isHeic(file: File): boolean {
 // files must be pre-decoded before being passed to the vips worker.
 async function decodeHeic(file: File): Promise<File> {
   const heic2any = (await import('heic2any')).default
-  const result = await heic2any({ blob: file, toType: 'image/png' })
-  const blob = Array.isArray(result) ? result[0] : result
+  const bytes = await readFileBytes(file)
+  const source = new Blob([bytes], { type: file.type || 'image/heic' })
+  const result = await heic2any({ blob: source, toType: 'image/png' })
+  const out = Array.isArray(result) ? result[0] : result
   const baseName = file.name.replace(/\.(heic|heif)$/i, '')
-  return new File([blob], `${baseName}.png`, { type: 'image/png' })
+  return new File([out], `${baseName}.png`, { type: 'image/png' })
 }
 
 function isAvif(file: File): boolean {
@@ -30,7 +43,7 @@ function isAvif(file: File): boolean {
 // delegates decoding to the browser's built-in AV1 support, which
 // handles all AVIF variants the browser can display.
 async function decodeAvifViaCanvas(file: File): Promise<File> {
-  const bitmap = await createImageBitmap(file)
+  const bitmap = await bitmapFromFile(file)
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Could not get 2D canvas context')
@@ -54,7 +67,7 @@ function isBmp(file: File): boolean {
 // wasm-vips WASM build omits the BMP foreign loader, so BMP files must
 // be pre-decoded in the browser before passing to the vips worker.
 async function decodeBmpViaCanvas(file: File): Promise<File> {
-  const bitmap = await createImageBitmap(file)
+  const bitmap = await bitmapFromFile(file)
   const canvas = new OffscreenCanvas(bitmap.width, bitmap.height)
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('Could not get 2D canvas context')

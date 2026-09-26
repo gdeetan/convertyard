@@ -118,6 +118,55 @@ export async function materializeFile(file: File): Promise<File> {
   throw new Error(unreadableFileMessage())
 }
 
+// Robust bytes read for File objects. Firefox on macOS and some Chrome
+// builds throw NotReadableError from file.arrayBuffer() when the File
+// reference is briefly invalidated by the OS (file touched by another
+// process, permission window closed). Try arrayBuffer, then stream, then
+// a blob-URL fetch round-trip — each takes a different code path inside
+// the browser and any one may succeed when the others fail.
+export async function readFileBytes(file: File): Promise<ArrayBuffer> {
+  const errors: string[] = []
+  try {
+    return await file.arrayBuffer()
+  } catch (err) {
+    errors.push(`arrayBuffer: ${err instanceof Error ? err.message : String(err)}`)
+  }
+  try {
+    const reader = file.stream().getReader()
+    const chunks: Uint8Array[] = []
+    let total = 0
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) {
+        chunks.push(value)
+        total += value.byteLength
+      }
+    }
+    const buf = new Uint8Array(total)
+    let offset = 0
+    for (const c of chunks) {
+      buf.set(c, offset)
+      offset += c.byteLength
+    }
+    return buf.buffer
+  } catch (err) {
+    errors.push(`stream: ${err instanceof Error ? err.message : String(err)}`)
+  }
+  let url: string | null = null
+  try {
+    url = URL.createObjectURL(file)
+    const resp = await fetch(url)
+    return await resp.arrayBuffer()
+  } catch (err) {
+    errors.push(`blob-url: ${err instanceof Error ? err.message : String(err)}`)
+  } finally {
+    if (url) URL.revokeObjectURL(url)
+  }
+  console.warn('[readFileBytes] failed:', errors.join(' | '))
+  throw new Error(unreadableFileMessage())
+}
+
 export function unreadableFileMessage(): string {
   if (typeof navigator === 'undefined') {
     return 'Could not read this file. The browser blocked access — try re-selecting the file, or open the site in a different browser.'

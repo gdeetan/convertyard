@@ -1,4 +1,5 @@
 import type { ToolOptions } from '@/lib/types'
+import { readFileBytes } from '@/lib/utils/materialize-file'
 
 let workerInstance: Worker | null = null
 
@@ -50,7 +51,7 @@ export function convertViaWorker(
 
     worker.addEventListener('message', handler)
 
-    file.arrayBuffer().then((buffer) => {
+    readFileBytes(file).then((buffer) => {
       worker.postMessage({ id, fileBuffer: buffer, outputFormat, opts, fileName }, [buffer])
     }).catch(reject)
   })
@@ -83,7 +84,7 @@ export function extractGifFramesViaWorker(
 
     worker.addEventListener('message', handler)
 
-    file.arrayBuffer().then((buffer) => {
+    readFileBytes(file).then((buffer) => {
       worker.postMessage({ id, action: 'extract-gif-frames', fileBuffer: buffer, opts }, [buffer])
     }).catch(reject)
   })
