@@ -78,7 +78,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'My SVG output looks blurry in the WebP — what happened?',
-      a: 'The SVG was rasterised at too low a resolution. Increase the Scale multiplier (2× or 4×) or set a specific Custom Width. The WebP is then displayed at its natural CSS size and will be sharp on all screens.',
+      a: 'An SVG file is usually rasterized at a lower resolution. The fix is to increase the ‘scale multiplier’ to at least 3, and check the preview window if the ‘after’ graphic is still blurry. Note that increasing the scale multiplier also increases file size, as shown in the before-and-after preview window.',
     },
   ],
   relatedTools: ['svg-to-png', 'svg-to-jpg', 'png-to-webp'],
