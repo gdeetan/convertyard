@@ -84,7 +84,7 @@ export const config: ToolConfig = {
   relatedTools: ['svg-to-png', 'svg-to-jpg', 'png-to-webp'],
   relatedArticles: [],
   meta: {
-    title: 'SVG to WebP Converter — ConvertYard',
-    description: 'Convert SVG to WebP for smaller web images — typically 25–35% smaller than PNG at similar quality. Batch convert in your browser. Files never leave your device.',
+    title: 'Convert SVG to WebP for Free. Nothing Uploads',
+    description: 'Convert SVG graphic files to WebP, which is 30 to 90% smaller than an equivalent PNG file at the same quality and dimensions. Side-by-side preview is available before conversion.',
   },
 }
