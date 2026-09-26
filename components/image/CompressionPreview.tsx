@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { imageCompress } from '@/lib/converters/image-compress'
 import { libvipsConvert } from '@/lib/converters/libvips'
+import { svgConvert } from '@/lib/converters/svg-convert'
 import type { ConversionResult, ToolOptions } from '@/lib/types'
 
 type PreviewConvertFn = (file: File, options: ToolOptions) => Promise<ConversionResult[]>
@@ -530,6 +531,39 @@ export function TiffConversionPreview(props: Props) {
       convertFn={(file, options) => libvipsConvert([file], 'tiff', options)}
       afterLabel="TIFF"
       headerLabel="Before / After TIFF preview"
+    />
+  )
+}
+
+export function SvgToWebpConversionPreview(props: Props) {
+  return (
+    <ConversionPreview
+      {...props}
+      convertFn={(file, options) => svgConvert([file], 'webp', options)}
+      afterLabel="WebP"
+      headerLabel="Before / After WebP preview"
+    />
+  )
+}
+
+export function SvgToPngConversionPreview(props: Props) {
+  return (
+    <ConversionPreview
+      {...props}
+      convertFn={(file, options) => svgConvert([file], 'png', options)}
+      afterLabel="PNG"
+      headerLabel="Before / After PNG preview"
+    />
+  )
+}
+
+export function SvgToJpgConversionPreview(props: Props) {
+  return (
+    <ConversionPreview
+      {...props}
+      convertFn={(file, options) => svgConvert([file], 'jpg', options)}
+      afterLabel="JPG"
+      headerLabel="Before / After JPG preview"
     />
   )
 }

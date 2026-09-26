@@ -1,4 +1,5 @@
 import { svgConvert } from '@/lib/converters/svg-convert'
+import { SvgToPngConversionPreview } from '@/components/image/CompressionPreview'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -11,6 +12,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.svg'],
   outputExt: '.png',
   convertFn: (files, opts, onProgress, onResult) => svgConvert(files, 'png', opts, onProgress, onResult),
+  previewPanel: SvgToPngConversionPreview,
   enablePresets: true,
   options: [
     {

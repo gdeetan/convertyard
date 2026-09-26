@@ -1,4 +1,5 @@
 import { svgConvert } from '@/lib/converters/svg-convert'
+import { SvgToWebpConversionPreview } from '@/components/image/CompressionPreview'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -11,6 +12,7 @@ export const config: ToolConfig = {
   acceptsExt: ['.svg'],
   outputExt: '.webp',
   convertFn: (files, opts, onProgress, onResult) => svgConvert(files, 'webp', opts, onProgress, onResult),
+  previewPanel: SvgToWebpConversionPreview,
   enablePresets: true,
   options: [
     {
