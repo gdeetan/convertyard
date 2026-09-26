@@ -62,7 +62,7 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my SVG files uploaded to convert them?',
-      a: 'No. Conversion uses your browser\'s Canvas API. Your SVGs never leave your device.',
+      a: 'Nothing is uploaded. The conversion happens in your browser through the Canvas API.',
     },
     {
       q: 'Why WebP instead of PNG when exporting from SVG?',
