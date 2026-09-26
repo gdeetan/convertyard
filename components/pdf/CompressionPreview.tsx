@@ -14,7 +14,7 @@ interface CompressionPreviewProps {
   onSelectIndex: (i: number) => void
 }
 
-type RenderState = 'idle' | 'rendering-original' | 'ready-original' | 'rendering-compressed' | 'ready-both'
+type RenderState = 'idle' | 'rendering-original' | 'ready-original' | 'rendering-compressed' | 'ready-both' | 'error-original'
 type ZoomLevel = 1 | 2 | 3
 
 // Lowered from 96 to 72 at zoom=1 — ~44% fewer pixels to render, which
@@ -22,9 +22,9 @@ type ZoomLevel = 1 | 2 | 3
 // crisp for a thumbnail preview; zoom-in ladder covers detail inspection.
 const ZOOM_DPI: Record<ZoomLevel, number> = { 1: 72, 2: 144, 3: 216 }
 const CONTAINER_HEIGHT: Record<ZoomLevel, string> = {
-  1: 'h-[420px]',
-  2: 'h-[680px]',
-  3: 'h-[900px]',
+  1: 'h-[280px] md:h-[420px]',
+  2: 'h-[440px] md:h-[680px]',
+  3: 'h-[560px] md:h-[900px]',
 }
 
 function PagePicker({
@@ -170,7 +170,10 @@ export function CompressionPreview({
         setOriginalUrl(prev => { if (prev) URL.revokeObjectURL(prev); return URL.createObjectURL(blob) })
         setRenderState(currentResult || prevResultRef.current ? 'ready-both' : 'ready-original')
       } catch {
-        if (!cancelled) setRenderState('idle')
+        // Original PDF failed to open or render — usually structural damage
+        // (corrupt object streams, malformed xref). Surface a clear error
+        // instead of silently reverting to a blank box.
+        if (!cancelled) setRenderState('error-original')
       }
     })()
 
@@ -279,27 +282,29 @@ export function CompressionPreview({
           )}
         </div>
 
-        <div className="flex items-center gap-1 shrink-0">
-          <button
-            type="button"
-            aria-label="Zoom out"
-            onClick={() => setZoom(z => Math.max(1, z - 1) as ZoomLevel)}
-            disabled={zoom === 1}
-            className="rounded p-1 hover:bg-bg-muted transition-colors disabled:opacity-30"
-          >
-            <ZoomOut className="h-3.5 w-3.5" />
-          </button>
-          <span className="tabular-nums w-6 text-center">{zoom}×</span>
-          <button
-            type="button"
-            aria-label="Zoom in"
-            onClick={() => setZoom(z => Math.min(3, z + 1) as ZoomLevel)}
-            disabled={zoom === 3}
-            className="rounded p-1 hover:bg-bg-muted transition-colors disabled:opacity-30"
-          >
-            <ZoomIn className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        {renderState !== 'error-original' && (
+          <div className="flex items-center gap-1 shrink-0">
+            <button
+              type="button"
+              aria-label="Zoom out"
+              onClick={() => setZoom(z => Math.max(1, z - 1) as ZoomLevel)}
+              disabled={zoom === 1}
+              className="rounded p-1 hover:bg-bg-muted transition-colors disabled:opacity-30"
+            >
+              <ZoomOut className="h-3.5 w-3.5" />
+            </button>
+            <span className="tabular-nums w-6 text-center">{zoom}×</span>
+            <button
+              type="button"
+              aria-label="Zoom in"
+              onClick={() => setZoom(z => Math.min(3, z + 1) as ZoomLevel)}
+              disabled={zoom === 3}
+              className="rounded p-1 hover:bg-bg-muted transition-colors disabled:opacity-30"
+            >
+              <ZoomIn className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Preview container */}
@@ -309,65 +314,49 @@ export function CompressionPreview({
           CONTAINER_HEIGHT[zoom]
         )}
       >
-        {renderState === 'idle' || renderState === 'rendering-original' ? (
+        {renderState === 'error-original' ? (
+          <div className="flex h-full items-center justify-center px-6 text-center">
+            <div className="max-w-sm space-y-1.5">
+              <p className="text-sm font-medium text-fg">Couldn&apos;t preview this PDF</p>
+              <p className="text-xs text-fg-muted">
+                The file has structural damage (malformed cross-references or object streams)
+                that our renderer can&apos;t read. Compression will still try — if it fails or
+                produces something unusable, you&apos;ll get the original back.
+              </p>
+            </div>
+          </div>
+        ) : renderState === 'idle' || renderState === 'rendering-original' ? (
           <div className="flex h-full items-center justify-center text-sm text-fg-subtle">
             {renderState === 'rendering-original' ? 'Loading preview…' : ''}
           </div>
         ) : (
           <div className="h-full">
-            {/* Desktop: side-by-side slider */}
-            <div className="hidden h-full md:block">
-              <ComparisonSlider
-                left={
-                  <div className="relative h-full bg-bg-muted">
-                    {originalUrl && (
-                      <img src={originalUrl} alt={`Original PDF page ${selectedPage + 1}`} className="h-full w-full object-contain" />
-                    )}
-                    <span className="absolute bottom-2 left-2 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
-                      {originalLabel}
-                    </span>
-                  </div>
-                }
-                right={
-                  <div className="relative h-full bg-bg-muted">
-                    {compressedUrl ? (
-                      <img src={compressedUrl} alt={`Compressed PDF page ${selectedPage + 1}`} className="h-full w-full object-contain" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-xs text-fg-subtle">
-                        {renderState === 'rendering-compressed' ? 'Rendering…' : 'Compress to preview'}
-                      </div>
-                    )}
-                    <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
-                      {compressedLabel}
-                    </span>
-                  </div>
-                }
-              />
-            </div>
-
-            {/* Mobile: stacked */}
-            <div className="flex h-full flex-col divide-y divide-border md:hidden">
-              <div className="relative flex-1 bg-bg-muted">
-                {originalUrl && (
-                  <img src={originalUrl} alt={`Original PDF page ${selectedPage + 1}`} className="h-full w-full object-contain" />
-                )}
-                <span className="absolute bottom-2 left-2 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
-                  {originalLabel}
-                </span>
-              </div>
-              <div className="relative flex-1 bg-bg-muted">
-                {compressedUrl ? (
-                  <img src={compressedUrl} alt={`Compressed PDF page ${selectedPage + 1}`} className="h-full w-full object-contain" />
-                ) : (
-                  <div className="flex h-full items-center justify-center text-xs text-fg-subtle">
-                    Compress to preview
-                  </div>
-                )}
-                <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
-                  {compressedLabel}
-                </span>
-              </div>
-            </div>
+            <ComparisonSlider
+              left={
+                <div className="relative h-full bg-bg-muted">
+                  {originalUrl && (
+                    <img src={originalUrl} alt={`Original PDF page ${selectedPage + 1}`} className="h-full w-full object-contain" />
+                  )}
+                  <span className="absolute bottom-2 left-2 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
+                    {originalLabel}
+                  </span>
+                </div>
+              }
+              right={
+                <div className="relative h-full bg-bg-muted">
+                  {compressedUrl ? (
+                    <img src={compressedUrl} alt={`Compressed PDF page ${selectedPage + 1}`} className="h-full w-full object-contain" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center text-xs text-fg-subtle">
+                      {renderState === 'rendering-compressed' ? 'Rendering…' : 'Compress to preview'}
+                    </div>
+                  )}
+                  <span className="absolute bottom-2 right-2 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white">
+                    {compressedLabel}
+                  </span>
+                </div>
+              }
+            />
           </div>
         )}
       </div>
