@@ -74,7 +74,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'What quality setting should I use for icons and logos?',
-      a: 'Use 90 or above for sharp, clean edges on icons and logos. Lossy WebP at quality 90 is visually indistinguishable from lossless for most icon content, while producing smaller files. Drop below 85 only for illustrative content where edge sharpness is less critical.',
+      a: 'Using a setting of 90 or above for icons or logos with sharp edges. For lossless WebP images like photographs, you can move the slider down further to 80, even to 70, with minimal quality loss. The more important feature is the scale, which determines the sharpness of the final output. A higher setting produces a sharper graphic; anything below 3 can make it blurry. Play around with the settings and see how they affect the graphic in the preview panel and its size.',
     },
     {
       q: 'My SVG output looks blurry in the WebP — what happened?',
