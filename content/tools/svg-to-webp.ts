@@ -14,6 +14,12 @@ export const config: ToolConfig = {
   convertFn: (files, opts, onProgress, onResult) => svgConvert(files, 'webp', opts, onProgress, onResult),
   previewPanel: SvgToWebpConversionPreview,
   enablePresets: true,
+  howItWorks: [
+    { label: 'Drop your files', desc: 'Drag and drop, click to browse, or paste from clipboard. Up to 1,000 files at once.' },
+    { label: 'Choose settings', desc: 'Adjust scale, custom width, quality, and whether it should have a transparent background. Split type preview is available so you can see the potential savings and a before-and-after of the SVG file.' },
+    { label: 'Click Convert', desc: 'The SVG files are converted to WebP in your browser via WebAssembly. Nothing is uploaded to a server.' },
+    { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+  ],
   options: [
     {
       type: 'slider',
