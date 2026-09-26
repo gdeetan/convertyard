@@ -66,7 +66,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Why WebP instead of PNG when exporting from SVG?',
-      a: 'WebP is typically 25–35% smaller than PNG at equivalent visual quality. Both formats support full alpha transparency. For icon sets or illustrations deployed on high-traffic pages, switching from PNG to WebP cuts bandwidth without any visible quality difference.',
+      a: 'A huge reason is the size variance. An equivalent WebP file can be as much as 96% smaller than its PNG equivalent, with the same dimensions. If you’re deploying a huge icon set on a high-traffic website, this adds up; switching from PNG to WebP will make your site load faster and use less bandwidth and storage space, cutting web hosting costs.',
     },
     {
       q: 'Does WebP support SVG transparency?',
