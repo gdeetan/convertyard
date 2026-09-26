@@ -70,7 +70,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Does WebP support SVG transparency?',
-      a: 'Yes. WebP supports full alpha transparency, just like PNG. The Transparent background toggle is on by default — your SVG backgrounds will be transparent in the output WebP. Turn it off if you need a solid fill.',
+      a: 'Yes. WebP files support full alpha transparency like PNG. This feature is automatically toggled on when converting SVG to WebP files. If you need a solid background, then turn off this feature.',
     },
     {
       q: 'What quality setting should I use for icons and logos?',
