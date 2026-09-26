@@ -10,6 +10,7 @@ import { downsampleFlateImage } from '@/lib/pdf/image-downsample'
 import { chooseRungForTarget } from '@/lib/pdf/size-model'
 import { computeEffectiveDpi } from '../pdf/effective-dpi'
 import { isMobile } from '@/lib/utils/is-mobile'
+import { readFileBytes } from '@/lib/utils/materialize-file'
 
 // P1 efficiency features. Flip individually to false if triage requires it.
 const P1_FEATURES = {
@@ -1153,7 +1154,7 @@ export async function compressPdfKeepText(
   onProgress?: (pct: number) => void
 ): Promise<TargetSizeResult> {
   const passesRun: string[] = []
-  const inputBuffer = await input.arrayBuffer()
+  const inputBuffer = await readFileBytes(input)
 
   onProgress?.(5)
   const structural = await compressStructural(inputBuffer, 'high', input.name)
@@ -1374,7 +1375,7 @@ export async function rasterizeToTargetSize(
   // rung. Previously each step called openPdf → transferring a fresh clone
   // of the (potentially 100MB+) buffer to the worker and re-parsing the doc.
   // On the escalation path that ran 5× per file.
-  const inputBuffer = await input.arrayBuffer()
+  const inputBuffer = await readFileBytes(input)
   const handle = await openPdf(inputBuffer)
 
   // Ladder ordering rule: DPI is what makes scan text sharp — text edges
@@ -1704,7 +1705,7 @@ export async function compressPDF(
         }
         if (level === 'aggressive') {
           onProgress?.(i, 10)
-          const buffer = await files[i].arrayBuffer()
+          const buffer = await readFileBytes(files[i])
           let rasterized = grayscale
             ? await rasterizeGrayscaleForTarget(buffer, files[i].name, targetDpi, jpegQuality)
             : await rasterizeForTarget(buffer, files[i].name, targetDpi, jpegQuality)
@@ -1728,7 +1729,7 @@ export async function compressPDF(
           results[i] = rasterized.size < files[i].size ? rasterized : files[i]
         } else {
           onProgress?.(i, 10)
-          const buffer = await files[i].arrayBuffer()
+          const buffer = await readFileBytes(files[i])
           let file = await compressStructural(buffer, level, files[i].name, advancedStrip)
           onProgress?.(i, 40)
 
@@ -1816,7 +1817,7 @@ export async function compressPDF(
           // rasterize in their own branches.
           if (level === 'high' && !grayscale && file.size > files[i].size * 0.85) {
             try {
-              const origBuf = await files[i].arrayBuffer()
+              const origBuf = await readFileBytes(files[i])
               const rasterized = await rasterizeForTarget(
                 origBuf,
                 files[i].name,
