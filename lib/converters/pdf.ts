@@ -83,6 +83,15 @@ async function compressStructural(
   }
 ): Promise<File> {
   const doc = await PDFDocument.load(buffer, { ignoreEncryption: true })
+  // Strip the /Encrypt trailer entry. `ignoreEncryption: true` lets pdf-lib
+  // *read* an encrypted PDF, but on save it still emits the original
+  // /Encrypt dict — which points to keys that no longer match the
+  // re-serialized content. Viewers then open the output as "password
+  // protected" garbage. Since we've already decrypted to compress, the
+  // right output is a plain unencrypted PDF.
+  if (doc.context.trailerInfo && (doc.context.trailerInfo as { Encrypt?: unknown }).Encrypt) {
+    delete (doc.context.trailerInfo as { Encrypt?: unknown }).Encrypt
+  }
   if (advanced?.stripMetadata !== false) {
     doc.setTitle('')
     doc.setAuthor('')
