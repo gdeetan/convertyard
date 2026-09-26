@@ -177,7 +177,7 @@ export function unreadableFileMessage(): string {
     return 'Could not read this file on iOS. Common causes: the video isn\'t fully downloaded from iCloud (open it in Photos first so it downloads), the file is too large for the browser tab, or you\'re inside an in-app browser (Google app, Instagram). Open in real Safari and try again.'
   }
   if (/Android/i.test(ua)) {
-    return 'Could not read this file. Android sometimes revokes access to videos from apps like Viber or WhatsApp. Try re-sharing the video or save it to Downloads first.'
+    return 'Could not read this file. Android sometimes revokes access to files shared from apps like Viber, WhatsApp, or Google Photos. Try re-picking the file, or open the source app and save it to Downloads first.'
   }
   return 'Could not read this file. The browser blocked access — try re-selecting the file from your Downloads folder, or open the site in a different browser.'
 }

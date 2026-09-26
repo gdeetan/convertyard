@@ -62,12 +62,20 @@ export function Dropzone({
           setSrMsg(`Reading ${valid.length} file${valid.length > 1 ? 's' : ''}…`)
           prepared = await Promise.all(
             valid.map(async (f) => {
-              if (!f.type.startsWith('video/') || isMaterialized(f)) return f
+              // Android revokes read access to content:// URIs (Viber,
+              // WhatsApp, Google Photos, MediaStore camera captures)
+              // shortly after the pick. Copy bytes into a JS-owned Blob
+              // now for videos AND images — both hit the same revocation
+              // window when read later in the pipeline.
+              const needsMat =
+                f.type.startsWith('video/') || f.type.startsWith('image/')
+              if (!needsMat || isMaterialized(f)) return f
               try {
                 return await materializeFile(f)
               } catch {
-                // Fall through with the original file — compressVideo throws
-                // a clearer message when the byte-level read finally fails.
+                // Fall through with the original file — the downstream
+                // converter surfaces a clearer error if the byte-level
+                // read still fails after all fallbacks.
                 return f
               }
             }),
