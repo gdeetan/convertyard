@@ -114,6 +114,16 @@ const howToCompressPngSection = (
         The compression options (explainer)
       </h2>
       <p className="mt-4 text-base text-fg-muted">
+        First, a note that trips people up: <strong>PNG is lossless</strong>.
+        The compression-effort slider does <em>not</em> reduce visual
+        quality the way it does for JPG. It controls how hard the encoder
+        works &mdash; more DEFLATE passes produce a smaller file at the
+        cost of encode time. The pixels stay pixel-perfect. The only
+        setting on this page that actually changes how the PNG looks is
+        <strong> palette reduction</strong> (which converts to 8-bit
+        indexed color).
+      </p>
+      <p className="mt-4 text-base text-fg-muted">
         There are four presets available. Choose one and compress. In
         most cases, you don&rsquo;t need to touch anything else.
       </p>
@@ -130,22 +140,22 @@ const howToCompressPngSection = (
           <tbody className="text-fg-muted">
             <tr className="border-b border-border">
               <td className="px-4 py-3 align-top"><strong className="text-fg">Light</strong></td>
-              <td className="px-4 py-3 align-top">Small size drop, no visible change.</td>
-              <td className="px-4 py-3 align-top">When you need to preserve the original quality as closely as possible.</td>
+              <td className="px-4 py-3 align-top">Fewer DEFLATE passes. Fastest encode, smallest savings. Pixel-perfect.</td>
+              <td className="px-4 py-3 align-top">When you need the compression to finish fast and the file only needs to shrink a little.</td>
             </tr>
             <tr className="border-b border-border">
               <td className="px-4 py-3 align-top"><strong className="text-fg">Balanced</strong> <em>(default)</em></td>
-              <td className="px-4 py-3 align-top">Big size drop, still looks great.</td>
+              <td className="px-4 py-3 align-top">Solid DEFLATE effort, still pixel-perfect. Good size drop in reasonable time.</td>
               <td className="px-4 py-3 align-top">Almost every situation. Start here.</td>
             </tr>
             <tr className="border-b border-border">
               <td className="px-4 py-3 align-top"><strong className="text-fg">Strong</strong></td>
-              <td className="px-4 py-3 align-top">Smaller file, uses fewer colors. Faint banding on smooth gradients.</td>
-              <td className="px-4 py-3 align-top">When Balanced isn&rsquo;t small enough.</td>
+              <td className="px-4 py-3 align-top">Max DEFLATE effort + optional palette reduction. Smaller file, encode takes longer.</td>
+              <td className="px-4 py-3 align-top">When Balanced isn&rsquo;t small enough and you have a few extra seconds to spare.</td>
             </tr>
             <tr>
               <td className="px-4 py-3 align-top"><strong className="text-fg">Extreme</strong></td>
-              <td className="px-4 py-3 align-top">Aggressive palette reduction. Visible banding on photos and gradients.</td>
+              <td className="px-4 py-3 align-top">Aggressive palette reduction (down to 8-bit indexed color). This <em>does</em> change how the image looks &mdash; visible banding on photos and gradients.</td>
               <td className="px-4 py-3 align-top">When you really need it tiny and can accept the tradeoff.</td>
             </tr>
           </tbody>
@@ -177,12 +187,15 @@ const howToCompressPngSection = (
       </p>
       <ol className="mt-4 list-decimal space-y-2 pl-6 text-base text-fg-muted">
         <li>
-          <strong>Quality (0&ndash;100):</strong> The higher the setting,
-          the better the image quality, but at the cost of file size.
-          The lower the setting, the higher the compression but at the
-          expense of image quality. The sweet spot for most PNG files is
-          between 65 and 80. Anything lower than 40, and you&rsquo;ll
-          start to see patchy areas.
+          <strong>Compression effort (0&ndash;100):</strong> This is the
+          setting that catches people out. Unlike JPG, PNG is lossless,
+          so this slider <em>does not</em> change how the image looks.
+          What it actually controls is how hard the encoder works
+          &mdash; higher values mean more DEFLATE passes, which produce
+          a smaller file at the cost of encode time. 80 is the sweet
+          spot: most of the size savings, most of the speed. Bumping it
+          to 100 on a large PNG can add seconds of processing for only a
+          few extra KB saved.
         </li>
         <li>
           <strong>Palette size (16&ndash;256 colors):</strong> PNG files
