@@ -394,11 +394,10 @@ function PreviewSlot({
         </div>
       )}
 
-      {/* Quality / effort slider — PNG is lossless, so the slider maps to DEFLATE effort */}
+      {/* Quality slider — hidden for PNG (lossless; effort slider was misleading) */}
+      {!(file.type === 'image/png' || /\.png$/i.test(file.name)) && (
       <div className="flex items-center gap-2">
-        <span className="w-14 shrink-0 text-xs text-fg-subtle">
-          {file.type === 'image/png' || /\.png$/i.test(file.name) ? 'Effort' : 'Quality'}
-        </span>
+        <span className="w-14 shrink-0 text-xs text-fg-subtle">Quality</span>
         <input
           type="range"
           min={1}
@@ -413,6 +412,7 @@ function PreviewSlot({
           {reCompressing ? 'Re-compressing…' : qualityChanged ? 'Override applied' : ` `}
         </span>
       </div>
+      )}
 
       {error && <div className="text-[11px] text-red-600">{error}</div>}
     </div>
