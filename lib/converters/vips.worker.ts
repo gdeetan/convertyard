@@ -206,7 +206,13 @@ self.onmessage = async (e: MessageEvent) => {
           encodeOpts.palette = true
           const paletteSize = typeof opts.paletteSize === 'string' ? parseInt(opts.paletteSize, 10) : (opts.paletteSize as number)
           if (paletteSize && paletteSize >= 16 && paletteSize <= 256) {
-            encodeOpts.bitdepth = Math.max(4, Math.min(8, Math.round(Math.log2(paletteSize))))
+            // libvips pngsave only accepts bitdepth 1,2,4,8 when palette=true.
+            // Use bitdepth 4 (max 16 colors) when palette ≤ 16; otherwise bitdepth 8
+            // and use Q to steer pngquant toward the requested color count.
+            encodeOpts.bitdepth = paletteSize <= 16 ? 4 : 8
+            if (paletteSize > 16) {
+              encodeOpts.Q = Math.max(10, Math.min(100, Math.round((paletteSize / 256) * 100)))
+            }
           }
         }
       } else if (outputFormat === 'gif') {
