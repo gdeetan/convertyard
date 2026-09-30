@@ -10,7 +10,7 @@ export const config: ToolConfig = {
   actionLabel: { verb: 'Compress', gerund: 'Compressing' },
   subtitle: 'Local-first PNG compression with a before/after slider. Batch up to 1,000 files, preserves transparency, nothing uploaded.',
   subtitlePosition: 'below-drop',
-  bestFor: 'Shrink screenshots, UI exports, logos, and product PNGs before uploading to a website, CMS, or email — without exposing files to a third-party server.',
+  bestFor: 'Compress screenshots, UI documentation, logos, or product PNG files before uploading to your website or CMS, or sending via email, without exposing files to a third-party server.',
   category: 'image-editing',
   accepts: ['image/png'],
   acceptsExt: ['.png'],
