@@ -64,6 +64,21 @@ export const config: ToolConfig = {
       hint: 'Converts to 256-color indexed PNG. Great for screenshots, logos, and flat illustrations — huge extra savings.',
     },
     {
+      type: 'radio',
+      name: 'paletteSize',
+      label: 'Palette size (colors)',
+      choices: [
+        { value: '256', label: '256' },
+        { value: '128', label: '128' },
+        { value: '64',  label: '64'  },
+        { value: '32',  label: '32'  },
+        { value: '16',  label: '16'  },
+      ],
+      default: '256',
+      dependsOn: { name: 'paletteReduction', value: true },
+      hint: 'Fewer colors = smaller file, but gradients start to band. 256 is safe for logos and complex illustrations.',
+    },
+    {
       type: 'number',
       name: 'customMaxDimension',
       label: 'Max width (px)',

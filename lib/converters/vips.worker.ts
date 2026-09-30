@@ -202,7 +202,13 @@ self.onmessage = async (e: MessageEvent) => {
       } else if (outputFormat === 'png') {
         // Map quality (1-100) to vips compression (0-9, higher = smaller/slower)
         encodeOpts.compression = Math.min(9, Math.round((100 - quality) * 9 / 100))
-        if (opts.paletteReduction === true) encodeOpts.palette = true
+        if (opts.paletteReduction === true) {
+          encodeOpts.palette = true
+          const paletteSize = typeof opts.paletteSize === 'string' ? parseInt(opts.paletteSize, 10) : (opts.paletteSize as number)
+          if (paletteSize && paletteSize >= 16 && paletteSize <= 256) {
+            encodeOpts.bitdepth = Math.max(4, Math.min(8, Math.round(Math.log2(paletteSize))))
+          }
+        }
       } else if (outputFormat === 'gif') {
         // gifsave: quality maps to palette bitdepth (2–8). Lower bitdepth = fewer colours, smaller file.
         encodeOpts.bitdepth = Math.max(2, Math.min(8, Math.round(2 + (quality / 100) * 6)))
