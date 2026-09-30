@@ -358,7 +358,7 @@ function PreviewSlot({
       ) : (
         <div
           ref={containerRef}
-          className={`grid grid-cols-2 gap-1 overflow-hidden rounded border border-border ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''} ${fullscreen ? 'min-h-0 flex-1' : ''}`}
+          className={`grid grid-cols-1 gap-1 overflow-hidden rounded border border-border sm:grid-cols-2 ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''} ${fullscreen ? 'min-h-0 flex-1' : ''}`}
           style={fullscreen ? undefined : { height: viewerHeight }}
           onPointerDown={zoom > 1 ? onPanPointerDown : undefined}
           onPointerMove={zoom > 1 ? onPanPointerMove : undefined}
