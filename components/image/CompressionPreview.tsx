@@ -171,6 +171,22 @@ function PreviewSlot({
   }
   const onPanPointerUp = () => { panDragging.current = false }
 
+  // Zoom around container center (used by slider) — keeps the middle of the
+  // viewer visually anchored as zoom changes, instead of drifting toward the
+  // top-left because transformOrigin is 0,0.
+  const zoomAroundCenter = (nz: number) => {
+    const el = containerRef.current
+    if (!el) { setZoom(nz); return }
+    const rect = el.getBoundingClientRect()
+    const cx = rect.width / 2
+    const cy = rect.height / 2
+    setZoom((z) => {
+      const ratio = nz / z
+      setPan((p) => ({ x: cx - ratio * (cx - p.x), y: cy - ratio * (cy - p.y) }))
+      return nz
+    })
+  }
+
   // Wheel zoom (bonus — slider is primary)
   useEffect(() => {
     const el = containerRef.current
@@ -276,7 +292,7 @@ function PreviewSlot({
           max={MAX_ZOOM}
           step={0.1}
           value={zoom}
-          onChange={(e) => setZoom(parseFloat(e.target.value))}
+          onChange={(e) => zoomAroundCenter(parseFloat(e.target.value))}
           className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-border accent-primary"
         />
         <span className="w-10 shrink-0 text-right text-xs tabular-nums text-fg-muted">{zoom.toFixed(1)}×</span>
