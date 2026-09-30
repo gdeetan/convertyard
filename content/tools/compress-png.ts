@@ -26,12 +26,12 @@ export const config: ToolConfig = {
     {
       type: 'slider',
       name: 'quality',
-      label: 'Quality',
+      label: 'Compression effort',
       min: 1,
       max: 100,
       step: 1,
       default: 80,
-      hint: '80 is the sweet spot — near-identical output at a fraction of the size. Drag the before/after slider to compare.',
+      hint: 'PNG is lossless — this doesn’t change how the image looks. It controls how hard the encoder works (more DEFLATE passes = smaller file, slower encode). 80 is the sweet spot.',
     },
     {
       type: 'number-with-chips',
@@ -50,7 +50,7 @@ export const config: ToolConfig = {
       ],
       min: 0,
       default: 0,
-      hint: '0 = no limit. The tool iterates quality, then dimensions (down to 50%), to hit the target.',
+      hint: '0 = no limit. PNG is lossless — to hit a target the tool ramps DEFLATE effort, then reduces the palette, then shrinks dimensions (down to 50%).',
     },
     {
       type: 'toggle',
