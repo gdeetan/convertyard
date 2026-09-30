@@ -142,6 +142,11 @@ const howToCompressPngSection = (
           in the palette becomes just 256 colors, which is great for
           logos, screenshots or UI illustrations.
         </li>
+        <li>
+          <strong>Max width (px):</strong> Enter a custom width to resize
+          the whole batch of PNG files if you want to reduce them to a
+          specific size for social media or uploading to a website.
+        </li>
       </ol>
 
       <h2 className="mt-8 text-2xl font-semibold text-fg">
