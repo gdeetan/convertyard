@@ -111,92 +111,12 @@ const howToCompressPngSection = (
       </ul>
 
       <h2 className="mt-8 text-2xl font-semibold text-fg">
-        The compression options (explainer)
+        Options Tab (for people who like to tweak)
       </h2>
       <p className="mt-4 text-base text-fg-muted">
-        First, a note that trips people up: <strong>PNG is lossless</strong>.
-        The compression-effort slider does <em>not</em> reduce visual
-        quality the way it does for JPG. It controls how hard the encoder
-        works &mdash; more DEFLATE passes produce a smaller file at the
-        cost of encode time. The pixels stay pixel-perfect. The only
-        setting on this page that actually changes how the PNG looks is
-        <strong> palette reduction</strong> (which converts to 8-bit
-        indexed color).
-      </p>
-      <p className="mt-4 text-base text-fg-muted">
-        There are four presets available. Choose one and compress. In
-        most cases, you don&rsquo;t need to touch anything else.
-      </p>
-
-      <div className="mt-4 overflow-x-auto rounded-lg border border-border">
-        <table className="w-full border-collapse text-left text-sm">
-          <thead className="bg-bg-subtle">
-            <tr>
-              <th className="border-b border-border px-4 py-3 font-semibold text-fg">Preset</th>
-              <th className="border-b border-border px-4 py-3 font-semibold text-fg">What it does</th>
-              <th className="border-b border-border px-4 py-3 font-semibold text-fg">When to use it</th>
-            </tr>
-          </thead>
-          <tbody className="text-fg-muted">
-            <tr className="border-b border-border">
-              <td className="px-4 py-3 align-top"><strong className="text-fg">Light</strong></td>
-              <td className="px-4 py-3 align-top">Fewer DEFLATE passes. Fastest encode, smallest savings. Pixel-perfect.</td>
-              <td className="px-4 py-3 align-top">When you need the compression to finish fast and the file only needs to shrink a little.</td>
-            </tr>
-            <tr className="border-b border-border">
-              <td className="px-4 py-3 align-top"><strong className="text-fg">Balanced</strong> <em>(default)</em></td>
-              <td className="px-4 py-3 align-top">Solid DEFLATE effort, still pixel-perfect. Good size drop in reasonable time.</td>
-              <td className="px-4 py-3 align-top">Almost every situation. Start here.</td>
-            </tr>
-            <tr className="border-b border-border">
-              <td className="px-4 py-3 align-top"><strong className="text-fg">Strong</strong></td>
-              <td className="px-4 py-3 align-top">Max DEFLATE effort + optional palette reduction. Smaller file, encode takes longer.</td>
-              <td className="px-4 py-3 align-top">When Balanced isn&rsquo;t small enough and you have a few extra seconds to spare.</td>
-            </tr>
-            <tr>
-              <td className="px-4 py-3 align-top"><strong className="text-fg">Extreme</strong></td>
-              <td className="px-4 py-3 align-top">Aggressive palette reduction (down to 8-bit indexed color). This <em>does</em> change how the image looks &mdash; visible banding on photos and gradients.</td>
-              <td className="px-4 py-3 align-top">When you really need it tiny and can accept the tradeoff.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      <h3 className="mt-6 text-xl font-semibold text-fg">Target size mode</h3>
-      <p className="mt-4 text-base text-fg-muted">
-        Only switch to &ldquo;Target size&rdquo; mode if you need to
-        compress the PNG file to a specific file size in KB or MB. The
-        default range is 256 KB to 8 MB. You can type a custom number in
-        KB or MB.
-      </p>
-      <p className="mt-4 text-base text-fg-muted">
-        <em>Disclaimer:</em> This feature doesn&rsquo;t guarantee the
-        tool will compress PNG files to this exact size, but it tries to
-        get as close as possible. Doing this helps maintain quality while
-        compressing the file. It&rsquo;s useful if you need to meet an
-        upload limit, like Slack&rsquo;s 25 MB message cap or an email
-        attachment limit.
-      </p>
-
-      <h2 className="mt-8 text-2xl font-semibold text-fg">
-        Manual controls (for users who love to tweak)
-      </h2>
-      <p className="mt-4 text-base text-fg-muted">
-        Turn on the &ldquo;Manual settings&rdquo; tab if you want full
-        control. Here&rsquo;s a brief explanation of what each one means.
+        Here&rsquo;s what each option under the &ldquo;Options&rdquo; tab do.
       </p>
       <ol className="mt-4 list-decimal space-y-2 pl-6 text-base text-fg-muted">
-        <li>
-          <strong>Compression effort (0&ndash;100):</strong> This is the
-          setting that catches people out. Unlike JPG, PNG is lossless,
-          so this slider <em>does not</em> change how the image looks.
-          What it actually controls is how hard the encoder works
-          &mdash; higher values mean more DEFLATE passes, which produce
-          a smaller file at the cost of encode time. 80 is the sweet
-          spot: most of the size savings, most of the speed. Bumping it
-          to 100 on a large PNG can add seconds of processing for only a
-          few extra KB saved.
-        </li>
         <li>
           <strong>Palette size (16&ndash;256 colors):</strong> PNG files
           can store up to 256 distinct colors. Fewer colors translate to
@@ -215,6 +135,12 @@ const howToCompressPngSection = (
           software used to create the graphic). This saves additional
           space, and I suggest turning it on if you&rsquo;re sharing the
           PNG file on a website.
+        </li>
+        <li>
+          <strong>Palette reduction:</strong> This feature converts a PNG
+          file to 256-colors, meaning a PNG file that may have 600 colors
+          in the palette becomes just 256 colors, which is great for
+          logos, screenshots or UI illustrations.
         </li>
       </ol>
 
