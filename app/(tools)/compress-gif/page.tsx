@@ -6,32 +6,36 @@ const howToCompressGifSection = (
   <section>
     <div>
       <p className="text-base text-fg-muted">
-        Compress large GIF animations to a more manageable size. Select
-        or drag/drop files, select a compression level or a target size,
-        then download. Everything is compressed in the browser. Nothing
-        is uploaded.
+        Compress large GIF files down to a size that you can send. Open
+        or drop your files, choose the correct setting, and download.
+        Everything is processed in the browser, and nothing is uploaded.
       </p>
 
       <h2 className="mt-8 text-2xl font-semibold text-fg">
         What is a GIF and what does this tool do?
       </h2>
       <p className="mt-4 text-base text-fg-muted">
-        GIF functions like a flipbook. Basically, it&rsquo;s a bunch of
-        photos stitched together that play in a loop. And that flipbook
-        can get huge, especially with more images and colors added.
-        Large GIFs look nice, but their file size can make it difficult
-        to share on social media or even on your website.
+        To help you better understand what this tool does, let me first
+        explain how a GIF works. Imagine a flipbook: a bunch of
+        hand-drawn or graphic pages stacked on top of each other. As you
+        flip through these pages rapidly, it creates an illusion of
+        movement. That basically is a GIF image, but in a digital
+        format.
       </p>
       <p className="mt-4 text-base text-fg-muted">
-        This is where this tool comes into play. It reduces the quality
-        of the images that make up the loop and reduces the number of
-        colors encoded in the file to reduce the file size, so you can
-        send these files through apps like Discord, as attachments
-        through email, add them to a post on your WordPress-powered
-        website, or send them as a text message.
-      </p>
-      <p className="mt-4 text-base text-fg-muted">
-        You can batch compress these files, up to 1,000 per batch.
+        One issue with GIF files is that their file size gets bloated
+        the more image stills you add. The more complex the movement,
+        the larger it gets, making it difficult to send, whether on
+        Discord or email. If you&rsquo;re using these GIFs on a website,
+        the large footprint will affect your website loading speed
+        negatively. One solution would be to use the WebP format
+        (Convertyard has a{' '}
+        <a href="/gif-to-webp/" className="text-primary underline hover:text-primary-hover">
+          GIF-to-WebP converter
+        </a>
+        ) to convert the GIF to a more efficient file format, or, if
+        the CMS you&rsquo;re using doesn&rsquo;t support WebP,
+        you&rsquo;ll need to compress the GIF.
       </p>
 
       <h2 className="mt-8 text-2xl font-semibold text-fg">What to expect?</h2>
