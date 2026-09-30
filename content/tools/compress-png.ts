@@ -1,7 +1,6 @@
 import { imageCompress } from '@/lib/converters/image-compress'
 import { ImageAnalyzerPanel } from '@/components/image/ImageAnalyzerPanel'
 import { ImageCompressionPreview } from '@/components/image/CompressionPreview'
-import { ImagePresetBar } from '@/components/image/ImagePresetBar'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -20,7 +19,6 @@ export const config: ToolConfig = {
 
   interactivePanel: ImageAnalyzerPanel,
   previewPanel: ImageCompressionPreview,
-  presetBar: ImagePresetBar,
 
   howItWorks: [
     { label: 'Drop your files', desc: 'Open/drog and drop, click to browse, up to 1,000 files at once. For large PNG files (over 20 MB) do batches of 100 to 200.' },
@@ -71,7 +69,7 @@ export const config: ToolConfig = {
       max: 256,
       step: 1,
       default: 256,
-      dependsOn: { name: 'paletteReduction', value: true },
+      dependsOn: { name: 'paletteReduction', value: 'true' },
       hint: 'Fewer colors = smaller file, but gradients start to band. 256 is safe for logos and complex illustrations.',
     },
     {
