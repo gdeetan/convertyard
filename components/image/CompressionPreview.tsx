@@ -378,9 +378,11 @@ function PreviewSlot({
         </div>
       )}
 
-      {/* Quality slider */}
+      {/* Quality / effort slider — PNG is lossless, so the slider maps to DEFLATE effort */}
       <div className="flex items-center gap-2">
-        <span className="w-10 shrink-0 text-xs text-fg-subtle">Quality</span>
+        <span className="w-14 shrink-0 text-xs text-fg-subtle">
+          {file.type === 'image/png' || /\.png$/i.test(file.name) ? 'Effort' : 'Quality'}
+        </span>
         <input
           type="range"
           min={1}
@@ -451,7 +453,7 @@ function ConversionPreview({
       </div>
 
       <p className="text-[11px] text-fg-subtle">
-        Tip: adjust each image&rsquo;s Quality slider to fine-tune — changes are applied to that file&rsquo;s
+        Tip: adjust each image&rsquo;s slider to fine-tune — changes are applied to that file&rsquo;s
         download and to the ZIP.
       </p>
     </div>
