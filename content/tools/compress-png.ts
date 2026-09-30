@@ -63,50 +63,21 @@ export const config: ToolConfig = {
       default: false,
       hint: 'Converts to 256-color indexed PNG. Great for screenshots, logos, and flat illustrations — huge extra savings.',
     },
-  ],
-
-  advancedOptions: [
-    {
-      type: 'section-header',
-      label: 'Resize on compress',
-    },
-    {
-      type: 'radio',
-      name: 'maxDimension',
-      label: 'Limit longest edge',
-      choices: [
-        { value: '0',      label: 'Original' },
-        { value: '1920',   label: '1920px (Full HD)' },
-        { value: '1280',   label: '1280px (Web)' },
-        { value: '800',    label: '800px (Thumbnail)' },
-        { value: 'custom', label: 'Custom width' },
-      ],
-      default: '0',
-      hint: 'Aspect ratio is preserved. Images smaller than the target are left untouched.',
-    },
     {
       type: 'number',
       name: 'customMaxDimension',
-      label: 'Custom width (px)',
-      min: 1,
+      label: 'Max width (px)',
+      min: 0,
       max: 20000,
       step: 1,
-      default: 1600,
-      dependsOn: { name: 'maxDimension', value: 'custom' },
-      hint: 'Applied to the longest edge. Never upscales.',
-    },
-    {
-      type: 'section-header',
-      label: 'Color',
-    },
-    {
-      type: 'toggle',
-      name: 'convertToSrgb',
-      label: 'Convert to sRGB',
-      default: true,
-      hint: 'Converts embedded ICC profile to sRGB — safer for web display, removes large ICC data.',
+      default: 0,
+      hint: '0 = keep original dimensions. Applied to the longest edge. Aspect ratio is preserved; never upscales.',
     },
   ],
+
+  derivedOptionsFn: (_files, options) => ({
+    maxDimension: (options.customMaxDimension as number) > 0 ? 'custom' : 0,
+  }),
 
   faq: [
     {
