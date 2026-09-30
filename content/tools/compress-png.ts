@@ -22,17 +22,14 @@ export const config: ToolConfig = {
   previewPanel: ImageCompressionPreview,
   presetBar: ImagePresetBar,
 
+  howItWorks: [
+    { label: 'Drop your files', desc: 'Open/drog and drop, click to browse, up to 1,000 files at once. For large PNG files (over 20 MB) do batches of 100 to 200.' },
+    { label: 'Choose settings', desc: 'Tweak the different options like target file size, strip metadata, or turn on the palette reduction to help get the size within the upload limits.' },
+    { label: 'Click Compress', desc: 'Everything runs in your browser via WebAssembly. PNG Compressor happens locally — no server involved.' },
+    { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+  ],
+
   options: [
-    {
-      type: 'slider',
-      name: 'quality',
-      label: 'Compression effort',
-      min: 1,
-      max: 100,
-      step: 1,
-      default: 80,
-      hint: 'PNG is lossless — this doesn’t change how the image looks. It controls how hard the encoder works (more DEFLATE passes = smaller file, slower encode). 80 is the sweet spot.',
-    },
     {
       type: 'number-with-chips',
       name: 'maxSizeKb',
@@ -146,8 +143,8 @@ export const config: ToolConfig = {
   relatedArticles: ['compress-images-without-losing-quality', 'lossless-vs-lossy', 'best-webp-quality', 'batch-convert-images'],
 
   meta: {
-    title: 'Compress PNG — Batch, In Your Browser (Free)',
+    title: 'Compress PNG Files',
     description:
-      'Compress up to 1,000 PNG files in your browser. Live before/after preview, target-size mode, keeps transparency. Nothing uploaded.',
+      'Compress PNG files in your browser, up to 1,000 image per batch. Reduce file size by over 80% for Free.',
   },
 }
