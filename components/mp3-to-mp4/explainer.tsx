@@ -23,13 +23,13 @@ export function Mp3ToMp4Explainer() {
       <h2>What is an MP4 file?</h2>
       <p>
         MP4 (or MPEG-4 Part 14) is a container file format, meaning it can
-        hold a video track, audio track, subtitles, and metadata. Most of the
-        videos you see online use an MP4 format. Videos on YouTube, TikTok
-        Clips, or Zoom exports. The audio inside is encoded as AAC, a newer,
-        more efficient version of MP3. MP4 is the default option for most
-        content creators because it&rsquo;s widely compatible across
-        platforms like YouTube, Facebook, and Instagram. All these websites
-        accept this format.
+        hold a video track, audio track, subtitles, and metadata. Most of
+        the videos you see online use an MP4 format. Videos on YouTube,
+        TikTok Clips, or Zoom exports. The audio inside is encoded as AAC,
+        a newer, more efficient version of MP3. MP4 is the default option
+        for most content creators because it&rsquo;s widely compatible
+        across platforms like YouTube, Facebook, and Instagram. All these
+        websites accept this format.
       </p>
     </div>
   )
