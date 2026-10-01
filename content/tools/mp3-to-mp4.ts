@@ -139,7 +139,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Does audio quality change during conversion?',
-      a: 'No. For MP3 inputs the audio track is copied straight into the MP4 — no re-encoding, no quality loss, and the conversion runs dramatically faster. WAV, OGG, FLAC, and AAC inputs are encoded to AAC at 192 kbps, which is perceptually transparent on normal speakers or headphones.',
+      a: 'The audio is re-encoded from MP3 to AAC at 192 kbps. AAC at 192 kbps is perceptually transparent — most listeners cannot distinguish it from the MP3 original on normal speakers or headphones.',
     },
     {
       q: 'Are my files uploaded to any server?',

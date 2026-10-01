@@ -263,19 +263,8 @@ export async function mp3ToMp4(
           ? ['-loop', '1', '-i', imageName, ...trimArgs, '-i', inputName]
           : ['-f', 'lavfi', '-i', `color=c=${lavfiColor}:size=${w}x${h}:rate=${lavfiRate}`, ...trimArgs, '-i', inputName]
 
-      // For MP3 input, copy the audio stream straight into the MP4 — skips a
-      // real-time wasm AAC re-encode and keeps the source quality byte-for-byte.
-      // Explicit -f mp4 + -movflags/-fflags make the MP4 muxer accept raw MP3
-      // packets; without them the muxer aborts and the worker dies with
-      // "ffmpeg is not loaded" on the next call. Other formats re-encode to AAC.
-      const audioCodecArgs = ext.toLowerCase() === 'mp3'
-        ? ['-c:a', 'copy']
-        : ['-c:a', 'aac', '-b:a', '192k']
-      const muxerArgs = ext.toLowerCase() === 'mp3'
-        ? ['-f', 'mp4', '-movflags', '+faststart', '-fflags', '+genpts']
-        : []
       const baseCodecArgs = ['-c:v', 'libx264', '-crf', '28', '-preset', 'ultrafast',
-                             ...audioCodecArgs, ...muxerArgs, '-shortest']
+                             '-c:a', 'aac', '-b:a', '192k', '-shortest']
 
       const progressHandler = ({ progress }: { progress: number }) => {
         const base = captions ? 40 : 15
