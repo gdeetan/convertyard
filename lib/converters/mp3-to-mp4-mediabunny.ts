@@ -154,6 +154,22 @@ async function _mp3ToMp4Passthrough(
     const audioTrack = await feedInput.getPrimaryAudioTrack()
     if (!audioTrack) throw new Error('No audio track on second open')
 
+    // MP3's getDecoderConfig() returns null in Mediabunny, which leaves the
+    // muxer without the info it needs to write a valid mp4a/mp3 track header —
+    // the output file then plays with no audio. Build the config ourselves
+    // from the track's sample rate and channel count.
+    let decoderConfig: AudioDecoderConfig | null = null
+    try {
+      decoderConfig = await audioTrack.getDecoderConfig()
+    } catch {
+      // fall through
+    }
+    if (!decoderConfig) {
+      const sampleRate = await audioTrack.getSampleRate()
+      const numberOfChannels = audioTrack.numberOfChannels
+      decoderConfig = { codec, sampleRate, numberOfChannels }
+    }
+
     const sink = new EncodedPacketSink(audioTrack)
 
     // Estimate total packet count for progress (best-effort, not required)
@@ -201,18 +217,9 @@ async function _mp3ToMp4Passthrough(
         packet.sequenceNumber,
       )
 
-      // First packet: pass the decoder config metadata
+      // First packet: pass the decoder config metadata (always available now)
       if (isFirstPacket) {
-        let decoderConfig: AudioDecoderConfig | null = null
-        try {
-          decoderConfig = await audioTrack.getDecoderConfig()
-        } catch {
-          // best-effort
-        }
-        const meta = decoderConfig
-          ? ({ decoderConfig } as EncodedAudioChunkMetadata)
-          : undefined
-        await audioSrc.add(shifted, meta)
+        await audioSrc.add(shifted, { decoderConfig } as EncodedAudioChunkMetadata)
         isFirstPacket = false
       } else {
         await audioSrc.add(shifted)
