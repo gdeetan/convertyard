@@ -1,30 +1,20 @@
 /**
  * mp3-to-mp4-mediabunny.ts
  *
- * Fast MP3→MP4 passthrough using Mediabunny. Pre-encoded MP3 packets are muxed
- * directly into MP4 without decode/re-encode. A trivial black canvas is encoded
- * via WebCodecs to produce the video track (1-fps AVC, tiny bitrate).
+ * Fast MP3→MP4 path. Decodes MP3 via WebCodecs (through Mediabunny's
+ * AudioSampleSink), re-encodes to AAC via Mediabunny's AudioSampleSource,
+ * and muxes with a static-color video track. Avoids ffmpeg.wasm entirely
+ * on the simple case → seconds instead of minutes on long podcasts.
  *
- * Use isMp3PassthroughSupported() to gate; falls back to ffmpeg.wasm otherwise.
- */
-
-// ---------------------------------------------------------------------------
-// Capability detection
-// ---------------------------------------------------------------------------
-
-/**
- * Returns true when the environment can run the Mediabunny MP3 passthrough
- * path. Requirements:
- *   - VideoEncoder (WebCodecs) present
- *   - OffscreenCanvas present
- *   - Not mobile (iOS / Android)
- *   - Not an iPad masquerading as Mac (maxTouchPoints > 1 + Macintosh UA)
- *
- * Unlike isMediabunnySupported() we do NOT require OPFS — we use BufferTarget.
+ * Why AAC and not MP3 passthrough? MP3-in-MP4 is spec-legal but Safari and
+ * QuickTime routinely drop the track → silent output. AAC is universally
+ * supported.
  */
 export function isMp3PassthroughSupported(): boolean {
   if (typeof navigator === 'undefined') return false
   if (typeof VideoEncoder === 'undefined') return false
+  if (typeof AudioEncoder === 'undefined') return false
+  if (typeof AudioDecoder === 'undefined') return false
   if (typeof OffscreenCanvas === 'undefined') return false
   const ua = navigator.userAgent
   if (/Android|iPhone|iPad|iPod/i.test(ua)) return false
@@ -32,18 +22,14 @@ export function isMp3PassthroughSupported(): boolean {
   return true
 }
 
-// ---------------------------------------------------------------------------
-// Main converter
-// ---------------------------------------------------------------------------
-
 export async function mp3ToMp4Passthrough(
   file: File,
   opts: {
     w: number
     h: number
-    bgColor: string       // hex e.g. '#000000'
-    trimStartSec: number  // 0 = no trim at start
-    trimEndSec: number    // 0 = no trim at end
+    bgColor: string
+    trimStartSec: number
+    trimEndSec: number
   },
   onProgress?: (pct: number) => void,
 ): Promise<File> {
@@ -61,10 +47,8 @@ async function _mp3ToMp4Passthrough(
   onProgress?: (pct: number) => void,
 ): Promise<File> {
   const report = (pct: number) => onProgress?.(Math.round(pct))
-
   report(0)
 
-  // Dynamic import — keeps mediabunny out of the initial JS bundle.
   const {
     Input,
     Output,
@@ -72,39 +56,36 @@ async function _mp3ToMp4Passthrough(
     BufferTarget,
     Mp4OutputFormat,
     ALL_FORMATS,
-    EncodedAudioPacketSource,
-    EncodedPacketSink,
-    EncodedPacket: MbEncodedPacket,
+    AudioSampleSink,
+    AudioSampleSource,
     CanvasSource,
+    AudioSample,
+    canEncodeAudio,
   } = await import('mediabunny')
 
   report(2)
 
-  // ------------------------------------------------------------------
-  // Probe the MP3 source — need codec, sample rate, channel count, duration
-  // so we can hand the muxer a complete AudioDecoderConfig at track-add time.
-  // ------------------------------------------------------------------
+  const AAC_BITRATE = 192_000
+  if (!(await canEncodeAudio('aac', { bitrate: AAC_BITRATE }))) {
+    throw new Error('Browser cannot encode AAC via WebCodecs')
+  }
+
+  // --- Probe input ----------------------------------------------------------
   const probeInput = new Input({ source: new BlobSource(file), formats: ALL_FORMATS })
   let durationSec: number
-  let codec: string | null
   let sampleRate = 0
   let numberOfChannels = 0
-
   try {
     const audioTrack = await probeInput.getPrimaryAudioTrack()
-    if (!audioTrack) {
-      throw new Error('No audio track found in file')
-    }
+    if (!audioTrack) throw new Error('No audio track found in file')
     durationSec = await probeInput.computeDuration()
-    codec = await audioTrack.getCodec()
     sampleRate = await audioTrack.getSampleRate()
     numberOfChannels = audioTrack.numberOfChannels
   } finally {
     probeInput.dispose()
   }
-
-  if (!codec) {
-    throw new Error('Could not detect audio codec — file may be corrupt')
+  if (!Number.isFinite(durationSec) || durationSec <= 0) {
+    throw new Error(`Invalid duration: ${durationSec}`)
   }
   if (!Number.isInteger(sampleRate) || sampleRate <= 0) {
     throw new Error(`Invalid sample rate: ${sampleRate}`)
@@ -113,184 +94,99 @@ async function _mp3ToMp4Passthrough(
     throw new Error(`Invalid channel count: ${numberOfChannels}`)
   }
 
-  console.log('[mp3-to-mp4] probe:', { codec, sampleRate, numberOfChannels, durationSec })
-
-  report(5)
-
-  // ------------------------------------------------------------------
-  // Determine effective duration after trim
-  // ------------------------------------------------------------------
   const { trimStartSec, trimEndSec } = opts
   const effectiveEnd = trimEndSec > 0 ? Math.min(trimEndSec, durationSec) : durationSec
   const effectiveStart = trimStartSec > 0 ? Math.min(trimStartSec, effectiveEnd) : 0
   const effectiveDuration = Math.max(0, effectiveEnd - effectiveStart)
+  if (effectiveDuration <= 0) throw new Error('Trim range produces an empty clip')
 
-  if (effectiveDuration <= 0) {
-    throw new Error('Trim range produces an empty clip')
-  }
+  report(5)
 
+  // --- Build output ---------------------------------------------------------
   const { w, h, bgColor } = opts
-
-  // ------------------------------------------------------------------
-  // Build output
-  // ------------------------------------------------------------------
   const bufTarget = new BufferTarget()
   const output = new Output({ format: new Mp4OutputFormat(), target: bufTarget })
 
-  // Audio: passthrough MP3 packets. Pass the decoder config up front so
-  // Mediabunny can write a complete track header before any packets arrive.
-  const audioDecoderConfig: AudioDecoderConfig = { codec, sampleRate, numberOfChannels }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const audioSrc = new EncodedAudioPacketSource(codec as any)
-  output.addAudioTrack(audioSrc, { decoderConfig: audioDecoderConfig })
+  const audioSrc = new AudioSampleSource({
+    codec: 'aac',
+    bitrate: AAC_BITRATE,
+  })
+  output.addAudioTrack(audioSrc)
+  void numberOfChannels; void sampleRate
 
-  // Video: single black OffscreenCanvas, 1-fps AVC, low bitrate
   const canvas = new OffscreenCanvas(w, h)
   const ctx = canvas.getContext('2d')
   if (!ctx) throw new Error('OffscreenCanvas 2d context unavailable')
   ctx.fillStyle = bgColor
   ctx.fillRect(0, 0, w, h)
 
-  const videoSrc = new CanvasSource(canvas, {
-    codec: 'avc',
-    bitrate: 100_000,
-  })
+  const videoSrc = new CanvasSource(canvas, { codec: 'avc', bitrate: 100_000 })
   output.addVideoTrack(videoSrc)
 
   await output.start()
   report(8)
 
-  // ------------------------------------------------------------------
-  // Feed audio packets
-  // ------------------------------------------------------------------
+  // --- Feed audio (decode→AAC via WebCodecs, no ffmpeg) ---------------------
   const feedInput = new Input({ source: new BlobSource(file), formats: ALL_FORMATS })
-
   try {
     const audioTrack = await feedInput.getPrimaryAudioTrack()
     if (!audioTrack) throw new Error('No audio track on second open')
 
-    const sink = new EncodedPacketSink(audioTrack)
+    const sink = new AudioSampleSink(audioTrack)
+    let lastReport = Date.now()
+    let addedSeconds = 0
 
-    // Estimate total packet count for progress (best-effort, not required)
-    let totalPackets = 0
-    try {
-      const stats = await audioTrack.computePacketStats()
-      totalPackets = stats?.packetCount ?? 0
-    } catch {
-      // ignore — progress will be time-based fallback
-    }
-
-    let packetIndex = 0
-    let addedCount = 0
-    let firstKeptTs = -1
-    let lastKeptTs = -1
-    let tsOffset = 0          // shift so trimmed output starts at t=0
-    let tsOffsetSet = false
-    let isFirstPacket = true
-    console.log('[mp3-to-mp4] totalPackets (estimated):', totalPackets)
-    let lastProgressPct = 8
-    let lastProgressTime = Date.now()
-
-    for await (const packet of sink.packets()) {
-      const packetEnd = packet.timestamp + packet.duration
-
-      // Skip packets entirely before trim start
-      if (trimStartSec > 0 && packetEnd <= effectiveStart) {
-        packetIndex++
-        continue
-      }
-
-      // Stop after trim end
-      if (trimEndSec > 0 && packet.timestamp >= effectiveEnd) {
-        break
-      }
-
-      // On first kept packet, record timestamp offset so output starts at 0
-      if (!tsOffsetSet) {
-        tsOffset = packet.timestamp
-        tsOffsetSet = true
-      }
-
-      const shiftedTs = packet.timestamp - tsOffset
-      const shifted = new MbEncodedPacket(
-        packet.data,
-        packet.type,
-        shiftedTs,
-        packet.duration,
-        packet.sequenceNumber,
-      )
-
-      // decoderConfig was already provided to addAudioTrack above; packets
-      // just need their timing. First packet still needs the meta so the
-      // muxer initialises track state before writing samples.
-      if (isFirstPacket) {
-        console.log('[mp3-to-mp4] first packet:', {
-          type: shifted.type, ts: shifted.timestamp, dur: shifted.duration,
-          seq: shifted.sequenceNumber, byteLen: shifted.data.byteLength,
-          decoderConfig: audioDecoderConfig,
-        })
-        await audioSrc.add(shifted, { decoderConfig: audioDecoderConfig } as EncodedAudioChunkMetadata)
-        isFirstPacket = false
+    for await (const sample of sink.samples(effectiveStart, effectiveEnd)) {
+      // Shift timestamp so output starts at 0.
+      const shiftedTs = sample.timestamp - effectiveStart
+      let outSample: InstanceType<typeof AudioSample>
+      if (shiftedTs === sample.timestamp) {
+        outSample = sample
       } else {
-        await audioSrc.add(shifted)
+        const bufSize = sample.allocationSize({ planeIndex: 0, format: sample.format })
+        const data = new ArrayBuffer(bufSize)
+        sample.copyTo(data, { planeIndex: 0, format: sample.format })
+        outSample = new AudioSample({
+          data,
+          format: sample.format,
+          numberOfChannels: sample.numberOfChannels,
+          sampleRate: sample.sampleRate,
+          timestamp: shiftedTs,
+        })
+        sample.close()
       }
+      await audioSrc.add(outSample)
+      addedSeconds = shiftedTs + outSample.duration
 
-      if (firstKeptTs < 0) firstKeptTs = shifted.timestamp
-      lastKeptTs = shifted.timestamp + shifted.duration
-      addedCount++
-      packetIndex++
-
-      // Progress: ~every 500ms or ~5% of packets
       const now = Date.now()
-      const shouldReport =
-        now - lastProgressTime >= 500 ||
-        (totalPackets > 0 && packetIndex / totalPackets - lastProgressPct / 100 >= 0.05)
-
-      if (shouldReport) {
-        const audioPct = totalPackets > 0
-          ? (packetIndex / totalPackets) * 80
-          : Math.min(80, (shiftedTs / effectiveDuration) * 80)
-        const pct = 8 + audioPct
-        report(pct)
-        lastProgressPct = pct
-        lastProgressTime = now
+      if (now - lastReport >= 300) {
+        const audioPct = Math.min(80, (addedSeconds / effectiveDuration) * 80)
+        report(8 + audioPct)
+        lastReport = now
       }
     }
-    console.log('[mp3-to-mp4] audio feeding done:', {
-      packetIndex, addedCount, firstKeptTs, lastKeptTs,
-    })
   } finally {
     feedInput.dispose()
   }
 
   report(88)
 
-  // ------------------------------------------------------------------
-  // Feed video: one black frame per second across effective duration
-  // ------------------------------------------------------------------
-  const frameCount = Math.max(1, Math.floor(effectiveDuration))
-  for (let i = 0; i < frameCount; i++) {
+  // --- Feed video: 1-fps black frames spanning the duration -----------------
+  const wholeSeconds = Math.max(1, Math.floor(effectiveDuration))
+  for (let i = 0; i < wholeSeconds; i++) {
     await videoSrc.add(i, 1)
   }
-  // Final partial-second frame if needed
-  const remainder = effectiveDuration - frameCount
+  const remainder = effectiveDuration - wholeSeconds
   if (remainder > 0.01) {
-    await videoSrc.add(frameCount, remainder)
+    await videoSrc.add(wholeSeconds, remainder)
   }
-
   report(95)
 
-  // ------------------------------------------------------------------
-  // Finalize and return
-  // ------------------------------------------------------------------
   await output.finalize()
-
-  report(100)
-
   const bytes = bufTarget.buffer
   if (!bytes) throw new Error('BufferTarget produced no data after finalize')
-  console.log('[mp3-to-mp4] finalize done, bytes:', bytes.byteLength)
 
+  report(100)
   const baseName = file.name.replace(/\.[^.]+$/, '')
   return new File([bytes], `${baseName}.mp4`, { type: 'video/mp4' })
 }

@@ -49,7 +49,7 @@ export function buildFilterComplex(spec: FilterSpec): FilterOutput {
   }
 
   if (captions && captionAssName) {
-    parts.push(`${last}ass='${captionAssName}'[v]`)
+    parts.push(`${last}ass='${captionAssName}':fontsdir=/capfonts[v]`)
     last = '[v]'
   } else if (last !== '[v]') {
     parts.push(`${last}null[v]`)
