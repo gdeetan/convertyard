@@ -6,11 +6,12 @@ const howToCompressPngSection = (
   <section>
     <div>
       <p className="text-base text-fg-muted">
-        Compress bulky PNG files to a more manageable size without
-        uploading files to an unknown server. Open or drop one PNG file
-        or up to a thousand per batch, select a preset or enter a target
-        size, compress, then download. Transparency will be preserved
-        (for transparent PNGs).
+        Compress bulky PNG files to a more manageable size{' '}
+        <strong>without uploading files to an unknown server</strong>.
+        Open or drop one PNG file or <strong>up to a thousand per
+        batch</strong>, select a preset or enter a target size,
+        compress, then download. <strong>Transparency will be
+        preserved</strong> (for transparent PNGs).
       </p>
 
       <h2 className="mt-8 text-2xl font-semibold text-fg">
@@ -26,9 +27,9 @@ const howToCompressPngSection = (
         would owe money to Unisys if it used a GIF file.
       </p>
       <p className="mt-4 text-base text-fg-muted">
-        PNG files are lossless, meaning every pixel is stored as is.
-        There&rsquo;s no quality loss even after saving them again and
-        again, unlike JPG files, which get blurrier with each re-save
+        PNG files are <strong>lossless, meaning every pixel is stored
+        as is</strong>. There&rsquo;s no quality loss even after saving
+        them again and again, unlike JPG files, which get blurrier with each re-save
         because a small portion of the pixels get distorted. Another
         advantage of PNG over lossy formats like JPG is that it supports
         transparent backgrounds. This is great for logos, icons,
@@ -37,8 +38,9 @@ const howToCompressPngSection = (
       </p>
       <p className="mt-4 text-base text-fg-muted">
         Unfortunately, PNG&rsquo;s lossless nature means larger file
-        sizes. For example, a screenshot that&rsquo;s around 180 KB could
-        balloon to over 1.5 MB if saved as a PNG file. A whole folder of
+        sizes. For example, <strong>a screenshot that&rsquo;s around
+        180 KB could balloon to over 1.5 MB if saved as a PNG
+        file</strong>. A whole folder of
         UI screenshots for a knowledge base for a software company would
         mean hundreds of megabytes, if not gigabytes, of storage wasted,
         which adds up to higher hosting costs, in addition to
@@ -75,32 +77,35 @@ const howToCompressPngSection = (
         </li>
       </ol>
       <p className="mt-4 text-base text-fg-muted">
-        Nothing is uploaded to a server, so you can compress project files
-        or confidential screenshots without worrying about anyone stealing
-        your ideas.
+        <strong>Nothing is uploaded to a server</strong>, so you can
+        compress project files or confidential screenshots without
+        worrying about anyone stealing your ideas.
       </p>
 
       <h2 className="mt-8 text-2xl font-semibold text-fg">What to expect</h2>
       <ul className="mt-4 list-disc space-y-2 pl-6 text-base text-fg-muted">
         <li>
-          Typically, PNG files will compress between 60 and 80% using the
-          Balanced preset. The biggest beneficiaries would be screenshots
-          or UI images at the higher end of that range. Unfortunately,
+          Typically, <strong>PNG files will compress between 60 and 80%
+          using the Balanced preset</strong>. The biggest beneficiaries
+          would be screenshots or UI images at the higher end of that
+          range. Unfortunately,
           photographs or images with more complex graphics compress less.
         </li>
         <li>
-          Images with fewer colors will compress by 85% or more without
-          visual degradation.
+          <strong>Images with fewer colors will compress by 85% or more
+          without visual degradation.</strong>
         </li>
         <li>
-          PNG files with a transparent background will be preserved by
-          default, as well as the dimensions, unless specified. So a
+          <strong>PNG files with a transparent background will be
+          preserved by default</strong>, as well as the dimensions,
+          unless specified. So a
           2,000 &times; 2,000 pixel PNG file will retain the same
           dimensions but at a smaller file size.
         </li>
         <li>
-          This tool will work even on PNG files a few hundred megabytes,
-          but that would depend on how much memory your system has. If
+          <strong>This tool will work even on PNG files a few hundred
+          megabytes</strong>, but that would depend on how much memory
+          your system has. If
           your computer has less memory, the browser may stall, which can
           also happen with graphics software like Adobe.
         </li>
@@ -164,8 +169,9 @@ const howToCompressPngSection = (
         them. Quantization reviews the image, selects the 256 (or fewer)
         colors that best represent it, then rewrites every pixel to use
         each one of those colors. If done properly, you won&rsquo;t
-        notice the difference. This is where most file savings come from,
-        usually chopping 60 to 80% off the original file size.
+        notice the difference. <strong>This is where most file savings
+        come from, usually chopping 60 to 80% off the original file
+        size.</strong>
       </p>
       <p className="mt-4 text-base text-fg-muted">
         The second layer is called Zlib re-encoding (lossless). After the
@@ -173,15 +179,15 @@ const howToCompressPngSection = (
         valid PNG data, but it&rsquo;s still not as compact as it could
         be. A second pass inspects the file and tries dozens of
         compression strategies, and chooses the smallest result.
-        There&rsquo;s no pixel change, and this typically shaves another
-        5&ndash;15% of unnecessary bloat.
+        <strong>There&rsquo;s no pixel change, and this typically shaves
+        another 5&ndash;15% of unnecessary bloat.</strong>
       </p>
       <p className="mt-4 text-base text-fg-muted">
         This tool uses WebAssembly builds of &ldquo;pngquant&rdquo;
         (layer 1) and &ldquo;oxipng&rdquo; (layer 2), which is the same
         stack that tools like ImageOptim, TinyPNG, and Squoosh.app use.
-        The only difference is that ConvertYard runs it in your browser
-        and not on another server.
+        <strong>The only difference is that ConvertYard runs it in your
+        browser and not on another server.</strong>
       </p>
 
       <h2 className="mt-8 text-2xl font-semibold text-fg">
@@ -199,12 +205,13 @@ const howToCompressPngSection = (
         <li>Your files are exposed if there is a data breach or leak.</li>
       </ol>
       <p className="mt-4 text-base text-fg-muted">
-        ConvertYard runs the whole system inside the browser. Files
-        aren&rsquo;t uploaded to a server. It processes larger files
-        faster because you don&rsquo;t have to wait for the upload to
-        finish, which is great if you have a slower connection. And
-        there&rsquo;s no limit on how many PNG files you can compress as
-        long as your computer&rsquo;s memory can handle it. For larger
+        <strong>ConvertYard runs the whole system inside the browser.
+        Files aren&rsquo;t uploaded to a server.</strong> It processes
+        larger files faster because you don&rsquo;t have to wait for the
+        upload to finish, which is great if you have a slower
+        connection. And <strong>there&rsquo;s no limit on how many PNG
+        files you can compress as long as your computer&rsquo;s memory
+        can handle it</strong>. For larger
         PNG files, I would recommend limiting it to 100 to 200 per batch,
         lower for high-resolution files.
       </p>

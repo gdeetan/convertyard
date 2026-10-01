@@ -69,14 +69,6 @@ export const config: ToolConfig = {
       hint: 'Keeps the alpha channel. Turn off to flatten transparent pixels onto a solid background colour (smaller file).',
     },
     {
-      type: 'color-picker',
-      name: 'bgColor',
-      label: 'Background colour',
-      default: '#ffffff',
-      dependsOn: { name: 'preserveTransparency', value: 'false' },
-      hint: 'Shown behind the image once transparency is removed. Visible in the preview.',
-    },
-    {
       type: 'slider',
       name: 'paletteSize',
       label: 'Palette size (colors)',
@@ -86,6 +78,14 @@ export const config: ToolConfig = {
       default: 256,
       dependsOn: { name: 'paletteReduction', value: 'true' },
       hint: 'Fewer colors = smaller file, but gradients start to band. 256 is safe for logos and complex illustrations.',
+    },
+    {
+      type: 'color-picker',
+      name: 'bgColor',
+      label: 'Background colour',
+      default: '#ffffff',
+      dependsOn: { name: 'preserveTransparency', value: 'false' },
+      hint: 'Shown behind the image once transparency is removed. Visible in the preview.',
     },
     {
       type: 'number',
