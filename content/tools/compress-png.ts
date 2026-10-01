@@ -62,13 +62,6 @@ export const config: ToolConfig = {
       hint: 'Converts to 256-color indexed PNG. Great for screenshots, logos, and flat illustrations — huge extra savings.',
     },
     {
-      type: 'toggle',
-      name: 'preserveTransparency',
-      label: 'Preserve transparency',
-      default: true,
-      hint: 'Keeps the alpha channel. Turn off to flatten transparent pixels onto a solid background colour (smaller file).',
-    },
-    {
       type: 'slider',
       name: 'paletteSize',
       label: 'Palette size (colors)',
@@ -78,6 +71,13 @@ export const config: ToolConfig = {
       default: 256,
       dependsOn: { name: 'paletteReduction', value: 'true' },
       hint: 'Fewer colors = smaller file, but gradients start to band. 256 is safe for logos and complex illustrations.',
+    },
+    {
+      type: 'toggle',
+      name: 'preserveTransparency',
+      label: 'Preserve transparency',
+      default: true,
+      hint: 'Keeps the alpha channel. Turn off to flatten transparent pixels onto a solid background colour (smaller file).',
     },
     {
       type: 'color-picker',
