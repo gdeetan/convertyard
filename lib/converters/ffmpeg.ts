@@ -263,8 +263,15 @@ export async function mp3ToMp4(
           ? ['-loop', '1', '-i', imageName, ...trimArgs, '-i', inputName]
           : ['-f', 'lavfi', '-i', `color=c=${lavfiColor}:size=${w}x${h}:rate=${lavfiRate}`, ...trimArgs, '-i', inputName]
 
+      // For MP3 input, copy the audio stream into MP4 (universally supported by
+      // YouTube/Instagram/TikTok/Safari). Skips a real-time re-encode on wasm
+      // and is the dominant speedup for long files. Other formats re-encode to
+      // AAC 192k for broad MP4 compatibility.
+      const audioCodecArgs = ext.toLowerCase() === 'mp3'
+        ? ['-c:a', 'copy']
+        : ['-c:a', 'aac', '-b:a', '192k']
       const baseCodecArgs = ['-c:v', 'libx264', '-crf', '28', '-preset', 'ultrafast',
-                             '-c:a', 'aac', '-b:a', '192k', '-shortest']
+                             ...audioCodecArgs, '-shortest']
 
       const progressHandler = ({ progress }: { progress: number }) => {
         const base = captions ? 40 : 15
