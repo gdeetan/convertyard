@@ -1,5 +1,6 @@
 import { mp3ToMp4 } from '@/lib/converters/ffmpeg'
 import type { ToolConfig } from '@/lib/types'
+import { Mp3ToMp4Explainer } from '@/components/mp3-to-mp4/explainer'
 
 const LARGE_FILE_BYTES = 200 * 1024 * 1024
 
@@ -14,6 +15,7 @@ export const config: ToolConfig = {
   outputExt: '.mp4',
   convertFn: mp3ToMp4,
   enablePresets: true,
+  explainer: Mp3ToMp4Explainer,
 
   warningFn: (files) => {
     const hasLarge = files.some((f) => f.size > LARGE_FILE_BYTES)
