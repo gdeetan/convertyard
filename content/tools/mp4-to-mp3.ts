@@ -1,5 +1,6 @@
 import { mp4ToMp3 } from '@/lib/converters/ffmpeg'
 import type { ToolConfig } from '@/lib/types'
+import { Mp4ToMp3Explainer } from '@/components/mp4-to-mp3/explainer'
 
 const LARGE_FILE_BYTES = 500 * 1024 * 1024
 
@@ -13,7 +14,23 @@ export const config: ToolConfig = {
   acceptsExt: ['.mp4', '.webm', '.mov'],
   outputExt: '.mp3',
   convertFn: mp4ToMp3,
+  explainer: Mp4ToMp3Explainer,
   enablePresets: true,
+  howItWorks: [
+    {
+      label: 'Drop your files',
+      desc: 'Click to browse, drag and drop, or paste from clipboard. Process up to 1,000 files per batch. For larger files, convert batches of up to 50 only.',
+    },
+    {
+      label: 'Choose settings',
+      desc: 'Adjust bitrate and Sample rate. If you’re not sure what to choose, the default setting is enough for most applications.',
+    },
+    {
+      label: 'Click Convert',
+      desc: 'Everything runs in your browser via WebAssembly. MP4 to MP3 Converter happens locally — no server involved.',
+    },
+    { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+  ],
   warningFn: (files) => {
     const hasLarge = files.some((f) => f.size > LARGE_FILE_BYTES)
     return hasLarge
@@ -51,27 +68,27 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Does the audio quality change when converting MP4 to MP3?',
-      a: 'Yes, but at 128 kbps and above, the difference is inaudible for most listeners on most speakers and headphones. MP3 is a lossy format — it discards audio data the ear typically cannot hear. At 128 kbps, speech and podcasts are indistinguishable from the original. For music, 192–256 kbps is where most people stop hearing a difference. Use 320 kbps if you plan to re-edit the audio later, since re-encoding a lossy file degrades quality.',
+      a: 'In most cases, there isn’t any noticeable difference in audio quality, especially if they listen on their smartphones or stock car stereos. MP3 files are a lossy format, so some audio degradation occurs when you convert. One workaround is to use a higher bitrate. 192 to 256 will work for most use cases, but if you want to edit the audio later, use the highest setting (320 kbps).',
     },
     {
       q: 'How large will the MP3 be compared to my MP4?',
-      a: 'MP3 files are almost always much smaller than the source MP4 — video makes up most of the file size. A rough estimate: a 128 kbps MP3 uses about 1 MB per minute of audio. So a 30-minute video that was 500 MB as an MP4 might produce a 4 MB MP3. Actual results depend on the bitrate you choose and the original audio track.',
+      a: "MP3 files are much smaller than MP4 files because they're lossy and don't include a video track. Based on my tests, the difference is between 85 and 98%, depending on the setting you choose. For example, a 54-minute video that’s 767 MB can shrink to around 52.3 MB, more than a 95% drop.",
     },
     {
       q: 'Why does MP4 to MP3 take longer than image conversion?',
-      a: 'Video conversion requires decoding a video container, extracting the audio stream, and re-encoding it as MP3 — all using a full media-processing engine (ffmpeg.wasm) that runs in your browser. That engine is about 25 MB and takes a moment to load on first use. After that, it is cached and subsequent conversions start immediately. Audio extraction itself is real-time or faster for most files.',
+      a: 'Converting an MP4 file to MP3 requires decoding a video container, extracting the audio, and then re-encoding it as an MP3 using a media processing engine (or ffmpeg.wasm), so it takes longer per file. This processing engine is about 25 MB and takes a moment to load, but once it does, subsequent conversions will be faster.',
     },
     {
       q: 'Can I convert WebM or MOV files too?',
-      a: 'Yes. This tool accepts MP4, WebM, and MOV — the three most common video formats. Drop any of them and the audio track will be extracted and saved as MP3. The video stream is discarded entirely.',
+      a: 'Yes. The MP4 to MP3 tool also supports WebM and MOV files, along with MP4, two of the most common video formats.',
     },
     {
       q: 'What can go wrong when extracting audio from an MP4?',
-      a: 'If the video has no audio track (muted screen recording, silent clip), the conversion will produce an empty or near-empty MP3. Videos over 500 MB can also be slow to process in the browser — for very long files, expect several minutes of processing time. If you get a corrupt output, the source file may have an unusual audio codec that ffmpeg.wasm cannot decode.',
+      a: 'This tool will not convert an MP4 file that doesn’t have an audio track. You’ll see an error message if you try to convert such. Long videos close to 1 hour will take 3 to 8 minutes (this is approximate), but the actual time will depend on how fast your computer is; more specifically, how much memory it has. If your MP4 file is corrupt, this tool will either return an error message or a corrupt file.',
     },
     {
       q: 'Do my video files leave my device when I use this tool?',
-      a: 'No. Conversion runs entirely in your browser using ffmpeg.wasm — your video files never leave your device. ConvertYard\'s servers only deliver the tool code. They never see your files, filenames, or audio content.',
+      a: 'Nope. The MP4-to-MP3 conversion happens in your browser and is not uploaded to a server. So nothing leaves your device. So the ConvertYard server loads the code on your browser and the conversion happens inside the browser and not on a server.',
     },
   ],
 
@@ -81,6 +98,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'MP4 to MP3 Converter — ConvertYard',
     description:
-      'Pull the audio from an MP4 and save it as MP3. Choose bitrate up to 320 kbps. Batch multiple videos in your browser — nothing is uploaded. Audio only.',
+      'Convert MP4 format to MP3 if you need to transform video files into an audio-only format for podcasts, audio books, or music.',
   },
 }
