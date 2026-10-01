@@ -113,6 +113,8 @@ async function _mp3ToMp4Passthrough(
     throw new Error(`Invalid channel count: ${numberOfChannels}`)
   }
 
+  console.log('[mp3-to-mp4] probe:', { codec, sampleRate, numberOfChannels, durationSec })
+
   report(5)
 
   // ------------------------------------------------------------------
@@ -179,9 +181,13 @@ async function _mp3ToMp4Passthrough(
     }
 
     let packetIndex = 0
+    let addedCount = 0
+    let firstKeptTs = -1
+    let lastKeptTs = -1
     let tsOffset = 0          // shift so trimmed output starts at t=0
     let tsOffsetSet = false
     let isFirstPacket = true
+    console.log('[mp3-to-mp4] totalPackets (estimated):', totalPackets)
     let lastProgressPct = 8
     let lastProgressTime = Date.now()
 
@@ -218,12 +224,20 @@ async function _mp3ToMp4Passthrough(
       // just need their timing. First packet still needs the meta so the
       // muxer initialises track state before writing samples.
       if (isFirstPacket) {
+        console.log('[mp3-to-mp4] first packet:', {
+          type: shifted.type, ts: shifted.timestamp, dur: shifted.duration,
+          seq: shifted.sequenceNumber, byteLen: shifted.data.byteLength,
+          decoderConfig: audioDecoderConfig,
+        })
         await audioSrc.add(shifted, { decoderConfig: audioDecoderConfig } as EncodedAudioChunkMetadata)
         isFirstPacket = false
       } else {
         await audioSrc.add(shifted)
       }
 
+      if (firstKeptTs < 0) firstKeptTs = shifted.timestamp
+      lastKeptTs = shifted.timestamp + shifted.duration
+      addedCount++
       packetIndex++
 
       // Progress: ~every 500ms or ~5% of packets
@@ -242,6 +256,9 @@ async function _mp3ToMp4Passthrough(
         lastProgressTime = now
       }
     }
+    console.log('[mp3-to-mp4] audio feeding done:', {
+      packetIndex, addedCount, firstKeptTs, lastKeptTs,
+    })
   } finally {
     feedInput.dispose()
   }
@@ -272,6 +289,7 @@ async function _mp3ToMp4Passthrough(
 
   const bytes = bufTarget.buffer
   if (!bytes) throw new Error('BufferTarget produced no data after finalize')
+  console.log('[mp3-to-mp4] finalize done, bytes:', bytes.byteLength)
 
   const baseName = file.name.replace(/\.[^.]+$/, '')
   return new File([bytes], `${baseName}.mp4`, { type: 'video/mp4' })
