@@ -13,6 +13,7 @@ import { transcribeToWords } from './caption-transcribe'
 import { buildASS } from './caption-ass-builder'
 import { materializeCaptionFile, captionFileFromBytes } from './caption-file'
 import { DEFAULT_CAPTION_OPTIONS } from './caption-types'
+import { isMp3PassthroughSupported, mp3ToMp4Passthrough } from './mp3-to-mp4-mediabunny'
 
 function toError(err: unknown): Error {
   if (err instanceof Error) return err
@@ -186,6 +187,14 @@ const RESOLUTION: Record<string, { w: number; h: number }> = {
   '1080p': { w: 1920, h: 1080 },
 }
 
+function parseHhMmSs(v: string | undefined): number {
+  if (!v || v === '00:00:00') return 0
+  const parts = v.split(':').map((p) => Number(p))
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return 0
+  const [h, m, s] = parts
+  return h * 3600 + m * 60 + s
+}
+
 export async function mp3ToMp4(
   files: File[],
   options: ToolOptions,
@@ -216,9 +225,37 @@ export async function mp3ToMp4(
     onProgress?.(i, 2)
 
     try {
-      const ffmpeg = await (needsFilter ? getSingleThreadFFmpeg() : getFFmpeg())
       const file = files[i]
       const ext = file.name.split('.').pop() ?? 'mp3'
+
+      // Fast path: MP3 input, simple composition, WebCodecs/Mediabunny available.
+      // Muxes MP3 packets straight into MP4 — no ffmpeg, no audio re-encode.
+      if (
+        ext.toLowerCase() === 'mp3' &&
+        bgType !== 'image' &&
+        waveform === 'none' &&
+        !captions &&
+        isMp3PassthroughSupported()
+      ) {
+        try {
+          const effectiveBgColor = bgType === 'black' ? '#000000' : bgColor
+          const trimStartSec = parseHhMmSs(trimStart)
+          const trimEndSec = parseHhMmSs(trimEnd)
+          const out = await mp3ToMp4Passthrough(
+            file,
+            { w, h, bgColor: effectiveBgColor, trimStartSec, trimEndSec },
+            (pct) => onProgress?.(i, pct),
+          )
+          results.push(out)
+          onProgress?.(i, 100)
+          continue
+        } catch (err) {
+          console.warn('[mp3-to-mp4] Mediabunny passthrough failed, falling back to ffmpeg:', err)
+          // Fall through to the existing ffmpeg path.
+        }
+      }
+
+      const ffmpeg = await (needsFilter ? getSingleThreadFFmpeg() : getFFmpeg())
       const inputName = `audio_${i}.${ext}`
       const outputName = `out_${i}.mp4`
       const imageExt = bgImage?.name.split('.').pop() ?? 'jpg'
