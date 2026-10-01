@@ -22,7 +22,7 @@ export default function Page() {
         <div className="mx-auto max-w-3xl px-4 pt-6 sm:px-6">
           <div className="flex items-center gap-3 rounded-xl border border-border bg-bg-elevated px-4 py-3 text-sm text-fg-muted">
             <div className="h-2 w-2 animate-pulse rounded-full bg-primary" aria-hidden="true" />
-            Preparing video converter… (downloading ~25 MB, one-time)
+            Preparing video converter… (downloading ~25 MB, one-time). Captions download an additional ~40 MB English speech model only if you turn captions on.
           </div>
         </div>
       )}
