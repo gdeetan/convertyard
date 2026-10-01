@@ -206,13 +206,17 @@ export async function mp3ToMp4(
   const { w, h } = resolveDimensions(aspect, resolution)
   const trimArgs = buildTrimArgs(trimStart, trimEnd)
 
+  // Simple path: solid-color bg, no waveform, no captions. No filter graph needed,
+  // so we can use MT ffmpeg (2–4× faster) and let ffmpeg auto-map streams.
+  // Complex path (image bg, waveform, or captions) must use ST — the MT core
+  // deadlocks on -filter_complex in Chrome/Safari (ffmpegwasm#772).
+  const needsFilter = bgType === 'image' || waveform !== 'none' || captions
+
   for (let i = 0; i < files.length; i++) {
     onProgress?.(i, 2)
 
     try {
-      // Always ST: this converter always runs -filter_complex (bg/wave/captions).
-      // MT ffmpeg deadlocks on filter graphs in Chrome/Safari (ffmpegwasm#772).
-      const ffmpeg = await getSingleThreadFFmpeg()
+      const ffmpeg = await (needsFilter ? getSingleThreadFFmpeg() : getFFmpeg())
       const file = files[i]
       const ext = file.name.split('.').pop() ?? 'mp3'
       const inputName = `audio_${i}.${ext}`
@@ -251,19 +255,13 @@ export async function mp3ToMp4(
       await ffmpeg.writeFile(inputName, await fetchFile(file))
       if (bgImage) await ffmpeg.writeFile(imageName, await fetchFile(bgImage))
 
-      const { filter, vMap, aMap } = buildFilterComplex({
-        w, h, bgType, bgColor, waveform, captions, captionAssName,
-      })
+      const lavfiColor = (bgType === 'black' ? '#000000' : bgColor).replace('#', '0x')
+      const lavfiRate = waveform === 'none' ? '1' : '25'
 
       const inputArgs: string[] =
         bgType === 'image' && bgImage
           ? ['-loop', '1', '-i', imageName, ...trimArgs, '-i', inputName]
-          : [
-              '-f', 'lavfi',
-              '-i', `color=c=${(bgType === 'black' ? '#000000' : bgColor).replace('#', '0x')}:size=${w}x${h}:rate=${waveform === 'none' ? '1' : '25'}`,
-              ...trimArgs,
-              '-i', inputName,
-            ]
+          : ['-f', 'lavfi', '-i', `color=c=${lavfiColor}:size=${w}x${h}:rate=${lavfiRate}`, ...trimArgs, '-i', inputName]
 
       const baseCodecArgs = ['-c:v', 'libx264', '-crf', '28', '-preset', 'ultrafast',
                              '-c:a', 'aac', '-b:a', '192k', '-shortest']
@@ -277,13 +275,25 @@ export async function mp3ToMp4(
 
       let data: Uint8Array<ArrayBuffer> | undefined
       try {
-        await ffmpeg.exec([
-          ...inputArgs,
-          '-filter_complex', filter,
-          '-map', vMap, '-map', aMap,
-          ...baseCodecArgs,
-          outputName,
-        ])
+        if (needsFilter) {
+          const { filter, vMap, aMap } = buildFilterComplex({
+            w, h, bgType, bgColor, waveform, captions, captionAssName,
+          })
+          await ffmpeg.exec([
+            ...inputArgs,
+            '-filter_complex', filter,
+            '-map', vMap, '-map', aMap,
+            ...baseCodecArgs,
+            outputName,
+          ])
+        } else {
+          // Simple path: let ffmpeg auto-map input 0 (lavfi color) → video, input 1 → audio.
+          await ffmpeg.exec([
+            ...inputArgs,
+            ...baseCodecArgs,
+            outputName,
+          ])
+        }
         data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
       } finally {
         ffmpeg.off('progress', progressHandler)

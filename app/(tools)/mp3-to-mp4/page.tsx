@@ -8,8 +8,11 @@ export default function Page() {
   const [engineReady, setEngineReady] = useState(false)
 
   useEffect(() => {
-    import('@/lib/converters/ffmpeg-client').then(({ getSingleThreadFFmpeg }) => {
-      getSingleThreadFFmpeg()
+    import('@/lib/converters/ffmpeg-client').then(({ getFFmpeg }) => {
+      // Preload the multi-thread core: it serves the common path (black bg,
+      // no waveform, no captions). The ST core loads on demand when a filter
+      // graph is actually needed (image bg, waveform, or captions).
+      getFFmpeg()
         .then(() => setEngineReady(true))
         .catch(() => setEngineReady(true))
     })
