@@ -81,11 +81,14 @@ async function _mp3ToMp4Passthrough(
   report(2)
 
   // ------------------------------------------------------------------
-  // Probe the MP3 source
+  // Probe the MP3 source — need codec, sample rate, channel count, duration
+  // so we can hand the muxer a complete AudioDecoderConfig at track-add time.
   // ------------------------------------------------------------------
   const probeInput = new Input({ source: new BlobSource(file), formats: ALL_FORMATS })
   let durationSec: number
   let codec: string | null
+  let sampleRate = 0
+  let numberOfChannels = 0
 
   try {
     const audioTrack = await probeInput.getPrimaryAudioTrack()
@@ -94,12 +97,20 @@ async function _mp3ToMp4Passthrough(
     }
     durationSec = await probeInput.computeDuration()
     codec = await audioTrack.getCodec()
+    sampleRate = await audioTrack.getSampleRate()
+    numberOfChannels = audioTrack.numberOfChannels
   } finally {
     probeInput.dispose()
   }
 
   if (!codec) {
     throw new Error('Could not detect audio codec — file may be corrupt')
+  }
+  if (!Number.isInteger(sampleRate) || sampleRate <= 0) {
+    throw new Error(`Invalid sample rate: ${sampleRate}`)
+  }
+  if (!Number.isInteger(numberOfChannels) || numberOfChannels <= 0) {
+    throw new Error(`Invalid channel count: ${numberOfChannels}`)
   }
 
   report(5)
@@ -124,10 +135,12 @@ async function _mp3ToMp4Passthrough(
   const bufTarget = new BufferTarget()
   const output = new Output({ format: new Mp4OutputFormat(), target: bufTarget })
 
-  // Audio: passthrough MP3 packets
+  // Audio: passthrough MP3 packets. Pass the decoder config up front so
+  // Mediabunny can write a complete track header before any packets arrive.
+  const audioDecoderConfig: AudioDecoderConfig = { codec, sampleRate, numberOfChannels }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const audioSrc = new EncodedAudioPacketSource(codec as any)
-  output.addAudioTrack(audioSrc)
+  output.addAudioTrack(audioSrc, { decoderConfig: audioDecoderConfig })
 
   // Video: single black OffscreenCanvas, 1-fps AVC, low bitrate
   const canvas = new OffscreenCanvas(w, h)
@@ -153,22 +166,6 @@ async function _mp3ToMp4Passthrough(
   try {
     const audioTrack = await feedInput.getPrimaryAudioTrack()
     if (!audioTrack) throw new Error('No audio track on second open')
-
-    // MP3's getDecoderConfig() returns null in Mediabunny, which leaves the
-    // muxer without the info it needs to write a valid mp4a/mp3 track header —
-    // the output file then plays with no audio. Build the config ourselves
-    // from the track's sample rate and channel count.
-    let decoderConfig: AudioDecoderConfig | null = null
-    try {
-      decoderConfig = await audioTrack.getDecoderConfig()
-    } catch {
-      // fall through
-    }
-    if (!decoderConfig) {
-      const sampleRate = await audioTrack.getSampleRate()
-      const numberOfChannels = audioTrack.numberOfChannels
-      decoderConfig = { codec, sampleRate, numberOfChannels }
-    }
 
     const sink = new EncodedPacketSink(audioTrack)
 
@@ -217,9 +214,11 @@ async function _mp3ToMp4Passthrough(
         packet.sequenceNumber,
       )
 
-      // First packet: pass the decoder config metadata (always available now)
+      // decoderConfig was already provided to addAudioTrack above; packets
+      // just need their timing. First packet still needs the meta so the
+      // muxer initialises track state before writing samples.
       if (isFirstPacket) {
-        await audioSrc.add(shifted, { decoderConfig } as EncodedAudioChunkMetadata)
+        await audioSrc.add(shifted, { decoderConfig: audioDecoderConfig } as EncodedAudioChunkMetadata)
         isFirstPacket = false
       } else {
         await audioSrc.add(shifted)
