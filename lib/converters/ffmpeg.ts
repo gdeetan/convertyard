@@ -1,11 +1,20 @@
 import { fetchFile } from '@ffmpeg/util'
 import { materializeFile, unmarkMaterialized, unreadableFileMessage } from '@/lib/utils/materialize-file'
 import { FFFSType } from '@ffmpeg/ffmpeg'
-import { getFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock, resetSingleThreadFFmpeg } from './ffmpeg-client'
+import { getFFmpeg, getSingleThreadFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock, resetSingleThreadFFmpeg } from './ffmpeg-client'
 import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware, consumeVideoDiag } from './compress-video-webcodecs'
 import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from './media-probe'
 import { applyBitrateFloor } from './compress-video-calibration'
 import type { ToolOptions, ConversionResult, CompressionMeta } from '@/lib/types'
+import { resolveDimensions } from './mp3-to-mp4-dimensions'
+import { buildTrimArgs } from './mp3-to-mp4-trim'
+import { buildFilterComplex } from './mp3-to-mp4-filter'
+import { transcribeToWords } from './caption-transcribe'
+import { buildASS } from './caption-ass-builder'
+import { materializeCaptionFile, captionFileFromBytes } from './caption-file'
+import { DEFAULT_CAPTION_OPTIONS } from './caption-types'
+import { loadBuiltinFont } from './caption-fonts'
+import { isMp3PassthroughSupported, mp3ToMp4Passthrough } from './mp3-to-mp4-mediabunny'
 
 function toError(err: unknown): Error {
   if (err instanceof Error) return err
@@ -188,6 +197,37 @@ const RESOLUTION: Record<string, { w: number; h: number }> = {
   '1080p': { w: 1920, h: 1080 },
 }
 
+async function probeMediaDurationSec(file: File): Promise<number> {
+  if (typeof document === 'undefined') return 0
+  return new Promise<number>((resolve) => {
+    const el = document.createElement('audio')
+    const url = URL.createObjectURL(file)
+    const cleanup = () => {
+      URL.revokeObjectURL(url)
+      el.removeAttribute('src')
+      el.load()
+    }
+    const timer = setTimeout(() => { cleanup(); resolve(0) }, 8000)
+    el.preload = 'metadata'
+    el.addEventListener('loadedmetadata', () => {
+      clearTimeout(timer)
+      const d = el.duration
+      cleanup()
+      resolve(Number.isFinite(d) && d > 0 ? d : 0)
+    }, { once: true })
+    el.addEventListener('error', () => { clearTimeout(timer); cleanup(); resolve(0) }, { once: true })
+    el.src = url
+  })
+}
+
+function parseHhMmSs(v: string | undefined): number {
+  if (!v || v === '00:00:00') return 0
+  const parts = v.split(':').map((p) => Number(p))
+  if (parts.length !== 3 || parts.some((n) => !Number.isFinite(n))) return 0
+  const [h, m, s] = parts
+  return h * 3600 + m * 60 + s
+}
+
 export async function mp3ToMp4(
   files: File[],
   options: ToolOptions,
@@ -195,88 +235,164 @@ export async function mp3ToMp4(
 ): Promise<ConversionResult[]> {
   const results: ConversionResult[] = []
 
-  const bgType     = (options.bgType     as string) ?? 'black'
+  const bgType     = (options.bgType     as 'black' | 'color' | 'image') ?? 'black'
   const bgColor    = (options.bgColor    as string) ?? '#1a1a2e'
   const bgImage    = (options.bgImage    as File | null) ?? null
-  const waveform   = (options.waveform   as string) ?? 'none'
+  const waveform   = (options.waveform   as 'none' | 'bar' | 'line') ?? 'none'
+  const aspect     = (options.aspect     as string) ?? '16:9'
   const resolution = (options.resolution as string) ?? '720p'
+  const trimStart  = (options.trimStart  as string) ?? '00:00:00'
+  const trimEnd    = (options.trimEnd    as string) ?? '00:00:00'
+  const captions   = (options.captions   as boolean) ?? false
 
-  const { w, h } = RESOLUTION[resolution] ?? RESOLUTION['720p']
-  const size = `${w}x${h}`
-  // lavfi color= filter requires 0x prefix, not #
-  const lavfiColor = (bgType === 'black' ? '#000000' : bgColor).replace('#', '0x')
+  const { w, h } = resolveDimensions(aspect, resolution)
+  const trimArgs = buildTrimArgs(trimStart, trimEnd)
+
+  // Simple path: solid-color bg, no waveform, no captions. No filter graph needed,
+  // so we can use MT ffmpeg (2–4× faster) and let ffmpeg auto-map streams.
+  // Complex path (image bg, waveform, or captions) must use ST — the MT core
+  // deadlocks on -filter_complex in Chrome/Safari (ffmpegwasm#772).
+  const needsFilter = bgType === 'image' || waveform !== 'none' || captions
 
   for (let i = 0; i < files.length; i++) {
-    onProgress?.(i, 5)
+    onProgress?.(i, 2)
 
     try {
-      const ffmpeg = await getFFmpeg()
       const file = files[i]
       const ext = file.name.split('.').pop() ?? 'mp3'
+
+      // Fast path: MP3 input + simple composition + WebCodecs available.
+      // Decodes MP3 and re-encodes to AAC via WebCodecs, then muxes with a
+      // static-color video. No ffmpeg, no libx264 — seconds, not minutes.
+      if (
+        ext.toLowerCase() === 'mp3' &&
+        bgType !== 'image' &&
+        waveform === 'none' &&
+        !captions &&
+        isMp3PassthroughSupported()
+      ) {
+        try {
+          const effectiveBgColor = bgType === 'black' ? '#000000' : bgColor
+          const trimStartSec = parseHhMmSs(trimStart)
+          const trimEndSec = parseHhMmSs(trimEnd)
+          const out = await mp3ToMp4Passthrough(
+            file,
+            { w, h, bgColor: effectiveBgColor, trimStartSec, trimEndSec },
+            (pct) => onProgress?.(i, pct),
+          )
+          results.push(out)
+          onProgress?.(i, 100)
+          continue
+        } catch (err) {
+          console.warn('[mp3-to-mp4] fast path failed, falling back to ffmpeg:', err)
+        }
+      }
+
+      // Probe duration up front so ffmpeg's progress event can tick against
+      // a known total (lavfi color + -loop 1 both report infinite duration).
+      const durationSec = await probeMediaDurationSec(file).catch(() => 0)
+      const trimStartSec = parseHhMmSs(trimStart)
+      const trimEndSec = parseHhMmSs(trimEnd)
+      const effectiveEnd = trimEndSec > 0 ? Math.min(trimEndSec, durationSec || trimEndSec) : durationSec
+      const effectiveStart = trimStartSec > 0 ? Math.min(trimStartSec, effectiveEnd || trimStartSec) : 0
+      const encodeDurationSec = Math.max(0, effectiveEnd - effectiveStart)
+
+      // Pre-warm ffmpeg core (download the ~25MB WASM) BEFORE kicking off
+      // transcribe — but don't hold the instance, because transcribe resets
+      // the cores internally. We re-acquire the instance below.
+      onProgress?.(i, 5)
+      await (needsFilter ? getSingleThreadFFmpeg() : getFFmpeg())
+      onProgress?.(i, 10)
       const inputName = `audio_${i}.${ext}`
       const outputName = `out_${i}.mp4`
       const imageExt = bgImage?.name.split('.').pop() ?? 'jpg'
       const imageName = `bg_${i}.${imageExt}`
+      let captionAssName: string | null = null
+      let captionAssBytes: Uint8Array | null = null
 
-      await ffmpeg.writeFile(inputName, await fetchFile(file))
-      onProgress?.(i, 10)
-
-      if (bgImage) {
-        await ffmpeg.writeFile(imageName, await fetchFile(bgImage))
+      if (captions) {
+        const transcript = await transcribeToWords(
+          file,
+          'balanced',
+          'en',
+          (phase, pct) => {
+            const base = phase === 'extract' ? 5 : phase === 'model' ? 10 : 20
+            const span = phase === 'extract' ? 5 : phase === 'model' ? 10 : 20
+            onProgress?.(i, Math.round(base + (pct / 100) * span))
+          },
+        )
+        // libass in ffmpeg.wasm has no fontconfig/system fonts — the font
+        // referenced in the ASS Style MUST match a TTF we load into /capfonts.
+        const assText = buildASS(
+          transcript.words,
+          { ...DEFAULT_CAPTION_OPTIONS, styleId: 'classic', position: 'bottom' },
+          'Roboto',
+          w,
+          h,
+        )
+        const assBuf = new TextEncoder().encode(assText).buffer as ArrayBuffer
+        const assFile = await materializeCaptionFile(
+          captionFileFromBytes(assBuf, { name: `subs_${i}.ass`, type: 'text/x-ass' })
+        )
+        captionAssName = assFile.name
+        captionAssBytes = new Uint8Array(await assFile.arrayBuffer())
       }
-      onProgress?.(i, 15)
+
+      // Transcribe resets both ffmpeg cores (see releaseCaptionExtractRuntime),
+      // so re-acquire the instance here. For the no-captions path this is a
+      // cached handle — no extra work.
+      const ffmpeg = await (needsFilter ? getSingleThreadFFmpeg() : getFFmpeg())
+      if (captionAssName && captionAssBytes) {
+        try { await ffmpeg.createDir('/capfonts') } catch { /* already exists */ }
+        await ffmpeg.writeFile('/capfonts/builtin.ttf', await loadBuiltinFont('Roboto Bold'))
+        await ffmpeg.writeFile(captionAssName, captionAssBytes)
+      }
+      await ffmpeg.writeFile(inputName, await fetchFile(file))
+      if (bgImage) await ffmpeg.writeFile(imageName, await fetchFile(bgImage))
+
+      const lavfiColor = (bgType === 'black' ? '#000000' : bgColor).replace('#', '0x')
+      const lavfiRate = waveform === 'none' ? '1' : '25'
+
+      // Bound the synthetic video input to a known duration so ffmpeg's
+      // progress event ticks. Without this, lavfi/-loop 1 report infinite
+      // duration and progress stays at 0 for the entire encode.
+      const durArgs = encodeDurationSec > 0 ? ['-t', encodeDurationSec.toFixed(3)] : []
+      const colorDurationArg = encodeDurationSec > 0 ? `:duration=${encodeDurationSec.toFixed(3)}` : ''
+      const inputArgs: string[] =
+        bgType === 'image' && bgImage
+          ? ['-loop', '1', ...durArgs, '-i', imageName, ...trimArgs, '-i', inputName]
+          : ['-f', 'lavfi', '-i', `color=c=${lavfiColor}:size=${w}x${h}:rate=${lavfiRate}${colorDurationArg}`, ...trimArgs, '-i', inputName]
+
+      const baseCodecArgs = ['-c:v', 'libx264', '-crf', '28', '-preset', 'ultrafast',
+                             '-c:a', 'aac', '-b:a', '192k', '-shortest']
 
       const progressHandler = ({ progress }: { progress: number }) => {
-        onProgress?.(i, Math.round(15 + progress * 80))
+        const base = captions ? 40 : 15
+        const span = captions ? 55 : 80
+        onProgress?.(i, Math.round(base + progress * span))
       }
       ffmpeg.on('progress', progressHandler)
 
-      const baseCodecArgs = ['-c:v', 'libx264', '-crf', '28', '-preset', 'ultrafast', '-c:a', 'aac', '-b:a', '192k', '-shortest']
-
       let data: Uint8Array<ArrayBuffer> | undefined
       try {
-        if (bgType === 'image' && bgImage) {
-          if (waveform === 'none') {
-            await ffmpeg.exec([
-              '-loop', '1', '-i', imageName,
-              '-i', inputName,
-              '-vf', `scale=${w}:${h},setsar=1`,
-              ...baseCodecArgs,
-              outputName,
-            ])
-          } else {
-            const mode = waveform === 'bar' ? 'p2p' : 'line'
-            await ffmpeg.exec([
-              '-loop', '1', '-i', imageName,
-              '-i', inputName,
-              '-filter_complex',
-              `[0:v]scale=${w}:${h},setsar=1[bg];[1:a]showwaves=s=${size}:mode=${mode}:colors=white:scale=sqrt[waves];[bg][waves]overlay[v]`,
-              '-map', '[v]', '-map', '1:a',
-              ...baseCodecArgs,
-              outputName,
-            ])
-          }
+        if (needsFilter) {
+          const { filter, vMap, aMap } = buildFilterComplex({
+            w, h, bgType, bgColor, waveform, captions, captionAssName,
+          })
+          await ffmpeg.exec([
+            ...inputArgs,
+            '-filter_complex', filter,
+            '-map', vMap, '-map', aMap,
+            ...baseCodecArgs,
+            outputName,
+          ])
         } else {
-          const rate = waveform === 'none' ? '1' : '25'
-          if (waveform === 'none') {
-            await ffmpeg.exec([
-              '-f', 'lavfi', '-i', `color=c=${lavfiColor}:size=${size}:rate=${rate}`,
-              '-i', inputName,
-              ...baseCodecArgs,
-              outputName,
-            ])
-          } else {
-            const mode = waveform === 'bar' ? 'p2p' : 'line'
-            await ffmpeg.exec([
-              '-f', 'lavfi', '-i', `color=c=${lavfiColor}:size=${size}:rate=${rate}`,
-              '-i', inputName,
-              '-filter_complex',
-              `[1:a]showwaves=s=${size}:mode=${mode}:colors=white:scale=sqrt[waves];[0:v][waves]overlay[v]`,
-              '-map', '[v]', '-map', '1:a',
-              ...baseCodecArgs,
-              outputName,
-            ])
-          }
+          // Simple path: let ffmpeg auto-map input 0 (lavfi color) → video, input 1 → audio.
+          await ffmpeg.exec([
+            ...inputArgs,
+            ...baseCodecArgs,
+            outputName,
+          ])
         }
         data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
       } finally {
@@ -284,6 +400,8 @@ export async function mp3ToMp4(
         await ffmpeg.deleteFile(inputName).catch(() => {})
         await ffmpeg.deleteFile(outputName).catch(() => {})
         if (bgImage) await ffmpeg.deleteFile(imageName).catch(() => {})
+        if (captionAssName) await ffmpeg.deleteFile(captionAssName).catch(() => {})
+        if (captionAssName) await ffmpeg.deleteFile('/capfonts/builtin.ttf').catch(() => {})
       }
 
       if (!data || data.byteLength === 0) throw new Error('Conversion produced no output')
