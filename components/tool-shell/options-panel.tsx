@@ -309,6 +309,23 @@ function OptionRow({
           />
         )}
 
+        {opt.type === 'time' && (
+          <input
+            id={id}
+            type="text"
+            inputMode="numeric"
+            placeholder="hh:mm:ss"
+            pattern="^\d{1,2}:\d{2}:\d{2}$"
+            value={(value as string) ?? opt.default}
+            onChange={(e) => onChange(opt.name, e.target.value)}
+            className={cn(
+              'w-32 rounded-md border border-border bg-bg-elevated px-2 py-1 text-sm font-mono',
+              'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary'
+            )}
+            aria-invalid={!/^\d{1,2}:\d{2}:\d{2}$/.test((value as string) ?? opt.default)}
+          />
+        )}
+
         {opt.type === 'number-with-chips' && (
           <NumberWithChipsControl
             opt={opt as NumberWithChipsOption}
