@@ -146,8 +146,9 @@ export async function mp4ToMp3(
       ffmpeg.on('progress', progressHandler)
 
       let data: Uint8Array<ArrayBuffer> | undefined
+      let execTail = ''
       try {
-        await ffmpeg.exec([
+        const { code, tail } = await execWithReason(ffmpeg, [
           '-i', inputName,
           '-vn',
           '-acodec', 'libmp3lame',
@@ -155,7 +156,15 @@ export async function mp4ToMp3(
           '-ar', sampleRate,
           outputName,
         ])
+        execTail = tail
+        if (code !== 0) throw friendlyFfmpegError('MP4 to MP3', code, tail)
         data = await ffmpeg.readFile(outputName) as Uint8Array<ArrayBuffer>
+      } catch (err) {
+        const lower = (execTail || '').toLowerCase()
+        if (lower.includes('does not contain any stream') || lower.includes('stream map') || lower.includes('output file #0')) {
+          throw new Error('This file has no audio track. MP4 to MP3 only works on videos that contain audio.')
+        }
+        throw err
       } finally {
         ffmpeg.off('progress', progressHandler)
         await ffmpeg.deleteFile(inputName).catch(() => {})
