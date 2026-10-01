@@ -118,6 +118,12 @@ const howToCompressPngSection = (
       </p>
       <ol className="mt-4 list-decimal space-y-2 pl-6 text-base text-fg-muted">
         <li>
+          <strong>Palette reduction:</strong> This feature converts a PNG
+          file to 256 colors, so a PNG that may have 600 colors becomes
+          256, which is great for logos, screenshots, or UI
+          illustrations.
+        </li>
+        <li>
           <strong>Palette size (16&ndash;256 colors):</strong> PNG files
           can store up to 256 distinct colors. Fewer colors translate to
           a smaller file size, but smooth gradients won&rsquo;t be as
@@ -135,12 +141,6 @@ const howToCompressPngSection = (
           software used to create the graphic). This saves additional
           space, and I suggest turning it on if you&rsquo;re sharing the
           PNG file on a website.
-        </li>
-        <li>
-          <strong>Palette reduction:</strong> This feature converts a PNG
-          file to 256-colors, meaning a PNG file that may have 600 colors
-          in the palette becomes just 256 colors, which is great for
-          logos, screenshots or UI illustrations.
         </li>
         <li>
           <strong>Max width (px):</strong> Enter a custom width to resize
