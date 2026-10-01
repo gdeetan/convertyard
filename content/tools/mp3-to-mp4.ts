@@ -1,4 +1,5 @@
 import { mp3ToMp4 } from '@/lib/converters/ffmpeg'
+import { Mp3ToMp4Explainer } from '@/components/mp3-to-mp4/explainer'
 import type { ToolConfig } from '@/lib/types'
 
 const LARGE_FILE_BYTES = 200 * 1024 * 1024
@@ -6,14 +7,22 @@ const LARGE_FILE_BYTES = 200 * 1024 * 1024
 export const config: ToolConfig = {
   slug: 'mp3-to-mp4',
   title: 'MP3 to MP4 Converter',
-  subtitle: 'Wrap audio in an MP4 with captions, album art, or waveform. Ready for YouTube, Shorts, Reels, TikTok. Stays in your browser.',
+  subtitle: 'Convert an MP3 file (or .WAV, .OGG, .FLAC) to an MP4 so you can upload it on platforms like YouTube, Instagram, or TikTok. Choose a cover image, add a waveform, or add captions as visual aids. Everything runs in your browser, and nothing is uploaded to a server.',
   bestFor: 'Best for uploading podcast episodes, music tracks, audiobooks, and short-form video (Shorts/Reels/TikTok) to YouTube, Instagram, or any platform that only accepts video files.',
+  explainer: Mp3ToMp4Explainer,
   category: 'video-audio',
   accepts: ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/flac', 'audio/aac'],
   acceptsExt: ['.mp3', '.wav', '.ogg', '.flac', '.aac'],
   outputExt: '.mp4',
   convertFn: mp3ToMp4,
   enablePresets: true,
+
+  howItWorks: [
+    { label: 'Drop your files', desc: 'Drop/drop or click to browse to open MP3 files. Convert up to 1,000 files per batch. But if you’re working with larger files, cut that down to batches of 50 or less. It will work better on desktops, smartphones, or tablets with more available memory.' },
+    { label: 'Choose settings', desc: 'Adjust quality, format, and other options to match your needs.' },
+    { label: 'Click Convert', desc: 'Everything runs in your browser via WebAssembly. MP3 to MP4 Converter happens locally — no server involved.' },
+    { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+  ],
 
   warningFn: (files) => {
     const hasLarge = files.some((f) => f.size > LARGE_FILE_BYTES)
@@ -111,51 +120,51 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Why would I convert an MP3 to MP4?',
-      a: 'Many platforms — YouTube, Instagram, TikTok, Facebook — require a video file for uploads. An MP4 with a static image and your audio track satisfies their requirements without any visible change to the listening experience. It\'s the standard approach for uploading podcast episodes, music tracks, and audiobooks to video platforms.',
+      a: 'One reason is compatibility. If you’re uploading a podcast, webinar, audiobook, or music in MP3 format, platforms like YouTube, TikTok, and Facebook will not accept it since these websites require files in MP4 format. This is where this converter comes into play. You cannot only convert the format, but also add captions, a cover image, and waveforms.',
     },
     {
       q: 'Can I add captions to my MP3?',
-      a: 'Yes. Toggle "Burn in auto captions" and the tool transcribes your audio locally using Whisper tiny.en — a ~40 MB English speech model that downloads once and caches in your browser. Nothing is uploaded. Captions are rendered in a clean white-on-black style and burned into the video so they display on every platform.',
+      a: 'Yes, you can add captions but turning on the “Burn in auto captions” which tells the tool to transcribe the audio locally using the “Whisper tiny.en speech model.” It’s around 40 MB and has to load in the browser to work, but once it does, it stays there, and subsequent conversions will be faster. Take note that turning this feature on lengthens the time it takes to convert the file.',
     },
     {
       q: 'How accurate are the captions?',
-      a: 'Whisper tiny.en is strong for clear speech such as podcasts and voiceovers. Accuracy drops with heavy accents, background music, or overlapping speakers. Review the output before publishing. For higher accuracy, our dedicated captions tool offers larger models.',
+      a: 'The “Whisper tiny.en” engine is capable of handling clear talking head videos like podcasts and voiceovers. However, the accuracy will drop if the speaker has a heavy accent or the video has loud background music or other audio noise. Always check the output of the downloaded file before uploading.',
     },
     {
       q: 'Which aspect ratios does this support?',
-      a: '16:9 for YouTube, 9:16 for Shorts, Reels, and TikTok, 1:1 for Instagram feed, and 4:5 for Instagram portrait. Pick one and the resolution dropdown gives you 720p or 1080p dimensions sized to that aspect.',
+      a: 'This converter supports 16:9 (for YouTube), 9:16 (for YouTube Shorts, Reels, and TikTok), and 1:1 (for Instagram feed), and 4:5 (for Instagram portrait mode). You can also choose between 720p and 1080p.',
     },
     {
       q: 'Can I trim the audio before converting?',
-      a: 'Yes. Set a trim start and trim end in hh:mm:ss and only that range becomes the MP4. Leaving a field at 00:00:00 means "no trim" on that side. The same trim applies to every file in a batch.',
+      a: 'Yes, you can set the start and end trim in hh:mm:ss format. Leaving it at 00:00:00 means nothing will be trimmed from the video. If you enter anything on this field, it will be applied to all the MP3 files on the batch. So if you need trim points at the start or end of the video, you’ll need to convert them separately.',
     },
     {
       q: 'What does the video track look like?',
-      a: 'Your choice: a solid black screen (default, smallest file), a custom color, or a static JPG/PNG image you upload — like album art or a thumbnail. You can also add an animated white waveform over any of these backgrounds. If your image doesn\'t match the output aspect ratio, the empty area is filled with a blurred version of the image for a modern Reels/TikTok look.',
+      a: 'There are several options. The default is a solid black screen that outputs the smallest file. Another option is choosing a custom color or a static JPG/PNG file if you’d like to upload a graphic cover. There’s also an option to add an animated waveform over these backgrounds.',
     },
     {
       q: 'How large will the output MP4 be?',
-      a: 'Static-background MP4s are very small. A 1-hour MP3 with a black background at 720p is typically 80–100 MB. The audio track (AAC at 192 kbps) makes up almost all of the file size. Waveform animations and burned-in captions produce larger files since the video content changes every frame.',
+      a: 'That would depend on what options you select. An MP4 file with a custom background, captions, or waveforms will be around 10 to 20% larger than a plain MP4 file with a black background and nothing else.',
     },
     {
       q: 'Does audio quality change during conversion?',
-      a: 'The audio is re-encoded from MP3 to AAC at 192 kbps. AAC at 192 kbps is perceptually transparent — most listeners cannot distinguish it from the MP3 original on normal speakers or headphones.',
+      a: 'The audio is re-encoded from MP3 to AAC at 192 kbps, and for most use cases, listeners won’t be able to distinguish it from the original MP3 on normal speakers or headphones.',
     },
     {
       q: 'Are my files uploaded to any server?',
-      a: 'Never. Conversion runs entirely in your browser using ffmpeg.wasm and (for captions) Whisper via @huggingface/transformers. Your audio and image files never leave your device. ConvertYard\'s servers only deliver the page\'s code and the ~25 MB ffmpeg engine plus the one-time ~40 MB captions model on first use.',
+      a: 'Nope. The MP3 to MP4 conversion is done in your browser using a combination of ffmpeg.wasm and Whisper via @huggingface/transformers for captions. The audio files don’t leave your computer.',
     },
     {
       q: 'Can I convert multiple audio files at once?',
-      a: 'Yes. Drop as many files as you need. Each one is converted in sequence using the same aspect, background, waveform, trim, and captions settings, and all outputs are bundled into a single ZIP for download.',
+      a: 'Technically, you can convert batches of up to 1,000, but for long-form podcasts you should reduce that to around 30 to 50 per batch. If you turn on the captions or waveforms, the conversion will take longer, so I’d say do one or two per batch just so your computer doesn’t freeze.',
     },
     {
       q: 'How do I use my own album art or thumbnail?',
-      a: 'Set Background to "Upload image," then pick your JPG, PNG, or WebP. The image is scaled to fit the chosen aspect ratio. If the image doesn\'t match that aspect, a blurred version fills the empty space behind it.',
+      a: 'You can add a custom background by setting the background setting to “Upload image,” then choosing a JPG, PNG, or WebP cover image. The image is then scaled to fit the aspect ratio you selected, but if the image doesn’t fit the aspect ratio, the gap will be filled by a blurred version of the cover image. If that makes sense.',
     },
     {
       q: 'What are the waveform options and when should I use them?',
-      a: 'Bar waveform (mode=p2p) shows amplitude peaks as bars — a clean, energetic look common in music visualizers. Line waveform draws the raw audio waveform as a continuous line — subtler, better for spoken word. Both are animated in sync with the audio. With captions on, the waveform moves to the top of the frame so captions sit cleanly at the bottom.',
+      a: 'A bar waveform shows amplitude peaks as bars, something common in music visualizers, while a line waveform draws the audio waveform as a continuous line, a more subtle look (better for talking head videos). If you add captions, the waveform moves above them so the captions stay at the bottom.',
     },
   ],
 
