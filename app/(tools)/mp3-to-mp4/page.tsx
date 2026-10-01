@@ -8,9 +8,8 @@ export default function Page() {
   const [engineReady, setEngineReady] = useState(false)
 
   useEffect(() => {
-    import('@/lib/converters/ffmpeg-client').then(({ preloadFFmpeg, getFFmpeg }) => {
-      preloadFFmpeg()
-      getFFmpeg()
+    import('@/lib/converters/ffmpeg-client').then(({ getSingleThreadFFmpeg }) => {
+      getSingleThreadFFmpeg()
         .then(() => setEngineReady(true))
         .catch(() => setEngineReady(true))
     })

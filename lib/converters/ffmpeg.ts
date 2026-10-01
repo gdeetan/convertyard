@@ -1,7 +1,7 @@
 import { fetchFile } from '@ffmpeg/util'
 import { materializeFile, unmarkMaterialized, unreadableFileMessage } from '@/lib/utils/materialize-file'
 import { FFFSType } from '@ffmpeg/ffmpeg'
-import { getFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock, resetSingleThreadFFmpeg } from './ffmpeg-client'
+import { getFFmpeg, getSingleThreadFFmpeg, getCompressVideoFFmpeg, getMobileFFmpeg, withFfmpegLock, resetSingleThreadFFmpeg } from './ffmpeg-client'
 import { tryCompressVideoAvcHardware, tryCompressVideoHevcHardware, consumeVideoDiag } from './compress-video-webcodecs'
 import { probeVideoTrack, probeVideoDuration, probeVideoDimensions, probeAudioInfo, probeVideoCodec } from './media-probe'
 import { applyBitrateFloor } from './compress-video-calibration'
@@ -210,7 +210,9 @@ export async function mp3ToMp4(
     onProgress?.(i, 2)
 
     try {
-      const ffmpeg = await getFFmpeg()
+      // Always ST: this converter always runs -filter_complex (bg/wave/captions).
+      // MT ffmpeg deadlocks on filter graphs in Chrome/Safari (ffmpegwasm#772).
+      const ffmpeg = await getSingleThreadFFmpeg()
       const file = files[i]
       const ext = file.name.split('.').pop() ?? 'mp3'
       const inputName = `audio_${i}.${ext}`
