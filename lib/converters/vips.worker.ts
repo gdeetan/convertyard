@@ -83,8 +83,12 @@ self.onmessage = async (e: MessageEvent) => {
         image = srgb
       }
 
-      // Flatten alpha channel when encoding to JPG — skip for animated (flatten doesn't work on multi-page)
-      if ((outputFormat === 'jpg' || outputFormat === 'jpeg') && image.hasAlpha() && !isAnimated) {
+      // Flatten alpha channel when encoding to JPG, or when PNG output is asked
+      // to drop transparency. Skip for animated (flatten doesn't work on multi-page).
+      const dropAlpha =
+        (outputFormat === 'jpg' || outputFormat === 'jpeg') ||
+        (outputFormat === 'png' && opts.preserveTransparency === false)
+      if (dropAlpha && image.hasAlpha() && !isAnimated) {
         const bg = hexToRgb(typeof opts.bgColor === 'string' ? opts.bgColor : '#ffffff')
         const flat = image.flatten({ background: bg })
         image.delete()

@@ -5,7 +5,7 @@ import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
   slug: 'compress-png',
-  title: 'PNG Compressor',
+  title: 'Compress PNG',
   actionLabel: { verb: 'Compress', gerund: 'Compressing' },
   subtitle: 'Local-first PNG compression with a before/after slider. Batch up to 1,000 files, preserves transparency, nothing uploaded.',
   subtitlePosition: 'below-drop',
@@ -60,6 +60,21 @@ export const config: ToolConfig = {
       label: 'Palette reduction (8-bit PNG)',
       default: false,
       hint: 'Converts to 256-color indexed PNG. Great for screenshots, logos, and flat illustrations — huge extra savings.',
+    },
+    {
+      type: 'toggle',
+      name: 'preserveTransparency',
+      label: 'Preserve transparency',
+      default: true,
+      hint: 'Keeps the alpha channel. Turn off to flatten transparent pixels onto a solid background colour (smaller file).',
+    },
+    {
+      type: 'color-picker',
+      name: 'bgColor',
+      label: 'Background colour',
+      default: '#ffffff',
+      dependsOn: { name: 'preserveTransparency', value: 'false' },
+      hint: 'Shown behind the image once transparency is removed. Visible in the preview.',
     },
     {
       type: 'slider',

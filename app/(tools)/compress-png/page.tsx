@@ -124,11 +124,13 @@ const howToCompressPngSection = (
           illustrations.
         </li>
         <li>
-          <strong>Palette size (16&ndash;256 colors):</strong> PNG files
-          can store up to 256 distinct colors. Fewer colors translate to
-          a smaller file size, but smooth gradients won&rsquo;t be as
-          smooth and will turn into stripes. For the best quality, leave
-          it at 256 for logos or more complex illustrations.
+          <strong>Palette size (16&ndash;256 colors):</strong> Note that
+          this feature will only appear when you turn on the
+          &ldquo;Palette reduction.&rdquo; PNG files can store up to 256
+          distinct colors. Fewer colors translate to a smaller file size,
+          but smooth gradients won&rsquo;t be as smooth and will turn
+          into stripes. For the best quality, leave it at 256 for logos
+          or more complex illustrations.
         </li>
         <li>
           <strong>Preserve transparency:</strong> It is self-explanatory.
