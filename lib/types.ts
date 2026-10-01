@@ -92,6 +92,11 @@ export interface TextInputOption extends BaseOption {
   default: string
 }
 
+export interface TimeOption extends BaseOption {
+  type: 'time'
+  default: string // "hh:mm:ss"
+}
+
 export interface SectionHeaderOption {
   type: 'section-header'
   label: string
@@ -114,6 +119,7 @@ export type ToolOption =
   | NumberWithChipsOption
   | NumberWithPresetsOption
   | TextInputOption
+  | TimeOption
   | SectionHeaderOption
   | PositionDiagramOption
 
