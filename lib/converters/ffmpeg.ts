@@ -13,6 +13,7 @@ import { transcribeToWords } from './caption-transcribe'
 import { buildASS } from './caption-ass-builder'
 import { materializeCaptionFile, captionFileFromBytes } from './caption-file'
 import { DEFAULT_CAPTION_OPTIONS } from './caption-types'
+import type { WordChunk } from './caption-types'
 import { loadBuiltinFont } from './caption-fonts'
 import { isMp3PassthroughSupported, mp3ToMp4Passthrough } from './mp3-to-mp4-mediabunny'
 
@@ -261,23 +262,47 @@ export async function mp3ToMp4(
       const file = files[i]
       const ext = file.name.split('.').pop() ?? 'mp3'
 
-      // Fast path: MP3 input + simple composition + WebCodecs available.
+      // Fast path: MP3 input + non-image background + WebCodecs available.
       // Decodes MP3 and re-encodes to AAC via WebCodecs, then muxes with a
-      // static-color video. No ffmpeg, no libx264 — seconds, not minutes.
-      if (
+      // static-color or waveform video. No ffmpeg, no libx264 — seconds, not minutes.
+      const canUseFast =
         ext.toLowerCase() === 'mp3' &&
         bgType !== 'image' &&
-        waveform === 'none' &&
-        !captions &&
         isMp3PassthroughSupported()
-      ) {
+
+      // Transcribe up-front when captions are on so both the fast path and the
+      // ffmpeg fallback share the result. Whisper is the slow part of captions-on;
+      // running it once avoids duplicate work on fallback.
+      let sharedCaptionWords: WordChunk[] = []
+      if (captions) {
+        const transcript = await transcribeToWords(
+          file,
+          'balanced',
+          'en',
+          (phase, pct) => {
+            const base = phase === 'extract' ? 5 : phase === 'model' ? 10 : 20
+            const span = phase === 'extract' ? 5 : phase === 'model' ? 10 : 20
+            onProgress?.(i, Math.round(base + (pct / 100) * span))
+          },
+        )
+        sharedCaptionWords = transcript.words
+      }
+
+      if (canUseFast) {
         try {
           const effectiveBgColor = bgType === 'black' ? '#000000' : bgColor
           const trimStartSec = parseHhMmSs(trimStart)
           const trimEndSec = parseHhMmSs(trimEnd)
           const out = await mp3ToMp4Passthrough(
             file,
-            { w, h, bgColor: effectiveBgColor, trimStartSec, trimEndSec },
+            {
+              w, h,
+              bgColor: effectiveBgColor,
+              trimStartSec, trimEndSec,
+              waveform,
+              captions,
+              captionWords: sharedCaptionWords,
+            },
             (pct) => onProgress?.(i, pct),
           )
           results.push(out)
@@ -311,20 +336,12 @@ export async function mp3ToMp4(
       let captionAssBytes: Uint8Array | null = null
 
       if (captions) {
-        const transcript = await transcribeToWords(
-          file,
-          'balanced',
-          'en',
-          (phase, pct) => {
-            const base = phase === 'extract' ? 5 : phase === 'model' ? 10 : 20
-            const span = phase === 'extract' ? 5 : phase === 'model' ? 10 : 20
-            onProgress?.(i, Math.round(base + (pct / 100) * span))
-          },
-        )
+        // Reuse the transcript from the up-front transcription above — no re-transcribe.
+        const words = sharedCaptionWords
         // libass in ffmpeg.wasm has no fontconfig/system fonts — the font
         // referenced in the ASS Style MUST match a TTF we load into /capfonts.
         const assText = buildASS(
-          transcript.words,
+          words,
           { ...DEFAULT_CAPTION_OPTIONS, styleId: 'classic', position: 'bottom' },
           'Roboto',
           w,
