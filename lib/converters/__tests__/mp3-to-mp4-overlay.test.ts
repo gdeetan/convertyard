@@ -33,15 +33,28 @@ describe('wordAtTime', () => {
   ]
 
   it('returns the word active at a given time', () => {
-    expect(wordAtTime(words, 0.2)?.text).toBe('hello')
-    expect(wordAtTime(words, 0.6)?.text).toBe('world')
+    expect(wordAtTime(words, 0.2).word?.text).toBe('hello')
+    expect(wordAtTime(words, 0.6).word?.text).toBe('world')
   })
 
-  it('returns null in a gap', () => {
-    expect(wordAtTime(words, 0.45)).toBeNull()
+  it('returns null word in a gap', () => {
+    expect(wordAtTime(words, 0.45).word).toBeNull()
   })
 
-  it('returns null past the end', () => {
-    expect(wordAtTime(words, 5)).toBeNull()
+  it('returns null word past the end', () => {
+    expect(wordAtTime(words, 5).word).toBeNull()
+  })
+
+  it('is `[start, end)` — includes start, excludes end', () => {
+    expect(wordAtTime(words, 0.0).word?.text).toBe('hello')
+    expect(wordAtTime(words, 0.4).word).toBeNull()
+  })
+
+  it('resumes from a cursor hint', () => {
+    const first = wordAtTime(words, 0.2)
+    expect(first.word?.text).toBe('hello')
+    const next = wordAtTime(words, 0.6, first.index)
+    expect(next.word?.text).toBe('world')
+    expect(next.index).toBe(1)
   })
 })

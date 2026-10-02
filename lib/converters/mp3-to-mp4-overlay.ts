@@ -36,14 +36,25 @@ export function computeAmplitudeBuckets(
   return out
 }
 
-export function wordAtTime(
-  words: Pick<WordChunk, 'text' | 'start' | 'end'>[],
+export interface WordLookup<T> {
+  word: T | null
+  index: number
+}
+
+export function wordAtTime<T extends Pick<WordChunk, 'start' | 'end'>>(
+  words: T[],
   tSec: number,
-): Pick<WordChunk, 'text' | 'start' | 'end'> | null {
-  for (const w of words) {
-    if (tSec >= w.start && tSec < w.end) return w
+  startIndex = 0,
+): WordLookup<T> {
+  // Monotonic scan: callers that advance tSec monotonically should pass
+  // back the previous `index` to amortize the scan to O(1) per call.
+  const from = Math.max(0, Math.min(startIndex, words.length))
+  for (let i = from; i < words.length; i++) {
+    const w = words[i]
+    if (tSec < w.start) return { word: null, index: i }
+    if (tSec < w.end) return { word: w, index: i }
   }
-  return null
+  return { word: null, index: words.length }
 }
 
 export interface WaveformDrawOpts {
@@ -73,10 +84,20 @@ export function drawWaveformFrame(
     }
   } else {
     ctx.lineWidth = Math.max(1, Math.round(h / 360))
+    // Top envelope
     ctx.beginPath()
     for (let i = 0; i < amps.length; i++) {
       const x = (i / Math.max(1, amps.length - 1)) * w
-      const y = yCenter - (amps[i] - 0.5) * 2 * maxHalf
+      const y = yCenter - amps[i] * maxHalf
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.stroke()
+    // Bottom envelope (mirror)
+    ctx.beginPath()
+    for (let i = 0; i < amps.length; i++) {
+      const x = (i / Math.max(1, amps.length - 1)) * w
+      const y = yCenter + amps[i] * maxHalf
       if (i === 0) ctx.moveTo(x, y)
       else ctx.lineTo(x, y)
     }
