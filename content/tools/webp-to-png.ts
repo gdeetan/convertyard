@@ -53,23 +53,23 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Why convert WebP to PNG?',
-      a: 'PNG is lossless and universally supported — every image editor, design tool, and operating system can open it without plugins. Convert to PNG when you need to edit the image further (editing lossy formats introduces re-compression artifacts), when you need the most precise transparency possible, or when a target application simply doesn\'t accept WebP.',
+      a: 'One reason is compatibility. PNG is a legacy format with universal support. That means that every image editor, design tool, smartphone, and operating system can open images in this format even without plugins. Convert WebP to PNG if you need to save the image in a lossless format for archiving, or if you need to submit an image for digital printing, since most printing companies accept legacy formats like TIFF, PNG, and JPG, but not WebP.',
     },
     {
       q: 'Is PNG lossless?',
-      a: 'Yes. PNG uses lossless compression — it reduces file size without discarding any pixel data. Every pixel in the output is identical to the input. This makes PNG the right format for screenshots, logos, UI assets, and any image you plan to edit again. The trade-off is file size: PNGs are typically larger than lossy WebP or JPG at equivalent perceptual quality.',
+      a: 'Yes, PNG is a lossless compression format, meaning it saves every encoded pixel without degradation. So every pixel in the output is the same as the source or input. This format is great for graphic images like UI, screenshots, logos, graphics or any image that has lots of sharp lines. However, the trade-off is size, since a PNG file is about two to five times larger than an equivalent WebP file.',
     },
     {
       q: 'Does WebP to PNG preserve transparency?',
-      a: 'Yes. Both WebP and PNG support full alpha transparency, and ConvertYard preserves it through the conversion. A WebP with a transparent background outputs a PNG with the same transparency. No white fill, no color substitution — the alpha channel transfers exactly.',
+      a: 'Yup. Both WebP and PNG formats support full alpha transparency, and converting a WebP to PNG using ConvertYard will preserve this. A WebP image supports a transparent background like PNG, but with a file size two to five times smaller.',
     },
     {
       q: 'Will the PNG be larger than the WebP?',
-      a: 'Usually yes. PNG uses lossless compression, while most WebP files use lossy compression. Converting lossy WebP to lossless PNG locks in the already-compressed pixels at full size, making the output larger than the source. If file size matters, consider staying in WebP. If you need maximum compatibility or lossless quality, PNG is the right call.',
+      a: 'In most cases, yes, since PNG uses only lossless compression, while WebP supports lossy compression, which boosts file-size savings without degrading images too much because of how WebP is encoded. If you need smaller image sizes to upload on a website, I’d recommend choosing the WebP format.',
     },
     {
       q: 'Can I convert 1,000 WebP files at once?',
-      a: 'Yes. Drop them all in and ConvertYard converts them entirely in your browser — no uploads, no server. Large images take more memory, so if you\'re converting very large WebPs (8000px+), keep batches under 100 files to avoid browser memory limits. Download everything as a ZIP when done.',
+      a: 'Technically, yes. But that would depend on the file size and how much memory your computer has. It’s possible to convert smaller PNG files (below 1 MB) in batches of 1,000, but for larger files over 5 MB, I’d keep the batch to around 50 to 100.',
     },
   ],
 
