@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildASS, hexToASS, toASSTime, groupWordsIntoLines } from '../caption-ass-builder'
+import { buildASS, classicCaptionCues, hexToASS, toASSTime, groupWordsIntoLines } from '../caption-ass-builder'
 import type { WordChunk } from '../caption-types'
 import { DEFAULT_CAPTION_OPTIONS, STYLE_PRESETS } from '../caption-types'
 
@@ -66,6 +66,39 @@ describe('buildASS - mrbeast', () => {
     expect(ass).toContain('[Script Info]')
     expect(ass).toContain('[V4+ Styles]')
     expect(ass).toContain('[Events]')
+  })
+})
+
+describe('classicCaptionCues', () => {
+  it('keeps a short sentence on one cue, including the pause between words', () => {
+    const cues = classicCaptionCues(words)
+    expect(cues).toHaveLength(1)
+    expect(cues[0].lines).toEqual(['Hello world this is a test'])
+    expect(cues[0].start).toBe(0)
+    expect(cues[0].end).toBe(1.8)
+  })
+
+  it('starts a new cue once the line has run for 3 seconds', () => {
+    const spaced: WordChunk[] = [
+      { text: 'First', start: 0, end: 0.4 },
+      { text: 'line', start: 0.4, end: 0.8 },
+      { text: 'Second', start: 3.2, end: 3.6 },
+      { text: 'line', start: 3.6, end: 4.0 },
+    ]
+    const cues = classicCaptionCues(spaced)
+    expect(cues.map((c) => c.lines.join(' '))).toEqual(['First line', 'Second line'])
+  })
+
+  it('wraps a long line at the classic character limit', () => {
+    const longWords: WordChunk[] = Array.from({ length: 6 }, (_, i) => ({
+      text: 'abcdefghij',
+      start: i * 0.3,
+      end: i * 0.3 + 0.3,
+    }))
+    const cues = classicCaptionCues(longWords)
+    expect(cues).toHaveLength(1)
+    expect(cues[0].lines.length).toBeGreaterThan(1)
+    expect(cues[0].lines.join(' ')).toBe(longWords.map((w) => w.text).join(' '))
   })
 })
 

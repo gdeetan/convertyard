@@ -11,13 +11,14 @@
  * supported.
  */
 import type { WordChunk } from './caption-types'
+import { classicCaptionCues } from './caption-ass-builder'
 import {
   amplitudeBucketsFromPrefix,
+  captionCueAtTime,
   computeAmplitudeBuckets,
   drawCaptionFrame,
   drawWaveformFrame,
   squarePrefix,
-  wordAtTime,
 } from './mp3-to-mp4-overlay'
 
 // Prefix is 8 bytes per sample. Past this, keep the raw PCM and scan each
@@ -238,7 +239,8 @@ async function _mp3ToMp4Passthrough(
     const captionsOn = opts.captions && opts.captionWords.length > 0
     const yCenterFrac = captionsOn ? 0.4 : 0.5
     const waveformColor = '#ffffff'
-    let wordCursor = 0
+    let cueCursor = 0
+    const captionCues = captionsOn ? classicCaptionCues(opts.captionWords) : []
     const waveformOn = opts.waveform !== 'none' && pcm != null && pcmLength > 0
     const waveformPrefix = waveformOn && pcmLength <= WAVEFORM_PREFIX_MAX_SAMPLES
       ? squarePrefix(pcm!, pcmLength)
@@ -276,10 +278,10 @@ async function _mp3ToMp4Passthrough(
       }
 
       if (captionsOn) {
-        const lookup = wordAtTime(opts.captionWords, t, wordCursor)
-        wordCursor = lookup.index
-        if (lookup.word) {
-          drawCaptionFrame(ctx, lookup.word.text, w, h, {
+        const lookup = captionCueAtTime(captionCues, t, cueCursor)
+        cueCursor = lookup.index
+        if (lookup.cue) {
+          drawCaptionFrame(ctx, lookup.cue.lines.join('\n'), w, h, {
             fontFamily: 'system-ui, Roboto, Arial, sans-serif',
             fontSizePx: Math.round(h * 0.055),
             color: '#ffffff',
