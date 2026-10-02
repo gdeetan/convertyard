@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import { classicCaptionCues } from '../caption-ass-builder'
 import {
   amplitudeBucketsFromPrefix,
+  captionCueAtTime,
   computeAmplitudeBuckets,
   squarePrefix,
   wordAtTime,
@@ -41,6 +43,24 @@ describe('computeAmplitudeBuckets', () => {
     const out = computeAmplitudeBuckets(new Float32Array(0), 48_000, 0, 0, 10)
     expect(out).toHaveLength(10)
     expect(out.every((v) => Number.isFinite(v))).toBe(true)
+  })
+})
+
+describe('captionCueAtTime', () => {
+  const cues = classicCaptionCues([
+    { text: 'Hello', start: 0.0, end: 0.4 },
+    { text: 'world', start: 0.5, end: 0.9 },
+  ])
+
+  it('shows the whole line while any of its words are current', () => {
+    expect(captionCueAtTime(cues, 0.2).cue?.lines.join(' ')).toBe('Hello world')
+    expect(captionCueAtTime(cues, 0.45).cue?.lines.join(' ')).toBe('Hello world')
+    expect(captionCueAtTime(cues, 0.6).cue?.lines.join(' ')).toBe('Hello world')
+  })
+
+  it('hides the line once it has ended', () => {
+    expect(captionCueAtTime(cues, 0.9).cue).toBeNull()
+    expect(captionCueAtTime(cues, 5).cue).toBeNull()
   })
 })
 

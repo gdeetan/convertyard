@@ -1,4 +1,4 @@
-import type { WordChunk, CaptionOptions, CaptionStyleId } from './caption-types'
+import { DEFAULT_CAPTION_OPTIONS, type WordChunk, type CaptionOptions, type CaptionStyleId } from './caption-types'
 import {
   captionAlignment,
   captionFontSizePx,
@@ -150,19 +150,43 @@ function wordByWordEvents(words: WordChunk[], opts: CaptionOptions): string[] {
   })
 }
 
-function groupedLineEvents(words: WordChunk[], opts: CaptionOptions): string[] {
+export interface CaptionCue {
+  start: number
+  end: number
+  /** Display lines. A line longer than maxCharsPerLine is already wrapped. */
+  lines: string[]
+}
+
+function groupedCaptionLines(
+  words: WordChunk[],
+  opts: Pick<CaptionOptions, 'uppercase' | 'maxCharsPerLine'>,
+): CaptionCue[] {
   const maxWords = opts.maxCharsPerLine > 0
     ? Math.max(2, Math.floor(opts.maxCharsPerLine * 2 / 5))
     : LINE_MAX_WORDS
   const groups = groupWordsIntoLines(words, maxWords, LINE_MAX_DURATION_S)
   return groups.map((group) => {
-    const start = group[0].start
-    const end   = group[group.length - 1].end
     const wordTexts = group.map(w => opts.uppercase ? w.text.toUpperCase() : w.text)
-    // Respect the user's maxCharsPerLine setting by wrapping with \N.
-    const text = wrapToLines(wordTexts, opts.maxCharsPerLine)
-    return dialogue(start, end, text)
+    return {
+      start: group[0].start,
+      end: group[group.length - 1].end,
+      lines: wrapToLines(wordTexts, opts.maxCharsPerLine).split('\\N'),
+    }
   })
+}
+
+/** Classic MP3-to-MP4 captions: a line of words, not one word at a time. */
+export function classicCaptionCues(words: WordChunk[]): CaptionCue[] {
+  return groupedCaptionLines(words, {
+    uppercase: false,
+    maxCharsPerLine: DEFAULT_CAPTION_OPTIONS.maxCharsPerLine,
+  })
+}
+
+function groupedLineEvents(words: WordChunk[], opts: CaptionOptions): string[] {
+  return groupedCaptionLines(words, opts).map((cue) =>
+    dialogue(cue.start, cue.end, cue.lines.join('\\N')),
+  )
 }
 
 function karaokeEvents(words: WordChunk[], opts: CaptionOptions): string[] {

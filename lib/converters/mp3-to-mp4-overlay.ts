@@ -89,6 +89,20 @@ export interface WordLookup<T> {
   index: number
 }
 
+export function captionCueAtTime<T extends { start: number; end: number }>(
+  cues: T[],
+  tSec: number,
+  startIndex = 0,
+): { cue: T | null; index: number } {
+  const from = Math.max(0, Math.min(startIndex, cues.length))
+  for (let i = from; i < cues.length; i++) {
+    const cue = cues[i]
+    if (tSec < cue.start) return { cue: null, index: i }
+    if (tSec < cue.end) return { cue, index: i }
+  }
+  return { cue: null, index: cues.length }
+}
+
 export function wordAtTime<T extends Pick<WordChunk, 'start' | 'end'>>(
   words: T[],
   tSec: number,
@@ -176,19 +190,26 @@ export function drawCaptionFrame(
   ctx.textAlign = 'center'
   ctx.textBaseline = 'alphabetic'
   const x = w / 2
-  const y = h * opts.yFrac
+  const lines = text.split('\n')
+  const lineGap = Math.round(opts.fontSizePx * 1.2)
+  // Last line sits on yFrac. Extra wrap lines stack upward.
+  const y0 = h * opts.yFrac - (lines.length - 1) * lineGap
   ctx.shadowColor = 'rgba(0,0,0,0.75)'
   ctx.shadowBlur = Math.max(2, Math.round(opts.fontSizePx / 20))
   ctx.shadowOffsetX = 0
   ctx.shadowOffsetY = Math.max(1, Math.round(opts.fontSizePx / 24))
+  ctx.fillStyle = opts.color
   if (opts.outlineWidth > 0) {
     ctx.lineWidth = opts.outlineWidth
     ctx.strokeStyle = opts.outlineColor
     ctx.lineJoin = 'round'
-    ctx.strokeText(text, x, y)
   }
-  ctx.shadowColor = 'transparent'
-  ctx.fillStyle = opts.color
-  ctx.fillText(text, x, y)
+  for (let i = 0; i < lines.length; i++) {
+    const y = y0 + i * lineGap
+    if (opts.outlineWidth > 0) ctx.strokeText(lines[i], x, y)
+    ctx.shadowColor = 'transparent'
+    ctx.fillText(lines[i], x, y)
+    ctx.shadowColor = 'rgba(0,0,0,0.75)'
+  }
   ctx.restore()
 }
