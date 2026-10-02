@@ -36,6 +36,54 @@ export function computeAmplitudeBuckets(
   return out
 }
 
+/**
+ * Running sum of squares, `prefix[i] = sum(pcm[0..i)^2)`.
+ * One pass, then each frame's bars are a handful of subtractions instead of
+ * another walk over the 80 ms window. Same bucket edges as
+ * `computeAmplitudeBuckets`.
+ */
+export function squarePrefix(pcm: Float32Array, length = pcm.length): Float64Array {
+  const n = Math.max(0, Math.min(length, pcm.length))
+  const prefix = new Float64Array(n + 1)
+  let acc = 0
+  for (let i = 0; i < n; i++) {
+    const v = pcm[i] || 0
+    acc += v * v
+    prefix[i + 1] = acc
+  }
+  return prefix
+}
+
+/** Fill `into` when it is the right length so the 25 fps loop can reuse one buffer. */
+export function amplitudeBucketsFromPrefix(
+  prefix: Float64Array,
+  sampleRate: number,
+  startSec: number,
+  endSec: number,
+  bucketCount: number,
+  into?: Float32Array,
+): Float32Array {
+  const out = into && into.length === bucketCount ? into : new Float32Array(bucketCount)
+  out.fill(0)
+  if (bucketCount <= 0) return out
+  const total = prefix.length - 1
+  if (total <= 0) return out
+  const startIdx = Math.max(0, Math.floor(startSec * sampleRate))
+  const endIdx = Math.min(total, Math.ceil(endSec * sampleRate))
+  const windowLen = Math.max(0, endIdx - startIdx)
+  if (windowLen === 0) return out
+  const step = windowLen / bucketCount
+  for (let b = 0; b < bucketCount; b++) {
+    const s = startIdx + Math.floor(b * step)
+    const e = startIdx + Math.floor((b + 1) * step)
+    const n = Math.max(1, e - s)
+    const sumSq = prefix[e] - prefix[s]
+    const rms = Math.sqrt(Math.max(0, sumSq) / n)
+    out[b] = rms > 1 ? 1 : rms
+  }
+  return out
+}
+
 export interface WordLookup<T> {
   word: T | null
   index: number

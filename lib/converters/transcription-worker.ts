@@ -165,6 +165,20 @@ function postError(error: TranscriptionErrorShape, id?: string) {
 
 // ── Model loader ──────────────────────────────────────────────────────────────
 
+const HF_HOST = 'https://huggingface.co/'
+// Same public bucket as the other on-device models. Objects are the exact
+// Hugging Face files, keyed `{model}/resolve/main/{file}`.
+const WHISPER_R2_HOST = 'https://pub-4e06a0715aae49b1975bbe46902137a3.r2.dev/'
+
+function isRemoteFetchFailure(err: unknown): boolean {
+  const raw = err instanceof Error
+    ? err.message
+    : typeof err === 'object' && err !== null && 'message' in err
+      ? String((err as { message: unknown }).message)
+      : String(err)
+  return /fetch|network|404|403|failed to load|not found|status code|download/i.test(raw)
+}
+
 async function loadWhisperModel(quality: WhisperQuality) {
   if (whisperPipeline && loadedQuality === quality) return
 
@@ -173,36 +187,55 @@ async function loadWhisperModel(quality: WhisperQuality) {
   const variants = modelVariantsForQuality(quality, { constrained: isConstrainedClient() })
   const attempts: TranscriptionLoadAttempt[] = []
   let lastError: TranscriptionErrorShape | null = null
+  let skipR2 = false
 
   whisperPipeline = null
   loadedQuality = null
   loadedVariant = null
 
   for (const variant of variants) {
-    try {
-      const cb = makeProgressCallback(quality)
-      whisperPipeline = await pipeline('automatic-speech-recognition', variant.modelId, {
-        dtype: variant.dtype,
-        device: 'wasm',
-        progress_callback: cb,
-      })
-      loadedQuality = quality
-      loadedVariant = variant
-      return
-    } catch (err) {
-      lastError = classifyTranscriptionError(err, {
-        modelId: variant.modelId,
-        dtype: variant.dtype,
-      })
-      attempts.push({
-        modelId: variant.modelId,
-        dtype: variant.dtype,
-        quality,
-        error: lastError.rawMessage,
-      })
-      try { await whisperPipeline?.dispose?.() } catch { /* ignore */ }
-      whisperPipeline = null
+    const hosts = skipR2 ? [HF_HOST] : [WHISPER_R2_HOST, HF_HOST]
+    let loaded = false
+    for (const host of hosts) {
+      const prevHost = env.remoteHost
+      env.remoteHost = host
+      try {
+        const cb = makeProgressCallback(quality)
+        whisperPipeline = await pipeline('automatic-speech-recognition', variant.modelId, {
+          dtype: variant.dtype,
+          device: 'wasm',
+          progress_callback: cb,
+        })
+        loadedQuality = quality
+        loadedVariant = variant
+        loaded = true
+        // eslint-disable-next-line no-console
+        console.info(`[captions] loaded ${variant.modelId} from ${host}`)
+        break
+      } catch (err) {
+        try { await whisperPipeline?.dispose?.() } catch { /* ignore */ }
+        whisperPipeline = null
+        const r2Miss = host === WHISPER_R2_HOST && isRemoteFetchFailure(err)
+        if (r2Miss) {
+          skipR2 = true
+          continue
+        }
+        lastError = classifyTranscriptionError(err, {
+          modelId: variant.modelId,
+          dtype: variant.dtype,
+        })
+        attempts.push({
+          modelId: variant.modelId,
+          dtype: variant.dtype,
+          quality,
+          error: lastError.rawMessage,
+        })
+        break
+      } finally {
+        env.remoteHost = prevHost
+      }
     }
+    if (loaded) return
   }
 
   throw {

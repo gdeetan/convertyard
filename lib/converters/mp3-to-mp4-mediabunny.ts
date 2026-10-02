@@ -12,11 +12,17 @@
  */
 import type { WordChunk } from './caption-types'
 import {
+  amplitudeBucketsFromPrefix,
   computeAmplitudeBuckets,
   drawCaptionFrame,
   drawWaveformFrame,
+  squarePrefix,
   wordAtTime,
 } from './mp3-to-mp4-overlay'
+
+// Prefix is 8 bytes per sample. Past this, keep the raw PCM and scan each
+// frame — the scan is cheap next to the encoder, and the prefix is not.
+const WAVEFORM_PREFIX_MAX_SAMPLES = 24_000_000
 
 export interface Mp3PassthroughOpts {
   w: number
@@ -233,23 +239,34 @@ async function _mp3ToMp4Passthrough(
     const yCenterFrac = captionsOn ? 0.4 : 0.5
     const waveformColor = '#ffffff'
     let wordCursor = 0
+    const waveformOn = opts.waveform !== 'none' && pcm != null && pcmLength > 0
+    const waveformPrefix = waveformOn && pcmLength <= WAVEFORM_PREFIX_MAX_SAMPLES
+      ? squarePrefix(pcm!, pcmLength)
+      : null
+    if (waveformPrefix) pcm = null
+    const amps = new Float32Array(bucketCount)
 
     for (let f = 0; f < totalFrames; f++) {
       const t = f * frameDur
       ctx.fillStyle = bgColor
       ctx.fillRect(0, 0, w, h)
 
-      if (opts.waveform !== 'none' && pcm && pcmLength > 0) {
+      if (waveformOn) {
         const halfWin = 0.04
         const s = Math.max(0, t - halfWin)
         const e = Math.min(effectiveDuration, t + halfWin)
-        const amps = computeAmplitudeBuckets(
-          pcm.subarray(0, pcmLength),
-          pcmSampleRate,
-          s,
-          e,
-          bucketCount,
-        )
+        if (waveformPrefix) {
+          amplitudeBucketsFromPrefix(waveformPrefix, pcmSampleRate, s, e, bucketCount, amps)
+        } else {
+          const scanned = computeAmplitudeBuckets(
+            pcm!.subarray(0, pcmLength),
+            pcmSampleRate,
+            s,
+            e,
+            bucketCount,
+          )
+          amps.set(scanned)
+        }
         drawWaveformFrame(ctx, amps, w, h, {
           mode: opts.waveform,
           color: waveformColor,

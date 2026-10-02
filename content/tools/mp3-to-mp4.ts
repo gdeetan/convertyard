@@ -113,7 +113,7 @@ export const config: ToolConfig = {
       name: 'captions',
       label: 'Burn in auto captions (English)',
       default: false,
-      hint: 'Generates captions locally with Whisper tiny.en. One-time ~40 MB model download on first use. Nothing is uploaded.',
+      hint: 'Generates captions locally with Whisper base. One-time ~290 MB model download on first use. Nothing is uploaded.',
     },
   ],
 
@@ -124,11 +124,11 @@ export const config: ToolConfig = {
     },
     {
       q: 'Can I add captions to my MP3?',
-      a: 'Yes, you can add captions but turning on the “Burn in auto captions” which tells the tool to transcribe the audio locally using the “Whisper tiny.en speech model.” It’s around 40 MB and has to load in the browser to work, but once it does, it stays there, and subsequent conversions will be faster. Take note that turning this feature on lengthens the time it takes to convert the file.',
+      a: 'Yes, you can add captions by turning on “Burn in auto captions,” which tells the tool to transcribe the audio locally using the Whisper base speech model. It’s around 290 MB and has to load in the browser to work, but once it does, it stays there, and subsequent conversions will be faster. Take note that turning this feature on lengthens the time it takes to convert the file.',
     },
     {
       q: 'How accurate are the captions?',
-      a: 'The “Whisper tiny.en” engine is capable of handling clear talking head videos like podcasts and voiceovers. However, the accuracy will drop if the speaker has a heavy accent or the video has loud background music or other audio noise. Always check the output of the downloaded file before uploading.',
+      a: 'The Whisper base engine handles clear speech such as podcasts and voiceovers. Accuracy drops if the speaker has a heavy accent or the audio has loud background music or other noise. Always check the output of the downloaded file before uploading.',
     },
     {
       q: 'Which aspect ratios does this support?',

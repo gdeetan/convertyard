@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  amplitudeBucketsFromPrefix,
   computeAmplitudeBuckets,
+  squarePrefix,
   wordAtTime,
 } from '../mp3-to-mp4-overlay'
 
@@ -17,6 +19,22 @@ describe('computeAmplitudeBuckets', () => {
     }
     // bucket covering the pulse should be louder than a silent one
     expect(out[25]).toBeGreaterThan(out[0])
+  })
+
+  it('matches a precomputed square-prefix for several windows', () => {
+    const sr = 16_000
+    const pcm = new Float32Array(sr)
+    for (let i = 0; i < pcm.length; i++) pcm[i] = Math.sin(i / 20) * ((i % 100) / 100)
+    const prefix = squarePrefix(pcm)
+    const into = new Float32Array(32)
+    for (const [start, end] of [[0, 0.08], [0.4, 0.48], [0.9, 0.95]] as const) {
+      const direct = computeAmplitudeBuckets(pcm, sr, start, end, 32)
+      const cached = amplitudeBucketsFromPrefix(prefix, sr, start, end, 32, into)
+      expect(cached).toBe(into)
+      for (let i = 0; i < direct.length; i++) {
+        expect(cached[i]).toBeCloseTo(direct[i], 5)
+      }
+    }
   })
 
   it('handles zero-length window without NaN', () => {
