@@ -10,6 +10,25 @@
  * QuickTime routinely drop the track → silent output. AAC is universally
  * supported.
  */
+import type { WordChunk } from './caption-types'
+import {
+  computeAmplitudeBuckets,
+  drawCaptionFrame,
+  drawWaveformFrame,
+  wordAtTime,
+} from './mp3-to-mp4-overlay'
+
+export interface Mp3PassthroughOpts {
+  w: number
+  h: number
+  bgColor: string
+  trimStartSec: number
+  trimEndSec: number
+  waveform: 'none' | 'bar' | 'line'
+  captions: boolean
+  captionWords: WordChunk[] // empty when captions === false
+}
+
 export function isMp3PassthroughSupported(): boolean {
   if (typeof navigator === 'undefined') return false
   if (typeof VideoEncoder === 'undefined') return false
@@ -24,13 +43,7 @@ export function isMp3PassthroughSupported(): boolean {
 
 export async function mp3ToMp4Passthrough(
   file: File,
-  opts: {
-    w: number
-    h: number
-    bgColor: string
-    trimStartSec: number
-    trimEndSec: number
-  },
+  opts: Mp3PassthroughOpts,
   onProgress?: (pct: number) => void,
 ): Promise<File> {
   try {
@@ -43,7 +56,7 @@ export async function mp3ToMp4Passthrough(
 
 async function _mp3ToMp4Passthrough(
   file: File,
-  opts: { w: number; h: number; bgColor: string; trimStartSec: number; trimEndSec: number },
+  opts: Mp3PassthroughOpts,
   onProgress?: (pct: number) => void,
 ): Promise<File> {
   const report = (pct: number) => onProgress?.(Math.round(pct))
@@ -127,6 +140,16 @@ async function _mp3ToMp4Passthrough(
   report(8)
 
   // --- Feed audio (decode→AAC via WebCodecs, no ffmpeg) ---------------------
+  const hasOverlay = opts.waveform !== 'none' || opts.captions
+  let pcm: Float32Array | null = null
+  let pcmSampleRate = 0
+  let pcmLength = 0
+  if (opts.waveform !== 'none') {
+    const approx = Math.ceil(sampleRate * effectiveDuration) + sampleRate
+    pcm = new Float32Array(approx)
+    pcmSampleRate = sampleRate
+  }
+
   const feedInput = new Input({ source: new BlobSource(file), formats: ALL_FORMATS })
   try {
     const audioTrack = await feedInput.getPrimaryAudioTrack()
@@ -155,6 +178,26 @@ async function _mp3ToMp4Passthrough(
         })
         sample.close()
       }
+
+      if (pcm) {
+        try {
+          const frames = outSample.numberOfFrames
+          const need = pcmLength + frames
+          if (need > pcm.length) {
+            const grown = new Float32Array(Math.max(need, pcm.length * 2))
+            grown.set(pcm)
+            pcm = grown
+          }
+          const planeSize = outSample.allocationSize({ planeIndex: 0, format: 'f32-planar' })
+          const planeBuf = new ArrayBuffer(planeSize)
+          outSample.copyTo(planeBuf, { planeIndex: 0, format: 'f32-planar' })
+          pcm.set(new Float32Array(planeBuf, 0, frames), pcmLength)
+          pcmLength += frames
+        } catch {
+          pcm = null
+        }
+      }
+
       await audioSrc.add(outSample)
       addedSeconds = shiftedTs + outSample.duration
 
@@ -171,14 +214,72 @@ async function _mp3ToMp4Passthrough(
 
   report(88)
 
-  // --- Feed video: 1-fps black frames spanning the duration -----------------
-  const wholeSeconds = Math.max(1, Math.floor(effectiveDuration))
-  for (let i = 0; i < wholeSeconds; i++) {
-    await videoSrc.add(i, 1)
-  }
-  const remainder = effectiveDuration - wholeSeconds
-  if (remainder > 0.01) {
-    await videoSrc.add(wholeSeconds, remainder)
+  // --- Feed video ---------------------------------------------------------
+  if (!hasOverlay) {
+    const wholeSeconds = Math.max(1, Math.floor(effectiveDuration))
+    for (let i = 0; i < wholeSeconds; i++) {
+      await videoSrc.add(i, 1)
+    }
+    const remainder = effectiveDuration - wholeSeconds
+    if (remainder > 0.01) {
+      await videoSrc.add(wholeSeconds, remainder)
+    }
+  } else {
+    const fps = 25
+    const totalFrames = Math.max(1, Math.ceil(effectiveDuration * fps))
+    const frameDur = 1 / fps
+    const bucketCount = Math.max(32, Math.min(opts.w, 480))
+    const captionsOn = opts.captions && opts.captionWords.length > 0
+    const yCenterFrac = captionsOn ? 0.4 : 0.5
+    const waveformColor = '#ffffff'
+    let wordCursor = 0
+
+    for (let f = 0; f < totalFrames; f++) {
+      const t = f * frameDur
+      ctx.fillStyle = bgColor
+      ctx.fillRect(0, 0, w, h)
+
+      if (opts.waveform !== 'none' && pcm && pcmLength > 0) {
+        const halfWin = 0.04
+        const s = Math.max(0, t - halfWin)
+        const e = Math.min(effectiveDuration, t + halfWin)
+        const amps = computeAmplitudeBuckets(
+          pcm.subarray(0, pcmLength),
+          pcmSampleRate,
+          s,
+          e,
+          bucketCount,
+        )
+        drawWaveformFrame(ctx, amps, w, h, {
+          mode: opts.waveform,
+          color: waveformColor,
+          yCenterFrac,
+          heightFrac: 0.35,
+        })
+      }
+
+      if (captionsOn) {
+        const lookup = wordAtTime(opts.captionWords, t, wordCursor)
+        wordCursor = lookup.index
+        if (lookup.word) {
+          drawCaptionFrame(ctx, lookup.word.text, w, h, {
+            fontFamily: 'system-ui, Roboto, Arial, sans-serif',
+            fontSizePx: Math.round(h * 0.055),
+            color: '#ffffff',
+            outlineColor: '#000000',
+            outlineWidth: Math.max(2, Math.round(h / 360)),
+            yFrac: 0.88,
+          })
+        }
+      }
+
+      await videoSrc.add(t, frameDur)
+
+      if ((f & 31) === 0) {
+        const videoPct = 88 + Math.min(7, (f / totalFrames) * 7)
+        report(videoPct)
+      }
+    }
   }
   report(95)
 
