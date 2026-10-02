@@ -360,7 +360,7 @@ function PreviewSlot({
             </svg>
           </div>
           <div
-            className={`absolute inset-0 z-10 touch-none ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : 'cursor-ew-resize'}`}
+            className={`absolute inset-0 z-10 touch-none ${zoom > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
             onPointerDown={zoom > 1 ? onPanPointerDown : undefined}
             onPointerMove={zoom > 1 ? onPanPointerMove : undefined}
             onPointerUp={zoom > 1 ? onPanPointerUp : undefined}
