@@ -303,7 +303,10 @@ export async function mp3ToMp4(
               captions,
               captionWords: sharedCaptionWords,
             },
-            (pct) => onProgress?.(i, pct),
+            (pct) => {
+              const scaled = captions ? 40 + Math.round(pct * 0.6) : pct
+              onProgress?.(i, scaled)
+            },
           )
           results.push(out)
           onProgress?.(i, 100)
@@ -322,12 +325,13 @@ export async function mp3ToMp4(
       const effectiveStart = trimStartSec > 0 ? Math.min(trimStartSec, effectiveEnd || trimStartSec) : 0
       const encodeDurationSec = Math.max(0, effectiveEnd - effectiveStart)
 
-      // Pre-warm ffmpeg core (download the ~25MB WASM) BEFORE kicking off
-      // transcribe — but don't hold the instance, because transcribe resets
-      // the cores internally. We re-acquire the instance below.
-      onProgress?.(i, 5)
+      // Pre-warm ffmpeg core (download the ~25MB WASM) now that transcription
+      // (which resets the cores) has completed. For no-captions runs this is a
+      // no-op reset.
+      const minPct = captions ? 40 : 0
+      onProgress?.(i, Math.max(minPct, 5))
       await (needsFilter ? getSingleThreadFFmpeg() : getFFmpeg())
-      onProgress?.(i, 10)
+      onProgress?.(i, Math.max(minPct, 10))
       const inputName = `audio_${i}.${ext}`
       const outputName = `out_${i}.mp4`
       const imageExt = bgImage?.name.split('.').pop() ?? 'jpg'
@@ -337,11 +341,10 @@ export async function mp3ToMp4(
 
       if (captions) {
         // Reuse the transcript from the up-front transcription above — no re-transcribe.
-        const words = sharedCaptionWords
         // libass in ffmpeg.wasm has no fontconfig/system fonts — the font
         // referenced in the ASS Style MUST match a TTF we load into /capfonts.
         const assText = buildASS(
-          words,
+          sharedCaptionWords,
           { ...DEFAULT_CAPTION_OPTIONS, styleId: 'classic', position: 'bottom' },
           'Roboto',
           w,
