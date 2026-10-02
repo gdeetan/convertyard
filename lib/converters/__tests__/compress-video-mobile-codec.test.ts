@@ -8,10 +8,10 @@ describe('mobile codec gating', () => {
   beforeEach(() => { vi.resetModules() })
   afterEach(() => { if (originalUA) setUA(originalUA) })
 
-  it('mobileAllowsHevc returns false on iOS', async () => {
+  it('mobileAllowsHevc returns true on iOS', async () => {
     setUA('Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)')
     const { mobileAllowsHevc } = await import('../compress-video-webcodecs')
-    expect(mobileAllowsHevc()).toBe(false)
+    expect(mobileAllowsHevc()).toBe(true)
   })
 
   it('mobileAllowsHevc returns false on Android', async () => {

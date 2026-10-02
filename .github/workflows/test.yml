@@ -11,6 +11,9 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci --ignore-scripts
+      # canvas's install script downloads the Cairo prebuild. --ignore-scripts
+      # skips it, and the PDF downsample tests then have no 2d context.
+      - run: npm rebuild canvas
       - run: npx tsx scripts/generate-fixtures.ts
       - run: npm run test
 
