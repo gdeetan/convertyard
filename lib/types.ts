@@ -208,6 +208,9 @@ export interface ToolConfig {
   // Async warning surfaced above the Compress button. Runs once per file
   // set — use for probes that need to read the media (bitrate, codec).
   asyncWarningFn?: (files: File[]) => Promise<string | null>
+  // Fired whenever the option set changes, including the initial defaults.
+  // Use to start a download that should overlap with the user picking files.
+  onOptionsChange?: (options: ToolOptions) => void
   // Options that should be forced based on the current file set. Return the
   // subset of options to override (e.g. {resolution: '720p'} when a large
   // iOS file was dropped). ToolShell applies these via handleOptionChange.

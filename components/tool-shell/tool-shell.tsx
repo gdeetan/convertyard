@@ -316,6 +316,10 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
     setAsyncWarning(null)
   }, [progressGate])
 
+  useEffect(() => {
+    config.onOptionsChange?.(options)
+  }, [config, options])
+
   const handleOptionChange = useCallback((name: string, value: unknown) => {
     setOptions((prev) => {
       const next: ToolOptions = { ...prev, [name]: value }

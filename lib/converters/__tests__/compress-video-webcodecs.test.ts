@@ -89,6 +89,6 @@ describe('demuxMp4File', () => {
     const result = await demuxMp4File(file, { includeAudio: true })
 
     expect(arrayBuffer).toHaveBeenCalledTimes(1)
-    expect(result).toEqual({ video: null, audio: null })
+    expect(result).toEqual({ video: null, audio: null, hasAudioTrack: false })
   })
 })
