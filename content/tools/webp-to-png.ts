@@ -5,7 +5,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'webp-to-png',
   title: 'WebP to PNG Converter',
-  subtitle: 'WebP to lossless PNG — full transparency support. Batch 1,000+ files in your browser. No upload.',
+  subtitle: 'Convert WebP to a lossless PNG format with full transparency support. This tool converts up to 1,000 images per batch without uploading to a server.',
   bestFor: 'Best for converting WebP images to PNG before editing in tools that don\'t support WebP.',
   category: 'images',
   accepts: ['image/webp'],
