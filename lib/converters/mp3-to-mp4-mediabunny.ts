@@ -184,7 +184,7 @@ async function _mp3ToMp4Passthrough(
           const frames = outSample.numberOfFrames
           const need = pcmLength + frames
           if (need > pcm.length) {
-            const grown = new Float32Array(Math.max(need, pcm.length * 2))
+            const grown = new Float32Array(need + sampleRate) // add 1s slack, linear
             grown.set(pcm)
             pcm = grown
           }
@@ -278,6 +278,9 @@ async function _mp3ToMp4Passthrough(
       if ((f & 31) === 0) {
         const videoPct = 88 + Math.min(7, (f / totalFrames) * 7)
         report(videoPct)
+      }
+      if (f > 0 && f % 250 === 0) {
+        await new Promise((r) => setTimeout(r, 0))
       }
     }
   }
