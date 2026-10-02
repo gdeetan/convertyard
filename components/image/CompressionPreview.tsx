@@ -35,6 +35,14 @@ function pctSmaller(original: number, compressed: number): string {
   return `${Math.round((1 - compressed / original) * 100)}%`
 }
 
+function sizeDelta(original: number, compressed: number): { pct: string; word: 'smaller' | 'larger' | 'same' } {
+  if (original === 0) return { pct: '0%', word: 'same' }
+  const diff = Math.round((compressed / original - 1) * 100)
+  if (diff === 0) return { pct: '0%', word: 'same' }
+  if (diff < 0) return { pct: `-${Math.abs(diff)}%`, word: 'smaller' }
+  return { pct: `+${diff}%`, word: 'larger' }
+}
+
 function useObjectUrl(file: File | null): string | null {
   const [url, setUrl] = useState<string | null>(null)
   useEffect(() => {
@@ -148,8 +156,13 @@ function PreviewSlot({
     return () => clearTimeout(t)
   }, [quality, optionsKey, file, index, onResultEdit, initialOptions, convertFn])
 
-  const originalUrl = useObjectUrl(file)
+  const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif'
+  const rawOriginalUrl = useObjectUrl(file)
   const compressedUrl = useObjectUrl(currentResult)
+  // Browsers can't render HEIC in <img>. Fall back to the decoded result
+  // for the "Original" pane so the user sees their photo — the size label
+  // still reflects the source file's bytes.
+  const originalUrl = isHeic ? compressedUrl : rawOriginalUrl
 
   // ── Pan drag ──
   const containerRef = useRef<HTMLDivElement>(null)
@@ -229,6 +242,8 @@ function PreviewSlot({
 
   const imgTransform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
   const savedPct = currentResult ? pctSmaller(file.size, currentResult.size) : '—'
+  const delta = currentResult ? sizeDelta(file.size, currentResult.size) : null
+  const sizeLabel = delta ? `${delta.pct} ${delta.word}` : savedPct
   const qualityChanged = quality !== baseQuality
 
   // Escape to exit fullscreen
@@ -246,7 +261,7 @@ function PreviewSlot({
 
   const viewerHeight = fullscreen ? '100%' : 360
 
-  if (!originalUrl) return null
+  if (!rawOriginalUrl) return null
 
   return (
     <div className={fullscreen
@@ -314,9 +329,13 @@ function PreviewSlot({
           style={fullscreen ? undefined : { height: viewerHeight }}
         >
           <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - dividerX}% 0 0)` }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={originalUrl} alt="Original" className="absolute inset-0 h-full w-full object-contain"
-              style={{ transform: imgTransform, transformOrigin: '0 0' }} draggable={false} />
+            {originalUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={originalUrl} alt="Original" className="absolute inset-0 h-full w-full object-contain"
+                style={{ transform: imgTransform, transformOrigin: '0 0' }} draggable={false} />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center text-xs text-fg-subtle">Decoding…</div>
+            )}
           </div>
           <div className="absolute inset-0" style={{ clipPath: `inset(0 0 0 ${dividerX}%)` }}>
             {compressedUrl ? (
@@ -351,7 +370,7 @@ function PreviewSlot({
           </div>
           <div className="pointer-events-none absolute bottom-1.5 right-1.5 z-30 rounded bg-black/60 px-1.5 py-0.5 text-[10px] text-white">
             {currentResult
-              ? `${afterLabel} · ${formatBytes(currentResult.size)} · ${savedPct} smaller`
+              ? `${afterLabel} · ${formatBytes(currentResult.size)} · ${sizeLabel}`
               : 'Processing…'}
           </div>
         </div>
@@ -369,7 +388,7 @@ function PreviewSlot({
             const label = side === 'original'
               ? `Original · ${formatBytes(file.size)}`
               : currentResult
-                ? `${afterLabel} · ${formatBytes(currentResult.size)} · ${savedPct} smaller`
+                ? `${afterLabel} · ${formatBytes(currentResult.size)} · ${sizeLabel}`
                 : 'Processing…'
             return (
               <div key={side} className="relative select-none overflow-hidden bg-[repeating-conic-gradient(#e5e7eb_0%_25%,white_0%_50%)] bg-[length:16px_16px]">

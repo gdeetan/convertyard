@@ -16,7 +16,8 @@ function formatBytes(bytes: number): string {
 function pctSaved(original: number, compressed: number): string {
   if (original === 0) return '0%'
   const saved = Math.round((1 - compressed / original) * 100)
-  return saved >= 0 ? `${saved}% smaller` : `${Math.abs(saved)}% larger`
+  if (saved === 0) return '0% same'
+  return saved > 0 ? `-${saved}% smaller` : `+${Math.abs(saved)}% larger`
 }
 
 function useObjectUrl(file: File | null): string | null {
