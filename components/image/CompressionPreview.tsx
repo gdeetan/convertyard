@@ -349,6 +349,13 @@ function PreviewSlot({
           <div className="pointer-events-none absolute inset-y-0 w-0.5 bg-white shadow-[0_0_0_1px_rgba(0,0,0,0.25)]"
             style={{ left: `${dividerX}%`, transform: 'translateX(-50%)' }} />
           <div
+            className="absolute inset-y-0 z-20 w-4 -translate-x-1/2 cursor-ew-resize touch-none"
+            style={{ left: `${dividerX}%` }}
+            onPointerDown={onDividerPointerDown}
+            onPointerMove={onDividerPointerMove}
+            onPointerUp={onDividerPointerUp}
+          />
+          <div
             className="absolute top-1/2 z-20 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 cursor-ew-resize touch-none items-center justify-center rounded-full border border-border bg-white shadow-md"
             style={{ left: `${dividerX}%` }}
             onPointerDown={onDividerPointerDown}
