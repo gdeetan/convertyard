@@ -83,11 +83,11 @@ export const config: ToolConfig = {
     },
     {
       q: 'Why does AVIF encoding take longer than WebP or PNG?',
-      a: "AVIF uses the AV1 codec under the hood, which prioritizes maximum compression over speed. Encoding a large PNG to AVIF at effort 4 takes 2–10x longer than WebP. Reduce the effort slider to 0–2 if speed matters. Decoding is fast — the slowness is encode-only and doesn't affect load times for your users.",
+      a: 'Since AVIF uses the AV1 codec that prioritizes maximum compression over speed, encoding a large PNG file to AVIF will take longer- around 2 to 10 times longer than a WebP file. If you want to speed up the conversion, reduce the effort slider between 0 and 2. On the flip side, AVIF files decode quickly, and these images load fast in browsers, which is the main reason you want to convert PNG files to this format.',
     },
     {
       q: 'Are my files uploaded to your servers?',
-      a: "Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device. ConvertYard's servers only deliver the tool's code; they never see your images.",
+      a: 'Nope. Nothing is uploaded to a server. Everything runs directly in your browser using WebAssembly. Your PNG files don’t leave your device. How many files you can convert in a batch will depend on your processor speed and memory.',
     },
   ],
 
