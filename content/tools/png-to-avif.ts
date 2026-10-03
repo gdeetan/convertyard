@@ -95,8 +95,8 @@ export const config: ToolConfig = {
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'avif-browser-support', 'lossless-vs-lossy'],
 
   meta: {
-    title: 'PNG to AVIF Converter — ConvertYard',
+    title: 'PNG to AVIF Converter',
     description:
-      'Convert PNG to AVIF in your browser. Batch up to 1,000 files — no uploads, no account, no watermarks. Supports lossless mode, quality control, and resize.',
+      "Convert PNG files to AVIF to significantly reduced file size if you're uploading images to a website so it loads faster. Nothing uploads and it's free.",
   },
 }
