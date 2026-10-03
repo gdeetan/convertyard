@@ -85,20 +85,22 @@ export async function libvipsConvert(
   onProgress?: (fileIndex: number, pct: number) => void,
   onResult?: (fileIndex: number, result: ConversionResult) => void
 ): Promise<ConversionResult[]> {
-  const results: ConversionResult[] = []
+  // Dispatch all files concurrently; vips-client's worker pool caps actual
+  // parallelism to a safe number of in-flight encodes.
+  const results: ConversionResult[] = new Array(files.length)
 
-  for (let i = 0; i < files.length; i++) {
-    let file = files[i]
+  await Promise.all(files.map(async (original, i) => {
+    let file = original
 
     if (
       !file.type.startsWith('image/') &&
       !file.name.match(/\.(jpe?g|png|webp|avif|heic|heif|gif|tiff?|bmp)$/i)
     ) {
       const err = new Error(`Unsupported file type: ${file.type || 'unknown'}`)
-      results.push(err)
+      results[i] = err
       onProgress?.(i, 100)
       onResult?.(i, err)
-      continue
+      return
     }
 
     onProgress?.(i, 10)
@@ -125,15 +127,15 @@ export async function libvipsConvert(
         (pct) => onProgress?.(i, 40 + Math.round(pct * 0.6))
       )
       onProgress?.(i, 100)
-      results.push(result)
+      results[i] = result
       onResult?.(i, result)
     } catch (err) {
       onProgress?.(i, 100)
-      const error = new Error(`${files[i].name}: ${err instanceof Error ? err.message : 'conversion failed'}`)
-      results.push(error)
+      const error = new Error(`${original.name}: ${err instanceof Error ? err.message : 'conversion failed'}`)
+      results[i] = error
       onResult?.(i, error)
     }
-  }
+  }))
 
   return results
 }
