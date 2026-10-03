@@ -71,7 +71,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Should I use lossy or lossless mode for PNG to AVIF?',
-      a: "Use lossless mode for images that require pixel-perfect accuracy: logos, icons, screenshots, UI mockups, text-heavy images, and any image you'll edit again. Use lossy mode (the default) for photographs, illustrations with gradients, and images destined for display — the quality difference at 70 is invisible and file sizes are much smaller.",
+      a: 'Here’s the formal guideline: use lossless mode for images that require pixel-perfect accuracy, like logos, icons, screenshots, UI mockups, and anything with text-heavy images. Use lossy mode for photographs, illustrations with gradients, or any photographic image. But you can also use lossy mode for text-heavy images at the default quality setting, and you won’t notice any quality loss. You can also preview the image before conversion.',
     },
     {
       q: 'Does AVIF support transparency like PNG?',
