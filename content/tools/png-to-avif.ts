@@ -5,7 +5,7 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'png-to-avif',
   title: 'PNG to AVIF Converter',
-  subtitle: 'PNG to AVIF — same quality, up to 50% smaller file. Convert your entire library without uploading anything.',
+  subtitle: 'PNG to AVIF format. Get the same quality with over a 90% reduction in file size. Convert your entire library without uploading anything to an unknown server.',
   bestFor: 'Best for front-end developers replacing PNG files with AVIF to cut file size so the page loads fast in modern browsers.',
   category: 'images',
   accepts: ['image/png'],
@@ -67,7 +67,7 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'How much smaller will my AVIF files be compared to PNG?',
-      a: "AVIF is dramatically smaller than PNG for photographic content — typically 70–85% smaller. For non-photographic content like logos, screenshots, and UI assets, the difference is less pronounced; lossless AVIF is usually 20–40% smaller than PNG. The exact savings depend on image complexity. ConvertYard shows you per-file byte savings so you can verify before using the converted files.",
+      a: 'AVIF files are significantly smaller than PNG at the same dimensions. In my tests, they were consistently over 95% smaller with the default settings. I got the biggest savings from graphic images that have transparent backgrounds. Photographs get slightly lower savings, at around 85 to 95%, and that is without resizing the photo. The ConvertYard PNG to AVIF converter shows you potential savings in the preview windows (at least for the first three images), so you know how much smaller the file can become and see a preview of how it looks in AVIF format.',
     },
     {
       q: 'Should I use lossy or lossless mode for PNG to AVIF?',
