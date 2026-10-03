@@ -195,11 +195,21 @@ self.onmessage = async (e: MessageEvent) => {
         encodeOpts.effort = typeof opts.effort === 'number' ? opts.effort : 4
         if (opts.lossless === true) encodeOpts.lossless = true
         // libheif in wasm-vips OOMs on large images (no tiling API available in this build).
-        // Auto-downscale to 4096px max so the AV1 encoder stays within the WASM heap.
-        const AVIF_MAX_DIM = 4096
-        if (image.width > AVIF_MAX_DIM || image.height > AVIF_MAX_DIM) {
-          const scale = AVIF_MAX_DIM / Math.max(image.width, image.height)
-          const scaled = image.resize(scale)
+        // Cap by both per-side dimension and total pixel count so the AV1 encoder
+        // stays within the WASM heap.
+        const AVIF_MAX_DIM = 3072
+        const AVIF_MAX_PIXELS = 8_000_000
+        const sideScale =
+          image.width > AVIF_MAX_DIM || image.height > AVIF_MAX_DIM
+            ? AVIF_MAX_DIM / Math.max(image.width, image.height)
+            : 1
+        const pixelScale =
+          image.width * image.height > AVIF_MAX_PIXELS
+            ? Math.sqrt(AVIF_MAX_PIXELS / (image.width * image.height))
+            : 1
+        const avifScale = Math.min(sideScale, pixelScale)
+        if (avifScale < 1) {
+          const scaled = image.resize(avifScale)
           image.delete()
           image = scaled
         }
@@ -278,20 +288,38 @@ self.onmessage = async (e: MessageEvent) => {
       }
 
       if (!outBuffer) {
+        // AVIF (libheif/aom) requires an aligned, contiguous backing buffer.
+        // Pipelines that chain autorot/resize/flatten can leave the image as
+        // a non-materialized view, which triggers "operation does not support
+        // unaligned accesses" at save time. copyMemory() forces materialization.
+        if (outputFormat === 'avif') {
+          const aligned = image.copyMemory()
+          image.delete()
+          image = aligned
+        }
         try {
           outBuffer = image.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
         } catch (err) {
-          // Lossless WebP can OOM the WASM heap ("wbuffer_write: write failed")
-          // on large detailed photos even below the 8192px cap. Retry with
-          // progressively smaller dimensions before giving up.
           const msg = err instanceof Error ? err.message : ''
+          // Lossless WebP can OOM the WASM heap ("wbuffer_write: write failed")
+          // on large detailed photos even below the 8192px cap. AVIF has the
+          // same failure mode via aom ("av1_create_context_and_bufferpool
+          // failed"). Retry with progressively smaller dimensions.
           const isWebpOom =
             outputFormat === 'webp' &&
             opts.lossless === true &&
             /wbuffer_write|write failed|unable to encode/i.test(msg)
-          if (!isWebpOom) throw err
+          const isAvifOom =
+            outputFormat === 'avif' &&
+            /wbuffer_write|write failed|av1_create_context|bufferpool|unable to encode|Initialization problem/i.test(msg)
+          if (!isWebpOom && !isAvifOom) throw err
           for (const scale of [0.75, 0.5, 0.35]) {
-            const resized = image.resize(scale)
+            let resized = image.resize(scale)
+            if (outputFormat === 'avif') {
+              const aligned = resized.copyMemory()
+              resized.delete()
+              resized = aligned
+            }
             try {
               outBuffer = resized.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
               resized.delete()
@@ -304,6 +332,7 @@ self.onmessage = async (e: MessageEvent) => {
         }
       }
 
+      if (!outBuffer) throw new Error('encoder produced no output')
       self.postMessage(
         { id, type: 'result', data: outBuffer.buffer, fileName, mimeType: getMimeType(outputFormat) },
         [outBuffer.buffer]
