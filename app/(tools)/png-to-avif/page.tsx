@@ -10,63 +10,68 @@ const explainer = (
       <p className="mt-4">
         PNG (or Portable Network Graphics) is a legacy image format
         created in 1995 by the PNG Development Group as a free,
-        open-source replacement for GIF. People opt for this format
-        when they need clear, crisp graphic images with sharp edges,
-        like logos, screenshots, or icons with a transparent
-        background.
+        open-source replacement for GIF when Unisys initially wanted
+        companies to pay royalties to use LZP (basically the algorithm
+        that reads GIF files). This format is excellent for folks who
+        want clear and crisp graphic images with sharp edges and clear
+        lines, such as logos, UI, screenshots, or icons with a
+        transparent background.
       </p>
       <p className="mt-4">
-        PNG is a lossless format, meaning every pixel is encoded as it
-        was drawn. Nothing looks blurry, even when users zoom in. One
-        downside is that PNG files are large, and using them on
-        websites takes up more space, which can increase web hosting
-        costs and slow down page loads.
+        PNG is a lossless format, meaning every pixel is encoded
+        without any distortion. It won&rsquo;t look blurry when you
+        zoom in, but a downside of fully lossless images is that they
+        are large, and using them on websites can slow load times and
+        take up more storage space, driving up web hosting costs.
       </p>
     </section>
 
     <section>
       <h2 className="text-2xl font-semibold text-fg">What is AVIF?</h2>
       <p className="mt-4">
-        AVIF (AV1 Image File Format) is a modern image format based on
-        the AV1 video codec. It was built to pack high-quality images
-        into much smaller files than older formats like PNG or JPG.
-        AVIF supports transparent backgrounds, wide color, and HDR,
-        and it&rsquo;s now supported by every major browser on
-        Windows, Mac, Android, and iOS (Chrome, Safari, Firefox, and
-        Edge). This means you can swap PNG for AVIF and nearly every
-        visitor to your site will see the images without any special
-        software.
+        AVIF (or AV1 Image File Format) is a modern image format based
+        on the AV1 video codec. It was designed as an alternative that
+        delivers high-quality images without the bloat of older
+        formats like PNG or JPG. Like PNG, AVIF supports transparent
+        backgrounds. It also supports a wide color range and HDR, and
+        is now supported by nearly every browser on Windows, Mac,
+        Android, and iOS (Chrome, Safari, Firefox, and Edge). This
+        means that you can convert PNG to AVIF and keep sharp image
+        quality while reducing image size by over 95% (based on
+        tests), and your visitors will see these images without any
+        special software to read them.
       </p>
     </section>
 
     <section>
       <h2 className="text-2xl font-semibold text-fg">Why convert PNG to AVIF?</h2>
       <p className="mt-4">
-        The main reason is file size. An AVIF file, at the same
-        dimensions and visually identical quality, can be up to 90%
-        smaller than the original PNG. So a 2 MB PNG photo converted
-        to AVIF can shrink down to around 200 KB. That&rsquo;s a huge
-        decrease and helps images load faster and use less storage on
-        your web host. You can also convert PNG archives to AVIF to
-        free up space on your hard drive or save backups in the cloud
-        for less money.
-      </p>
-      <p className="mt-4">
-        For website owners, faster-loading pages can boost user
-        engagement and search rankings, since visitors are more
-        likely to stick around on a fast site. AVIF also keeps your
-        transparent backgrounds, so logos and UI assets stay sharp
-        without the bloat.
+        The primary reason is to reduce file size. An AVIF image with
+        the same dimensions and image quality can be over 95% smaller
+        than a PNG. For example, a 6.5 MB PNG, a high-resolution
+        graphic converted to PNG, will be around 250 KB, or 96%
+        smaller with the same visual quality. That alone makes this
+        conversion worth it if you want to upload these images on a
+        website. The reduction in size will make your website load
+        faster and lower web hosting costs since AVIF files are much
+        smaller. Your visitors will be happier because they
+        won&rsquo;t have to wait as long for images to load, and
+        search engines will reward your website with more organic
+        traffic. AVIF supports transparent backgrounds, which is
+        great for logos or icons.
       </p>
     </section>
 
     <section>
       <h2 className="text-2xl font-semibold text-fg">When should I keep PNG instead?</h2>
       <p className="mt-4">
-        Use PNG if you need to send a graphic or photo to someone
-        using old software or a device that cannot read AVIF, or if
-        you plan to keep editing the file. Otherwise, use AVIF for
-        images you&rsquo;ll post on your website or share online.
+        Retain the PNG file if you need to send the graphic or photo
+        to someone who still uses old software, or if you want to
+        print the graphic. Most print shops will only accept legacy
+        formats like PNG, TIFF, or JPG. Another reason is if
+        you&rsquo;re planning to edit the file and need a copy for
+        future use. Otherwise, use AVIF for an image you&rsquo;ll
+        upload on your website.
       </p>
     </section>
   </div>

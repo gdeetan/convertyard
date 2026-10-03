@@ -6,7 +6,7 @@ export const config: ToolConfig = {
   slug: 'png-to-avif',
   title: 'PNG to AVIF Converter',
   subtitle: 'PNG to AVIF — same quality, up to 50% smaller file. Convert your entire library without uploading anything.',
-  bestFor: 'Best for front-end developers replacing PNG assets with AVIF to cut page weight on modern browsers.',
+  bestFor: 'Best for front-end developers replacing PNG files with AVIF to cut file size so the page loads fast in modern browsers.',
   category: 'images',
   accepts: ['image/png'],
   acceptsExt: ['.png'],
