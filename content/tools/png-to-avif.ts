@@ -75,7 +75,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Does AVIF support transparency like PNG?',
-      a: 'Yes. AVIF fully supports an alpha channel (transparency), just like PNG. Transparent regions in your PNG will be preserved in the output AVIF. Browser support for AVIF transparency is universal in all AVIF-supporting browsers.',
+      a: 'Yes. AVIF files support alpha channel transparency like PNG and these will be preserved by default when you convert your files to AVIF. Every major browser is compatible with AVIF transparency.',
     },
     {
       q: 'What browsers support AVIF?',
