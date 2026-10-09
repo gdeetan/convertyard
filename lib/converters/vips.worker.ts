@@ -192,7 +192,13 @@ self.onmessage = async (e: MessageEvent) => {
         if (opts.progressive === true) encodeOpts.interlace = true
       } else if (outputFormat === 'avif') {
         encodeOpts.Q = quality
-        encodeOpts.effort = typeof opts.effort === 'number' ? opts.effort : 4
+        // Preview path forces a lower effort so the slider feels responsive;
+        // final download/ZIP conversion still runs at the user-configured effort.
+        if (opts.__previewFast === true) {
+          encodeOpts.effort = 2
+        } else {
+          encodeOpts.effort = typeof opts.effort === 'number' ? opts.effort : 4
+        }
         if (opts.lossless === true) encodeOpts.lossless = true
         // libheif in wasm-vips OOMs on large images (no tiling API available in this build).
         // Cap by both per-side dimension and total pixel count so the AV1 encoder

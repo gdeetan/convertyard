@@ -528,7 +528,9 @@ export function AvifConversionPreview(props: Props) {
   return (
     <ConversionPreview
       {...props}
-      convertFn={(file, options) => libvipsConvert([file], 'avif', options)}
+      convertFn={(file, options) =>
+        libvipsConvert([file], 'avif', { ...options, __previewFast: true })
+      }
       afterLabel="AVIF"
       headerLabel="Before / After AVIF preview"
     />
