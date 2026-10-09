@@ -60,7 +60,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Why would I convert AVIF back to JPG?',
-      a: "AVIF has excellent browser support but older software, CMS platforms, email clients, and print workflows often reject it. JPG is the most universally accepted image format. Common cases: uploading to a CMS that rejects AVIF, sending via email, sharing with someone on an older device, or submitting to a print lab.",
+      a: "AVIF has growing browser support, and it was built for this purpose - smaller images without losing the quality of high-resolution photos. However, older software, CMS platforms, email clients, and print shops often don’t support this format. JPG is a universally accepted format, so you can send it to anyone and they won’t have issues opening it. If you’re sending an image, for example, to an iPhone or Mac user, you may want to convert it to JPG first to ensure that they won’t have any issues opening that photo.",
     },
     {
       q: 'What do I lose going from AVIF to JPG?',
@@ -68,11 +68,11 @@ export const config: ToolConfig = {
     },
     {
       q: 'Will converting AVIF to JPG lose quality?',
-      a: 'Some quality loss is unavoidable when converting between two lossy formats. At quality 90, the result is visually excellent. Avoid converting AVIF→JPG→AVIF repeatedly; each round trip compounds the loss.',
+      a: 'Yes, expect quality loss when saving to JPG, especially at lower quality settings. However, at quality 90, the difference isn’t noticeable. If you’re converting AVIF to JPG and back to AVIF, each conversion compounds the quality loss.',
     },
     {
       q: 'Does this work with AVIF files created on iPhone?',
-      a: "iPhones capture in HEIC, not AVIF. If you're converting iPhone photos, use the HEIC to JPG tool instead. AVIF is a web-delivery format produced by browsers and image editing tools, not a camera capture format.",
+      a: "Take note that iPhone’s default is to save photos in HEIC format, not AVIF. So if you’re converting iPhone photos, you’ll need to use the HEIC-to-JPG converter instead of this. AVIF is a purpose-built web-delivery format made for browsers and not a camera capture format.",
     },
   ],
 
