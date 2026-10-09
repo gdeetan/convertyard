@@ -5,8 +5,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'avif-to-jpg',
   title: 'AVIF to JPG Converter',
-  subtitle: 'AVIF is great for the web, but JPG plays everywhere. Convert 1,000+ files without a server or plugin.',
-  bestFor: 'Best for making AVIF web images compatible with older software, email clients, and print workflows.',
+  subtitle: 'AVIF is excellent for the web but doesn’t have universal compatibility. JPG is the format that still plays everywhere — CMS uploads, email, print labs, and older devices. Convert your AVIFs to JPG without uploading a single file to a server.',
+  bestFor: 'For web designers, e-commerce store owners, and anyone handing AVIF web images off to a designer, platforms, or print shops that still expect JPG.',
   category: 'images',
   accepts: ['image/avif'],
   acceptsExt: ['.avif'],
@@ -82,6 +82,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'AVIF to JPG Converter — ConvertYard',
     description:
-      'Convert AVIF to JPG in your browser. Batch up to 1,000 files — no uploads, no account, no watermarks. Adjustable quality with resize and metadata controls.',
+      "Convert AVIF files to JPG without uploading your images to a server. Batch convert up to 1,000 files. There's no paywall, no signup, no watermarks. Users can adjust JPG quality, remove metadata, and resize a whole batch of images.",
   },
 }
