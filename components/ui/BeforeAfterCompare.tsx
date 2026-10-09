@@ -71,7 +71,6 @@ export function BeforeAfterCompare({
                   className="h-full w-full object-cover"
                   loading="lazy"
                   decoding="async"
-                  fetchPriority="low"
                   draggable={false}
                 />
                 <span className="pointer-events-none absolute left-3 top-3 rounded-md bg-black/70 px-2 py-1 text-xs font-medium text-white sm:left-4 sm:top-4 sm:text-sm">
@@ -91,7 +90,6 @@ export function BeforeAfterCompare({
                   className="h-full w-full object-cover"
                   loading="lazy"
                   decoding="async"
-                  fetchPriority="low"
                   draggable={false}
                 />
                 <span className="pointer-events-none absolute right-3 top-3 rounded-md bg-black/70 px-2 py-1 text-xs font-medium text-white sm:right-4 sm:top-4 sm:text-sm">
