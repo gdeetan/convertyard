@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { imageCompress } from '@/lib/converters/image-compress'
 import { libvipsConvert } from '@/lib/converters/libvips'
 import { svgConvert } from '@/lib/converters/svg-convert'
+import { readFileBytes } from '@/lib/utils/materialize-file'
 import type { ConversionResult, ToolOptions } from '@/lib/types'
 
 type PreviewConvertFn = (file: File, options: ToolOptions) => Promise<ConversionResult[]>
@@ -84,6 +85,23 @@ function PreviewSlot({
   const [currentResult, setCurrentResult] = useState<File | null>(initialResult)
   const [reCompressing, setReCompressing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // Cache source bytes in a JS-owned File so re-compress on options change
+  // survives the original File handle going stale between reads
+  // (Firefox/macOS NotReadableError when the OS touches the backing file).
+  const [cachedFile, setCachedFile] = useState<File | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    setCachedFile(null)
+    readFileBytes(file)
+      .then((bytes) => {
+        if (cancelled) return
+        setCachedFile(
+          new File([bytes], file.name, { type: file.type, lastModified: file.lastModified }),
+        )
+      })
+      .catch(() => { /* fall back to raw file on next convertFn call */ })
+    return () => { cancelled = true }
+  }, [file])
 
   // Serialize the options-panel state so any field change (lossless,
   // maxDimension, stripMetadata, sharpen, method, quality, …) becomes a
@@ -133,7 +151,7 @@ function PreviewSlot({
     const delay = isSeed ? 0 : 350
     const t = setTimeout(async () => {
       try {
-        const res = await convertFn(file, { ...initialOptions, quality })
+        const res = await convertFn(cachedFile ?? file, { ...initialOptions, quality })
         if (myId !== jobId.current) return
         const r = res[0]
         let outFile: File | null = null
@@ -154,7 +172,7 @@ function PreviewSlot({
       }
     }, delay)
     return () => clearTimeout(t)
-  }, [quality, optionsKey, file, index, onResultEdit, initialOptions, convertFn])
+  }, [quality, optionsKey, file, cachedFile, index, onResultEdit, initialOptions, convertFn])
 
   const isHeic = /\.(heic|heif)$/i.test(file.name) || file.type === 'image/heic' || file.type === 'image/heif'
   const rawOriginalUrl = useObjectUrl(file)
