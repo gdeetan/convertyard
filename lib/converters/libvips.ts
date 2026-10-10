@@ -85,6 +85,10 @@ export async function libvipsConvert(
   onProgress?: (fileIndex: number, pct: number) => void,
   onResult?: (fileIndex: number, result: ConversionResult) => void
 ): Promise<ConversionResult[]> {
+  if (opts.maxDimension === 'custom') {
+    const custom = typeof opts.customMaxDimension === 'number' ? opts.customMaxDimension : 0
+    opts = { ...opts, maxDimension: custom > 0 ? custom : 0 }
+  }
   // Dispatch all files concurrently; vips-client's worker pool caps actual
   // parallelism to a safe number of in-flight encodes.
   const results: ConversionResult[] = new Array(files.length)
