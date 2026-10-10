@@ -15,9 +15,42 @@ export const config: ToolConfig = {
       libvipsConvert(files, 'avif', opts, onProgress, onResult),
   enablePresets: true,
 
+  howItWorks: [
+    { label: 'Drop your files', desc: 'Drag and drop, click to browse, or paste from clipboard. Up to 1,000 files at once.' },
+    { label: 'Choose settings', desc: 'Adjust quality, compression effort, and other options to match your needs.' },
+    { label: 'Click Convert', desc: 'Everything runs in your browser via WebAssembly. PNG to AVIF Converter happens locally — no server involved.' },
+    { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+  ],
+
   previewPanel: AvifConversionPreview,
 
   options: [
+    {
+      type: 'number-with-chips',
+      name: 'maxSizeKb',
+      label: 'Max file size',
+      unitChoices: ['KB', 'MB'],
+      defaultUnit: 'KB',
+      chips: [
+        { label: '50 KB',  valueKB: 50   },
+        { label: '100 KB', valueKB: 100  },
+        { label: '200 KB', valueKB: 200  },
+        { label: '500 KB', valueKB: 500  },
+        { label: '1 MB',   valueKB: 1024 },
+        { label: '2 MB',   valueKB: 2048 },
+        { label: '5 MB',   valueKB: 5120 },
+      ],
+      min: 0,
+      default: 0,
+      hint: '0 = no limit. AVIF iterates quality downward, then shrinks dimensions (down to 50%) if needed. Best-effort — AVIF compression is non-linear.',
+    },
+    {
+      type: 'toggle',
+      name: 'stripMetadata',
+      label: 'Strip metadata',
+      default: false,
+      hint: 'Removes EXIF and color profile metadata — slightly smaller files.',
+    },
     {
       type: 'slider',
       name: 'quality',
@@ -46,23 +79,35 @@ export const config: ToolConfig = {
       hint: '0 = fastest encode (larger file), 9 = smallest file (slower). AVIF encoding is thorough — larger files may take a few seconds.',
     },
     {
+      type: 'toggle',
+      name: 'preserveTransparency',
+      label: 'Preserve transparency',
+      default: true,
+      hint: 'Keeps the alpha channel. Turn off to flatten transparent pixels onto a solid background colour (smaller file).',
+    },
+    {
+      type: 'color-picker',
+      name: 'bgColor',
+      label: 'Background colour',
+      default: '#ffffff',
+      dependsOn: { name: 'preserveTransparency', value: 'false' },
+      hint: 'Shown behind the image once transparency is removed. Visible in the preview.',
+    },
+    {
       type: 'number',
-      name: 'maxDimension',
-      label: 'Max dimension (px)',
+      name: 'customMaxDimension',
+      label: 'Max width (px)',
       min: 0,
       max: 16000,
       step: 1,
       default: 0,
-      hint: 'Downscales the longer edge. 0 = keep original size. Never upscales.',
-    },
-    {
-      type: 'toggle',
-      name: 'stripMetadata',
-      label: 'Strip metadata',
-      default: false,
-      hint: 'Removes EXIF and color profile metadata — slightly smaller files',
+      hint: '0 = keep original dimensions. Applied to the longest edge. Aspect ratio is preserved; never upscales.',
     },
   ],
+
+  derivedOptionsFn: (_files, options) => ({
+    maxDimension: (options.customMaxDimension as number) > 0 ? 'custom' : 0,
+  }),
 
   faq: [
     {

@@ -87,7 +87,8 @@ self.onmessage = async (e: MessageEvent) => {
       // to drop transparency. Skip for animated (flatten doesn't work on multi-page).
       const dropAlpha =
         (outputFormat === 'jpg' || outputFormat === 'jpeg') ||
-        (outputFormat === 'png' && opts.preserveTransparency === false)
+        ((outputFormat === 'png' || outputFormat === 'avif') &&
+          opts.preserveTransparency === false)
       if (dropAlpha && image.hasAlpha() && !isAnimated) {
         const bg = hexToRgb(typeof opts.bgColor === 'string' ? opts.bgColor : '#ffffff')
         const flat = image.flatten({ background: bg })
@@ -250,8 +251,10 @@ self.onmessage = async (e: MessageEvent) => {
 
       const maxSizeKb = typeof opts.maxSizeKb === 'number' ? opts.maxSizeKb : 0
       const targetBytes = maxSizeKb > 0 ? maxSizeKb * 1024 : 0
-      // AVIF excluded: wasm-vips AVIF Q adjustments are non-monotonic at low quality levels
       const isLossy = outputFormat === 'jpg' || outputFormat === 'jpeg' || outputFormat === 'webp'
+      // AVIF Q is non-monotonic at low Q values, so we track smallest-so-far
+      // across the ramp instead of trusting monotonic descent.
+      const isAvifLossy = outputFormat === 'avif' && opts.lossless !== true
 
       let outBuffer: Uint8Array<ArrayBuffer> | undefined
 
@@ -270,19 +273,45 @@ self.onmessage = async (e: MessageEvent) => {
         }
       }
 
+      // Phase 1b: AVIF quality ramp. Uses bounded effort so iteration stays snappy,
+      // and keeps the smallest-byte candidate seen (Q is non-monotonic).
+      if (targetBytes > 0 && isAvifLossy) {
+        const savedEffort = encodeOpts.effort
+        encodeOpts.effort = Math.min(3, typeof savedEffort === 'number' ? savedEffort : 3)
+        let smallest: Uint8Array<ArrayBuffer> | undefined
+        for (let q = quality; q >= 20; q -= 10) {
+          encodeOpts.Q = q
+          const candidate = image.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
+          if (candidate.byteLength <= targetBytes) {
+            outBuffer = candidate
+            break
+          }
+          if (!smallest || candidate.byteLength < smallest.byteLength) smallest = candidate
+        }
+        if (!outBuffer && smallest) outBuffer = smallest
+        encodeOpts.effort = savedEffort
+      }
+
       // Phase 2: dimension reduction fallback — triggers when:
       // (a) lossy format still exceeds target after quality loop, or
-      // (b) PNG with target set (lossless, so quality loop never ran)
+      // (b) PNG with target set (lossless, so quality loop never ran), or
+      // (c) AVIF lossy still exceeds target after Q ramp.
       const needsDimReduction =
         targetBytes > 0 &&
-        (isLossy || outputFormat === 'png') &&
+        (isLossy || outputFormat === 'png' || isAvifLossy) &&
         (!outBuffer || outBuffer.byteLength > targetBytes)
 
       if (needsDimReduction) {
-        if (isLossy) encodeOpts.Q = 20
+        if (isLossy || isAvifLossy) encodeOpts.Q = 20
         // scale: 0.9 → 0.8 → ... → 0.5, each relative to the original image
         for (let scale = 0.9; scale >= 0.5 - 0.001; scale = Math.round((scale - 0.1) * 10) / 10) {
-          const resized = image.resize(scale)
+          let resized = image.resize(scale)
+          // AVIF (libheif/aom) rejects non-materialized views at save time.
+          if (outputFormat === 'avif') {
+            const aligned = resized.copyMemory()
+            resized.delete()
+            resized = aligned
+          }
           const candidate = resized.writeToBuffer(`.${outputFormat}`, encodeOpts) as Uint8Array<ArrayBuffer>
           resized.delete()
           if (candidate.byteLength <= targetBytes) {
