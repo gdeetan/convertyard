@@ -63,23 +63,23 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my JPG files uploaded to convert them?',
-      a: 'No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+      a: 'Nope, files aren’t uploaded, and everything runs in your browser using WebAssembly.',
     },
     {
       q: 'Why convert JPG to PNG?',
-      a: 'PNG is lossless — once you have a PNG, no further re-encoding will degrade quality. Convert to PNG when you need to edit an image repeatedly, composite it with other elements, add transparency later, or submit to a platform that requires PNG. It is also the right format for screenshots, UI assets, and anything with text or hard edges.',
+      a: 'Two reasons I’ve talked about earlier: quality and transparency support. PNG files are lossless by default, so even when you save them again and again, the quality will not degrade because re-encoding doesn\'t reduce quality, and they support images with transparent backgrounds, like logos and icons.',
     },
     {
       q: 'Will converting JPG to PNG add a transparent background?',
-      a: 'No. JPG has no transparency data, and converting to PNG does not create any. The output PNG will be a fully opaque image. Transparency must be added manually in an image editor after conversion.',
+      a: 'No, not automatically. JPG files don’t support transparency, and converting them to PNG won\'t create any, so the resulting PNG will be opaque. The only way to create transparency is to use a tool like GIMP or an online background remover. If your image has a solid background, you could use our <a href="/background-remover">background remover tool</a> to remove the background and save it in a format that supports transparency.',
     },
     {
       q: 'Will converting JPG to PNG improve quality?',
-      a: 'No. Converting to PNG stops further lossy degradation, but it cannot recover data already lost when the JPG was first saved. If your JPG has compression artifacts, the PNG will have the same artifacts — preserved losslessly. To get a better image, start from the original uncompressed source.',
+      a: 'Unfortunately, it doesn’t, but it will stop any further lossy degradation from lost pixels when you re-save it. If your JPG file has compression artifacts (meaning degraded pixels from previous saves), the resulting PNG file will have those same artifacts, but preserved in a lossless format.',
     },
     {
       q: 'How much larger will the PNG be compared to the JPG?',
-      a: 'For photographs, PNG files are typically 3–8x larger than equivalent JPGs. PNG\'s lossless compression is much less efficient than JPG\'s lossy compression for continuous-tone images. This is the tradeoff: PNG preserves every pixel, JPG trades some pixel accuracy for dramatically smaller files.',
+      a: 'If you’re talking about photographs, PNG files are typically three to five times larger than an equivalent JPG photograph. That’s because PNG’s lossless compression is less efficient in terms of keeping file sizes low, so it’s a trade-off that you need to consider. You could opt to convert to other formats like <a href="/jpg-to-webp">WebP</a> or <a href="/jpg-to-avif">AVIF</a> if image size is a top priority and you need to upload to a website. These formats support transparency, but are more efficient at encoding pixels and keeping file size down.',
     },
   ],
 
