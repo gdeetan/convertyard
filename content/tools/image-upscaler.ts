@@ -46,7 +46,7 @@ export const config: ToolConfig = {
     },
     {
       label: 'Choose settings',
-      desc: 'Adjust quality, format, and other options to match your needs.',
+      desc: 'Select an upscale factor, image type, and other options to match your upscaling needs.',
     },
     {
       label: 'Click Convert',
@@ -134,7 +134,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Is this better than a standard resize?',
-      a: 'In short: yes. Standard upscaling will yield heavily blurred images, whereas an image upscaler will first reconstruct the image’s edges again. While still not being able to hold a candle to a corresponding desktop application (using even larger models and additional processing passes, e.g. for face restore or for noise stripping), it’s certainly much better than just upscaling.',
+      a: 'The short answer is yes. Here’s the difference. Standard upscaling stretches pixels and recalculates how they are distributed; put simply, it’s like dragging the corner of an image in an image editor to a larger plane and stretching it. The result is a blurrier image that’s worse than the original. Image upscaling (depending on the setting) uses a trained AI model to “predict” missing details and enhance patterns it learned during its training sessions. So it’s identical in a way to premium image upscaler tools, but with a more limited scope due to memory constraints. The resulting image isn’t blurred but sharper.',
     },
     {
       q: 'How does this compare to Topaz or other desktop upscalers?',
@@ -162,7 +162,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'How many files can I process at once?',
-      a: 'For the best results, do a batch of no more than 5 for the smaller 2x to 4x upscales. If you’re upscaling 8x, it’s best to do one image at a time.',
+      a: 'That would depend on the dimensions of the images you’re upscaling. For images/graphics over 1,000 pixels, upscaling between 2x and 4x, you could do up to 5 images per batch. If you’re upscaling an image over 1,000 pixels at 8x, do one file at a time to prevent the browser from freezing due to memory running out.',
     },
   ],
 
