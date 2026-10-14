@@ -203,8 +203,9 @@ export function ImageUpscalerExplainer() {
         source image under 2,048 pixels and use a PNG source.
       </p>
       <p>
-        If you&rsquo;re working with a JPG file, convert it to PNG first
-        before upscaling to prevent any loss of pixel data.
+        If you&rsquo;re working with a JPG file,{' '}
+        <a href="/jpg-to-png">convert it to PNG</a> first before upscaling to
+        prevent any loss of pixel data.
       </p>
 
       <h2>Best practices by image type</h2>
@@ -256,8 +257,9 @@ export function ImageUpscalerExplainer() {
         <li>
           If the source comes from a vector file, re-export it from the
           original file to a PNG, then try using this upscaler. However, if
-          you have access to a graphic editor, export it to the size you need
-          instead of using an upscaler.
+          you have access to a graphic editor,{' '}
+          <a href="/image-resizer">export it to the size you need</a> instead
+          of using an upscaler.
         </li>
       </ol>
       <h3>Prints</h3>
@@ -278,9 +280,10 @@ export function ImageUpscalerExplainer() {
 
       <h2>Batching</h2>
       <p>
-        While this tool can run batches of files, I suggest processing one
-        file at a time to prevent the browser from freezing because it runs
-        out of memory. If you&rsquo;re upscaling images 2&times; or 4&times;,
+        While this tool can run{' '}
+        <a href="/blog/batch-convert-images">batches of files</a>, I suggest
+        processing one file at a time to prevent the browser from freezing
+        because it runs out of memory. If you&rsquo;re upscaling images 2&times; or 4&times;,
         you can do up to 5 images per batch, but for 8&times;, do one image
         at a time for smaller images below 800 pixels. If you try doing 20
         images or more, you&rsquo;ll see a warning.
@@ -290,9 +293,11 @@ export function ImageUpscalerExplainer() {
       <p>
         I recommend leaving the output format at the default setting, which
         is to match the input, unless you have a good reason to switch. For
-        the best results (and I&rsquo;ve said this repeatedly), convert lossy
-        formats like JPG into PNG before upscaling. Choose WebP if a smaller
-        file size is a high priority.
+        the best results (and I&rsquo;ve said this repeatedly), convert{' '}
+        <a href="/blog/lossless-vs-lossy">lossy formats like JPG</a> into PNG
+        before upscaling. Choose{' '}
+        <a href="/blog/avif-vs-webp-vs-jpeg-2026">WebP</a> if a smaller file
+        size is a high priority.
       </p>
 
       <h2>What this tool is not</h2>
