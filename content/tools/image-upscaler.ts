@@ -1,5 +1,6 @@
 import type { ToolConfig, ConversionResult } from '@/lib/types'
 import { upscaleBatch, type UpscaleScale, type UpscaleOutputFormat, type ImageMode } from '@/lib/converters/image-upscaler'
+import { ImageUpscalerExplainer } from '@/components/image-upscaler/explainer'
 
 export const config: ToolConfig = {
   slug: 'image-upscaler',
@@ -29,6 +30,7 @@ export const config: ToolConfig = {
     )
   },
   enablePresets: true,
+  explainer: ImageUpscalerExplainer,
 
   warningFn: (files) => {
     if (files.length > 20) {
