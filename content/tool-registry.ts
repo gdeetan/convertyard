@@ -16,6 +16,7 @@ import { config as jpgToAvif } from './tools/jpg-to-avif'
 import { config as avifToJpg } from './tools/avif-to-jpg'
 import { config as pngToAvif } from './tools/png-to-avif'
 import { config as avifToPng } from './tools/avif-to-png'
+import { config as avifToGif } from './tools/avif-to-gif'
 import { config as compressImage } from './tools/compress-image'
 import { config as compressGif } from './tools/compress-gif'
 import { config as compressPng } from './tools/compress-png'
@@ -92,6 +93,7 @@ export const tools: AnyToolConfig[] = [
   avifToJpg,
   pngToAvif,
   avifToPng,
+  avifToGif,
   compressImage,
   compressGif,
   compressPng,

@@ -207,7 +207,7 @@ export interface ToolConfig {
   optionsWarningFn?: (files: File[], options: ToolOptions) => string | null
   // Async warning surfaced above the Compress button. Runs once per file
   // set — use for probes that need to read the media (bitrate, codec).
-  asyncWarningFn?: (files: File[]) => Promise<string | null>
+  asyncWarningFn?: (files: File[]) => Promise<React.ReactNode | null>
   // Fired whenever the option set changes, including the initial defaults.
   // Use to start a download that should overlap with the user picking files.
   onOptionsChange?: (options: ToolOptions) => void

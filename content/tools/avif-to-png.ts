@@ -67,7 +67,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['png-to-avif', 'avif-to-jpg', 'webp-to-png'],
+  relatedTools: ['png-to-avif', 'avif-to-jpg', 'avif-to-gif', 'webp-to-png'],
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'avif-browser-support', 'lossless-vs-lossy'],
 
   meta: {

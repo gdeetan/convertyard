@@ -70,7 +70,7 @@ export const config: ToolConfig = {
       a: 'As of 2026, most email clients (Outlook, Apple Mail, Gmail on mobile) do not support animated WebP but do support animated GIF. Some legacy CMS platforms and social media embeds also default to GIF for animated content. GIF is the safe fallback when you cannot control what the viewer\'s platform supports.',
     },
   ],
-  relatedTools: ['gif-to-webp', 'jpg-to-gif', 'png-to-gif', 'webp-to-jpg'],
+  relatedTools: ['gif-to-webp', 'avif-to-gif', 'jpg-to-gif', 'png-to-gif', 'webp-to-jpg'],
   relatedArticles: [],
   meta: {
     title: 'WebP to GIF Converter — ConvertYard',

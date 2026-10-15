@@ -69,7 +69,7 @@ export const config: ToolConfig = {
     },
   ],
 
-  relatedTools: ['gif-to-webp', 'gif-to-jpg', 'gif-to-png', 'mp4-to-mp3'],
+  relatedTools: ['gif-to-webp', 'avif-to-gif', 'gif-to-jpg', 'gif-to-png', 'mp4-to-mp3'],
   relatedArticles: ['batch-convert-images'],
 
   meta: {

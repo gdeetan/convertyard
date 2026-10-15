@@ -18,6 +18,24 @@ export async function isAnimatedPng(file: File): Promise<boolean> {
   return false
 }
 
+// Detect animated AVIF by scanning the ftyp box for the 'avis' brand
+// (image-sequence brand defined by MIAF). ISOBMFF: box size(4) + 'ftyp'(4)
+// + major_brand(4) + minor_version(4) + compatible_brands(4*N).
+export async function isAnimatedAvif(file: File): Promise<boolean> {
+  const head = new Uint8Array(await file.slice(0, Math.min(file.size, 4096)).arrayBuffer())
+  if (head.length < 12) return false
+  const dv = new DataView(head.buffer, head.byteOffset, head.byteLength)
+  const boxSize = dv.getUint32(0)
+  if (head[4] !== 0x66 || head[5] !== 0x74 || head[6] !== 0x79 || head[7] !== 0x70) return false
+  const brandEnd = Math.min(head.length, boxSize > 0 ? boxSize : head.length)
+  for (let off = 8; off + 4 <= brandEnd; off += 4) {
+    if (head[off] === 0x61 && head[off + 1] === 0x76 && head[off + 2] === 0x69 && head[off + 3] === 0x73) {
+      return true
+    }
+  }
+  return false
+}
+
 // Single file → GIF. Uses a one-pass split-palette filtergraph.
 // Two-pass with a separate palette.png file is unreliable for static images
 // in ffmpeg.wasm: the palette pass can silently produce 0 frames (static PNG
@@ -52,10 +70,14 @@ async function singleToGif(
   const fps = typeof opts.framerate === 'number' ? opts.framerate : 10
   const maxColors = clampColors(opts.maxColors)
 
-  // Animated PNGs (APNG) need bounded frame count and cheaper palette stats,
+  // Animated inputs need bounded frame count and cheaper palette stats,
   // otherwise palettegen=full over hundreds of full-res frames takes hours in wasm.
-  const animated = (ext === 'png' || ext === 'apng') && await isAnimatedPng(file)
-  const inputArgs = animated ? ['-f', 'apng', '-i', inputName] : ['-i', inputName]
+  const animatedPng = (ext === 'png' || ext === 'apng') && await isAnimatedPng(file)
+  const animatedAvif = ext === 'avif' && await isAnimatedAvif(file)
+  const animated = animatedPng || animatedAvif
+  const inputArgs = animatedPng
+    ? ['-f', 'apng', '-i', inputName]
+    : ['-i', inputName]
 
   // Order matters: fps + scale go BEFORE split so palettegen sees a bounded stream.
   // stats_mode=diff is far cheaper than full and visually equivalent for most APNGs.
