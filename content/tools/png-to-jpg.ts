@@ -5,8 +5,8 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'png-to-jpg',
   title: 'PNG to JPG Converter',
-  subtitle: 'PNG to JPG — set your own quality level, strip transparency cleanly. Batch 1,000 files at once.',
-  bestFor: 'Best for shrinking screenshots and PNG exports before emailing or uploading to web.',
+  subtitle: 'PNG to compact JPG — flatten transparency, cut file size, keep photo quality. Batch 1,000 files in your browser.',
+  bestFor: 'Best for converting a large PNG file into a more manageable JPG format for screenshots, photographs, or any graphic images for printing, emailing, or publishing on the web.',
   category: 'images',
   accepts: ['image/png'],
   acceptsExt: ['.png'],
@@ -15,6 +15,13 @@ export const config: ToolConfig = {
       libvipsConvert(files, 'jpg', opts, onProgress, onResult),
   previewPanel: JpgConversionPreview,
   enablePresets: true,
+
+  howItWorks: [
+    { label: 'Drop your files', desc: 'Drag and drop, click to browse, or paste from clipboard. Up to 1,000 files at once.' },
+    { label: 'Choose settings', desc: 'Adjust quality, format, and other options to match your needs.' },
+    { label: 'Click Convert', desc: 'Convertion happens in your browser, and nothing is uploaded. PNG files are converted to JPG locally, so you can convert client assets without worrying about these leaking in case of a data breach.' },
+    { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+  ],
 
   options: [
     {
@@ -77,11 +84,11 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Does converting PNG to JPG reduce quality?',
-      a: 'Yes — JPG is a lossy format. At the default quality of 85, the difference is imperceptible to most viewers. You would only notice degradation at very low settings (below 50). If you need pixel-perfect fidelity, keep the PNG; if you need a smaller file for web or email, JPG at 80–90 is the right call.',
+      a: 'Yes, it will reduce quality since JPG is a lossy format, and pixel data will be degraded during the conversion depending on the quality setting. If you use the default setting of 85, the difference is negligible compared to the file savings (over 85% in most cases). For most photographs for websites or email, a quality setting between 80 and 90% would be enough. You can check the visual different using the preview window build in this tool to check the difference.',
     },
     {
       q: 'What happens to transparent areas in my PNG?',
-      a: 'JPG has no transparency support. Any transparent pixels in your PNG are filled with the background color you choose — white by default. Use the color picker to set a different fill color if your image is designed for a dark or colored background.',
+      a: 'Since JPG files don’t support transparency, any empty pixels in your PNG file are flattened and filled with a background color (white by default, but you can choose a custom background color using the color picker). If you need to retain the transparency, the WebP and AVIF formats support this and offer better image compression, but at the expense of compatibility.',
     },
     {
       q: 'Why would I convert PNG to JPG?',
@@ -101,8 +108,8 @@ export const config: ToolConfig = {
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'batch-convert-images'],
 
   meta: {
-    title: 'PNG to JPG Converter — ConvertYard',
+    title: 'PNG to JPG Converter',
     description:
-      'Convert PNG to JPG in your browser. Fill transparent areas, set quality, resize, and strip metadata. Batch up to 1,000 files — no account needed. Smaller files.',
+      'Convert a larger PNG file format into a smaller JPG without compromising image quality for uploading images to websites, sending photos for print, or emailing to users of older, legacy software.',
   },
 }
