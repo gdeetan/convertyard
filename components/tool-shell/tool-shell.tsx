@@ -246,7 +246,7 @@ function ConverterShell({ config, embedded = false, onResults, initialOptions, n
     ...initialOptions,
   }))
   const [fileWarning, setFileWarning] = useState<string | null>(null)
-  const [asyncWarning, setAsyncWarning] = useState<string | null>(null)
+  const [asyncWarning, setAsyncWarning] = useState<React.ReactNode | null>(null)
   const [advancedOpen, setAdvancedOpen] = useState(false)
   const { record } = useRecentTools()
 

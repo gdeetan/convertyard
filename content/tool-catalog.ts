@@ -24,6 +24,7 @@ export const ALL_TOOLS: CatalogTool[] = [
   { slug: 'avif-to-jpg',  title: 'AVIF to JPG',   description: 'AVIF back to universal JPG.', category: 'images', status: 'live' },
   { slug: 'png-to-avif',  title: 'PNG to AVIF',   description: 'Best-in-class compression for PNGs.', category: 'images', status: 'live' },
   { slug: 'avif-to-png',  title: 'AVIF to PNG',   description: 'AVIF decoded to lossless PNG.', category: 'images', status: 'live' },
+  { slug: 'avif-to-gif',  title: 'AVIF to GIF',   description: 'Animated AVIF to a looping GIF for Slack, GitHub, email, and legacy platforms.', category: 'images', status: 'live' },
   { slug: 'png-to-jpg',   title: 'PNG to JPG',   description: 'Convert PNG to JPG — transparent areas filled with your chosen color.', category: 'images', status: 'live' },
   { slug: 'jpg-to-png',   title: 'JPG to PNG',   description: 'Convert JPG to lossless PNG — larger files, perfect quality.', category: 'images', status: 'live' },
   { slug: 'heic-to-webp', title: 'HEIC to WebP', description: 'iPhone HEIC photos to WebP — smaller than JPG, browser-ready.', category: 'images', status: 'live' },
