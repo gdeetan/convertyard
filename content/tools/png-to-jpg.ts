@@ -100,7 +100,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Are my PNG files uploaded to convert them?',
-      a: 'No. Conversion runs entirely in your browser using WebAssembly — your PNGs never leave your device. ConvertYard\'s servers only deliver the tool\'s code; they never see your images.',
+      a: 'Nope. The conversion is done in your browser through WebAssembly, so nothing is uploaded to a server.',
     },
   ],
 
