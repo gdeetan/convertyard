@@ -113,7 +113,7 @@ export async function gifPreview(
 // ImageDecoder API. ffmpeg.wasm 0.12.10 cannot reliably decode animated AVIF,
 // so we extract frames here and hand a PNG sequence to the existing GIF
 // encoder. ImageDecoder covers Chrome 94+, Edge, Firefox 123+, Safari 17+.
-async function avifToPngFrames(file: File): Promise<File[]> {
+async function avifToPngFrames(file: File, maxFrames?: number): Promise<File[]> {
   const g = globalThis as unknown as {
     ImageDecoder?: new (init: { data: ArrayBuffer | ReadableStream; type: string }) => {
       tracks: {
@@ -138,7 +138,8 @@ async function avifToPngFrames(file: File): Promise<File[]> {
   const track = decoder.tracks.selectedTrack
   if (!track) throw new Error('AVIF has no image track')
   await decoder.completed
-  const frameCount = track.frameCount || 1
+  const totalFrames = track.frameCount || 1
+  const frameCount = maxFrames && maxFrames > 0 ? Math.min(totalFrames, maxFrames) : totalFrames
   const frames: File[] = []
   for (let i = 0; i < frameCount; i++) {
     const { image } = await decoder.decode({ frameIndex: i })
@@ -157,8 +158,12 @@ async function avifToPngFrames(file: File): Promise<File[]> {
 // AVIF → GIF. Extracts frames with ImageDecoder, then uses the existing
 // PNG-sequence GIF encoder. Single-frame AVIFs route through singleToGif
 // on the decoded PNG so static inputs still produce a valid 1-frame GIF.
-async function avifSingleToGif(file: File, opts: ToolOptions): Promise<File> {
-  const frames = await avifToPngFrames(file)
+async function avifSingleToGif(
+  file: File,
+  opts: ToolOptions,
+  previewMaxFrames?: number,
+): Promise<File> {
+  const frames = await avifToPngFrames(file, previewMaxFrames)
   const outName = file.name.replace(/\.avif$/i, '.gif')
   if (frames.length === 1) {
     const gif = await singleToGif(frames[0], opts)
@@ -166,6 +171,16 @@ async function avifSingleToGif(file: File, opts: ToolOptions): Promise<File> {
   }
   const gif = await sequenceToGif(frames, opts)
   return new File([gif], outName, { type: 'image/gif' })
+}
+
+// Fast AVIF→GIF preview — encodes the first N frames at current settings.
+// Mirrors gifPreview; serialized against the real convert via withFfmpegLock.
+export async function avifGifPreview(
+  file: File,
+  opts: ToolOptions,
+  maxFrames = 12,
+): Promise<File> {
+  return withFfmpegLock(() => avifSingleToGif(file, opts, maxFrames))
 }
 
 // Multiple static images → one animated GIF (each file = one frame in order).
