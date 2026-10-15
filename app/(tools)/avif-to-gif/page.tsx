@@ -43,19 +43,21 @@ export default function Page() {
           </h2>
 
           <p className="mt-4 text-base text-fg-muted">
-            GIF (or Graphics Interchange Format) is one of the oldest
-            animation formats, introduced in 1987 (well before the internet
-            became mainstream), and it&rsquo;s still widely used today. Its{' '}
-            <strong>longevity and compatibility</strong> are its superpowers.
-            Nearly every software, website, platform like Slack, Discord,
-            GitHub, email clients, forums, legacy CMS software, and every
-            image viewer ever shipped supports this format. However, there
-            are huge trade-offs, most of them visual. Since GIFs are capped
-            at <strong>256 colors per frame</strong>, they use an inefficient
-            compression scheme, and they encode files that are much larger
-            than modern alternatives (WebP or AVIF). But when you need
-            something that plays on any platform or in any software, GIF is
-            still the best option.
+            One of the oldest formats for short animation clips is the GIF
+            (or Graphics Interchange Format). This was introduced in 1987,
+            years before the internet became mainstream, and despite its
+            age, it is still the most widely used animation format today.
+            Popular platforms like Slack, Discord, GitHub, email clients,
+            forums, legacy software, and every image viewer developed
+            supports GIF animations. Unfortunately, using this format comes
+            with major trade-offs. One is that GIF files are limited to
+            just <strong>256 colors per frame</strong>, so they&rsquo;re
+            prone to color banding, harsh gradients, and grainy animations.
+            Since GIF is an old format, how it&rsquo;s encoded isn&rsquo;t
+            efficient, resulting in a bulky file size (around three to
+            eight times larger than AVIF). Despite all these downsides, GIF
+            has <strong>near-universal compatibility</strong> and plays on
+            nearly every platform or software.
           </p>
 
           <h2 className="mt-10 text-2xl font-semibold text-fg">
