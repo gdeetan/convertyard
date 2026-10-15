@@ -92,11 +92,11 @@ export const config: ToolConfig = {
     },
     {
       q: 'Why would I convert PNG to JPG?',
-      a: 'PNGs are lossless and often 3–10x larger than equivalent JPGs. For photographs and complex images without text or hard edges, JPG gives excellent visual quality at a fraction of the size. Use PNG when you need lossless quality, transparency, or sharp text/logos. Use JPG for photos you\'re sharing, uploading to social media, or embedding in web pages.',
+      a: 'PNG’s lossless nature means that photographs will be three to ten times larger than the equivalent JPG files. If you have photographs with lots of detail, like landscape or portrait shots, converting them to JPG will retain most of their visual quality at a fraction of the size (usually 85% smaller). Switch to a JPG format if you are uploading photos to social media or a website.',
     },
     {
       q: 'Can I convert 1,000 PNGs at once?',
-      a: 'Yes. Drop them all in and ConvertYard processes them one at a time in your browser — no uploads, no server queue. Speed depends on your device and image dimensions. Download all results as a single ZIP when done.',
+      a: 'Technically, you can do batches of up to 1,000 images, but if you’re working with large, high-resolution files, do batches of 50 to 100 to prevent the browser from freezing due to lack of memory. The speed of conversion will depend on your computer specs (particularly how much memory it has) and image dimension settings.',
     },
     {
       q: 'Are my PNG files uploaded to convert them?',
