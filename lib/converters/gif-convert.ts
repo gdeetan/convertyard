@@ -72,12 +72,9 @@ async function singleToGif(
 
   // Animated inputs need bounded frame count and cheaper palette stats,
   // otherwise palettegen=full over hundreds of full-res frames takes hours in wasm.
-  const animatedPng = (ext === 'png' || ext === 'apng') && await isAnimatedPng(file)
-  const animatedAvif = ext === 'avif' && await isAnimatedAvif(file)
-  const animated = animatedPng || animatedAvif
-  const inputArgs = animatedPng
-    ? ['-f', 'apng', '-i', inputName]
-    : ['-i', inputName]
+  // AVIFs are handled by avifSingleToGif before reaching singleToGif.
+  const animated = (ext === 'png' || ext === 'apng') && await isAnimatedPng(file)
+  const inputArgs = animated ? ['-f', 'apng', '-i', inputName] : ['-i', inputName]
 
   // Order matters: fps + scale go BEFORE split so palettegen sees a bounded stream.
   // stats_mode=diff is far cheaper than full and visually equivalent for most APNGs.
@@ -110,6 +107,65 @@ export async function gifPreview(
   maxFrames = 12,
 ): Promise<File> {
   return withFfmpegLock(() => singleToGif(file, opts, maxFrames))
+}
+
+// Decode AVIF (static or animated) to PNG frames via the browser's native
+// ImageDecoder API. ffmpeg.wasm 0.12.10 cannot reliably decode animated AVIF,
+// so we extract frames here and hand a PNG sequence to the existing GIF
+// encoder. ImageDecoder covers Chrome 94+, Edge, Firefox 123+, Safari 17+.
+async function avifToPngFrames(file: File): Promise<File[]> {
+  const g = globalThis as unknown as {
+    ImageDecoder?: new (init: { data: ArrayBuffer | ReadableStream; type: string }) => {
+      tracks: {
+        ready: Promise<void>
+        selectedTrack: { frameCount: number } | null
+      }
+      completed: Promise<void>
+      decode: (opts: { frameIndex: number }) => Promise<{
+        image: { displayWidth: number; displayHeight: number; close: () => void } & CanvasImageSource
+      }>
+      close: () => void
+    }
+  }
+  if (typeof g.ImageDecoder !== 'function') {
+    throw new Error(
+      'Your browser cannot decode animated AVIF. Use Chrome 94+, Edge, Firefox 123+, or Safari 17+.',
+    )
+  }
+  const buf = await file.arrayBuffer()
+  const decoder = new g.ImageDecoder({ data: buf, type: 'image/avif' })
+  await decoder.tracks.ready
+  const track = decoder.tracks.selectedTrack
+  if (!track) throw new Error('AVIF has no image track')
+  await decoder.completed
+  const frameCount = track.frameCount || 1
+  const frames: File[] = []
+  for (let i = 0; i < frameCount; i++) {
+    const { image } = await decoder.decode({ frameIndex: i })
+    const canvas = new OffscreenCanvas(image.displayWidth, image.displayHeight)
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Could not get canvas context')
+    ctx.drawImage(image, 0, 0)
+    image.close()
+    const blob = await canvas.convertToBlob({ type: 'image/png' })
+    frames.push(new File([blob], `frame${String(i).padStart(4, '0')}.png`, { type: 'image/png' }))
+  }
+  decoder.close()
+  return frames
+}
+
+// AVIF → GIF. Extracts frames with ImageDecoder, then uses the existing
+// PNG-sequence GIF encoder. Single-frame AVIFs route through singleToGif
+// on the decoded PNG so static inputs still produce a valid 1-frame GIF.
+async function avifSingleToGif(file: File, opts: ToolOptions): Promise<File> {
+  const frames = await avifToPngFrames(file)
+  const outName = file.name.replace(/\.avif$/i, '.gif')
+  if (frames.length === 1) {
+    const gif = await singleToGif(frames[0], opts)
+    return new File([gif], outName, { type: 'image/gif' })
+  }
+  const gif = await sequenceToGif(frames, opts)
+  return new File([gif], outName, { type: 'image/gif' })
 }
 
 // Multiple static images → one animated GIF (each file = one frame in order).
@@ -204,7 +260,11 @@ export async function gifConvert(
 
   onProgress?.(0, 10)
   try {
-    const out = await withFfmpegLock(() => singleToGif(files[0], opts))
+    const only = files[0]
+    const isAvif = /\.avif$/i.test(only.name) || only.type === 'image/avif'
+    const out = await withFfmpegLock(() =>
+      isAvif ? avifSingleToGif(only, opts) : singleToGif(only, opts),
+    )
     onProgress?.(0, 100)
     onResult?.(0, out)
     return [out]

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { gifConvert, isAnimatedAvif } from '@/lib/converters/gif-convert'
 import { GifCompressionPreview } from '@/components/gif/GifCompressionPreview'
+import { AvifInputPreview } from '@/components/avif-to-gif/AvifInputPreview'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -18,6 +19,7 @@ export const config: ToolConfig = {
   enablePresets: true,
 
   previewPanel: GifCompressionPreview,
+  interactivePanel: AvifInputPreview,
 
   limitationNote: {
     summary: 'GIF is much larger than AVIF',
