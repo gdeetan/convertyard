@@ -47,19 +47,19 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my AVIF files uploaded to convert them?',
-      a: "No. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device. ConvertYard's servers only deliver the tool's code; they never see your images.",
+      a: "Nope, the AVIF to PNG conversion happens in your browser using WebAssembly, so nothing is uploaded to an unknown server. You can safely convert client assets without worrying of it falling into the wrong hands in case of a data breach. Converting files locally also increases the speed since you don’t need to wait for the upload to finish before the files will convert.",
     },
     {
       q: 'Why convert AVIF to PNG instead of JPG?',
-      a: "PNG is lossless — every pixel is preserved exactly. Convert to PNG when you need to edit the image further (to avoid re-compression degradation), when the destination requires lossless input, or when the AVIF has transparency you want to keep. For sharing or web use where file size matters, JPG is usually smaller.",
+      a: "The reason is that PNG is lossless, so it preserves every pixel even after you edit and resave. This format is excellent for graphic images like UI mockups, logos, icons, basically anything with lots of lines, sharp edges, line art, that kind of stuff.",
     },
     {
       q: 'Will the PNG be larger than the original AVIF?',
-      a: 'Yes — significantly. AVIF is a lossy format with very efficient compression; PNG is lossless. Expect PNG files to be 3–8x larger than their AVIF source for photographs. This is the tradeoff for getting a pixel-perfect, editable file.',
+      a: 'Yes, converting an AVIF to a PNG file will result in a significantly larger file size, up to three to eight times larger because of its lossless format. The tradeoff of this is pixel-perfect quality even after resaving images repeatedly.',
     },
     {
       q: 'Is transparency preserved when converting AVIF to PNG?',
-      a: 'Yes. If your AVIF has an alpha channel (transparent areas), those are preserved in the output PNG. PNG has full alpha transparency support, so nothing is lost in that aspect of the conversion.',
+      a: 'Yes, converting AVIF to PNG will retain the transparency of the graphic, so if you need to convert your icons or logos in AVIF format to PNG, the transparency is retained.',
     },
     {
       q: 'What happens to HDR or wide-gamut AVIF files?',
