@@ -32,7 +32,7 @@ const TABLE = [
 const FAQ = [
   {
     q: 'Does Smallpdf upload my files?',
-    a: 'Yes. Smallpdf processes files on its servers in Switzerland. The company is GDPR-compliant and deletes files after processing, but your file does travel to an external server. If you are working with sensitive documents — contracts, medical records, financial statements — that upload creates a record that Smallpdf controls, not you.',
+    a: 'Yes. Files are processed on Smallpdf’s servers in Switzerland. Smallpdf is GDPR compliant and deletes all files after processing, but yes, your file does get uploaded to an external server. If you’re working with sensitive documents like contracts, medical records, or financial statements, then yes, that upload creates a record with Smallpdf, not you.',
   },
   {
     q: 'Can I use ConvertYard instead of Smallpdf for free?',
@@ -40,15 +40,15 @@ const FAQ = [
   },
   {
     q: 'Is ConvertYard as good as Smallpdf for PDF tools?',
-    a: "For the core workflows — compress, merge, split, rotate, convert to Word/JPG/PNG, OCR — yes. ConvertYard covers all of them, free and without upload. Smallpdf has a more polished annotation and form-filling UI and a wider ecosystem of integrations. If you need deep PDF editing or a Dropbox integration, Smallpdf's Pro plan may be worth it.",
+    a: 'That would depend on what you prioritize. ConvertYard has no limits (daily, file-wise) – no account is needed, and there are no paid versions of any of the tools. For now, the converter only supports a rather limited set of the most common formats – but this is rather the only limitation of ConvertYard so far.',
   },
   {
     q: 'What does "2 tasks per day" mean on Smallpdf free?',
-    a: 'Smallpdf limits free users to 2 file conversions per day. A single merge, compress, or convert operation counts as one task. Once you hit 2, you have to wait until the next day or upgrade to Pro. ConvertYard has no such limit.',
+    a: 'This applies to the core features such as compression, merging, splitting, etc. In ConvertYard, all of these are provided for free without any upload to a third-party server. Other workflows, such as PDF to Word, JPG, PNG, etc., and OCR, are also free and don’t require any upload. Smallpdf has a very polished interface for PDF annotation and form filling and a large number of integrations. ConvertYard focuses on core features, and if you need deep PDF editing or a Dropbox integration, then Smallpdf’s Pro plan may be of interest.',
   },
   {
     q: 'Which tool is better for sensitive documents?',
-    a: "ConvertYard, by design. Because all processing happens inside your browser via WebAssembly, your file bytes never reach any external server. There's nothing for ConvertYard to retain, subpoena, or breach. Smallpdf offers server-side security, but the upload still happens.",
+    a: 'The processing happens within your browser using WebAssembly. Therefore, none of your file bytes ever touch any servers, including those of ConvertYard. Smallpdf has server-side security enabled for uploads, but an upload is created nonetheless.',
   },
 ]
 
@@ -83,8 +83,7 @@ export default function Page() {
           </h1>
           <p className="mb-4 text-xs text-fg-subtle">Published April 22, 2026</p>
           <p className="text-lg leading-relaxed text-fg-muted">
-            The core difference: ConvertYard never uploads your files. Smallpdf does.
-            Everything else — pricing, limits, format support — flows from that single choice.
+            The core difference from <strong className="font-semibold text-fg">Smallpdf.com</strong> is that <strong className="font-semibold text-fg">ConvertYard does not upload any files to servers</strong>. Everything else (pricing, limits, export formats) stems from this core difference.
           </p>
         </div>
 
@@ -148,47 +147,31 @@ export default function Page() {
           <div className="rounded-xl border border-border bg-bg-elevated p-6">
             <h3 className="mb-2 text-base font-semibold text-fg">Privacy: browser vs. server</h3>
             <p className="text-sm leading-relaxed text-fg-muted">
-              Smallpdf is honest about how it works: your file uploads to its servers in Switzerland,
-              gets processed, and is deleted shortly after. The company is GDPR-compliant and takes
-              security seriously. But the upload still happens. Your document travels over the internet,
-              lands on a third-party server, and is retained for some period of time. That creates a
-              record — one that can be subpoenaed, subject to a data breach, or retained longer than
-              advertised.
+              Their &ldquo;Terms of Service&rdquo; reveal how Smallpdf&rsquo;s web-based tools work for you. Smallpdf <strong className="font-semibold text-fg">processes your uploaded files on servers located in Switzerland</strong>. These files are then deleted again from their servers as soon as possible. Smallpdf abides by the rules of the General Data Protection Regulation (GDPR) and does its best to protect your documents. However, by uploading a file to a server over the internet, a copy of your document will be created and stored somewhere &ndash; whether temporarily or for a longer period of time &ndash; and can, for example, be subpoenaed, be the target of a data breach, or be stored for an extended period of time against what the service promises.
             </p>
             <p className="mt-3 text-sm leading-relaxed text-fg-muted">
-              ConvertYard runs the conversion inside your browser via WebAssembly. The same C++ libraries
-              (MuPDF, pdf-lib) run locally on your CPU. Open your browser DevTools → Network while
-              converting — you'll see no file upload request, because there isn't one.
+              All of the ConvertYard tools run inside your browser using <strong className="font-semibold text-fg">WebAssembly</strong>. Hence, the same C++ libraries (<strong className="font-semibold text-fg">MuPDF and pdf-lib</strong>) are executed on your local CPU just like you would run any other local application. You can verify this by opening up your browser <strong className="font-semibold text-fg">DevTools &rarr; Network tab</strong> while running a conversion. You will not see any file upload requests, as there are none.
             </p>
           </div>
 
           <div className="rounded-xl border border-border bg-bg-elevated p-6">
             <h3 className="mb-2 text-base font-semibold text-fg">Pricing: free vs. freemium</h3>
             <p className="text-sm leading-relaxed text-fg-muted">
-              Smallpdf's free tier limits you to 2 tasks per day. Hit that limit at 10am and you're done
-              until tomorrow, or you upgrade to Pro at ~$12/month. ConvertYard has no tier system.
-              There is no paid plan to upgrade to — every tool is free for every user, every time. The
-              site is supported by minimal display ads below tools.
+              Unlike Smallpdf, our free tier has <strong className="font-semibold text-fg">no limit on the number of conversions per day</strong>. Unlike the Smallpdf free tier, which only processes 1 file at a time (and counts against your daily limit), the ConvertYard.com tools can process 1000&rsquo;s of files in a single drop. All outputs are packaged into a <strong className="font-semibold text-fg">single ZIP file</strong>. Progress is tracked for each file individually.
             </p>
           </div>
 
           <div className="rounded-xl border border-border bg-bg-elevated p-6">
             <h3 className="mb-2 text-base font-semibold text-fg">Batch conversion</h3>
             <p className="text-sm leading-relaxed text-fg-muted">
-              Smallpdf free tier processes one file at a time and counts each conversion against your
-              daily limit. ConvertYard processes 1,000+ files in a single drop. All outputs package into
-              a ZIP. Progress is tracked per file. If you regularly work with more than one or two
-              documents at a time, the difference is significant.
+              While Smallpdf only processes 1 file per conversion and counts each conversion against your daily limit, ConvertYard can process <strong className="font-semibold text-fg">1,000+ files in a single drop</strong> and track progress per file. All of the converted files will be packaged into a single ZIP file. If you work with more than 1 or 2 documents at a time on a regular basis, the difference here is quite significant. Try it with <Link href="/compress-pdf" className="font-medium text-primary underline-offset-2 hover:underline">compress PDF</Link>, <Link href="/merge-pdf" className="font-medium text-primary underline-offset-2 hover:underline">merge PDF</Link>, or <Link href="/split-pdf" className="font-medium text-primary underline-offset-2 hover:underline">split PDF</Link>.
             </p>
           </div>
 
           <div className="rounded-xl border border-border bg-bg-elevated p-6">
             <h3 className="mb-2 text-base font-semibold text-fg">Where Smallpdf is genuinely better</h3>
             <p className="text-sm leading-relaxed text-fg-muted">
-              Smallpdf's PDF editor has annotation tools, a form-filling interface, and e-signature
-              support that ConvertYard doesn't have. Its Pro plan integrates with Dropbox, Google Drive,
-              and OneDrive. It also has mobile apps for iOS and Android. If your workflow centers on
-              PDF annotation, signing, or cloud storage integration, Smallpdf Pro is a reasonable choice.
+              Smallpdf has a PDF editor with <strong className="font-semibold text-fg">annotations, form filling, and e-signatures</strong>. In the Pro plan, you can also integrate Dropbox, Google Drive, and OneDrive. Also, Smallpdf has mobile apps for iOS and Android. So if you are working with lots of PDFs and need annotation, signing, and cloud storage, then Smallpdf Pro is the better option.
             </p>
           </div>
         </section>
@@ -197,9 +180,7 @@ export default function Page() {
         <section className="mb-12 rounded-xl border border-primary/20 bg-primary/5 p-6">
           <h2 className="mb-3 text-lg font-bold text-fg">Verdict</h2>
           <p className="text-sm leading-relaxed text-fg-muted">
-            If privacy matters, or you work with sensitive documents, or you need batch conversion,
-            or you just don't want to create an account for a tool you'll use once — ConvertYard.
-            If you need PDF annotation, e-signatures, cloud storage sync, or mobile apps — Smallpdf Pro.
+            If you need to annotate PDFs, sign PDFs electronically, sync PDFs with cloud storage (like Dropbox, Google Drive, OneDrive, etc.), or use Smallpdf tools on your iOS or Android mobile device, then you need Smallpdf Pro. If <strong className="font-semibold text-fg">privacy, one-time use without an account, or batch PDF processing</strong> matter to you, then use ConvertYard.
           </p>
         </section>
 
