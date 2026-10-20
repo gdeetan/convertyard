@@ -115,6 +115,6 @@ export const config: ToolConfig = {
   meta: {
     title: 'AVIF to GIF Converter — ConvertYard',
     description:
-      'Convert animated AVIF files to GIF in your browser. Set frame rate, width, and loop count. Nothing is uploaded. Convert batches of up to 1,000 files. 100% Free. No sign-up needed.',
+      'Convert animated AVIF to GIF in your browser. Set frame rate, width, and loop. Batch up to 1,000 files. Nothing uploads. Free, no sign-up.',
   },
 }

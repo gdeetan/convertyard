@@ -80,7 +80,9 @@ For most new projects in 2026, a two-layer fallback (AVIF + JPEG) is sufficient,
 | Encoding speed | Slow (CPU-intensive) | Fast |
 | Decoding speed | Fast | Fast |
 | Transparency | Yes | Yes |
-| Animation | Yes | Yes |
+| Animation | Yes (see note below) | Yes |
+
+**Note on animated AVIF:** Browsers that support still AVIF generally support animated AVIF too, but destinations outside the browser lag behind. Slack previews, GitHub comments, and most email clients still expect GIF. If you need to share an animated AVIF in those contexts, [convert it to GIF in your browser](/avif-to-gif/) first — nothing uploads.
 
 **Choose AVIF when:**
 - File size reduction is the priority (image-heavy pages, e-commerce)
