@@ -31,23 +31,23 @@ const TABLE = [
 const FAQ = [
   {
     q: 'Does ConvertYard qualify as a GDPR data processor?',
-    a: 'No. Under GDPR, a data processor is an entity that processes personal data on behalf of a controller. Because ConvertYard never receives your files — all processing runs in your browser — there is no data processing relationship to regulate. You do not need a DPA with ConvertYard.',
+    a: 'No, a DPA is not required because a Data Processor is defined under the GDPR as one who processes personal data on behalf of the Data Controller. ConvertYard doesn’t upload any files to a third-party server, so no data processing is occurring. No DPA is required with ConvertYard.',
   },
   {
     q: 'Do I need a HIPAA BAA to use ConvertYard with patient records?',
-    a: 'No. A BAA is required when a business associate receives, creates, or maintains PHI. ConvertYard never receives your files. Conversion happens inside your browser via WebAssembly. The file bytes never leave your device, so no business associate relationship is formed.',
+    a: 'No, because you are never uploading your files and ConvertYard never receives, creates, or maintains PHI in connection with your use of the service (all processing is done in your browser via WebAssembly). Therefore, ConvertYard is not a Business Associate.',
   },
   {
     q: 'How can I prove files are not uploaded?',
-    a: 'Open your browser DevTools (F12), go to the Network tab, then drop a file and convert it. You will see requests to load WebAssembly modules on first use, but no request containing your file data. The conversion output is assembled locally and offered as a download — no server involved.',
+    a: 'Open your browser DevTools (F12), switch to the Network tab. Open a file in a new tab and convert it there with ConvertYard (e.g., by clicking on the Convert button). All you will see in the Network tab is loading the WebAssembly modules that were required on first use of the tool for that type of file, but no upload of your file data to a server. The output of the conversion is assembled locally on your computer. It can then be downloaded from there.',
   },
   {
     q: 'Can ConvertYard be used on air-gapped or restricted networks?',
-    a: "After the first page load, ConvertYard's WebAssembly modules are cached by the browser. Subsequent conversions work without any network access. This makes it suitable for environments with strict outbound restrictions, provided the initial load is permitted.",
+    a: "After the first page load, ConvertYard’s WebAssembly modules are cached locally by your browser. Local conversion only happens afterward, and even that does not leave your premises as long as the initial page load was allowed.",
   },
   {
     q: 'Is this true for all ConvertYard tools?',
-    a: 'Yes. Every ConvertYard tool processes files locally — image converters, PDF tools, video extractors, and document converters all use client-side WebAssembly. The privacy guarantee is architectural, not tool-specific.',
+    a: 'Yes. All ConvertYard tools are local file processors, such as image converters, PDF processors, video extractors, and document converters, and they run client-side as WebAssembly modules. The privacy guarantee is the architecture, not the tool.',
   },
 ]
 
@@ -90,8 +90,13 @@ export default function Page() {
             GDPR-Compliant File Conversion — No Upload Required
           </h1>
           <p className="text-lg leading-relaxed text-fg-muted">
-            ConvertYard converts files entirely inside your browser. Your documents never reach a
-            server — not ours, not anyone&apos;s. That&apos;s not a policy. It&apos;s the architecture.
+            The ConvertYard tool is a web application that is used{' '}
+            <strong className="font-semibold text-fg">entirely in the user&apos;s browser</strong>.
+            There are{' '}
+            <strong className="font-semibold text-fg">
+              no files that are uploaded to servers of third parties
+            </strong>
+            , such as those of the developer of ConvertYard.
           </p>
         </div>
 
@@ -152,36 +157,59 @@ export default function Page() {
           <div className="rounded-xl border border-border bg-bg-elevated p-6">
             <h3 className="mb-2 text-base font-semibold text-fg">GDPR by architecture</h3>
             <p className="text-sm leading-relaxed text-fg-muted">
-              Under GDPR, if you upload a file containing personal data to a third-party service,
-              that service becomes a data processor. You need a signed DPA. The processor must handle
-              deletion, breach notification, and data subject requests. ConvertYard is not a data
-              processor because it never receives your files. Conversion happens inside your browser
-              via WebAssembly — the same C++ libraries (MuPDF, pdf-lib) that would run on your
-              server, running locally on your CPU instead. No upload = no processor relationship =
-              no GDPR obligation beyond what you already have for your own device.
+              Under the GDPR, if you upload files containing personal data to third-party services,
+              these services are considered to be data processors for you, and you will need to sign
+              a Data Processor Agreement (DPA) with them. Data processors have a number of
+              obligations, including deletion of personal data, notification of data breaches, and
+              handling of requests from data subjects.{' '}
+              <strong className="font-semibold text-fg">
+                ConvertYard is not a data processor because we do not receive your files.
+              </strong>{' '}
+              Instead, we use{' '}
+              <strong className="font-semibold text-fg">WebAssembly</strong> to run the same C++
+              libraries (MuPDF and pdf-lib) that we would normally run on your server, on your CPU
+              instead. Thus, there is no uploaded file and therefore no data processor relationship
+              under the GDPR, in addition to the relationship(s) you already have with your
+              device(s).
             </p>
           </div>
 
           <div className="rounded-xl border border-border bg-bg-elevated p-6">
             <h3 className="mb-2 text-base font-semibold text-fg">No HIPAA BAA required</h3>
             <p className="text-sm leading-relaxed text-fg-muted">
-              Covered entities and business associates under HIPAA must have a BAA with every vendor
-              that handles PHI. If you upload a patient record to CloudConvert or Smallpdf, those
-              companies become business associates — and you need a signed BAA, data retention
-              policies, and breach notification procedures in place. ConvertYard never receives the
-              file. The PHI never leaves your workstation. There is no business associate relationship
-              to establish.
+              Under HIPAA, business associates and covered entities must enter into a BAA with
+              vendors that handle PHI (e.g., patient records). For example, if you upload a
+              patient’s record to CloudConvert or Smallpdf, you will need to establish a Business
+              Associate relationship with each company, review a BAA with them, and establish
+              procedures for data retention and for notifying the entity in the event of a breach.
+              None of this is required, however, for files processed by ConvertYard.{' '}
+              <strong className="font-semibold text-fg">
+                Never does ConvertYard take possession of the file containing the PHI of your
+                patients.
+              </strong>{' '}
+              All processing occurs on your local computer.{' '}
+              <strong className="font-semibold text-fg">
+                No business associate relationship with you is therefore required.
+              </strong>
             </p>
           </div>
 
           <div className="rounded-xl border border-border bg-bg-elevated p-6">
             <h3 className="mb-2 text-base font-semibold text-fg">Verify it yourself — in 30 seconds</h3>
             <p className="text-sm leading-relaxed text-fg-muted">
-              Open your browser DevTools (F12 → Network tab). Drop a file into any ConvertYard tool
-              and click Convert. Watch the Network tab. You&apos;ll see requests to load WebAssembly
-              modules — but you won&apos;t see your file being uploaded anywhere. The bytes stay local.
-              This is the only meaningful privacy proof: not a privacy policy, not a compliance
-              certificate, but the absence of an upload request in your own browser.
+              Look at your browser DevTools (F12). Open the Network tab. Open up any{' '}
+              <Link
+                href="/tools"
+                className="text-primary underline-offset-2 hover:underline"
+              >
+                ConvertYard tool
+              </Link>{' '}
+              and drag a file into it, then click Convert. You will see requests to load the
+              WebAssembly module for the tool you are using for the first time, but{' '}
+              <strong className="font-semibold text-fg">no upload of your file data</strong> (just
+              bytes in your browser). That’s the only privacy proof you need to see: no file upload
+              requests in your browser – just local processing of file bytes.{' '}
+              <strong className="font-semibold text-fg">No privacy policy needed.</strong>
             </p>
           </div>
         </section>
