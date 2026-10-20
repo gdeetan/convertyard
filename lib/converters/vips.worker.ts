@@ -117,9 +117,16 @@ self.onmessage = async (e: MessageEvent) => {
       }
 
       const maxDimRaw = opts.maxDimension
-      const maxDim = typeof maxDimRaw === 'number' ? maxDimRaw
+      let maxDim = typeof maxDimRaw === 'number' ? maxDimRaw
         : typeof maxDimRaw === 'string' ? parseInt(maxDimRaw, 10) || 0
         : 0
+      // Preview path caps the long edge at 1600px so iPhone photos
+      // (4000px+) don't pay the full encode cost on every slider tweak.
+      // The user's explicit maxDimension still wins when it's smaller.
+      if (opts.__previewFast === true) {
+        const PREVIEW_MAX = 1600
+        maxDim = maxDim > 0 ? Math.min(maxDim, PREVIEW_MAX) : PREVIEW_MAX
+      }
       if (maxDim > 0) {
         const longer = Math.max(image.width, image.height)
         if (longer > maxDim) {
