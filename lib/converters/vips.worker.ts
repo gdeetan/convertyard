@@ -207,7 +207,7 @@ self.onmessage = async (e: MessageEvent) => {
         // Preview path forces a lower effort so the slider feels responsive;
         // final download/ZIP conversion still runs at the user-configured effort.
         if (opts.__previewFast === true) {
-          encodeOpts.effort = 2
+          encodeOpts.effort = 1
         } else {
           encodeOpts.effort = typeof opts.effort === 'number' ? opts.effort : 4
         }

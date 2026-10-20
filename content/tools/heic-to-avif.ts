@@ -67,7 +67,7 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my iPhone photos uploaded to convert them?',
-      a: 'No. Conversion runs entirely in your browser. Your HEIC files never leave your device.',
+      a: `<strong>Nope</strong>, nothing is uploaded to a third-party server. Everything is converted <strong>inside your browser</strong>, so your HEIC files never leave your device. It&rsquo;s safe to convert family photos because there&rsquo;s <strong>no risk of a data breach</strong>.`,
     },
     {
       q: 'Why convert HEIC to AVIF instead of JPG?',
