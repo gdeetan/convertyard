@@ -15,6 +15,13 @@ export const config: ToolConfig = {
       libvipsConvert(files, 'webp', opts, onProgress, onResult),
   enablePresets: true,
 
+  howItWorks: [
+    { label: 'Drop your files', desc: 'Drag and drop, click to browse, or paste from clipboard. Up to 1,000 files at once.' },
+    { label: 'Choose settings', desc: 'Adjust quality, compression effort, and other options to match your needs.' },
+    { label: 'Click Convert', desc: 'Everything runs in your browser via WebAssembly. HEIC to WebP Converter happens locally — no server involved.' },
+    { label: 'Download', desc: 'Download files individually or grab all at once as a ZIP.' },
+  ],
+
   previewPanel: WebpConversionPreview,
 
   options: [
