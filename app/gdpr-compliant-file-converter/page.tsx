@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
+import type { ReactNode } from 'react'
 
 export const metadata: Metadata = {
   title: { absolute: 'GDPR-Compliant File Converter — No Upload, No Server | ConvertYard' },
@@ -47,7 +48,25 @@ const FAQ = [
   },
   {
     q: 'Is this true for all ConvertYard tools?',
-    a: 'Yes. All ConvertYard tools are local file processors, such as image converters, PDF processors, video extractors, and document converters, and they run client-side as WebAssembly modules. The privacy guarantee is the architecture, not the tool.',
+    a: 'Yes, since all the tools on this website process files locally, such as image converters, PDF processors, video extractors, and document converters, and they run in your browser (or “client-side”) as WebAssembly modules. The privacy guarantee is the architecture, not the tool.',
+    node: (
+      <>
+        Yes, since all the tools on this website process files locally, such as{' '}
+        <Link href="/images" className="text-primary underline-offset-2 hover:underline">
+          image converters
+        </Link>
+        ,{' '}
+        <Link href="/pdf" className="text-primary underline-offset-2 hover:underline">
+          PDF processors
+        </Link>
+        ,{' '}
+        <Link href="/video-audio" className="text-primary underline-offset-2 hover:underline">
+          video extractors
+        </Link>
+        , and document converters, and they run in your browser (or &ldquo;client-side&rdquo;) as
+        WebAssembly modules. The privacy guarantee is the architecture, not the tool.
+      </>
+    ) as ReactNode,
   },
 ]
 
@@ -237,10 +256,12 @@ export default function Page() {
         <section className="mb-12">
           <h2 className="mb-6 text-xl font-bold tracking-tight text-fg">Common questions</h2>
           <div className="space-y-6">
-            {FAQ.map(({ q, a }) => (
-              <div key={q}>
-                <p className="mb-1.5 font-semibold text-fg">{q}</p>
-                <p className="text-sm leading-relaxed text-fg-muted">{a}</p>
+            {FAQ.map((entry) => (
+              <div key={entry.q}>
+                <p className="mb-1.5 font-semibold text-fg">{entry.q}</p>
+                <p className="text-sm leading-relaxed text-fg-muted">
+                  {'node' in entry && entry.node ? entry.node : entry.a}
+                </p>
               </div>
             ))}
           </div>
