@@ -100,7 +100,7 @@ export default function Page() {
             to upload the image to a website, then keep the AVIF format, but
             if you need to edit or send the file for print, then convert to a
             PNG format. If you want to go the other way, you can use our{' '}
-            <Link href="/png-to-avif" className="text-primary underline">
+            <Link href="/png-to-avif/" className="text-primary underline">
               PNG to AVIF converter
             </Link>
             .
@@ -140,7 +140,7 @@ export default function Page() {
             it to a platform that doesn&rsquo;t support AVIF, PNG is the
             safer option for these situations. If JPG works for your use
             case, you can also try our{' '}
-            <Link href="/avif-to-jpg" className="text-primary underline">
+            <Link href="/avif-to-jpg/" className="text-primary underline">
               AVIF to JPG converter
             </Link>
             .

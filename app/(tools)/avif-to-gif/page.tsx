@@ -87,15 +87,15 @@ export default function Page() {
             since it&rsquo;s been the default format if you need short
             animation clips. However, if quality and file size matter, and
             you want better compatibility, try converting it to an{' '}
-            <Link href="/webp-to-gif" className="text-primary underline">
+            <Link href="/webp-to-gif/" className="text-primary underline">
               animated WebP
             </Link>{' '}
             instead. If you have a still AVIF, use the{' '}
-            <Link href="/avif-to-png" className="text-primary underline">
+            <Link href="/avif-to-png/" className="text-primary underline">
               AVIF to PNG
             </Link>{' '}
             or{' '}
-            <Link href="/avif-to-jpg" className="text-primary underline">
+            <Link href="/avif-to-jpg/" className="text-primary underline">
               AVIF to JPG
             </Link>{' '}
             converter — a one-frame GIF is almost always a worse output.

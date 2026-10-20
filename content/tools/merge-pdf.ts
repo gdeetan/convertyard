@@ -40,7 +40,7 @@ export const config: ToolConfig = {
   ],
 
   relatedTools: ['extract-pages', 'split-pdf', 'compress-pdf', 'pdf-to-jpg'],
-  relatedArticles: ['merge-pdf-without-uploading', 'convertyard-vs-ilovepdf', 'compress-pdf-without-uploading-privacy-guide'],
+  relatedArticles: ['merge-pdf-without-uploading', 'compress-pdf-without-uploading-privacy-guide'],
 
   meta: {
     title: 'Merge PDF — No Upload — ConvertYard',

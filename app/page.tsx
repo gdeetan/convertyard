@@ -1,8 +1,5 @@
 import type { Metadata } from 'next'
 import { organizationSchema, webSiteSchema, faqPageSchema } from '@/lib/seo/schema'
-import { ALL_TOOLS } from '@/content/tool-catalog'
-
-const liveToolCount = ALL_TOOLS.filter(t => t.status === 'live').length
 import { Hero } from '@/components/homepage/hero'
 import { TrustStrip } from '@/components/homepage/trust-strip'
 import { ToolGrid } from '@/components/homepage/tool-grid'
@@ -17,11 +14,11 @@ import { FAQAccordion } from '@/components/tool-shell/faq-accordion'
 export const metadata: Metadata = {
   title: 'Convert Images, Video, Audio, PDF in Browser — ConvertYard',
   description:
-    'Batch convert or compress images, videos, audio, pdf files,  up to 1,000 images in one go. All done in your browser. Nothing uploads. No Paywall or sign ups. 100% free.',
+    'Batch convert and compress images, PDFs, videos, and audio — up to 1,000 files at once. Runs in your browser. No uploads, no accounts, no paywall.',
   openGraph: {
     title: 'Convert Images, Video, Audio, PDF in Browser — ConvertYard',
     description:
-      `Convert thousands of images, PDFs, videos, and audio files entirely in your browser. No uploads, no accounts. ${liveToolCount} free tools.`,
+      'Batch convert and compress images, PDFs, videos, and audio — up to 1,000 files at once. Runs in your browser. No uploads, no accounts, no paywall.',
     url: 'https://convertyard.com/',
     siteName: 'ConvertYard',
     type: 'website',

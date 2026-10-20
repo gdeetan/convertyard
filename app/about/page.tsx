@@ -53,7 +53,7 @@ export default function AboutPage() {
           </a>{' '}
           by watching your network tab during a conversion. This also means ConvertYard requires{' '}
           <a
-            href="/gdpr-compliant-file-converter"
+            href="/gdpr-compliant-file-converter/"
             className="font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
           >
             no GDPR data processor agreement and no HIPAA BAA
@@ -100,13 +100,13 @@ export default function AboutPage() {
 
       <div className="mt-12 flex flex-wrap gap-4">
         <Link
-          href="/how-it-works"
+          href="/how-it-works/"
           className="rounded-lg border border-border bg-bg-muted px-5 py-3 text-sm font-medium text-fg transition-colors hover:bg-bg-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           How it works technically →
         </Link>
         <Link
-          href="/privacy"
+          href="/privacy/"
           className="rounded-lg border border-border bg-bg-muted px-5 py-3 text-sm font-medium text-fg transition-colors hover:bg-bg-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           Privacy policy →

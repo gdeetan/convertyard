@@ -115,11 +115,11 @@ export default function Page() {
               Adobe Acrobat costs <strong className="font-semibold text-fg">$13 per month</strong> for the standard plan and{' '}
               <strong className="font-semibold text-fg">$23 per month</strong> for Acrobat Pro. It&apos;s also usually included
               in Creative Cloud subscription plans. Compared with Adobe Acrobat Online for basic PDF conversions
-              such as <Link href="/compress-pdf" className="text-primary underline hover:text-primary-hover">compressing</Link> and{' '}
+              such as <Link href="/compress-pdf/" className="text-primary underline hover:text-primary-hover">compressing</Link> and{' '}
               merging, ConvertYard offers the same conversions (to Word documents, etc.) needed regularly by most people,{' '}
               <strong className="font-semibold text-fg">100% free of charge</strong>. There&apos;s no need for Adobe Acrobat Online
               if you only need to occasionally compress a PDF or{' '}
-              <Link href="/pdf-to-word" className="text-primary underline hover:text-primary-hover">convert it to an editable Word document</Link>.
+              <Link href="/pdf-to-word/" className="text-primary underline hover:text-primary-hover">convert it to an editable Word document</Link>.
             </p>
           </div>
 
@@ -141,7 +141,7 @@ export default function Page() {
             <h3 className="mb-2 text-base font-semibold text-fg">Where Adobe is genuinely better</h3>
             <p className="text-sm leading-relaxed text-fg-muted">
               Adobe Acrobat Online offers PDF editing capabilities like inline text editing, image replacement, and
-              advanced <Link href="/fill-pdf-form" className="text-primary underline hover:text-primary-hover">form creation</Link>,
+              advanced <Link href="/fill-pdf-form/" className="text-primary underline hover:text-primary-hover">form creation</Link>,
               as well as e-signatures using Acrobat Sign. This, along with enterprise-level compliance features like{' '}
               <strong className="font-semibold text-fg">FedRAMP, SOC 2, and HIPAA BAA</strong> support with the enterprise plan,
               as well as deep Microsoft 365 integration, makes Adobe the best choice for{' '}
@@ -165,12 +165,12 @@ export default function Page() {
           <h2 className="mb-3 text-lg font-bold text-fg">Verdict</h2>
           <p className="text-sm leading-relaxed text-fg-muted">
             If all you need to do is compress PDFs, convert PDFs to editable Word documents,{' '}
-            <Link href="/merge-pdf" className="text-primary underline hover:text-primary-hover">merge documents</Link>, and run{' '}
-            <Link href="/ocr-pdf" className="text-primary underline hover:text-primary-hover">Optical Character Recognition (OCR)</Link>{' '}
+            <Link href="/merge-pdf/" className="text-primary underline hover:text-primary-hover">merge documents</Link>, and run{' '}
+            <Link href="/ocr-pdf/" className="text-primary underline hover:text-primary-hover">Optical Character Recognition (OCR)</Link>{' '}
             on PDFs, then use ConvertYard to get these tasks done{' '}
             <strong className="font-semibold text-fg">quickly, free, and without uploading your files</strong> to remote servers.
             If you need to edit PDFs,{' '}
-            <Link href="/digital-sign-pdf" className="text-primary underline hover:text-primary-hover">sign PDFs electronically</Link>,
+            <Link href="/digital-sign-pdf/" className="text-primary underline hover:text-primary-hover">sign PDFs electronically</Link>,
             work with rich PDF annotations, or work within complex PDF forms, and require enterprise-level compliance within
             your organization, then use Adobe Acrobat — the subscription is well worth it for these unique and powerful
             capabilities.
@@ -214,13 +214,13 @@ export default function Page() {
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Link
-              href="/pdf"
+              href="/pdf/"
               className="inline-flex items-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition-colors hover:bg-primary-hover"
             >
               PDF tools →
             </Link>
             <Link
-              href="/tools"
+              href="/tools/"
               className="inline-flex items-center rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-fg-muted transition-colors hover:border-border-strong hover:text-fg"
             >
               All tools →

@@ -52,15 +52,15 @@ const FAQ = [
     node: (
       <>
         Yes, since all the tools on this website process files locally, such as{' '}
-        <Link href="/images" className="text-primary underline-offset-2 hover:underline">
+        <Link href="/images/" className="text-primary underline-offset-2 hover:underline">
           image converters
         </Link>
         ,{' '}
-        <Link href="/pdf" className="text-primary underline-offset-2 hover:underline">
+        <Link href="/pdf/" className="text-primary underline-offset-2 hover:underline">
           PDF processors
         </Link>
         ,{' '}
-        <Link href="/video-audio" className="text-primary underline-offset-2 hover:underline">
+        <Link href="/video-audio/" className="text-primary underline-offset-2 hover:underline">
           video extractors
         </Link>
         , and document converters, and they run in your browser (or &ldquo;client-side&rdquo;) as
@@ -218,7 +218,7 @@ export default function Page() {
             <p className="text-sm leading-relaxed text-fg-muted">
               Look at your browser DevTools (F12). Open the Network tab. Open up any{' '}
               <Link
-                href="/tools"
+                href="/tools/"
                 className="text-primary underline-offset-2 hover:underline"
               >
                 ConvertYard tool
@@ -274,13 +274,13 @@ export default function Page() {
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Link
-              href="/pdf"
+              href="/pdf/"
               className="inline-flex items-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition-colors hover:bg-primary-hover"
             >
               PDF tools →
             </Link>
             <Link
-              href="/tools"
+              href="/tools/"
               className="inline-flex items-center rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-fg-muted transition-colors hover:border-border-strong hover:text-fg"
             >
               All tools →

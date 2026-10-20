@@ -16,7 +16,7 @@ export default function Page() {
 
           <p className="mt-4 text-base text-fg-muted">
             The two formats for replacing JPG are from different worlds.{' '}
-            <Link href="/blog/what-is-heic" className="text-primary underline">
+            <Link href="/blog/what-is-heic/" className="text-primary underline">
               HEIC
             </Link>{' '}
             is Apple&rsquo;s format for storing photos taken with the camera
@@ -73,7 +73,7 @@ export default function Page() {
             HEIC support is often restricted to third-party Windows codecs
             or only partially implemented on Android devices. If you
             specifically need the Windows-friendly route, use the{' '}
-            <Link href="/heic-to-jpg" className="text-primary underline">
+            <Link href="/heic-to-jpg/" className="text-primary underline">
               HEIC to JPG converter
             </Link>{' '}
             instead. Most web forms even today don&rsquo;t support HEIC
@@ -90,7 +90,7 @@ export default function Page() {
             (like GIF). The result is extremely small images (compared to
             JPG). If you&rsquo;re weighing WebP against newer formats, this{' '}
             <Link
-              href="/blog/avif-vs-webp-vs-jpeg-2026"
+              href="/blog/avif-vs-webp-vs-jpeg-2026/"
               className="text-primary underline"
             >
               AVIF vs WebP vs JPEG comparison
@@ -124,7 +124,7 @@ export default function Page() {
               saves between <strong className="text-fg">25% and 35%</strong>{' '}
               compared to JPG when compressed to the same quality as HEIC
               &mdash; the same tradeoff you&rsquo;d get going from{' '}
-              <Link href="/jpg-to-webp" className="text-primary underline">
+              <Link href="/jpg-to-webp/" className="text-primary underline">
                 JPG to WebP
               </Link>{' '}
               directly.
@@ -141,7 +141,7 @@ export default function Page() {
               bandwidth usage, and therefore better SEO and user
               experience &mdash; especially when you&rsquo;re{' '}
               <Link
-                href="/blog/batch-convert-images"
+                href="/blog/batch-convert-images/"
                 className="text-primary underline"
               >
                 batch-converting hundreds of photos
@@ -154,7 +154,7 @@ export default function Page() {
               supports PNG transparency and short GIF animations, which you
               can replace with WebP images as well. If you need lossless
               transparency specifically, try the{' '}
-              <Link href="/heic-to-png" className="text-primary underline">
+              <Link href="/heic-to-png/" className="text-primary underline">
                 HEIC to PNG converter
               </Link>
               .
@@ -165,7 +165,7 @@ export default function Page() {
               &mdash; no need for codec packs, or to have been stored in
               iCloud or uploaded from an Apple device. For an even smaller
               next-gen option, see the{' '}
-              <Link href="/heic-to-avif" className="text-primary underline">
+              <Link href="/heic-to-avif/" className="text-primary underline">
                 HEIC to AVIF converter
               </Link>
               .

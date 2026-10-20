@@ -20,7 +20,6 @@ const RESOURCE_LINKS = [
   { name: 'GDPR-safe converter', href: '/gdpr-compliant-file-converter' },
   { name: 'ConvertYard vs Smallpdf', href: '/convertyard-vs-smallpdf' },
   { name: 'ConvertYard vs Convertio', href: '/convertyard-vs-convertio' },
-  { name: 'API', href: '#', note: 'coming soon' },
 ]
 
 const COMPANY_LINKS = [

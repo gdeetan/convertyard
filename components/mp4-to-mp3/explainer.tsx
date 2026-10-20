@@ -177,19 +177,19 @@ export function Mp4ToMp3Explainer() {
       <ul>
         <li>
           You&rsquo;ll need to edit the audio first. If you use a{' '}
-          <Link href="/mp3-to-wav">WAV format</Link> (which is lossless), you
+          <Link href="/mp3-to-wav/">WAV format</Link> (which is lossless), you
           may want to stick to it so you don&rsquo;t lose audio quality while
           editing.
         </li>
         <li>
           You need the smallest possible audio format for a podcast recording.
           If that&rsquo;s the case, try using{' '}
-          <Link href="/mp3-to-aac">ACC/M4A</Link> at 64 kpbs, which is smaller
+          <Link href="/mp3-to-aac/">ACC/M4A</Link> at 64 kpbs, which is smaller
           than an MP3 file at the same quality.
         </li>
         <li>
           If you need to store the whole video and not just the audio, try
-          using the <Link href="/compress-video">Compress Video</Link> tool
+          using the <Link href="/compress-video/">Compress Video</Link> tool
           instead.
         </li>
         <li>

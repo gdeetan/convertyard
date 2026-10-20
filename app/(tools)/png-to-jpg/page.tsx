@@ -157,11 +157,11 @@ export default function Page() {
             isn&rsquo;t reversible unless you keep a separate PNG copy as
             backup. If a small file size and transparent background is a
             necessity, convert the PNG to a{' '}
-            <Link href="/png-to-webp" className="text-primary underline">
+            <Link href="/png-to-webp/" className="text-primary underline">
               WebP
             </Link>{' '}
             or{' '}
-            <Link href="/png-to-avif" className="text-primary underline">
+            <Link href="/png-to-avif/" className="text-primary underline">
               AVIF
             </Link>{' '}
             instead.

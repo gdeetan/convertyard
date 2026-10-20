@@ -7,6 +7,12 @@
 /table-image-to-text /image-to-excel 301
 /table-image-to-text/ /image-to-excel/ 301
 
+# Comparison page cannibalization — consolidate /blog/ dupes into top-level
+/blog/convertyard-vs-ilovepdf /convertyard-vs-ilovepdf/ 301
+/blog/convertyard-vs-ilovepdf/ /convertyard-vs-ilovepdf/ 301
+/blog/convertyard-vs-adobe-acrobat-pro /convertyard-vs-adobe-acrobat/ 301
+/blog/convertyard-vs-adobe-acrobat-pro/ /convertyard-vs-adobe-acrobat/ 301
+
 # Article slug → /blog/ fixes
 /lossless-vs-lossy /blog/lossless-vs-lossy 301
 /lossless-vs-lossy/ /blog/lossless-vs-lossy/ 301

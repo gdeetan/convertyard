@@ -90,11 +90,11 @@ export default function Page() {
             any data. If you&rsquo;re uploading a photograph on Instagram, that
             can be wasted bytes, but for a logo on your website, it can be an
             alternative, but newer formats like{' '}
-            <Link href="/jpg-to-webp" className="text-primary underline">
+            <Link href="/jpg-to-webp/" className="text-primary underline">
               WebP
             </Link>{' '}
             and{' '}
-            <Link href="/jpg-to-avif" className="text-primary underline">
+            <Link href="/jpg-to-avif/" className="text-primary underline">
               AVIF
             </Link>{' '}
             offer better compression for users who need max compression for

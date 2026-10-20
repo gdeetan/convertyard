@@ -204,7 +204,7 @@ export function ImageUpscalerExplainer() {
       </p>
       <p>
         If you&rsquo;re working with a JPG file,{' '}
-        <a href="/jpg-to-png">convert it to PNG</a> first before upscaling to
+        <a href="/jpg-to-png/">convert it to PNG</a> first before upscaling to
         prevent any loss of pixel data.
       </p>
 
@@ -258,7 +258,7 @@ export function ImageUpscalerExplainer() {
           If the source comes from a vector file, re-export it from the
           original file to a PNG, then try using this upscaler. However, if
           you have access to a graphic editor,{' '}
-          <a href="/image-resizer">export it to the size you need</a> instead
+          <a href="/image-resizer/">export it to the size you need</a> instead
           of using an upscaler.
         </li>
       </ol>
@@ -281,7 +281,7 @@ export function ImageUpscalerExplainer() {
       <h2>Batching</h2>
       <p>
         While this tool can run{' '}
-        <a href="/blog/batch-convert-images">batches of files</a>, I suggest
+        <a href="/blog/batch-convert-images/">batches of files</a>, I suggest
         processing one file at a time to prevent the browser from freezing
         because it runs out of memory. If you&rsquo;re upscaling images 2&times; or 4&times;,
         you can do up to 5 images per batch, but for 8&times;, do one image
@@ -294,9 +294,9 @@ export function ImageUpscalerExplainer() {
         I recommend leaving the output format at the default setting, which
         is to match the input, unless you have a good reason to switch. For
         the best results (and I&rsquo;ve said this repeatedly), convert{' '}
-        <a href="/blog/lossless-vs-lossy">lossy formats like JPG</a> into PNG
+        <a href="/blog/lossless-vs-lossy/">lossy formats like JPG</a> into PNG
         before upscaling. Choose{' '}
-        <a href="/blog/avif-vs-webp-vs-jpeg-2026">WebP</a> if a smaller file
+        <a href="/blog/avif-vs-webp-vs-jpeg-2026/">WebP</a> if a smaller file
         size is a high priority.
       </p>
 

@@ -125,7 +125,7 @@ export default function TermsPage() {
             hello@convertyard.com
           </a>
           {' '}·{' '}
-          <Link href="/privacy" className="text-primary hover:underline">
+          <Link href="/privacy/" className="text-primary hover:underline">
             Privacy policy
           </Link>
         </p>

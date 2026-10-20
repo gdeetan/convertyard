@@ -54,7 +54,7 @@ export default function Page() {
 
       {/* Teams callout */}
       <Link
-        href="/for/teams"
+        href="/for/teams/"
         className="group mb-12 flex items-start justify-between gap-4 rounded-xl border border-border bg-bg-elevated p-6 transition-colors hover:border-primary hover:bg-bg-muted"
       >
         <div>

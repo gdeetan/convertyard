@@ -39,7 +39,7 @@ export function WebpToJpgExplainer() {
       <p>
         <strong>The inability to preserve transparency.</strong> Transparency
         in WebP will be filled with white when converting to JPG. If you need
-        to keep the transparency, use <Link href="/webp-to-png">WebP to PNG</Link> instead.
+        to keep the transparency, use <Link href="/webp-to-png/">WebP to PNG</Link> instead.
       </p>
       <p>
         <strong>Animated WebPs are rendered as single frames</strong> with the

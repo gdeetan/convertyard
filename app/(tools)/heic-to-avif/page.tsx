@@ -67,7 +67,7 @@ export default function Page() {
           <p className="mt-4 text-base text-fg-muted">
             To share the photos you take with your iPhone,{' '}
             <Link
-              href="/heic-to-avif"
+              href="/heic-to-avif/"
               className="font-semibold text-primary underline underline-offset-2 hover:no-underline"
             >
               convert them to AVIF
@@ -112,7 +112,7 @@ export default function Page() {
               and need to be converted to JPEG (or other formats) &mdash; for
               example with our{' '}
               <Link
-                href="/heic-to-jpg"
+                href="/heic-to-jpg/"
                 className="font-semibold text-primary underline underline-offset-2 hover:no-underline"
               >
                 HEIC to JPG converter
@@ -146,7 +146,7 @@ export default function Page() {
               then encode it into a suboptimal-quality JPG). If you still
               need JPG for a legacy CMS, use our{' '}
               <Link
-                href="/heic-to-jpg"
+                href="/heic-to-jpg/"
                 className="font-semibold text-primary underline underline-offset-2 hover:no-underline"
               >
                 HEIC to JPG tool
@@ -169,7 +169,7 @@ export default function Page() {
               color gamut images as well as images with 10/12-bit depth. If
               you want AVIF-level compression on existing JPG assets, try our{' '}
               <Link
-                href="/jpg-to-avif"
+                href="/jpg-to-avif/"
                 className="font-semibold text-primary underline underline-offset-2 hover:no-underline"
               >
                 JPG to AVIF converter
@@ -231,7 +231,7 @@ export default function Page() {
               <strong className="text-fg">JPG or TIFF</strong> files and not
               AVIF files. For print, use our{' '}
               <Link
-                href="/heic-to-jpg"
+                href="/heic-to-jpg/"
                 className="font-semibold text-primary underline underline-offset-2 hover:no-underline"
               >
                 HEIC to JPG converter
@@ -259,21 +259,21 @@ export default function Page() {
             . If not, there&rsquo;s no need to convert. Need a different
             output? Try our{' '}
             <Link
-              href="/heic-to-webp"
+              href="/heic-to-webp/"
               className="font-semibold text-primary underline underline-offset-2 hover:no-underline"
             >
               HEIC to WebP
             </Link>
             ,{' '}
             <Link
-              href="/heic-to-png"
+              href="/heic-to-png/"
               className="font-semibold text-primary underline underline-offset-2 hover:no-underline"
             >
               HEIC to PNG
             </Link>
             , or{' '}
             <Link
-              href="/heic-to-jpg"
+              href="/heic-to-jpg/"
               className="font-semibold text-primary underline underline-offset-2 hover:no-underline"
             >
               HEIC to JPG

@@ -28,7 +28,7 @@ export function PrivacyPanel({ flags }: { flags: PrivacyFlag[] }) {
         ))}
       </ul>
       <div className="mt-3 text-sm">
-        <Link href="/edit-metadata" className="text-blue-700 underline">Strip this metadata →</Link>
+        <Link href="/edit-metadata/" className="text-blue-700 underline">Strip this metadata →</Link>
       </div>
     </div>
   )

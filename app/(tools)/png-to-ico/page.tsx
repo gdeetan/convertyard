@@ -13,7 +13,7 @@ export default function Page() {
 
           <p className="mt-4 text-base text-fg-muted">
             PNG (Portable Network Graphics) is an image format similar to{' '}
-            <Link href="/jpg-to-gif" className="text-primary underline">
+            <Link href="/jpg-to-gif/" className="text-primary underline">
               JPG or GIF
             </Link>
             . A group of developers created it in 1996 as a free image format
@@ -23,7 +23,7 @@ export default function Page() {
           <p className="mt-4 text-base text-fg-muted">
             One huge advantage of PNG files is that they&rsquo;re{' '}
             <Link
-              href="/blog/lossless-vs-lossy"
+              href="/blog/lossless-vs-lossy/"
               className="text-primary underline"
             >
               lossless

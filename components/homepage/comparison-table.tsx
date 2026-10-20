@@ -110,17 +110,17 @@ export function ComparisonTable() {
         </div>
 
         <div className="mt-6 text-sm">
-          <a href="/gdpr-compliant-file-converter" className="font-medium text-primary hover:underline">
+          <a href="/gdpr-compliant-file-converter/" className="font-medium text-primary hover:underline">
             Used by legal and compliance teams — learn why →
           </a>
         </div>
 
         <div className="mt-6 flex flex-wrap gap-3 text-sm">
           <span className="text-fg-subtle">Compare in detail:</span>
-          <a href="/convertyard-vs-smallpdf" className="text-primary hover:underline">vs Smallpdf</a>
-          <a href="/convertyard-vs-ilovepdf" className="text-primary hover:underline">vs ilovePDF</a>
-          <a href="/convertyard-vs-convertio" className="text-primary hover:underline">vs Convertio</a>
-          <a href="/convertyard-vs-adobe-acrobat" className="text-primary hover:underline">vs Adobe Acrobat</a>
+          <a href="/convertyard-vs-smallpdf/" className="text-primary hover:underline">vs Smallpdf</a>
+          <a href="/convertyard-vs-ilovepdf/" className="text-primary hover:underline">vs ilovePDF</a>
+          <a href="/convertyard-vs-convertio/" className="text-primary hover:underline">vs Convertio</a>
+          <a href="/convertyard-vs-adobe-acrobat/" className="text-primary hover:underline">vs Adobe Acrobat</a>
         </div>
       </div>
     </section>

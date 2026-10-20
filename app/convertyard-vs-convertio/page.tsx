@@ -70,23 +70,23 @@ const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
     a: (
       <>
         ConvertYard offers more features for the most common conversions (
-        <Link href="/jpg-to-webp" className="text-primary underline-offset-2 hover:underline">
+        <Link href="/jpg-to-webp/" className="text-primary underline-offset-2 hover:underline">
           JPG, PNG, WebP, AVIF
         </Link>
         ,{' '}
-        <Link href="/pdf-to-word" className="text-primary underline-offset-2 hover:underline">
+        <Link href="/pdf-to-word/" className="text-primary underline-offset-2 hover:underline">
           PDF to Word
         </Link>
         ,{' '}
-        <Link href="/compress-pdf" className="text-primary underline-offset-2 hover:underline">
+        <Link href="/compress-pdf/" className="text-primary underline-offset-2 hover:underline">
           PDF compression
         </Link>
         ,{' '}
-        <Link href="/merge-pdf" className="text-primary underline-offset-2 hover:underline">
+        <Link href="/merge-pdf/" className="text-primary underline-offset-2 hover:underline">
           merge
         </Link>
         ,{' '}
-        <Link href="/split-pdf" className="text-primary underline-offset-2 hover:underline">
+        <Link href="/split-pdf/" className="text-primary underline-offset-2 hover:underline">
           split
         </Link>
         , etc.). On the image conversion pages, all tools show{' '}
@@ -104,7 +104,7 @@ const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
     q: 'Which tool is better if I work with sensitive files?',
     a: (
       <>
-        <Link href="/gdpr-compliant-file-converter" className="text-primary underline-offset-2 hover:underline">
+        <Link href="/gdpr-compliant-file-converter/" className="text-primary underline-offset-2 hover:underline">
           ConvertYard
         </Link>
         , because the conversion happens completely in the browser using WebAssembly, i.e.,{' '}
@@ -269,11 +269,11 @@ export default function Page() {
           <h2 className="mb-3 text-lg font-bold text-fg">Verdict</h2>
           <p className="text-sm leading-relaxed text-fg-muted">
             Converting common files like JPG, PNG,{' '}
-            <Link href="/png-to-webp" className="text-primary underline-offset-2 hover:underline">
+            <Link href="/png-to-webp/" className="text-primary underline-offset-2 hover:underline">
               WebP
             </Link>
             ,{' '}
-            <Link href="/avif-to-jpg" className="text-primary underline-offset-2 hover:underline">
+            <Link href="/avif-to-jpg/" className="text-primary underline-offset-2 hover:underline">
               AVIF
             </Link>
             , PDF, Word documents, and more in ConvertYard is{' '}
@@ -330,7 +330,7 @@ export default function Page() {
               Image tools →
             </Link>
             <Link
-              href="/pdf"
+              href="/pdf/"
               className="inline-flex items-center rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-fg-muted transition-colors hover:border-border-strong hover:text-fg"
             >
               PDF tools →

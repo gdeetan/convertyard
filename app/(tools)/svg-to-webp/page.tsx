@@ -24,7 +24,7 @@ const explainer = (
         two colors might only be <strong>2 KB</strong>. However, the
         size jumps as the graphic gets more complex, especially if you
         trace from a pixel-based format like{' '}
-        <Link href="/png-to-webp" className="text-primary underline underline-offset-2 hover:no-underline">
+        <Link href="/png-to-webp/" className="text-primary underline underline-offset-2 hover:no-underline">
           PNG
         </Link>
         .
@@ -37,7 +37,7 @@ const explainer = (
         Google created the <strong>WebP</strong> format in{' '}
         <strong>2010</strong> to solve the compression issue for JPG
         images. And like{' '}
-        <Link href="/jpg-to-webp" className="text-primary underline underline-offset-2 hover:no-underline">
+        <Link href="/jpg-to-webp/" className="text-primary underline underline-offset-2 hover:no-underline">
           JPG
         </Link>{' '}
         or PNG, this format stores pixel data. Major browsers across
@@ -73,7 +73,7 @@ const explainer = (
         means <strong>faster-loading websites and lower web hosting
         costs</strong>. If you want to shrink WebP files even further,
         you can{' '}
-        <Link href="/compress-image" className="text-primary underline underline-offset-2 hover:no-underline">
+        <Link href="/compress-image/" className="text-primary underline underline-offset-2 hover:no-underline">
           compress images
         </Link>{' '}
         in the same browser session.
