@@ -23,7 +23,7 @@ const TABLE = [
   { feature: 'Account required', convertyard: '✕ No', convertio: 'Required for conversion history' },
   { feature: 'Free daily limit', convertyard: 'None', convertio: '25 conversions per day' },
   { feature: 'File size limit (free)', convertyard: 'None', convertio: '100 MB per file' },
-  { feature: 'Batch conversion', convertyard: '1,000+ files at once', convertio: '1 file at a time (free)' },
+  { feature: 'Batch conversion', convertyard: 'Up to 1,000 files at once', convertio: '1 file at a time (free)' },
   { feature: 'Works offline', convertyard: 'Yes (after first load)', convertio: 'No — requires upload' },
   { feature: 'Supported formats', convertyard: '~40 common formats', convertio: '300+ including obscure formats' },
   { feature: 'Price', convertyard: 'Free', convertio: 'Free / $10–$25/month' },
