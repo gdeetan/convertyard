@@ -26,7 +26,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'What is site.webmanifest?',
-      a: 'The web manifest is a JSON file that tells Android browsers about your PWA (Progressive Web App) — including the icons to use when a user adds your site to their home screen. Link it from your HTML with <link rel="manifest" href="/site.webmanifest">.',
+      a: 'The web manifest is a JSON file that tells Android browsers about your PWA (Progressive Web App) — including the icons to use when a user adds your site to their home screen. Link it from your HTML with <link rel="manifest" href="/site.webmanifest/">.',
     },
     {
       q: 'Should I use ICO or PNG for my favicon?',

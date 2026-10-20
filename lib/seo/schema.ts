@@ -93,7 +93,9 @@ export function organizationSchema() {
     name: 'ConvertYard',
     url: BASE_URL,
     logo: `${BASE_URL}/logo.svg`,
-    sameAs: [] as string[],
+    sameAs: [
+      'https://www.producthunt.com/products/convertyard',
+    ] as string[],
   }
 }
 

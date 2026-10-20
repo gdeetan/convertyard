@@ -317,7 +317,7 @@ export function Nav() {
             </div>
 
             <Link
-              href="/how-it-works"
+              href="/how-it-works/"
               className={cn(
                 'rounded-md px-3 py-2 text-sm font-medium',
                 'text-fg-muted transition-colors hover:text-fg hover:bg-bg-muted',
@@ -328,7 +328,7 @@ export function Nav() {
             </Link>
 
             <Link
-              href="/blog"
+              href="/blog/"
               className={cn(
                 'rounded-md px-3 py-2 text-sm font-medium',
                 'text-fg-muted transition-colors hover:text-fg hover:bg-bg-muted',
@@ -536,7 +536,7 @@ export function Nav() {
               More
             </p>
             <Link
-              href="/how-it-works"
+              href="/how-it-works/"
               onClick={closeMobileMenu}
               className={cn(
                 'flex items-center min-h-[44px] px-1 py-2',
@@ -547,7 +547,7 @@ export function Nav() {
               How it works
             </Link>
             <Link
-              href="/blog"
+              href="/blog/"
               onClick={closeMobileMenu}
               className={cn(
                 'flex items-center min-h-[44px] px-1 py-2',

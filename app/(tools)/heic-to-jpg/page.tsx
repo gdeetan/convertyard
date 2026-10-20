@@ -16,7 +16,7 @@ export default function Page() {
           <p className="mt-4 text-base text-fg-muted">
             HEIC, or{' '}
             <Link
-              href="/blog/what-is-heic"
+              href="/blog/what-is-heic/"
               className="text-primary underline"
             >
               High Efficiency Image Container
@@ -29,17 +29,16 @@ export default function Page() {
           <p className="mt-4 text-base text-fg-muted">
             Apple still supports JPG, but by default it saves all images as
             HEIC because it produces smaller file sizes than JPG. For example,
-            this photo saved as an HEIC file is more than 50% smaller than
-            its equivalent JPG. So if that&rsquo;s{' '}
+            this photo saved as an HEIC file is roughly 35&ndash;40% smaller
+            than its equivalent JPG. So if that&rsquo;s{' '}
             <Link
-              href="/blog/batch-convert-images"
+              href="/blog/batch-convert-images/"
               className="text-primary underline"
             >
-              1000 images
+              1,000 images
             </Link>
-            , that adds up to 5 GB, but with an HEIC file that number goes
-            down to 2.75 GB,
-            or around 50% savings, so it adds up over time.
+            , a folder of JPGs that would be around 4.5 GB drops to about
+            2.8 GB as HEIC &mdash; it adds up over time.
           </p>
 
           <div className="mt-8">
@@ -141,7 +140,7 @@ export default function Page() {
             data to keep file sizes manageable. This, in technical terms, is
             called{' '}
             <Link
-              href="/blog/lossless-vs-lossy"
+              href="/blog/lossless-vs-lossy/"
               className="text-primary underline"
             >
               lossy compression
@@ -191,7 +190,7 @@ export default function Page() {
             of them. If you share a photo in HEIC format with an Android
             phone user, they{' '}
             <Link
-              href="/blog/heic-to-jpg-on-windows"
+              href="/blog/heic-to-jpg-on-windows/"
               className="text-primary underline"
             >
               may not be able to open it

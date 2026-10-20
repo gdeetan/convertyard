@@ -100,7 +100,7 @@ export function CookieBanner() {
         We use Google Analytics to understand site usage. Your files are processed entirely in your
         browser and are never affected by this.{' '}
         <Link
-          href="/privacy"
+          href="/privacy/"
           className="underline underline-offset-2 hover:text-[var(--color-fg)] transition-colors"
         >
           Privacy policy

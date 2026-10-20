@@ -164,7 +164,7 @@ export default function Page() {
           <div className="rounded-xl border border-border bg-bg-elevated p-6">
             <h3 className="mb-2 text-base font-semibold text-fg">Batch conversion</h3>
             <p className="text-sm leading-relaxed text-fg-muted">
-              While Smallpdf only processes 1 file per conversion and counts each conversion against your daily limit, ConvertYard can process <strong className="font-semibold text-fg">1,000+ files in a single drop</strong> and track progress per file. All of the converted files will be packaged into a single ZIP file. If you work with more than 1 or 2 documents at a time on a regular basis, the difference here is quite significant. Try it with <Link href="/compress-pdf" className="font-medium text-primary underline-offset-2 hover:underline">compress PDF</Link>, <Link href="/merge-pdf" className="font-medium text-primary underline-offset-2 hover:underline">merge PDF</Link>, or <Link href="/split-pdf" className="font-medium text-primary underline-offset-2 hover:underline">split PDF</Link>.
+              While Smallpdf only processes 1 file per conversion and counts each conversion against your daily limit, ConvertYard can process <strong className="font-semibold text-fg">1,000+ files in a single drop</strong> and track progress per file. All of the converted files will be packaged into a single ZIP file. If you work with more than 1 or 2 documents at a time on a regular basis, the difference here is quite significant. Try it with <Link href="/compress-pdf/" className="font-medium text-primary underline-offset-2 hover:underline">compress PDF</Link>, <Link href="/merge-pdf/" className="font-medium text-primary underline-offset-2 hover:underline">merge PDF</Link>, or <Link href="/split-pdf/" className="font-medium text-primary underline-offset-2 hover:underline">split PDF</Link>.
             </p>
           </div>
 
@@ -222,13 +222,13 @@ export default function Page() {
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Link
-              href="/pdf"
+              href="/pdf/"
               className="inline-flex items-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition-colors hover:bg-primary-hover"
             >
               PDF tools →
             </Link>
             <Link
-              href="/tools"
+              href="/tools/"
               className="inline-flex items-center rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-fg-muted transition-colors hover:border-border-strong hover:text-fg"
             >
               All tools →

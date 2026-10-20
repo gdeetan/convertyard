@@ -50,7 +50,7 @@ export default function Page() {
             <li>
               Older browsers used on{' '}
               <Link
-                href="/blog/avif-browser-support"
+                href="/blog/avif-browser-support/"
                 className="text-primary underline"
               >
                 older computers, phones, or laptops
@@ -82,7 +82,7 @@ export default function Page() {
           <p className="mt-4 text-base text-fg-muted">
             However, this isn&rsquo;t the most efficient format since it uses{' '}
             <Link
-              href="/blog/lossless-vs-lossy"
+              href="/blog/lossless-vs-lossy/"
               className="text-primary underline"
             >
               lossy compression

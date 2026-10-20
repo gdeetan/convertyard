@@ -346,7 +346,7 @@ export function ToolGrid() {
             )
           ) : (
             <Link
-              href="/tools"
+              href="/tools/"
               className="font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
             >
               View all {LIVE_TOOL_COUNT} tools →

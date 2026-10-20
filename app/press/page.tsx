@@ -103,7 +103,7 @@ export default function PressPage() {
           About ConvertYard →
         </Link>
         <Link
-          href="/how-it-works"
+          href="/how-it-works/"
           className="rounded-lg border border-border bg-bg-muted px-5 py-3 text-sm font-medium text-fg transition-colors hover:bg-bg-elevated focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
           How it works technically →

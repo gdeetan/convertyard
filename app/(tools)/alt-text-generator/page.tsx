@@ -398,7 +398,7 @@ export default function AltTextGeneratorPage() {
       {/* CTA → blog post */}
       <p className="mb-4 text-sm text-fg-muted">
         Ready to import?{' '}
-        <a href="/blog/import-alt-text-csv-to-cms" className="text-primary underline-offset-2 hover:underline">
+        <a href="/blog/import-alt-text-csv-to-cms/" className="text-primary underline-offset-2 hover:underline">
           Step-by-step guide: import alt text CSV to WordPress, Shopify &amp; Contentful →
         </a>
       </p>

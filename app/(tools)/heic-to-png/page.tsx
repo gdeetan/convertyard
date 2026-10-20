@@ -96,7 +96,7 @@ export default function Page() {
               older RIPs are only compatible with{' '}
               <strong className="text-fg">TIFF, JPG, or PNG</strong> formats. If a
               shop prefers JPG, you can{' '}
-              <Link href="/heic-to-jpg" className="text-primary underline underline-offset-2 hover:text-primary-hover">
+              <Link href="/heic-to-jpg/" className="text-primary underline underline-offset-2 hover:text-primary-hover">
                 convert HEIC to JPG
               </Link>{' '}
               instead.
@@ -127,11 +127,11 @@ export default function Page() {
             <strong className="text-fg">HEIC uses 50% less space than PNG</strong>,
             so it takes up less storage and you can save more photos. If the
             PNGs you already have are too large, you can{' '}
-            <Link href="/compress-image" className="text-primary underline underline-offset-2 hover:text-primary-hover">
+            <Link href="/compress-image/" className="text-primary underline underline-offset-2 hover:text-primary-hover">
               compress them
             </Link>{' '}
             without changing format, or{' '}
-            <Link href="/png-to-webp" className="text-primary underline underline-offset-2 hover:text-primary-hover">
+            <Link href="/png-to-webp/" className="text-primary underline underline-offset-2 hover:text-primary-hover">
               convert PNG to WebP
             </Link>{' '}
             for the web.

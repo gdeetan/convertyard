@@ -246,13 +246,13 @@ export default function Page() {
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Link
-              href="/pdf"
+              href="/pdf/"
               className="inline-flex items-center rounded-xl bg-primary px-5 py-2.5 text-sm font-semibold text-primary-fg transition-colors hover:bg-primary-hover"
             >
               PDF tools →
             </Link>
             <Link
-              href="/tools"
+              href="/tools/"
               className="inline-flex items-center rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-fg-muted transition-colors hover:border-border-strong hover:text-fg"
             >
               All tools →

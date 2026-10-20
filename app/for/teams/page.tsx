@@ -211,7 +211,7 @@ export default function Page() {
               upload, no download from your documents.
             </p>
             <Link
-              href="/how-it-works"
+              href="/how-it-works/"
               className="mt-4 inline-block text-sm font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary rounded-sm"
             >
               Read the full technical explanation →

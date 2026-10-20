@@ -71,7 +71,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Will converting JPG to PNG add a transparent background?',
-      a: 'No, not automatically. JPG files don’t support transparency, and converting them to PNG won\'t create any, so the resulting PNG will be opaque. The only way to create transparency is to use a tool like GIMP or an online background remover. If your image has a solid background, you could use our <a href="/background-remover">background remover tool</a> to remove the background and save it in a format that supports transparency.',
+      a: 'No, not automatically. JPG files don’t support transparency, and converting them to PNG won\'t create any, so the resulting PNG will be opaque. The only way to create transparency is to use a tool like GIMP or an online background remover. If your image has a solid background, you could use our <a href="/background-remover/">background remover tool</a> to remove the background and save it in a format that supports transparency.',
     },
     {
       q: 'Will converting JPG to PNG improve quality?',
@@ -79,7 +79,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'How much larger will the PNG be compared to the JPG?',
-      a: 'If you’re talking about photographs, PNG files are typically three to five times larger than an equivalent JPG photograph. That’s because PNG’s lossless compression is less efficient in terms of keeping file sizes low, so it’s a trade-off that you need to consider. You could opt to convert to other formats like <a href="/jpg-to-webp">WebP</a> or <a href="/jpg-to-avif">AVIF</a> if image size is a top priority and you need to upload to a website. These formats support transparency, but are more efficient at encoding pixels and keeping file size down.',
+      a: 'If you’re talking about photographs, PNG files are typically three to five times larger than an equivalent JPG photograph. That’s because PNG’s lossless compression is less efficient in terms of keeping file sizes low, so it’s a trade-off that you need to consider. You could opt to convert to other formats like <a href="/jpg-to-webp/">WebP</a> or <a href="/jpg-to-avif/">AVIF</a> if image size is a top priority and you need to upload to a website. These formats support transparency, but are more efficient at encoding pixels and keeping file size down.',
     },
   ],
 

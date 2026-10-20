@@ -41,9 +41,9 @@ export const config: ToolConfig = {
     return (
       <span>
         {label} A one-frame GIF is almost always larger and lower quality than the equivalent PNG or JPG. Try{' '}
-        <Link href="/avif-to-png" className="underline">AVIF to PNG</Link>
+        <Link href="/avif-to-png/" className="underline">AVIF to PNG</Link>
         {' or '}
-        <Link href="/avif-to-jpg" className="underline">AVIF to JPG</Link>
+        <Link href="/avif-to-jpg/" className="underline">AVIF to JPG</Link>
         {' instead.'}
       </span>
     )

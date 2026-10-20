@@ -24,7 +24,7 @@ export function CategoryPage({ meta, tools }: Props) {
           </li>
           <li aria-hidden="true">/</li>
           <li>
-            <Link href="/tools" className="hover:text-primary transition-colors">Tools</Link>
+            <Link href="/tools/" className="hover:text-primary transition-colors">Tools</Link>
           </li>
           <li aria-hidden="true">/</li>
           <li className="text-fg" aria-current="page">{meta.title}</li>

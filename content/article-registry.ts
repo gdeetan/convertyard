@@ -105,13 +105,6 @@ export const articles: ArticleEntry[] = [
     lastUpdated: '2026-06-11',
   },
   {
-    slug: 'convertyard-vs-adobe-acrobat-pro',
-    title: 'ConvertYard vs. Adobe Acrobat Pro: Free Alternative Compared',
-    description:
-      'Honest feature-by-feature comparison of ConvertYard and Adobe Acrobat Pro. See what each tool does well — and which one you actually need.',
-    lastUpdated: '2026-06-13',
-  },
-  {
     slug: 'compress-pdf-without-uploading-privacy-guide',
     title: 'How to Compress PDFs Without Uploading: The Privacy Guide',
     description:
@@ -124,13 +117,6 @@ export const articles: ArticleEntry[] = [
     description:
       'Windows does not open HEIC files by default. Here are three ways to convert iPhone photos to JPG on Windows — including a browser method that requires no software installation.',
     lastUpdated: '2026-06-18',
-  },
-  {
-    slug: 'convertyard-vs-ilovepdf',
-    title: 'ConvertYard vs. iLovePDF: Which Free PDF Tool Should You Use',
-    description:
-      'Comparing ConvertYard and iLovePDF on batch limits, upload requirements, ad experience, and tool coverage. Mechanics compared, not marketing.',
-    lastUpdated: '2026-06-20',
   },
   {
     slug: 'cropping-photos-for-id-and-exam-requirements',

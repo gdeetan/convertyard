@@ -32,7 +32,7 @@ export default function Page() {
             your eyes likely won&rsquo;t notice. In technical terms, this is
             called{' '}
             <Link
-              href="/blog/lossless-vs-lossy"
+              href="/blog/lossless-vs-lossy/"
               className="text-primary underline"
             >
               lossy image compression
@@ -112,7 +112,7 @@ export default function Page() {
             </li>
             <li>
               Short animation clips (think{' '}
-              <Link href="/jpg-to-gif" className="text-primary underline">
+              <Link href="/jpg-to-gif/" className="text-primary underline">
                 GIF
               </Link>{' '}
               but with smaller file size)
@@ -126,7 +126,7 @@ export default function Page() {
             <li>
               Older browsers on{' '}
               <Link
-                href="/blog/avif-browser-support"
+                href="/blog/avif-browser-support/"
                 className="text-primary underline"
               >
                 older computers, phones, or laptops
