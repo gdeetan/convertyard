@@ -535,7 +535,9 @@ export function WebpConversionPreview(props: Props) {
   return (
     <ConversionPreview
       {...props}
-      convertFn={(file, options) => libvipsConvert([file], 'webp', options)}
+      convertFn={(file, options) =>
+        libvipsConvert([file], 'webp', { ...options, __previewFast: true })
+      }
       afterLabel="WebP"
       headerLabel="Before / After WebP preview"
     />

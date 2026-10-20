@@ -174,7 +174,11 @@ self.onmessage = async (e: MessageEvent) => {
       if (outputFormat === 'webp') {
         encodeOpts.Q = quality
         encodeOpts.lossless = opts.lossless === true
-        encodeOpts.effort = typeof opts.method === 'number' ? opts.method : 4
+        if (opts.__previewFast === true) {
+          encodeOpts.effort = 1
+        } else {
+          encodeOpts.effort = typeof opts.method === 'number' ? opts.method : 4
+        }
         // WebP format spec caps width/height at 16383. libwebp's lossless VP8L
         // encoder additionally OOMs on very large photos inside the WASM heap
         // (surfaces as "wbuffer_write: write failed"). Cap lossless tighter.
