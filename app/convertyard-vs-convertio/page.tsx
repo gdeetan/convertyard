@@ -29,26 +29,93 @@ const TABLE = [
   { feature: 'Price', convertyard: 'Free', convertio: 'Free / $10–$25/month' },
 ]
 
-const FAQ = [
+const FAQ: { q: string; a: React.ReactNode; text: string }[] = [
   {
     q: 'Does Convertio upload my files to its servers?',
-    a: "Yes. Convertio's conversion happens in the cloud — your file uploads to its servers, gets processed, and is deleted after a set period. The company stores files for up to 24 hours by default. This is convenient for handling large or unusual formats, but it means your file leaves your device every time.",
+    a: (
+      <>
+        Yes, all the conversions on Convertio take place in the cloud. Every file you upload to
+        Convertio is stored on a third-party server for a set period of time (by default up to
+        24 hours), and then it gets deleted.
+      </>
+    ),
+    text: 'Yes, all the conversions on Convertio take place in the cloud. Every file you upload to Convertio is stored on a third-party server for a set period of time (by default up to 24 hours), and then it gets deleted.',
   },
   {
-    q: 'What happens when I hit Convertio\'s 25 conversion limit?',
-    a: 'Once you hit 25 conversions in a day, Convertio blocks further conversions until the counter resets. You can upgrade to a paid plan ($10/month for 50 files/day or $25/month for unlimited) to remove the cap. ConvertYard has no conversion limit.',
+    q: "What happens when I hit Convertio's 25 conversion limit?",
+    a: (
+      <>
+        Converting more than 25 files per day in a 24-hour period will cause Convertio to stop
+        processing any more files until the conversion counter has cycled. The user can upgrade
+        to a paid account for $10 per month (process 50 files per day) or $25 per month (process
+        any number of files). <strong>ConvertYard does not impose any limit on conversions.</strong>
+      </>
+    ),
+    text: 'Converting more than 25 files per day in a 24-hour period will cause Convertio to stop processing any more files until the conversion counter has cycled. The user can upgrade to a paid account for $10 per month (process 50 files per day) or $25 per month (process any number of files). ConvertYard does not impose any limit on conversions.',
   },
   {
     q: 'Does Convertio support more formats than ConvertYard?',
-    a: "Yes — significantly more. Convertio supports 300+ formats including obscure ones like CAD files (DWG, DXF), e-book formats (EPUB, MOBI), and dozens of audio/video codecs. ConvertYard focuses on the ~40 formats that cover 95% of real-world conversion needs. If you need a truly unusual format, Convertio is the better choice.",
+    a: (
+      <>
+        Convertio supports 300+ formats (CAD DWG, DXF, e-book formats EPUB, MOBI, and dozens of
+        audio/video codecs), while ConvertYard supports ~40 formats, which cover{' '}
+        <strong>95% of all the conversions</strong>. Should you need a very special format to
+        convert, you are better off with Convertio.
+      </>
+    ),
+    text: 'Convertio supports 300+ formats (CAD DWG, DXF, e-book formats EPUB, MOBI, and dozens of audio/video codecs), while ConvertYard supports ~40 formats, which cover 95% of all the conversions. Should you need a very special format to convert, you are better off with Convertio.',
   },
   {
     q: 'Is ConvertYard better than Convertio for everyday image and PDF conversion?',
-    a: 'For the most common conversions — JPG, PNG, WebP, AVIF, PDF to Word, PDF compress, merge, split — yes. ConvertYard handles all of them without uploading your files, with no daily limit, and with batch support that Convertio\'s free tier doesn\'t offer.',
+    a: (
+      <>
+        ConvertYard offers more features for the most common conversions (
+        <Link href="/jpg-to-webp" className="text-primary underline-offset-2 hover:underline">
+          JPG, PNG, WebP, AVIF
+        </Link>
+        ,{' '}
+        <Link href="/pdf-to-word" className="text-primary underline-offset-2 hover:underline">
+          PDF to Word
+        </Link>
+        ,{' '}
+        <Link href="/compress-pdf" className="text-primary underline-offset-2 hover:underline">
+          PDF compression
+        </Link>
+        ,{' '}
+        <Link href="/merge-pdf" className="text-primary underline-offset-2 hover:underline">
+          merge
+        </Link>
+        ,{' '}
+        <Link href="/split-pdf" className="text-primary underline-offset-2 hover:underline">
+          split
+        </Link>
+        , etc.). On the image conversion pages, all tools show{' '}
+        <strong>before-and-after previews</strong> before you convert and estimate file-size
+        settings (at least the first three, which can serve as a baseline for what to expect).
+        All of these conversions are executed on your computer{' '}
+        <strong>without uploading your files</strong>. No daily limits. And ConvertYard even
+        supports <strong>batch conversion</strong> for all these conversions, which is not
+        possible with the free tier of Convertio.
+      </>
+    ),
+    text: 'ConvertYard offers more features for the most common conversions (JPG, PNG, WebP, AVIF, PDF to Word, PDF compression, merge, split, etc.). On the image conversion pages, all tools show before-and-after previews before you convert and estimate file-size settings (at least the first three, which can serve as a baseline for what to expect). All of these conversions are executed on your computer without uploading your files. No daily limits. And ConvertYard even supports batch conversion for all these conversions, which is not possible with the free tier of Convertio.',
   },
   {
     q: 'Which tool is better if I work with sensitive files?',
-    a: "ConvertYard, clearly. Because conversion runs inside your browser via WebAssembly, your file bytes never reach any external server. Convertio uploads your file — even with deletion policies in place, the upload happens, the server sees the file, and a record exists. For legal documents, personal photos, or medical records, that distinction matters.",
+    a: (
+      <>
+        <Link href="/gdpr-compliant-file-converter" className="text-primary underline-offset-2 hover:underline">
+          ConvertYard
+        </Link>
+        , because the conversion happens completely in the browser using WebAssembly, i.e.,{' '}
+        <strong>your file bytes never leave your device</strong>. In contrast, even though
+        Convertio deletes your uploaded files after a while, your files are still uploaded to the
+        server (even if only temporarily), and thus a record of them is kept on the server. This
+        would be a problem for <strong>legal documents, photos of children, medical records</strong>,
+        etc.
+      </>
+    ),
+    text: 'ConvertYard, because the conversion happens completely in the browser using WebAssembly, i.e., your file bytes never leave your device. In contrast, even though Convertio deletes your uploaded files after a while, your files are still uploaded to the server (even if only temporarily), and thus a record of them is kept on the server. This would be a problem for legal documents, photos of children, medical records, etc.',
   },
 ]
 
@@ -62,10 +129,10 @@ export default function Page() {
           __html: JSON.stringify({
             '@context': 'https://schema.org',
             '@type': 'FAQPage',
-            mainEntity: FAQ.map(({ q, a }) => ({
+            mainEntity: FAQ.map(({ q, text }) => ({
               '@type': 'Question',
               name: q,
-              acceptedAnswer: { '@type': 'Answer', text: a },
+              acceptedAnswer: { '@type': 'Answer', text },
             })),
           }),
         }}
@@ -83,8 +150,11 @@ export default function Page() {
           </h1>
           <p className="mb-4 text-xs text-fg-subtle">Published May 9, 2026</p>
           <p className="text-lg leading-relaxed text-fg-muted">
-            Convertio supports 300+ formats. ConvertYard supports ~40 and never uploads your files.
-            The right choice depends on what you're converting and how sensitive it is.
+            We support <strong className="text-fg">300+ formats</strong>, while ConvertYard
+            supports <strong className="text-fg">~40 formats</strong> and{' '}
+            <strong className="text-fg">does not upload your files</strong>. Whether Convertio or
+            ConvertYard is the best solution for you depends on the formats you need to convert
+            and on the <strong className="text-fg">sensitivity of the files</strong> in question.
           </p>
         </div>
 
@@ -92,9 +162,9 @@ export default function Page() {
         <div className="mb-12 grid gap-4 sm:grid-cols-2">
           <div className="rounded-xl border border-border bg-bg-elevated p-5">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-primary">ConvertYard</p>
-            <p className="text-sm font-semibold text-fg">Best for: common formats, privacy, batch workflows, no account</p>
+            <p className="text-sm font-semibold text-fg">Best for: common formats, privacy, batch workflows, no account required</p>
             <ul className="mt-3 space-y-1.5 text-sm text-fg-muted">
-              <li>✓ Files never leave your browser</li>
+              <li>✓ <strong className="text-fg">Files never leave your browser</strong></li>
               <li>✓ No account, no signup</li>
               <li>✓ No daily limits, no file size caps</li>
               <li>✓ Batch 1,000+ files at once</li>
@@ -148,43 +218,48 @@ export default function Page() {
           <div className="rounded-xl border border-border bg-bg-elevated p-6">
             <h3 className="mb-2 text-base font-semibold text-fg">Format breadth: Convertio wins</h3>
             <p className="text-sm leading-relaxed text-fg-muted">
-              Convertio supports over 300 file formats — documents, images, audio, video, CAD files,
-              e-books, fonts, and more. If you're converting something unusual (a DWG to PDF, an EPUB
-              to MOBI, a FLAC to OGG), Convertio almost certainly handles it. ConvertYard focuses on
-              the ~40 formats that cover the vast majority of real-world conversion needs. For niche
-              formats, Convertio is the better tool.
+              Convertio supports <strong className="text-fg">over 300 file types</strong>,
+              including documents, images, audio, video, and many more, including CAD files and
+              e-books. If you need to convert something unusual like DWG to PDF, EPUB to MOBI, or
+              FLAC to OGG, then Convertio is almost certainly going to support it. ConvertYard,
+              on the other hand, supports <strong className="text-fg">about 40 file types</strong>,
+              which cover most users' file conversion needs. Files with unusual extensions that
+              are not supported by ConvertYard will likely be supported by Convertio.
             </p>
           </div>
 
           <div className="rounded-xl border border-border bg-bg-elevated p-6">
             <h3 className="mb-2 text-base font-semibold text-fg">Privacy: ConvertYard wins</h3>
             <p className="text-sm leading-relaxed text-fg-muted">
-              Convertio processes files in the cloud. Your file uploads to its servers, the conversion
-              runs server-side, and the output is available for download. Files are typically deleted
-              after 24 hours. For most users converting non-sensitive files, this is fine. For legal
-              documents, financial records, medical images, or anything you wouldn't email to a stranger
-              — it's a meaningful risk that ConvertYard eliminates entirely by never receiving the file.
+              Convertio is an entirely web-based file converter. You upload a file to its servers,
+              convert it, and download the result. Generally speaking, uploaded files are deleted
+              from the servers after 24 hours. For ConvertYard, the file is{' '}
+              <strong className="text-fg">never transferred to the servers of ConvertYard</strong>.
+              Thus, you don't have to worry about ConvertYard converting files that contain{' '}
+              <strong className="text-fg">sensitive information</strong>.
             </p>
           </div>
 
           <div className="rounded-xl border border-border bg-bg-elevated p-6">
             <h3 className="mb-2 text-base font-semibold text-fg">Free tier limits</h3>
             <p className="text-sm leading-relaxed text-fg-muted">
-              Convertio's free tier caps users at 25 conversions per day and 100 MB per file. Exceed
-              either limit and you're blocked until the next day or prompted to upgrade. The $10/month
-              plan raises the daily limit to 50 files; unlimited requires $25/month. ConvertYard has
-              no caps — you can convert 1,000 files in one session, repeat it all day, and never hit
-              a limit.
+              The free Convertio tier limits users to{' '}
+              <strong className="text-fg">25 conversions per day</strong> (100 MB per file). A
+              $10/month plan lifts daily limits to 50 files. The unlimited plan costs $25/month.
+              The ConvertYard tool has <strong className="text-fg">no limits whatsoever</strong>:
+              convert 1,000+ files in a single session, and come back tomorrow and do it all again.
             </p>
           </div>
 
           <div className="rounded-xl border border-border bg-bg-elevated p-6">
             <h3 className="mb-2 text-base font-semibold text-fg">Batch conversion</h3>
             <p className="text-sm leading-relaxed text-fg-muted">
-              Convertio's free tier converts one file at a time, and each counts against your daily
-              limit. ConvertYard accepts 1,000+ files in a single drop, processes them in your browser
-              with a per-file progress indicator, and packages everything into a ZIP download. If you
-              regularly work with more than a handful of files at once, the difference is substantial.
+              Convertio allows for <strong className="text-fg">single-file conversion</strong> and
+              counts against your daily limit. ConvertYard, on the other hand, allows you to add
+              up to <strong className="text-fg">1,000 files for conversion all at once</strong>.
+              You can add all the files you need for conversion in one drop, get a{' '}
+              <strong className="text-fg">progress bar for each file</strong>, and have all the
+              converted files packed into a single ZIP file.
             </p>
           </div>
         </section>
@@ -193,10 +268,22 @@ export default function Page() {
         <section className="mb-12 rounded-xl border border-primary/20 bg-primary/5 p-6">
           <h2 className="mb-3 text-lg font-bold text-fg">Verdict</h2>
           <p className="text-sm leading-relaxed text-fg-muted">
-            Use ConvertYard when converting JPG, PNG, WebP, AVIF, PDF, Word, or other common formats
-            — you'll get no daily limit, no file size cap, no upload, and batch support. Use Convertio
-            when you need a format that ConvertYard doesn't support — its 300+ format library covers
-            formats you won't find anywhere else for free.
+            Converting common files like JPG, PNG,{' '}
+            <Link href="/png-to-webp" className="text-primary underline-offset-2 hover:underline">
+              WebP
+            </Link>
+            ,{' '}
+            <Link href="/avif-to-jpg" className="text-primary underline-offset-2 hover:underline">
+              AVIF
+            </Link>
+            , PDF, Word documents, and more in ConvertYard is{' '}
+            <strong className="text-fg">unlimited in terms of the number of files per day</strong>,{' '}
+            <strong className="text-fg">unlimited in terms of file size</strong>, and there is{' '}
+            <strong className="text-fg">no upload of your files to remote servers</strong>. Batch
+            conversion of hundreds of files in one session is also supported. All converted files
+            are packaged into a ZIP archive for easy download. Convertio is the better option if
+            the file you need to convert is not supported by ConvertYard (there are 300+ formats
+            supported by Convertio and not supported by ConvertYard).
           </p>
         </section>
 
@@ -221,7 +308,7 @@ export default function Page() {
               { label: 'ConvertYard vs Smallpdf', href: '/convertyard-vs-smallpdf' },
               { label: 'ConvertYard vs ILovePDF', href: '/convertyard-vs-ilovepdf' },
               { label: 'ConvertYard vs Adobe Acrobat', href: '/convertyard-vs-adobe-acrobat' },
-              { label: 'GDPR-safe file converter', href: '/gdpr-compliant-file-converter' },
+              { label: 'WebP to JPG', href: '/webp-to-jpg' },
             ].map(({ label, href }) => (
               <a key={href} href={href} className="rounded-lg border border-border bg-bg-elevated px-3 py-1.5 text-sm text-fg-muted transition-colors hover:border-border-strong hover:text-fg">
                 {label} →
