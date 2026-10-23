@@ -3,10 +3,12 @@ import type { MDXComponents } from 'mdx/types'
 import type { ComponentPropsWithoutRef } from 'react'
 import Link from 'next/link'
 import { BeforeAfterCompare } from '@/components/ui/BeforeAfterCompare'
+import { ExifDataMapIllustration } from '@/components/article-illustrations/exif-data-map'
 
 export function useMDXComponents(components: MDXComponents): MDXComponents {
   return {
     BeforeAfterCompare,
+    ExifDataMapIllustration,
     h2: ({ children }: ComponentPropsWithoutRef<'h2'>) => (
       <h2 className="mt-10 mb-4 text-2xl font-bold text-fg">{children}</h2>
     ),
