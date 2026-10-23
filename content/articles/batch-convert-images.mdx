@@ -2,94 +2,95 @@ export const meta = {
   title: 'How to Batch Convert Images: The Complete Guide',
   description:
     'Convert hundreds or thousands of images at once — without desktop software, without uploads, and without babysitting a one-file-at-a-time tool.',
-  lastUpdated: '2026-05-08',
+  lastUpdated: '2026-10-23',
   faq: [
     {
       q: 'How many images can I batch convert at once?',
-      a: "ConvertYard processes 1,000+ images in a single batch on a modern laptop. The limit is your device's available memory, not an artificial cap. Drop the files, set your settings once, and download everything as a ZIP when finished.",
+      a: "ConvertYard processes 1,000+ images in a single batch on a modern laptop. The limit is your device's available memory, not an artificial cap. Drop the files, set your settings once, and download everything as a ZIP when finished. With ConvertYard, users can convert batches of up to 1,000 images. How long? That depends on the size of the image, your computer's processor, and memory size. The higher the memory, the faster the processing time.",
     },
     {
       q: 'Does batch converting reduce quality compared to one at a time?',
-      a: "No. The same conversion settings apply to each file individually. A quality 85 JPEG output is identical whether you convert one file or a thousand — there's no quality degradation from batching.",
+      a: 'No. The same conversion settings are applied to each individual file. So a setting of 85 for a quality JPEG output will still result in the same high-quality output for individual files and for batches of files.',
     },
     {
       q: 'What if I have images in multiple formats to convert?',
-      a: 'Most batch tools require a consistent input format. If you have a mix of JPGs, PNGs, and WebPs to convert, process each format separately — drop your JPGs in one batch, PNGs in another.',
+      a: "The vast majority of batch processing tools require you to work with files of a single format (i.e., JPGs, PNGs, WebPs, etc.). This means you'll typically process each of these formats in separate batches (i.e., a single batch of your JPGs, followed by a single batch of your PNGs, etc.).",
     },
     {
       q: 'Do I need to install software to batch convert images?',
-      a: 'No. ConvertYard runs entirely in your browser via WebAssembly. No software to install, no account to create. Open the relevant tool, drop your files, click convert.',
+      a: "No, none of the ConvertYard tools need to be installed as software on your computer, and you don't need an account to use them. They run in your browser using WebAssembly. Just open the tool of your choice, add your files, click the convert button, and download the results as a ZIP file.",
     },
   ],
   relatedTools: ['compress-image', 'jpg-to-webp', 'heic-to-jpg', 'png-to-webp', 'image-resizer'],
 }
 
-If you've ever sat clicking "convert" on 200 photos one at a time, you know the problem. Most free conversion tools are built for single files. Batch conversion — processing hundreds or thousands of images with one operation — requires either desktop software, command-line tools, or a browser tool built to handle it.
+If you've ever tried "converting" 200 photos one at a time, you know the problem. Most tools or software are built to process **one image at a time**. Even "free" batch online conversion tools are really **freemium**, meaning they allow you to convert a limited number of images, then prompt you to sign up or pay a monthly fee to continue using their service. **True batch conversion**, meaning processing hundreds to a thousand images in one go, requires either desktop software, command-line tools, or a browser tool to handle it.
 
-This guide covers why batch conversion matters, what the common approaches are, and how to do it in your browser without installing anything.
+This guide will enumerate the different batch conversion options on your computer, from installing software to converting it in your browser.
 
 **[Batch convert images in your browser — no uploads →](/compress-image/)**
 
 ## Why batch conversion matters
 
-The math is simple. If converting one image takes 15 seconds of manual work (upload, set settings, download, rename), converting 500 images takes 125 minutes of your time — more than two hours of clicking. With batch conversion, you drop all 500 files at once, click convert once, and download a ZIP when it's done. The whole operation takes the same two minutes regardless of file count.
+The time it takes to convert one image manually is a tiny fraction of the time it takes to convert 500 images. Let's say, for example, that converting one image takes 15 seconds for uploading and setting up, and 15 seconds for downloading and renaming, for a total of **30 seconds per image, or 125 minutes for 500 images** (over two hours). Converting images in batch mode takes the **same 2 minutes for any number of files**. You simply upload all the files, click Convert, and then download a ZIP file with all of your converted images.
 
 This matters for:
 
-- **Product photography**: Converting catalog images from RAW/TIFF to web-ready WebP or JPG
-- **Photo archiving**: Converting thousands of HEIC photos from iPhone to universally readable JPG
-- **Web optimization**: Shrinking a folder of uploaded user images to reduce page load times
-- **Format migration**: Moving a library from one format to another (BMP to PNG, AVIF to JPG)
-- **Exam applications**: Resizing and cropping multiple passport photos to exact specifications
+- **Product photography**: Convert your catalog images from RAW/TIFF to web-optimized [WebP or JPG](/jpg-to-webp/).
+- **Photo archiving**: Converting thousands of **HEIC photos from iPhone** to universally readable [JPG files](/heic-to-jpg/).
+- **Web optimization**: Converting a folder full of uploaded images to **reduce the page load time** of a website.
+- **Format migration**: Converting between formats like BMP to PNG or [AVIF to JPG](/avif-to-jpg/).
+- **Exam applications**: Resize and crop hundreds of images, such as **passport photos**, to exactly fit the required dimensions for online applications.
 
 ## The three approaches to batch conversion
 
 ### 1. Desktop software
 
-Tools like Adobe Lightroom, GIMP's Script-Fu batch, and dedicated apps like XnConvert can batch convert images locally. The advantages: handles huge volumes, no file size limits, works offline. The disadvantages: requires installation, costs money in some cases, and is overkill if you just need to convert a folder of files once.
+You can convert large volumes of images with tools like Adobe Lightroom or GIMP's Script-Fu batch mode. Also, there are dedicated programs for batch image conversion, like **XnConvert**. Large amounts of images, **no file size limits**. Offline, but sometimes overkill, when you only want to convert a folder full of images once.
 
 ### 2. Command-line tools
 
-ImageMagick and libvips are the standard CLI tools for batch image conversion. A single command can convert an entire directory:
+**ImageMagick** and **libvips** are the standard way to do batch conversion of images on the command line. And with just a few keystrokes, you can convert an entire directory full of files.
 
 ```bash
 for f in *.jpg; do convert "$f" "${f%.jpg}.webp"; done
 ```
 
-This is powerful and scriptable, but requires familiarity with the command line and software installation.
+There is considerable power in these approaches, and they are easily scriptable, but can be quite complex to use.
 
 ### 3. Browser tools
 
-Modern browser tools using WebAssembly can run the same underlying libraries (libvips, ffmpeg) entirely in your browser tab. No installation, no upload, no account. The conversion runs on your CPU locally — the browser is just the interface.
+New browser tools based on **WebAssembly** run the same original code (as libvips or ffmpeg) inside your browser tab. You can run batch conversion of images **without installing anything, without uploading files, without creating an account**. Your local CPU runs the conversion, and the browser merely serves as a front end.
 
-The main constraint: browser memory limits mean very large batches (5,000+ high-resolution images) may need to be split across a few sessions. For typical use cases of a few hundred files, browser-based batch conversion handles everything.
+The only thing limiting a browser-based batch conversion of huge numbers of images (e.g., 5,000 high-resolution images or more) is the **memory of your browser**. To handle such huge amounts of data, the conversion has to be split into several batches. For such huge amounts of data, though, typical use cases are in the order of hundreds of images only.
 
 ## How to batch convert images in your browser
 
-ConvertYard processes images in batches entirely in your browser. Your files never upload to any server.
+ConvertYard's image processing is done in the browser, and **no images are uploaded to servers** for processing.
 
 **Step 1: Choose your tool**
 
 Pick the tool for your conversion type:
-- **Format conversion**: JPG to WebP, HEIC to JPG, PNG to AVIF, etc. — use the dedicated format converter
-- **Compression**: Shrink JPG/PNG/WebP files with a target quality — use Image Compressor
-- **Resize**: Set dimensions once, apply to all — use Image Resizer
+
+- **Convert between formats**: (jpg to webp, heic to jpg, png to avif, etc.) Use the format-specific tool.
+- **Compression**: Shrink JPG/PNG/WebP files to a certain quality — use [Image Compressor](/compress-image/).
+- **Resize**: Same settings for all files. Settings for resize are entered once for all files in batch. [Image Resizer](/image-resizer/).
 
 **Step 2: Drop all your files**
 
-Drag and drop your entire folder, or click to select files. Most tools accept 1,000+ files in a single drop. ConvertYard shows a queue with per-file status as it processes.
+To upload images to ConvertYard for processing, simply **drag and drop an entire folder** onto the screen or click inside the rectangle to select individual files. All tools handle **1,000+ files as a single batch** and give a file-by-file status update as they are processed.
 
 **Step 3: Set your settings once**
 
-Quality, resize dimensions, output format — set them once before clicking convert. The same settings apply to every file in the batch.
+Set quality, dimensions, output format, etc. before you convert, and those **same settings will apply to all files**.
 
 **Step 4: Download the ZIP**
 
-When processing finishes, download all converted files in a single ZIP. File names are preserved with the new extension.
+When ConvertYard has finished processing your files, download a **ZIP archive** containing all your converted files. File names are retained and now have the appropriate file extension for the converted file.
 
 ## Choosing the right output format for batch conversion
 
-The format you're converting *to* matters as much as the batch mechanics.
+The format to which you are converting your files is important to consider when determining how best to process a batch of files.
 
 | Use case | Recommended format |
 |----------|-------------------|
@@ -99,14 +100,14 @@ The format you're converting *to* matters as much as the batch mechanics.
 | Transparent backgrounds | PNG or WebP lossless |
 | iPhone photos for general use | JPG (quality 90) |
 
-For web images, WebP at quality 80 typically gives you 25–35% smaller files than JPG at equivalent quality. AVIF is 10–20% smaller still, but takes longer to encode. For a batch of 500 photos destined for a website, WebP is the practical default.
+When it comes to web images like these, **WebP at 80 quality** will typically shrink files to **25–35% of the size** of similar quality JPEGs. [AVIF](/png-to-avif/) will even reduce file size by another 10–20%, but that will come at the cost of more time spent encoding the image. For small web pages made of 500 images or so, **80 quality WebP** will likely be the sweet spot for image size.
 
 ## Tips for large batches
 
-**Test with 5 files first.** Before dropping 1,000 photos, convert a small sample to verify the settings produce the output you want. Easier to adjust before processing the full batch.
+**Test conversion first with 5 files.** Convert a small batch of 1,000 photos first to verify the settings will produce what you need. And then you can fine-tune as needed before processing the rest.
 
-**Keep originals.** Batch conversion is non-destructive — ConvertYard produces new files without touching your originals. Keep the source files until you've verified the outputs.
+**Your originals will not be harmed**; the converted files are new, and you should keep the originals until you verify the converted files.
 
-**Split very large batches.** If you're converting 3,000 high-resolution RAW conversions in a browser tab, split into two or three sessions to avoid browser memory limits. 500–1,000 files per session is comfortable on most modern laptops.
+**Large batches.** If you have 3,000 high-resolution RAW conversions to make in the browser, then it's better to **split them into 2–3 sessions** rather than try to cram them all into one tab and run into browser memory limits. **500–1,000 files per session** is about the limit on most modern laptops.
 
-**Name files before converting.** Batch renaming is harder after conversion. If you need specific file names in the output, rename your source files first — ConvertYard preserves the original name and changes only the extension.
+**Don't rename files after conversion.** If you need specific file names in the output (as opposed to the original file name), **rename your source files before** running the batch conversion. ConvertYard will then use the renamed original file name and change the extension to that of the converted file.
