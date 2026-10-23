@@ -17,30 +17,67 @@ export const metadata: Metadata = {
   },
 }
 
-const LIBRARIES = [
+const LIBRARIES: {
+  name: string
+  purpose: string
+  detail: React.ReactNode
+}[] = [
   {
     name: 'libvips',
     purpose: 'Images (JPG, WebP, AVIF, PNG, HEIC, TIFF)',
-    detail:
-      'A high-performance image processing library, ~5× faster than ImageMagick for most operations. Compiles to ~3MB WASM.',
+    detail: (
+      <>
+        A fast image processing library for various image formats (JPG, WebP, AVIF, PNG,
+        HEIC, …). It is{' '}
+        <strong className="font-semibold text-fg">
+          about 5 times faster than ImageMagick
+        </strong>{' '}
+        for most operations and compiled to{' '}
+        <strong className="font-semibold text-fg">~3MB WASM</strong>.
+      </>
+    ),
   },
   {
     name: 'ffmpeg.wasm',
     purpose: 'Video and audio (MP4, MP3, GIF, WebM, WAV)',
-    detail:
-      'The industry-standard multimedia library, compiled to WebAssembly by the ffmpeg.wasm project. Runs inside a SharedArrayBuffer worker.',
+    detail: (
+      <>
+        ffmpeg.wasm: ffmpeg the{' '}
+        <strong className="font-semibold text-fg">
+          industry standard multimedia library
+        </strong>
+        , now compiled to WebAssembly for use within{' '}
+        <strong className="font-semibold text-fg">SharedArrayBuffer workers</strong>{' '}
+        (AJA).
+      </>
+    ),
   },
   {
     name: 'pdf-lib + mupdf-wasm',
     purpose: 'PDF creation, merging, splitting, rendering',
-    detail:
-      'pdf-lib handles construction and modification in pure JS; mupdf-wasm handles rendering and rasterization.',
+    detail: (
+      <>
+        <strong className="font-semibold text-fg">pdf-lib</strong> handles construction
+        and modification of PDFs in{' '}
+        <strong className="font-semibold text-fg">pure JavaScript code</strong>.{' '}
+        <strong className="font-semibold text-fg">mupdf-wasm</strong> is then used for
+        rendering of PDFs to the screen, i.e.,{' '}
+        <strong className="font-semibold text-fg">rasterization</strong>.
+      </>
+    ),
   },
   {
     name: '@huggingface/transformers',
     purpose: 'AI tools (background removal, upscaling, alt-text)',
-    detail:
-      'Runs ONNX models in-browser via WebAssembly and WebGPU. Models are downloaded once, then cached locally.',
+    detail: (
+      <>
+        Runs ONNX models in-browser using{' '}
+        <strong className="font-semibold text-fg">WebAssembly and WebGPU</strong>. Models
+        are downloaded once and then{' '}
+        <strong className="font-semibold text-fg">cached locally</strong> on subsequent
+        uses.
+      </>
+    ),
   },
 ]
 
@@ -64,44 +101,53 @@ export default function HowItWorksPage() {
             <li className="flex gap-4">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bg-muted text-sm font-bold text-primary" aria-hidden="true">1</span>
               <div>
-                <p className="font-medium text-fg">Your browser reads the file</p>
+                <p className="font-medium text-fg">Your browser reads the file.</p>
                 <p className="mt-1 text-sm">
-                  The browser's File API reads your file into memory as an ArrayBuffer. No network
-                  request is made. The data stays in your browser tab's isolated memory.
+                  The browser's File API reads your file into memory as an{' '}
+                  <strong className="font-semibold text-fg">ArrayBuffer</strong>.{' '}
+                  <strong className="font-semibold text-fg">No network request is made.</strong>{' '}
+                  The data stays in your browser tab's isolated memory.
                 </p>
               </div>
             </li>
             <li className="flex gap-4">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bg-muted text-sm font-bold text-primary" aria-hidden="true">2</span>
               <div>
-                <p className="font-medium text-fg">A WASM module processes it</p>
+                <p className="font-medium text-fg">A WASM module processes it.</p>
                 <p className="mt-1 text-sm">
-                  The relevant WebAssembly module (libvips for images, ffmpeg for video, etc.) is
-                  loaded once and cached. On first use it downloads; after that it loads
-                  instantly from your browser cache. The module runs on your CPU in a sandboxed
-                  Web Worker, so it can't access anything outside the tab.
+                  The relevant WebAssembly module (libvips for images, ffmpeg for video,
+                  etc.) is{' '}
+                  <strong className="font-semibold text-fg">loaded once and cached</strong>.
+                  On first use, it downloads; after that, it loads instantly from your
+                  browser cache. The module runs on your CPU in a{' '}
+                  <strong className="font-semibold text-fg">sandboxed Web Worker</strong>,
+                  so it can't access anything outside the tab.
                 </p>
               </div>
             </li>
             <li className="flex gap-4">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bg-muted text-sm font-bold text-primary" aria-hidden="true">3</span>
               <div>
-                <p className="font-medium text-fg">Output is handed back to the browser</p>
+                <p className="font-medium text-fg">Output is handed back to the browser.</p>
                 <p className="mt-1 text-sm">
-                  The converted file is an ArrayBuffer in memory. The browser creates a local
-                  object URL (<code>blob:</code>) and serves your download from it. Nothing is
-                  sent anywhere.
+                  The converted file is an ArrayBuffer in memory. The browser creates a{' '}
+                  <strong className="font-semibold text-fg">local object URL</strong> (
+                  <code>blob:</code>) and serves your download from it.{' '}
+                  <strong className="font-semibold text-fg">Nothing is sent anywhere.</strong>
                 </p>
               </div>
             </li>
             <li className="flex gap-4">
               <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bg-muted text-sm font-bold text-primary" aria-hidden="true">4</span>
               <div>
-                <p className="font-medium text-fg">Memory is freed</p>
+                <p className="font-medium text-fg">Memory is freed.</p>
                 <p className="mt-1 text-sm">
-                  After download, the object URL is revoked and the ArrayBuffers are garbage
-                  collected. Your file data is gone from memory. Closing the tab is guaranteed
-                  cleanup.
+                  After download, the object URL is revoked, and the ArrayBuffers are{' '}
+                  <strong className="font-semibold text-fg">garbage collected</strong>.
+                  Your file data is gone from memory.{' '}
+                  <strong className="font-semibold text-fg">
+                    Closing the tab guarantees cleanup.
+                  </strong>
                 </p>
               </div>
             </li>
@@ -126,20 +172,33 @@ export default function HowItWorksPage() {
         <section>
           <h2 className="mb-4 text-xl font-semibold text-fg">Why WebAssembly, not JavaScript?</h2>
           <p>
-            JavaScript is fast for web UI but slow for byte-heavy operations like video encoding
-            or RAW image processing. Native code (C, C++, Rust) is 10–100× faster for these
-            workloads.
+            JavaScript is very fast for UI-level work on web pages, but it is{' '}
+            <strong className="font-semibold text-fg">
+              not suitable for byte-intensive tasks
+            </strong>{' '}
+            like video encoding, RAW image processing, etc., that have a large performance
+            gap compared to native code written in languages like C, C++, or even Rust{' '}
+            <strong className="font-semibold text-fg">(10–100× faster)</strong>.
           </p>
           <p className="mt-4">
-            WebAssembly is a binary instruction format that browsers compile to native machine
-            code at load time. It runs in the same sandboxed environment as JavaScript but at
-            near-native speed. The WASM security model means a library can't access your file
-            system, camera, network, or anything outside the memory it's given.
+            WebAssembly is a new binary instruction format that gets{' '}
+            <strong className="font-semibold text-fg">
+              compiled to native machine code
+            </strong>{' '}
+            by the browser at load time. It runs in the same sandboxed environment as
+            JavaScript code, but with{' '}
+            <strong className="font-semibold text-fg">near-native performance</strong>.
+            The security model for WASM code is that no library can access things like the
+            file system, camera, network, etc. outside of the region of memory it has been
+            granted.
           </p>
           <p className="mt-4">
-            The tradeoff: WASM modules are large (libvips is ~3MB, ffmpeg.wasm is ~25MB). We
-            lazy-load them on first interaction and cache aggressively, so you only pay that
-            cost once.
+            The major tradeoff here is that WASM modules are large (libvips is ~3MB,
+            ffmpeg.wasm is ~25MB). We{' '}
+            <strong className="font-semibold text-fg">lazy-load modules</strong> in this
+            context and then{' '}
+            <strong className="font-semibold text-fg">aggressively cache them</strong> so
+            we only pay this once for each user interaction.
           </p>
         </section>
 
@@ -147,15 +206,21 @@ export default function HowItWorksPage() {
         <section>
           <h2 className="mb-4 text-xl font-semibold text-fg">Batch conversion</h2>
           <p>
-            Every tool runs conversions in a pool of Web Workers — typically 4–8, depending on
-            your device's core count. Files are processed in parallel up to the worker limit, then
-            queued. A 1,000-file batch on a modern laptop finishes in minutes, not hours.
+            In batch mode, all tools convert files in{' '}
+            <strong className="font-semibold text-fg">pools of Web Workers</strong>. By
+            default, there are as many Web Workers as there are CPU cores. All files of a
+            tool are converted{' '}
+            <strong className="font-semibold text-fg">in parallel</strong> up to the number
+            of Web Workers and then put into a queue. So, a batch of 1,000 images will
+            convert in a few minutes on a current laptop.
           </p>
           <p className="mt-4">
-            The practical limit is your device's RAM. A 1,000-file batch of 2MB images requires
-            roughly 2GB of working memory at peak. Modern laptops handle this fine; older phones
-            may hit limits around 100–200 files. We surface clear warnings when memory pressure
-            is detected.
+            In practice, the{' '}
+            <strong className="font-semibold text-fg">RAM of your device</strong> limits
+            the number of files you can batch. A 1,000-file batch of 2MB images requires
+            about <strong className="font-semibold text-fg">2GB of RAM at peak</strong>.
+            Modern laptops have plenty of RAM, while older phones might have problems with
+            100–200 files. We then warn you when memory pressure is approaching.
           </p>
         </section>
 
@@ -163,12 +228,18 @@ export default function HowItWorksPage() {
         <section>
           <h2 className="mb-4 text-xl font-semibold text-fg">Verify it yourself</h2>
           <p>
-            Open DevTools → Network tab → filter by "XHR/Fetch." Drop a file and run a
-            conversion. You'll see the WASM module load (once), and nothing else. No POST request,
-            no upload, no call home.
+            Open DevTools, switch to the{' '}
+            <strong className="font-semibold text-fg">Network tab</strong>, and filter for{' '}
+            <strong className="font-semibold text-fg">XHR/Fetch</strong> requests. Execute
+            conversion of a file, and you will see the WASM module loading once, but that's
+            all.{' '}
+            <strong className="font-semibold text-fg">
+              There are no POST requests, no uploads, no calls to remote servers.
+            </strong>
           </p>
           <p className="mt-4">
-            This is verifiable, not a promise. The source is what it is.
+            This is <strong className="font-semibold text-fg">verifiable</strong>. The
+            source is what it is.
           </p>
         </section>
 
