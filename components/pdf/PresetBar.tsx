@@ -36,7 +36,7 @@ const PRESETS: Array<{ name: string; icon: string; description: string; values: 
       dpiMode: false,
       jpegQuality: 95,
       grayscale: false,
-      stripMetadata: true,
+      stripMetadata: false,
     },
   },
   {
@@ -50,6 +50,7 @@ const PRESETS: Array<{ name: string; icon: string; description: string; values: 
       stripAnnotations: true,
       stripFormFields: true,
       formFieldStrategy: 'flatten',
+      stripMetadata: false,
     },
   },
   {
