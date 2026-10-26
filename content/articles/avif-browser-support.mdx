@@ -2,29 +2,29 @@ export const meta = {
   title: 'AVIF Browser Support in 2026: When Is It Safe to Use?',
   description:
     'AVIF is supported in Chrome, Firefox, Edge, and Safari 16+. That covers over 93% of global web traffic. Here is how to deploy AVIF safely with fallbacks.',
-  lastUpdated: '2026-05-20',
+  lastUpdated: '2026-10-27',
   faq: [
     {
       q: 'Which browsers support AVIF?',
-      a: 'Chrome 85+, Edge 121+, Firefox 93+, and Safari 16.4+ (released March 2023). This covers over 93% of global web traffic as of 2026. The main gap is older iOS devices stuck on Safari 15 or earlier — these require a WebP or JPEG fallback.',
+      a: 'The supported browsers are Chrome 85+, Edge 121+, Firefox 93+, and Safari 16.4+ (released March 2023). This covers over 93% of all web traffic as of 2026. There is only one major browser not supported: older iOS devices running Safari 15 or earlier. These would fall back to WebP or JPEG.',
     },
     {
       q: 'Does Safari support AVIF?',
-      a: 'Yes, since Safari 16.4 (March 2023). This includes Safari on iOS 16.4+ and macOS Ventura 13.3+. Older Safari versions do not support AVIF — if you need to support older iPhones or Macs that cannot update, serve WebP or JPEG as a fallback using the <picture> element.',
+      a: 'Supports AVIF as of Safari 16.4. This support extends to both the iOS and macOS platforms, for devices running iOS 16.4+ and macOS Ventura 13.3+. (As noted above, Safari 15.x and earlier do not support AVIF. Such systems can be served AVIF files via a <picture> element using a WebP or JPEG fallback.)',
     },
     {
       q: 'Should I use AVIF or WebP for web images?',
-      a: 'AVIF achieves 10–20% better compression than WebP at equivalent quality, making it the better choice for file size. However, AVIF has slightly less browser coverage than WebP. The practical recommendation for new projects in 2026: serve AVIF as the primary format with a WebP fallback using <picture>. Legacy projects already serving WebP can continue — the incremental gain from switching to AVIF may not justify the migration cost.',
+      a: 'If file size is a concern, then AVIF can achieve 40–70% better compression than WebP at equivalent quality. However, the coverage of AVIF is slightly less than WebP. For new projects in 2026, AVIF should be served as the main image with a WebP fallback in a <picture>. For existing WebP users on legacy sites, the incremental gain from switching to AVIF may not be worth the pain of migrating.',
     },
     {
       q: 'Does AVIF support transparency?',
-      a: 'Yes. AVIF fully supports an alpha channel for transparency, just like PNG and WebP. Browsers that support AVIF also support AVIF transparency. For transparent images, AVIF lossless is typically 20–40% smaller than equivalent PNG.',
+      a: 'Yes. AVIF images can contain an alpha channel for transparency, just like PNG or WebP images. All current browsers that support AVIF also support AVIF with transparency. AVIF lossless is about 3-71% smaller than corresponding PNG images based on tests.',
     },
   ],
   relatedTools: ['jpg-to-avif', 'png-to-avif', 'avif-to-jpg', 'avif-to-png', 'avif-to-webp'],
 }
 
-AVIF — the AV1 Image File Format — delivers the best compression of any common web image format. But browser support lagged behind WebP for years, making it risky to deploy without extensive fallbacks. In 2026, that situation has changed substantially.
+AVIF is the **AV1 Image File Format**, and it provides the **best compression of all commonly used web image formats**. However, until recently, browser support for AVIF was lagging behind that of WebP, and therefore its use was often complicated by the need to provide extensive fallbacks. **In 2026, that is no longer the case.**
 
 **[Convert images to AVIF in your browser — no uploads →](/jpg-to-avif/)**
 
@@ -40,16 +40,16 @@ AVIF — the AV1 Image File Format — delivers the best compression of any comm
 | Samsung Internet | v23 (2023) | Full support |
 | Opera | v71+ | Full support |
 
-**Global coverage estimate (2026): ~93–95%** of browser sessions based on usage share data.
+**Global coverage estimate (2026): ~93–95%** of all browser sessions.
 
 The remaining ~5–7% is predominantly:
-- Older iOS devices on Safari 15 or earlier (cannot update past iOS 15)
+- **Older iOS devices on Safari 15 or earlier** (cannot update past iOS 15).
 - Legacy Edge versions
 - Some enterprise environments still on older Chrome
 
 ## How to serve AVIF with a fallback
 
-The standard approach uses the HTML `<picture>` element to serve AVIF to supporting browsers and fall back to WebP or JPEG for others:
+The standard method to deliver AVIF images to browsers that support them, and WebP or JPEG images to browsers that don't, is to use the HTML `<picture>` element.
 
 ```html
 <picture>
@@ -59,9 +59,9 @@ The standard approach uses the HTML `<picture>` element to serve AVIF to support
 </picture>
 ```
 
-The browser reads the `<source>` elements in order and uses the first one it supports. A browser that supports AVIF gets `image.avif`. A browser that supports WebP but not AVIF gets `image.webp`. Anything else gets `image.jpg`.
+The browser reads the `<source>` elements **in order** and uses the first source element that it supports to render the image. So, for example, a browser that supports AVIF will get `image.avif`, a browser that supports WebP but not AVIF will get `image.webp`, and anything else will get `image.jpg`.
 
-For most new projects in 2026, a two-layer fallback (AVIF + JPEG) is sufficient, since WebP coverage is essentially universal:
+For most new projects in 2026, a **two-layer fallback (AVIF + JPEG)** is adequate, given that WebP is now as universal as it ever was.
 
 ```html
 <picture>
@@ -82,36 +82,36 @@ For most new projects in 2026, a two-layer fallback (AVIF + JPEG) is sufficient,
 | Transparency | Yes | Yes |
 | Animation | Yes (see note below) | Yes |
 
-**Note on animated AVIF:** Browsers that support still AVIF generally support animated AVIF too, but destinations outside the browser lag behind. Slack previews, GitHub comments, and most email clients still expect GIF. If you need to share an animated AVIF in those contexts, [convert it to GIF in your browser](/avif-to-gif/) first — nothing uploads.
+**Animated AVIF** is supported by most browsers that also support still AVIF images. However, some external platforms may not yet support animated AVIF. **Slack previews, GitHub comments, and most email clients will expect GIF images instead of AVIF images.** [Convert the AVIF images to GIF in your browser](/avif-to-gif/) first if you need to upload them to those destinations.
 
 **Choose AVIF when:**
-- File size reduction is the priority (image-heavy pages, e-commerce)
+- **File size reduction is the priority** (image-heavy pages, e-commerce)
 - You're starting a new project and can implement proper fallbacks
 - Your users are predominantly on modern devices (mobile-first audience skews newer)
 
 **Stick with WebP when:**
-- You already have a working WebP pipeline and the migration cost outweighs the gain
-- You're generating images dynamically (AVIF encoding is 5–10x slower than WebP)
-- You need to support a significant portion of older iOS users
+- Your already working WebP implementation has higher costs for a migration than the savings for a new image format.
+- **Dynamic image generation** (AVIF encoding is 5–10x slower than WebP)
+- Support a large number of older iOS users.
 
 ## Does AVIF work on mobile?
 
-Yes. Safari on iOS has supported AVIF since iOS 16.4 (March 2023). Chrome on Android has supported it since Chrome 85 (2020). The main mobile edge case is older iPhones that cannot update past iOS 15 — these use Safari 15, which does not support AVIF.
+Safari on iOS started supporting AVIF with **iOS 16.4 (March 2023)**. Chrome on Android started supporting it with **Chrome 85 (2020)**. The main mobile edge case here is older iPhones that cannot upgrade from iOS 15 anymore. Those are running Safari 15, which does not support AVIF yet.
 
-If your analytics show significant iOS 15 traffic (common for audiences with older device cycles), keep the WebP layer in your fallback chain.
+If your analytics indicate that you have a large audience of iOS 15 users (i.e., they are running with older device cycles), it's prudent to continue to include **WebP in your fallback list**.
 
 ## AVIF in Next.js and image CDNs
 
-**Next.js Image component:** Next.js automatically serves AVIF to supporting browsers when using the `<Image>` component with `formats: ['image/avif', 'image/webp']` in your `next.config.js`. This is opt-in but straightforward.
+**Next.js Image component:** Next.js can serve AVIF images to support AVIF by specifying `formats: ['image/avif', 'image/webp']` in `next.config.js` within the `<Image>` component. This is opt-in and works out of the box.
 
-**Cloudflare Images, Cloudinary, Imgix:** All major image CDNs support AVIF delivery with automatic format negotiation — they serve AVIF to supporting browsers and JPEG/WebP to others based on the `Accept` header.
+**Cloudflare Images, Cloudinary, and Imgix** all support AVIF delivery and automatically negotiate the best format to send to a user's browser. They will send AVIF images that a browser supports and fall back to JPEG or WebP for browsers that do not support AVIF.
 
-**Self-hosted:** If you're serving images from your own server, you can check the `Accept` header for `image/avif` and serve the appropriate format. Libraries like Sharp (Node.js) support AVIF encoding.
+**Self-hosted:** When serving images from your own server, you can check for the `image/avif` `Accept` header and send the appropriate image format. **Sharp** is a popular encoding library for AVIF images and is written for Node.js.
 
 ## Converting your existing images to AVIF
 
-ConvertYard converts JPG, PNG, and WebP to AVIF in your browser — no upload, no server processing. The conversion uses the same libvips library that powers professional image pipelines.
+Convert your [JPG](/jpg-to-avif/), [PNG](/png-to-avif/), and [WebP](/webp-to-avif/) images to AVIF **right in your browser**. No need to upload and process on the server — we use the same **libvips** library that's used in professional image processing applications.
 
-For web delivery, AVIF quality 60–70 is the standard starting point (AVIF's quality scale is more efficient than WebP's — quality 65 AVIF is roughly equivalent to quality 80 WebP in perceptual terms).
+For web delivery, we recommend **quality 60–70** (AVIF quality is way more efficient than WebP quality. AVIF quality 65 is perceived to be equal to WebP quality 80).
 
-For batch conversion of large image libraries, ConvertYard processes 1,000+ files in a single session with per-file progress tracking and ZIP download.
+Process **1,000+ images in a single session**, get per-file progress, and download a ZIP file with all converted images.
