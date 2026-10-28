@@ -10,6 +10,29 @@ import {
 } from '@/lib/seo/schema'
 import { articleIllustrations } from '@/components/article-illustrations'
 
+function renderInline(text: string, keyBase: string): React.ReactNode[] {
+  const parts: React.ReactNode[] = []
+  const re = /\*\*([^*]+)\*\*|`([^`]+)`/g
+  let last = 0
+  let m: RegExpExecArray | null
+  let i = 0
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) parts.push(text.slice(last, m.index))
+    if (m[1] !== undefined) {
+      parts.push(<strong key={`${keyBase}-s${i++}`} className="font-semibold text-fg">{m[1]}</strong>)
+    } else {
+      parts.push(
+        <code key={`${keyBase}-c${i++}`} className="rounded bg-bg-muted px-1 py-0.5 font-mono text-[0.85em] text-fg">
+          {m[2]}
+        </code>
+      )
+    }
+    last = m.index + m[0].length
+  }
+  if (last < text.length) parts.push(text.slice(last))
+  return parts
+}
+
 function renderFaqAnswer(text: string): React.ReactNode {
   const parts: React.ReactNode[] = []
   const re = /\[([^\]]+)\]\(([^)]+)\)/g
@@ -17,7 +40,7 @@ function renderFaqAnswer(text: string): React.ReactNode {
   let m: RegExpExecArray | null
   let i = 0
   while ((m = re.exec(text)) !== null) {
-    if (m.index > last) parts.push(text.slice(last, m.index))
+    if (m.index > last) parts.push(...renderInline(text.slice(last, m.index), `pre${i}`))
     const isInternal = m[2].startsWith('/')
     parts.push(
       isInternal ? (
@@ -28,7 +51,7 @@ function renderFaqAnswer(text: string): React.ReactNode {
     )
     last = m.index + m[0].length
   }
-  if (last < text.length) parts.push(text.slice(last))
+  if (last < text.length) parts.push(...renderInline(text.slice(last), `tail`))
   return parts.length ? parts : text
 }
 
@@ -68,7 +91,13 @@ export function ArticleShell({
   })
 
   const faqJson = faqPageSchema(
-    faq.map((f) => ({ ...f, a: f.a.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1') }))
+    faq.map((f) => ({
+      ...f,
+      a: f.a
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/`([^`]+)`/g, '$1'),
+    }))
   )
 
   const crumbJson = breadcrumbSchema([
