@@ -28,52 +28,52 @@ export const meta = {
   relatedTools: ['alt-text-generator'],
 }
 
-Alt text has existed since the early web, but for most of the past 30 years it was treated as optional by most content teams. That changed in June 2025, when the European Accessibility Act took effect, and compliance notices started arriving at companies across Europe. If you're retroactively adding alt text to hundreds or thousands of existing images, this guide tells you what you need to know and how to do it efficiently.
+Alt text has been around since the early web days, but for the most part it has been **optional** for content teams over the last 30 years or so. That all changed in **June 2025, when the European Accessibility Act came into force** and started flooding companies across Europe with compliance notices. In this guide, we'll retroactively add alt text to hundreds or thousands of images, and explain everything you need to know about it in order to get it done efficiently.
 
 **[Generate alt text for 100+ images at once — AI, in your browser →](/alt-text-generator/)**
 
 ## What is alt text and why it matters
 
-Alt text is the content of the `alt` attribute on HTML image elements:
+The content of the `alt` attribute for HTML image elements is known as the **'alt text'**.
 
 ```html
 <img src="product-photo.jpg" alt="Blue running shoes with white sole, laces tied" />
 ```
 
-Screen readers — the software used by visually impaired users to navigate the web — read this text aloud in place of the image. Without alt text, a screen reader typically announces "image" or reads out the filename (`product-photo-FINAL-v3.jpg`), neither of which is useful.
+**Screen reader software** (used by people who are blind or have poor vision) reads out the text in the `alt` attribute instead of describing the image to the user. If no alt text is provided, then the screen reader would typically announce 'image' or read out the filename of the image (e.g. `product-photo-FINAL-v3.jpg`).
 
 Beyond screen readers, alt text matters for:
 
-**Search engine indexing.** Google and other search engines cannot "see" images. They read alt text to understand what an image contains and index images based on it. Well-written alt text on product images improves both page relevance and image search visibility.
+**Search engine indexing.** As Google cannot 'read' images of web pages, they use the alt text to determine what an image is featuring. Well-written alt text for product images not only means that the page will be **more relevant**, but also that images will **rank better in image searches**.
 
-**Failed image loads.** When an image fails to load — slow connection, broken URL, blocked by content filters — the browser displays the alt text in its place. Users get the information the image was meant to convey.
+**Failed image loads.** The browser may display the alt text for an image that fails to load from the web (due to a slow connection, for example) or where the URL for the image has been mistyped or has changed.
 
-**Cognitive accessibility.** Users with cognitive disabilities who find images confusing or distracting benefit from accurate alt text that clarifies image meaning in text form.
+**Cognitive accessibility.** Users with cognitive disabilities may find images confusing or even distracting. Adding accurate alt text lets them read the information the image was trying to convey.
 
 ## The EAA and WCAG requirements
 
-The **European Accessibility Act** (Directive 2019/882) took effect on June 28, 2025. It applies to businesses that sell products or services to consumers in the EU. The scope is broad: e-commerce, banking, transport, media services, and consumer electronics are explicitly covered. The requirement is that these services meet WCAG 2.1 Level AA accessibility standards.
+The **European Accessibility Act** (Directive 2019/882) was implemented on **28 June 2025**. The Directive applies to companies that sell goods and/or services to consumers within the EU. The scope of the Directive is very broad and includes: **e-commerce, banking, transport services, media services, and consumer product electronics**. The requirements for accessibility have to be met by ensuring that services provided to customers meet the **WCAG 2.1 Level AA** accessibility requirements.
 
-WCAG 2.1 Level AA requires, under criterion 1.1.1 (Non-text Content): *"All non-text content that is presented to the user has a text alternative that serves the equivalent purpose."* For images, this means alt text. The only exceptions are decorative images (which must have `alt=""`), CAPTCHA images (which need an alternative channel), and tests/exercises where text description would defeat the purpose.
+According to the **WCAG 2.1 criterion 1.1.1 Non-text Content**, all non-text content must have a text equivalent that can convey the same message to users. This applies to images as well and should be provided as alt text. The only cases where no text equivalent is needed are: 1) **decorative images** that have no function, for which `alt=""` is required; 2) **CAPTCHA images**, for which an alternative method must be provided to validate the user; 3) **tests and exercises** for which a text description would defeat the purpose.
 
-In the **United States**, the ADA (Americans with Disabilities Act) does not explicitly mention websites. However, since the Supreme Court declined to hear Robles v. Domino's Pizza in 2019, courts have generally held that the ADA applies to business websites. DOJ guidance published in 2024 confirmed that web content should conform to WCAG 2.1 AA. Federal and state government websites face mandatory requirements under Section 508.
+In the **U.S.**, the Americans with Disabilities Act (ADA) does not specifically mention websites. Since the Supreme Court has declined to hear **Robles v. Domino's Pizza in 2019**, most courts are following the opinion of the 9th Circuit that application of the ADA to business websites is proper. Web content on all federal, state and local government websites must conform to WCAG 2.1 AA standards under **Section 508 of the Rehabilitation Act**.
 
-In the **UK**, the Public Sector Bodies Accessibility Regulations 2018 require WCAG 2.1 AA compliance for public sector websites. Private sector businesses face ADA-equivalent obligations under the Equality Act 2010.
+In the **UK**, the **Public Sector Bodies Accessibility Regulations 2018** require public sector websites to meet the accessibility requirements outlined in WCAG 2.1 AA. Private sector organizations are subject to similar accessibility requirements under the **Equality Act 2010**.
 
-**Practical implication:** If your organization sells to customers in the EU, serves the public, or handles regulated content, all meaningful images need alt text. "We'll add it later" is no longer a viable position.
+**Practical implication:** If your organization sells online to customers in the EU, provides services to customers or the public or creates content with statutory requirements, then **all meaningful images on your web site will need to have alt text**. "We'll add it later" is no longer a valid position.
 
 ## How to write good alt text
 
-Good alt text is specific, concise, and describes the visual content in context.
+Good alt text is **specific, concise and attempts to describe the visual part of content within context**.
 
 ### Informative images
 
 For photos and illustrations that convey information:
 
-- Describe what is visually present, not what you wish were there
-- Include relevant details: color, action, composition, text visible in the image
-- Keep it under 125 characters where possible
-- Don't start with "Image of" or "Photo of" — screen readers already announce "image"
+- Describe **what is visually present**, not what you wish were there
+- Include **color, action, composition, and text** that is shown in the image in your description
+- Keep it **under 125 characters** where possible
+- Don't start with "Image of", "Photo of" etc. Screen readers already announce "image" so it's redundant
 
 **Instead of:** `alt="meeting"`
 **Write:** `alt="Four people seated around a conference table reviewing printed documents"`
@@ -85,26 +85,26 @@ For photos and illustrations that convey information:
 
 For images that perform an action when clicked:
 
-- Describe the action, not the image: `alt="Search"` not `alt="Magnifying glass"`
-- Icon-only buttons: `alt="Close"`, `alt="Menu"`, `alt="Share"`, `alt="Download"`
+- **Action, not image**: The action that will occur when the image is clicked. `alt="Search"` not `alt="Magnifying glass"`
+- **Icon-only buttons**: `alt="Close"`, `alt="Menu"`, `alt="Share"`, `alt="Download"`
 
 ### Decorative images
 
-Images that are purely visual, add no information, and don't affect understanding of the page content should use an empty alt attribute:
+If an image is just for looks and does not add any meaning or help explain the page, the image should have an **empty alt attribute**:
 
 ```html
 <img src="decorative-squiggle.svg" alt="" />
 ```
 
-This tells screen readers to skip the image entirely. Do not omit the `alt` attribute — if it's missing, screen readers announce the filename.
+This tells people who use screen readers to skip the image. **Do not leave out the `alt` attribute**, because if you do, screen readers will read out the file name.
 
 ### Product images
 
 For e-commerce:
 
-- Include product name, key attributes, color
-- Match what a shopper needs to understand the product without seeing it
-- `alt="Nike Air Max 90 sneaker in white and grey, right shoe shown from the side"`
+- Add the **product name, main features, and color**
+- Help the shopper **know what the product is without seeing** the product
+- `alt="Nike Air Max 90 sneaker in white and grey, right shoe from the side"`
 
 ## Bad vs. good alt text examples
 
@@ -119,29 +119,30 @@ For e-commerce:
 
 ## How to generate alt text for 500+ images without writing each one
 
-For teams with existing image libraries — product catalogs, content archives, legacy pages — writing alt text manually for thousands of images is not realistic. A catalog with 5,000 product images at 2 minutes per image is 167 hours of work.
+Large existing image libraries (**product catalogs, old content, archived pages**) cannot realistically be written for manually by teams for thousands of images. A **5,000 image product catalog at 2 minutes per image equals 167 hours of work**.
 
-AI-generated alt text provides a practical path for at-scale retrofitting. ConvertYard's alt text generator runs a vision AI model (SmolVLM) entirely in your browser — your images are not uploaded to any server. It processes images one at a time, generates a description for each, and exports a CSV file mapping each filename to its generated alt text.
+Generate **AI alt text for large scale retrofitting** of existing images. [ConvertYard's alt text generator](/alt-text-generator/) runs a vision AI model (**SmolVLM**) in your browser. **No images are uploaded to any server.** It processes one image at a time and outputs a description for that image. All descriptions are then **exported to a CSV file** with a row for each image, listing the filename and the generated alt text for that image.
 
 **Workflow for retrofitting a product catalog:**
 
-1. Export your image files (or a representative sample) to a local folder.
+1. Export the image files of your product (or a random sample of them) to a local folder on your computer.
 2. Go to [ConvertYard's alt text generator](/alt-text-generator/) and drop the images in.
-3. The tool processes each image and builds a CSV with columns: `filename`, `alt_text`.
+3. Your images are instantly analyzed and a CSV output file is created that contains a column for `filename` and a column for the automatically generated `alt_text`.
 4. Download the CSV when complete.
-5. Import the CSV into your CMS or asset library. Many CMS platforms (WordPress, Shopify, Contentful) support bulk metadata import via CSV.
-6. Review the output before publishing — AI descriptions are accurate for most images but miss brand-specific context.
+5. [Import the CSV file into your CMS or asset library](/blog/import-alt-text-csv-to-cms/). A number of CMS platforms (including **WordPress, Shopify and Contentful**) allow you to import large amounts of metadata in CSV format.
+6. **Review generated descriptions** for accuracy to make sure AI generated descriptions match your brand's context for specific images.
 
 **What to review manually:**
-- Images containing text (infographics, screenshots, promotional banners with copy) — AI cannot always read text accurately within images
-- People who are identifiable public figures or staff — add their names
-- Products with model numbers or SKUs that must appear in alt text
-- Abstract or artistic images where "meaning" is contextual
 
-The AI handles the bulk work. Human review catches the cases where context matters.
+- **Images with text** (infographics, screenshots, advertising banners with text etc.) — The reading accuracy of AI for text within images is not 100% and therefore has to be checked manually.
+- **People who are identifiable public figures or staff** — add their names to the image manually.
+- **Products with model numbers or SKUs** that must appear in alt text.
+- **Abstract or artistic images** where "meaning" is contextual.
+
+The AI can process the majority of the content; we are just looking for specific instances where the **human can add more context**.
 
 **For ongoing compliance:**
 
-- Add alt text review to your publishing checklist — every new image should have alt text before the page goes live
-- Audit existing content with a tool like axe DevTools or WAVE to find images missing alt text
-- For new product photography, have photographers or image managers fill in alt text at upload time using your DAM (Digital Asset Management) system
+- Add a **manual review of the added alt text** to your current publishing checklist for images so that there is adequate copy written before the page is made live.
+- **Audit existing content** with tools like **axe DevTools** or **WAVE** to find missing images' alt text.
+- For new product photography, have the photographer/image manager fill out the alt text at the time of upload into your **DAM (Digital Asset Management)** system.
