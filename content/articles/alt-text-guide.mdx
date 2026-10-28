@@ -6,23 +6,23 @@ export const meta = {
   faq: [
     {
       q: 'What is alt text?',
-      a: 'Alt text (alternative text) is a short description attached to an image in HTML via the alt attribute. Screen readers read this text aloud for visually impaired users. Search engines also use it to understand image content. For images that are purely decorative, use an empty alt attribute (alt="") to tell screen readers to skip the image.',
+      a: 'The term **"alt text"** (alternative text for images) is short for the HTML attribute **`alt` = alternative**. The alternative text is **read by screen reader software** for visually impaired users. It is also used by **search engines to determine the content of an image**. In case of purely decorative images, it is recommended to set an **empty alt attribute (`alt=""`)** to tell screen readers to ignore those images.',
     },
     {
       q: 'Is alt text required by law?',
-      a: 'In many contexts, yes. The European Accessibility Act (effective June 2025) requires digital accessibility for businesses selling to EU consumers. The ADA in the US has been interpreted by courts to require web accessibility for public-facing businesses. Both follow WCAG 2.1 Level AA, which mandates alt text for all non-decorative images. Government and public sector websites face the strictest requirements; private businesses face growing legal exposure.',
+      a: 'Yes, in many countries. The new **European Accessibility Act**, due to start in **June 2025**, will require accessibility by all companies selling online to European consumers. Also, in the **US, the ADA** has been interpreted in recent years to require accessibility by most businesses with a web presence. For image alt text, **WCAG 2.1 Level AA** (the same as current WCAG 2.0 A and AA combined) requires that all images that are not pure decoration have adequate alt text. **Government and public sector websites** are subject to particularly strict rules, but there is also growing **risk of legal exposure for private companies**.',
     },
     {
       q: "What's the difference between alt text and a caption?",
-      a: 'Alt text is a hidden HTML attribute read by screen readers and search engines — it does not appear visually on the page. A caption is visible text displayed below or alongside an image, intended for all readers. They serve different purposes and are not interchangeable. A photo might have a caption explaining context and alt text describing the visual content for screen reader users.',
+      a: '**Alt text is hidden HTML code** that screen readers and search engines can read. It is **not displayed on the page**. **Captions**, on the other hand, are **displayed below or beside images** and are for all viewers. The purpose of photo captions is to **explain the context** of the image, and the purpose of the alt text for screen reader users is to **describe the image content**.',
     },
     {
       q: 'How long should alt text be?',
-      a: 'For most images: one concise sentence, typically under 125 characters. Screen readers announce alt text as continuous speech — a very long alt text makes pages tedious to navigate. For complex images like charts or infographics that convey substantial data, provide a brief alt text plus a more detailed description in the surrounding page content or a linked description.',
+      a: 'A typical image needs to have only **one short sentence, less than 125 characters**, to describe the image content. Long alt text can be **cumbersome to read on a web page**, while charts and infographics often contain a lot of data to convey. Provide a short alt text, and put the rest of the description in the **surrounding text or link to it**.',
     },
     {
       q: 'Can AI generate accurate alt text?',
-      a: "AI-generated alt text is accurate for common image types — product photos, portraits, scenes, objects. It struggles with text-heavy images (infographics, screenshots containing text), brand-specific context (knowing a product name or person's title), and abstract or artistic images. Use AI generation as a first draft and review before publishing, especially for images where context matters.",
+      a: 'AI-generated alt text is **accurate for most types of images**, including **product, portrait, scene, and object photos**. It is **less accurate for text-heavy images** such as infographics and screenshots containing text, as well as **brand-specific content** such as knowing a product name or a person\'s job title. The generated text should be used as a **first draft and then reviewed before publication** of images where context is crucial.',
     },
   ],
   relatedTools: ['alt-text-generator'],
