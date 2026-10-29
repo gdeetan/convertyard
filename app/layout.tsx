@@ -35,6 +35,21 @@ export const metadata: Metadata = {
     ],
   },
   manifest: '/site.webmanifest',
+  openGraph: {
+    title: 'ConvertYard — Local-first conversion, built for batches',
+    description:
+      'Batch file conversion in your browser. No uploads. No signups. Up to 1,000 files at once.',
+    url: 'https://convertyard.com/',
+    siteName: 'ConvertYard',
+    type: 'website',
+    locale: 'en_US',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'ConvertYard — Local-first conversion, built for batches',
+    description:
+      'Batch file conversion in your browser. No uploads. No signups. Up to 1,000 files at once.',
+  },
   alternates: {
     types: {
       'application/rss+xml': [
