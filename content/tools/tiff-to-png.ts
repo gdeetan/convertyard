@@ -55,23 +55,23 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'What is TIFF format and why convert to PNG?',
-      a: 'TIFF is an uncompressed or losslessly-compressed format used by scanners, cameras, and professional print workflows. PNG is also lossless and much more widely supported — browsers, design tools, and image editors all open PNG natively. Converting TIFF to PNG preserves every pixel while producing a file that works everywhere.',
+      a: 'TIFF is an <strong>uncompressed or losslessly compressed</strong> file format that is used by scanners, by cameras, and by various professional print workflows. PNG is another <strong>lossless file format</strong>, which is widely supported by browsers, by design applications, and by image editors — whereas TIFFs are usually only opened by <strong>specialized applications</strong>.',
     },
     {
       q: 'Is TIFF to PNG conversion lossless?',
-      a: 'Yes. Both TIFF and PNG are lossless formats. Every pixel in your TIFF is reproduced exactly in the output PNG, regardless of the compression level you choose. Compression level only affects file size and encoding speed — not image quality.',
+      a: 'Yes. Both TIFF and PNG are <strong>lossless formats</strong>. So all pixels in your TIFF file will be <strong>exactly represented</strong> in the converted PNG files, regardless of the level of compression that you choose. The only aspect of the conversion that will affect the files produced is the level of compression, and that only affects the <strong>size of the encoded files</strong> and how long it takes to encode them.',
     },
     {
       q: 'How much smaller will my PNG files be compared to TIFF?',
-      a: 'It depends on the content. A 300 DPI scanned document might go from 25MB TIFF to 5–10MB PNG. Photographs with fine detail compress less than documents with large flat-color areas. PNG will always be smaller than uncompressed TIFF, but larger than JPG — the tradeoff is pixel-perfect quality.',
+      a: 'The degree of compression depends on the type of content, such as a <strong>300 DPI scanned document (25MB TIFF)</strong> which would compress down to <strong>5-10MB as PNG</strong>, whereas photographs with fine details will generally not compress as well as documents with mostly large, flat areas of color. The resulting PNG files will always be <strong>smaller than their TIFF counterparts</strong>, but larger than JPG files, which trade off pixel-perfect quality for smaller file size.',
     },
     {
       q: 'Can I convert 1,000 TIFF files at once?',
-      a: 'Yes. Drop all your files and ConvertYard processes them in your browser — no uploads, no server. High-resolution TIFF files are large in memory, so 1,000 files may take several minutes. All results download as a single ZIP.',
+      a: 'Yes, technically, but it depends on the size of the TIFF files. If it&rsquo;s <strong>1MB or less</strong>, batch converting 1,000 files won&rsquo;t be an issue, but for <strong>large files upwards of 30MB</strong>, do batches of <strong>50</strong> so the browser doesn&rsquo;t freeze.',
     },
     {
       q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+      a: 'Your files will <strong>never leave your device</strong>, as conversion is done in the browser using <strong>WebAssembly</strong>.',
     },
   ],
 
