@@ -5,8 +5,14 @@ import type { ToolConfig } from '@/lib/types'
 export const config: ToolConfig = {
   slug: 'tiff-to-png',
   title: 'TIFF to PNG Converter',
-  subtitle: 'Convert TIFF to lossless PNG. Handles multi-layer and high-DPI TIFFs. No upload, no server.',
-  bestFor: 'Best for converting archival TIFFs to PNG so they open in any browser, app, or design tool.',
+  subtitle:
+    'Convert your TIFF images to lossless PNG. Preserve transparency, choose bit depth, and convert multi-page scans into single PNG images. Convert up to 1,000 TIFF files in your browser. Nothing uploads to an unknown server.',
+  bestFor:
+    'Best for sharing print-quality scans, printed assets, or archival images on the web, in chat, or anywhere TIFFs cannot be opened.',
+  limitationNote: {
+    summary: 'TIFFs do not open in most browsers or chat apps',
+    body: 'TIFF is designed for print, scanning, and archival — not the web. Chrome and Safari will not open TIFF files (unlike PNG or GIF). Slack and Discord will not either. That is why we recommend saving TIFF files as PNG for anything you plan to share online.',
+  },
   category: 'images',
   accepts: ['image/tiff', 'image/x-tiff'],
   acceptsExt: ['.tif', '.tiff'],
