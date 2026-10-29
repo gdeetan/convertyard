@@ -122,53 +122,56 @@ export default function Page() {
           </h2>
 
           <p className="mt-4 text-base text-fg-muted">
-            PNG is better than TIFF for sharing your work online, but for
-            actual production and long-term archival, it is still better to
-            keep the original TIFFs rather than discard them for PNGs.
+            The PNG format is <strong>better than TIFF for sharing graphic
+            images online</strong>. Only store TIFF as is if you need to save
+            a copy of the original image as backup.
           </p>
 
           <ul className="mt-4 list-disc space-y-2 pl-6 text-base text-fg-muted">
             <li>
-              <strong>Print production.</strong> CMYK color, spot channels, and
-              ICC profiles for specific presses will all be lost when
-              converting to PNG. PNG is sRGB only and will not survive a trip
-              to a professional printer. For print workflows, keep the TIFF or
-              convert to{' '}
+              <strong>Print production.</strong> All color management, such as
+              CMYK color, spot channels, and ICC profiles, will be{' '}
+              <strong>lost when you export to PNG</strong>. PNG only contains
+              sRGB color information and will most likely get destroyed when
+              sent to a professional print shop. Export to TIFF or convert to{' '}
               <Link href="/tiff-to-pdf/" className="text-primary underline">
                 TIFF to PDF
               </Link>{' '}
-              instead.
+              for print production.
             </li>
             <li>
-              <strong>High bit depth images.</strong> PNG tops out at 16 bits
-              per channel, while TIFF supports up to 32 bits per channel. Many
-              medical images are stored as 32-bit TIFFs. If you have images
-              like these, keep the originals.
+              <strong>High bit depth images.</strong> While PNG can store up to{' '}
+              <strong>16 bit/channel</strong> images, TIFF can store up to{' '}
+              <strong>32 bit/channel</strong> images. Many medical images are
+              saved as 32-bit TIFFs. Keep the originals of these types of
+              images.
             </li>
             <li>
-              <strong>Multi-page documents.</strong> A multi-page TIFF — a
-              scanned contract, medical slides, or a map series — will be split
-              into individual PNG files. In such cases keep the original TIFF,
-              since the page order and single-file structure may matter.
+              <strong>Multi-page documents.</strong> A multi-page TIFF (e.g., a
+              scanned contract, medical slides, a map) will be split into
+              individual PNG files. In these cases, it is best to keep the
+              original TIFF files, since the <strong>page order and
+              single-file nature</strong> could be important.
             </li>
             <li>
-              <strong>Layers and annotations.</strong> A TIFF can store layers
-              and vector annotations. In PNG, all layers are flattened into a
-              single raster.
+              <strong>Layers and annotations.</strong> TIFF can hold{' '}
+              <strong>layers and vector-based annotations</strong>. PNG will
+              always flatten a TIFF with layers to a single raster image layer.
             </li>
             <li>
-              <strong>Long-term archive copies.</strong> TIFF is the format of
-              choice for libraries, museums, and government institutions.
-              Master copies should always be kept in TIFF format; derivative
-              copies can be created in PNG as needed.
+              <strong>Master archive files.</strong> TIFF files are the
+              preferred file format for <strong>long-term archives at
+              libraries, museums, and government departments and
+              institutions</strong>. Derivative files can be distributed as
+              required as PNG files.
             </li>
           </ul>
 
           <p className="mt-6 text-base text-fg-muted">
-            <strong>PNG for everyone else. TIFF for the archive.</strong>{' '}
-            Convert to PNG for distribution and keep the original TIFF for
-            reprinting, re-editing, or re-exporting. If you need a smaller web
-            format than PNG, try{' '}
+            The rule of thumb is to use <strong>PNG for distribution and TIFF
+            for the archive</strong>. Convert to PNG for distribution and keep
+            the original TIFF for reprinting, re-editing, or re-exporting. If
+            you need a smaller web format than PNG, try{' '}
             <Link href="/tiff-to-webp/" className="text-primary underline">
               TIFF to WebP
             </Link>
