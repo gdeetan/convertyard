@@ -13,51 +13,54 @@ export default function Page() {
           <h2 className="text-2xl font-semibold text-fg">What is a TIFF file?</h2>
 
           <p className="mt-4 text-base text-fg-muted">
-            TIFF (or <strong>Tagged Image File Format</strong>) is a flexible
-            raster image format introduced by <strong>Aldus Corporation</strong>{' '}
-            in 1986 and later acquired by Adobe Systems in 1995. It was designed
-            for desktop publishing and print media, and has since become the
-            industry standard for <strong>scanners, medical imaging, GIS, and
-            long-term image archiving</strong>.
+            TIFF (<strong>Tagged Image File Format</strong>) is a flexible
+            raster image file format developed by{' '}
+            <strong>Aldus Corporation</strong> in 1986 and later sold (in 1995)
+            to Adobe Systems. As a desktop publishing format, it is also
+            suitable for print and is widely used for <strong>scanners, medical
+            imaging, GIS, and long-term storage</strong> of all kinds of images.
           </p>
 
           <p className="mt-4 text-base text-fg-muted">
-            There are several advantages to the TIFF format. Most notably, it
-            supports <strong>lossless compression</strong>, high bit depth (up
-            to 32 bits per channel), CMYK color mode, and multi-channel color
-            mode. TIFF files can be saved with layers and even as multi-page
-            files — a single file containing several scanned pages. In addition
-            to pixel data, a TIFF can carry extensive metadata, an embedded ICC
-            color profile, and even vector annotations. On the other hand, TIFF
-            files are <strong>very large and poorly supported</strong>. A single
-            scanned page can run 20 MB and in the worst case several hundred MB,
-            and almost no browser, phone, email program, or messaging app will
-            open a TIFF without special viewer software. That is why TIFFs
-            usually have to be converted before they can be shared.
+            There are several advantages to the TIFF format. For one, TIFF
+            images can be <strong>compressed losslessly</strong>, and they can
+            be created with a high number of bits per channel (up to 32 bits
+            per channel). Also, TIFF is often used to save images in{' '}
+            <strong>CMYK color mode</strong>, as well as in multi-channel color
+            mode. In addition to the actual pixel data in the image, TIFF files
+            can also include a large amount of metadata, as well as an embedded
+            ICC color profile, and even vector annotations. However, TIFF files
+            are generally <strong>very large and not widely supported</strong>.
+            A single scanned page can be <strong>up to 20MB</strong> in size,
+            and in the worst case even a few hundred MB. In most cases,
+            browsers, phones, email programs, and messaging apps don&rsquo;t
+            support TIFF files without special software (or a plugin). Because
+            of this, TIFF files are usually <strong>converted to other
+            formats</strong> before they can be shared with others.
           </p>
 
           <h2 className="mt-10 text-2xl font-semibold text-fg">What is a PNG file?</h2>
 
           <p className="mt-4 text-base text-fg-muted">
-            PNG (<strong>Portable Network Graphics</strong>) is a lossless file
-            format for single-page images, released in 1996 as a free
-            alternative to GIF on the web. It is supported by{' '}
-            <strong>every browser, email client, instant messaging program, and
-            image viewer</strong>, with no plugins required. Saving a
-            screenshot, exporting a logo or graphic, or uploading an image to a
-            website — these are all PNG workflows.
+            PNG (<strong>Portable Network Graphics</strong>) is a free format
+            for single-page images, similar to GIF, and was introduced to the
+            web in 1996. The biggest advantage of PNG is that it is supported
+            by <strong>100% of all browsers, email programs, IM programs, and
+            image viewers</strong> on the web today. This means that you can
+            save a screenshot, export a logo or other graphic, send graphic
+            mockups through email, or upload an image to a website all using
+            the PNG file type.
           </p>
 
           <p className="mt-4 text-base text-fg-muted">
-            PNG supports many of the same elements as TIFF, including{' '}
-            <strong>24-bit color (16 million colors) and full alpha
-            transparency</strong>. However, PNG does not carry CMYK color,
-            32-bit-per-channel data, or multi-page files. In most cases the
-            resulting PNG will be <strong>two to ten times smaller</strong>{' '}
-            than the corresponding TIFF, open immediately on every system, and
-            still contain all the information of the original scan or render.
-            For web use, documentation, support requests, and everyday sharing,
-            PNG is the best image file to use.
+            Similar to TIFF, PNG files can contain <strong>24-bit color (16
+            million colors) and even full alpha transparency</strong>. But
+            unlike TIFF files, PNG files do not contain CMYK color information,
+            32-bit-per-channel data, or multi-page files. The resulting PNG
+            files are typically <strong>two to ten times smaller</strong> than
+            their corresponding TIFF files and immediately open on any system.
+            For web use, documentation, support requests, and general image
+            sharing, PNG files are the best option.
           </p>
 
           <h2 className="mt-10 text-2xl font-semibold text-fg">
@@ -65,22 +68,23 @@ export default function Page() {
           </h2>
 
           <p className="mt-4 text-base text-fg-muted">
-            The short answer is <strong>compatibility</strong>. You want to
-            send professional images, but you also want to send them to places
-            like browser tabs, Slack threads, GitHub issues, email, WordPress
-            posts, and Notion documents. TIFFs do not work in any of these
-            places — they show a broken thumbnail or force the recipient to
-            download and open a special viewer. PNG images work everywhere.
+            Two reasons to convert your TIFF images to PNG are{' '}
+            <strong>compatibility and size</strong>. Most web platforms don&rsquo;t
+            support TIFF files because they&rsquo;re large and require special
+            software to decode. You&rsquo;ll end up seeing an{' '}
+            <strong>image not found icon</strong>, and it&rsquo;s not practical
+            to use this format on the web because it eats up storage space
+            quickly.
           </p>
 
           <p className="mt-4 text-base text-fg-muted">
-            The second reason is <strong>file size</strong>. TIFF files
-            usually contain uncompressed pixel data plus color management
-            information, multiple layers, and high bit depth — most of which
-            is useless on screens. When converting TIFF to PNG, all this
-            overhead is stripped <strong>without any loss of information or
-            visible artifacts</strong>. A 180 MB TIFF archive can be reduced
-            to a 15 MB PNG that displays perfectly on any monitor.
+            Which brings me to the second reason. The <strong>file size is
+            also dramatically reduced</strong> by removing all unnecessary
+            information (uncompressed pixel data, color management data, all
+            layers, etc.) that is not required for screen display. While a TIFF
+            archive may be <strong>180 MB</strong> in size, the corresponding
+            PNG files will typically only be around <strong>15 MB</strong> in
+            size.
           </p>
 
           <p className="mt-4 text-base text-fg-muted">
@@ -90,22 +94,25 @@ export default function Page() {
           <ul className="mt-4 list-disc space-y-2 pl-6 text-base text-fg-muted">
             <li>
               <strong>Share scanned documents, receipts, or forms</strong> with
-              people who do not have a TIFF viewer like Photoshop.
+              others who do not have TIFF viewer software such as Adobe
+              Photoshop.
             </li>
             <li>
               <strong>Embed images on a website or in documentation</strong>{' '}
-              where browsers need to render them natively.
+              where the images will be rendered by the browser.
             </li>
             <li>
-              <strong>Share graphics on Slack, Discord, GitHub, or email</strong>{' '}
-              without requiring the recipient to download an opaque file.
+              <strong>Share graphics</strong> (like logos, icons, or cutouts) on
+              platforms such as Slack, Discord, GitHub issues, or even email,
+              without forcing recipients to download and open up a TIFF file in
+              some opaque viewer.
             </li>
             <li>
               <strong>Preserve transparency</strong> in logos, icons, and
-              cutouts when moving them from a print workflow to web use.
+              cutouts for use in a web workflow originally created for print.
             </li>
             <li>
-              <strong>Reduce file size</strong> without any loss of image
+              <strong>Reduce file size</strong> without losing any image
               quality.
             </li>
           </ul>
