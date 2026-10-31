@@ -6,23 +6,23 @@ export const meta = {
   faq: [
     {
       q: 'Are Markdown resumes ATS-friendly?',
-      a: 'The PDF output from ConvertYard is generated from selectable text (not rasterized), which is what applicant tracking systems need to parse. Use the Classic (Times) or Modern (Helvetica) theme, keep a single-column layout, and avoid tables for main content — most ATS systems handle tables poorly regardless of the source format.',
+      a: 'PDFs exported from [ConvertYard](/markdown-to-pdf/) are created from **selectable text** (not rasterized). So, choose a theme (e.g., **Classic / Times** or **Modern / Helvetica**) and stick to a **single column**. Try to avoid using tables for the main content of a section, as most ATSes have difficulty with tables regardless of the original application format.',
     },
     {
       q: 'Should I use two-column layouts?',
-      a: 'For ATS submissions, no. Two-column resumes look sharp visually but confuse many parsers, which read columns as if they were a single flowing text and mangle the resulting profile. Save the two-column version for portfolio pages and human hand-offs; use a single-column PDF for job applications.',
+      a: 'No, these look great for portfolio sites and for human-to-review documents, but get turned into garbage for ATS submissions because many parsers read a two-column resume as a **single column of flowing text** and ‘mangle’ the resulting profile. Use a **single-column PDF** for your job applications.',
     },
     {
       q: 'What about a cover letter?',
-      a: 'Put the cover letter in a second .md file, then use the Batch tab with "Combine all files into a single PDF" enabled. You get one file with the cover letter as page 1 and the resume starting on a fresh page after the automatic page break.',
+      a: 'Write your cover letter in a second `.md` file. Use the [Batch tab](/markdown-to-pdf/) and enable **"Combine all files into a single PDF"**. That way your cover letter will be printed on the first page and then, automatically on a new page after the page break, your complete resume will start on a fresh page.',
     },
     {
       q: 'Can I get different resume versions from one source?',
-      a: 'Yes — that\'s one of the biggest advantages. Keep a master `resume.md` and generate variants by copying to `resume-frontend.md`, `resume-devops.md`, etc., emphasizing different sections. Each variant renders to its own PDF in seconds without touching the underlying template.',
+      a: 'Yes, you can have different versions of a resume. You can create a master `resume.md` and then copy it to make different variants of a resume, such as `resume-frontend.md`, `resume-devops.md`, etc. Each variant will render into a **separate PDF in seconds**.',
     },
     {
       q: 'How do I add a photo or logo?',
-      a: 'Convert the image to base64 first (many web tools do this), then embed with standard Markdown image syntax: ![Photo](data:image/png;base64,iVBORw0K...). ConvertYard embeds it directly in the PDF. Most professional resumes in the US skip the photo entirely; in Europe and Latin America it is more common.',
+      a: 'Embedding images in PDFs is often done by first [converting them to base64](/base64/) in many web applications. Then, in your resume file you would embed the image in a picture, such as this `![Photo](data:image/png;base64,...)`. **ConvertYard directly inserts the image** in the PDFs generated from your master resume file. The vast majority of resumes in the US are created without images or photos, but in **Europe and Latin America** they are very common.',
     },
   ],
   relatedTools: ['markdown-to-pdf', 'compress-pdf', 'merge-pdf'],
