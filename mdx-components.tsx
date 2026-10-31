@@ -43,10 +43,25 @@ export function useMDXComponents(components: MDXComponents): MDXComponents {
     em: ({ children }: ComponentPropsWithoutRef<'em'>) => (
       <em className="italic">{children}</em>
     ),
-    code: ({ children }: ComponentPropsWithoutRef<'code'>) => (
-      <code className="rounded bg-bg-elevated px-1.5 py-0.5 text-sm font-mono text-fg border border-border">
+    code: ({ children, className }: ComponentPropsWithoutRef<'code'>) => {
+      const isBlock = typeof className === 'string' && className.startsWith('language-')
+      if (isBlock) {
+        return (
+          <code className={`${className} font-mono text-sm text-fg`}>
+            {children}
+          </code>
+        )
+      }
+      return (
+        <code className="rounded bg-bg-elevated px-1.5 py-0.5 text-sm font-mono text-fg border border-border">
+          {children}
+        </code>
+      )
+    },
+    pre: ({ children }: ComponentPropsWithoutRef<'pre'>) => (
+      <pre className="mb-5 max-w-full overflow-x-auto rounded-xl border border-border bg-bg-elevated p-4 text-sm leading-6">
         {children}
-      </code>
+      </pre>
     ),
     blockquote: ({ children }: ComponentPropsWithoutRef<'blockquote'>) => (
       <blockquote className="mb-5 border-l-4 border-primary pl-4 text-fg-subtle italic">

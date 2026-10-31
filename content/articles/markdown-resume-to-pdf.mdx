@@ -28,9 +28,9 @@ export const meta = {
   relatedTools: ['markdown-to-pdf', 'compress-pdf', 'merge-pdf'],
 }
 
-Almost every resume tool follows the same pattern: drag boxes around, pick from a small set of themes, save your work behind an account, pay to remove a watermark. That works for people who write a resume every few years. For people who update theirs quarterly — developers, freelancers, consultants — it is a bad tool.
+Resume building tools on the web all work similarly – after you create your resume in a set of **rectangular blocks**, you can select from a number of themes and save your resume online after creating an account. Many of these tools require a **fee to remove a watermark** from printed copies. These tools are good for people who only create a resume every few years. For people who create and update resumes on a **quarterly basis** (programmers, freelancers, etc.), these tools are worthless.
 
-The version-controlled alternative is Markdown. A resume in a `.md` file, tracked in git, rendered to PDF on demand. This is how most senior engineers keep theirs these days, and once you switch, it is difficult to imagine going back.
+The **version-controlled alternative** is called [Markdown](/markdown-to-pdf/) (as a resume in a `.md` file, tracked in git and rendered to PDF on demand as needed). This is how senior engineers keep their resumes these days. Once you've made the switch, it's hard to imagine going back to the alternative.
 
 **[Turn your Markdown resume into a PDF →](/markdown-to-pdf/)**
 
@@ -40,12 +40,12 @@ The resume is a document you edit constantly:
 
 - New role starts → update the experience section.
 - Applying to a full-stack role → add a portfolio link near the top.
-- Applying to an infra role → drop the frontend paragraph, emphasize the infrastructure work.
+- Applying to an infra role → **remove frontend-related paragraphs** and focus on infrastructure experience instead.
 - Updating your headline for LinkedIn → change the summary line.
 
-Every one of those edits is a text change. In a drag-and-drop builder, each one takes a minute or two of clicking through UI. In a Markdown file, it is a five-second edit and a version-control commit that leaves a clean history of what you changed and when.
+Each of these minor changes is **far faster as a text edit** in a Markdown file than clicking around in a drag-and-drop interface, and you can then make a **version-control commit** to keep a clean history of changes to your resume.
 
-The other advantage: your resume is now text you can grep, diff, and search — the same tools you use for code. Every past version is a `git log` away.
+As an added bonus, your resume is now text that you can **grep, search, and even diff** – just like your code! All past versions are a `git log` away.
 
 ## The template
 
@@ -120,30 +120,35 @@ That is a real resume, not a stub. It renders to a clean two-page PDF using Conv
 
 ## Rendering it
 
-1. Open `convertyard.com/markdown-to-pdf/`.
-2. Paste the file's contents into the Editor tab.
-3. Pick a theme:
-   - **Modern (Helvetica)** — the default for most tech resumes.
-   - **Classic (Times)** — for finance, law, academia, and traditional industries.
-   - **Mono (Courier)** — for the deliberately-quirky look. Use sparingly.
-4. Optional: turn off "Cover page from front-matter" if you want the resume to start directly at your name (most people do). Leave it on if you want a title page for a portfolio version.
-5. Click **Download PDF**.
+Open [convertyard.com/markdown-to-pdf/](/markdown-to-pdf/).
 
-Every export takes under a second. No account, no watermark, no per-file limit.
+Paste the file's contents into the Editor tab.
+
+Pick a theme:
+
+- **Modern (Helvetica)** — the default for most tech resumes.
+- **Classic (Times)** — for finance, law, academia, and traditional industries.
+- **Mono (Courier)** — for the deliberately-quirky look. Use sparingly.
+
+Optional: Uncheck "Cover page from front-matter" to start your resume with your name as the first word (most do), as opposed to making a "portfolio" version with a title page.
+
+Click **Download PDF**.
+
+Exports typically take under one second. There is no account required, no watermarks, and no limit on the number of files you can export.
 
 ## Formatting rules that keep resumes ATS-friendly
 
-Applicant tracking systems (ATS) parse resumes into structured data before a human sees them. What breaks ATS parsers is not Markdown — it is layout tricks.
+Most **applicant tracking systems** first parse your application into structured data before a human even looks at it. While Markdown rendering on resumes can be problematic in some cases, most problems with ATS come from **really weird application layout**.
 
-**Stick to a single column.** Two-column resumes look modern but confuse parsers. Since Markdown resumes are naturally single-column, this is a benefit you get for free.
+**Stick to a single column.** Two-column resumes look high-end these days. But ATS are generally stuck processing **single-column resumes**. Since Markdown resumes are automatically single column, this is a benefit to you.
 
-**Do not put important content inside tables.** Tables render beautifully in the PDF, but many ATS systems read left-to-right across rows instead of understanding cells. Keep tables for skills matrices or comparison sections that are optional; put your experience in headings + bullets.
+Try to **avoid placing important content within tables**, as many ATS systems read content from left to right within a table row and do not 'read' individual table cells. Tables work best for **skills matrices or comparison tables**, which you can make optional, with experience outlined in section headings and bullet points instead.
 
-**Use standard section names.** `Experience`, `Education`, `Skills`, `Projects`. Cute headings like "The Story So Far" or "What Fires Me Up" get flagged as unclassified content by parsers that key off common labels.
+Stick to **common section headers** like `Experience`, `Education`, `Skills`, and `Projects`. Avoid creative ones like "The Story So Far" or "What Fires Me Up," as these get treated as **unclassified content** by the parsing engines that look for common section names.
 
-**Bullet points, not paragraphs.** Every ATS handles bullet lists. Long paragraphs get chunked awkwardly.
+Rather than creating long paragraphs of text, **use bullet points**. That's how every ATS handles text. Long paragraphs of text get 'chunked' badly.
 
-**Selectable text, not screenshots.** ConvertYard generates text-based PDFs, not rasterized images. This is a hard requirement for ATS parsing — a resume that is technically a JPEG inside a PDF wrapper reads as a blank document to most parsers.
+Note that a resume that is technically a **JPEG inside a PDF wrapper** reads as a blank document when fed to an ATS. ConvertYard outputs **text-based PDFs**. Selectable text in a PDF is a hard requirement for such a resume not to suck.
 
 ## Version control makes tailoring effortless
 
@@ -172,27 +177,26 @@ Every variant is a first-class file. When you send an application, you can also 
 
 ## What about design?
 
-The honest answer: for engineering resumes, design mostly does not matter as long as the resume is clean, readable, and organized. Recruiters spend an average of six seconds on the first pass. What they are scanning for is your current role, your last role, and one or two keywords that match the job. Fancy layouts do not help with any of that.
+Design is a relatively **small concern** when it comes to engineering resumes. As long as your resume is **clean, readable, and organized**, that's all that matters. Typically, a recruiter spends only an average of **6 seconds** on the first pass through your resume. When scanning for current and past jobs, as well as a few keywords relevant to the position being advertised, fancy layouts just won't help.
 
-If you want a more designed look, pick the Classic theme for a book-styled resume, or use the Modern theme with a subtle accent color. Both look professional; both are ATS-friendly.
+If you want more design, the **Classic theme** creates a book-like resume, or you can choose **Modern** and add a subtle accent color. Both will look great and are also ATS-friendly.
 
 ## A note on privacy
 
-Your resume contains your full name, current employer, home city, direct contact information, and a decade of work history. That is a document worth keeping off third-party servers when possible.
+Your **full name, current employer, home city, direct contact information**, and a decade of or more work history are all included in your resume. Keep that on **offsite servers** when possible.
 
-Most online resume tools upload every character you type to their servers for storage and processing. ConvertYard does not — the entire conversion runs in your browser via WebAssembly. Your resume text and the generated PDF exist only on your machine. If you write from a coffee shop, disconnect from Wi-Fi after the page loads and the tool still works.
+A typical online resume builder uploads **every character you type** to their servers to store and process. In contrast, all ConvertYard resume conversions are run **completely in your browser via WebAssembly**. This means all created resume text as well as generated PDFs are **completely self-contained on your local machine only**. Thus, you can write up your resume in a coffee shop and have it all self-contained on your local machine – even when you're **disconnected from Wi-Fi** after the page has loaded.
 
-For consultants and job-seekers currently employed, that matters. You don't need your current employer's SIEM flagging that you uploaded a file to a resume site.
+For consultants and **currently employed job-seekers**, this means no upload of a file to a resume site to have your current employer's **SIEM flag it**.
 
 ## Wrapping up
 
 The end state:
 
-- Your resume lives in a `.md` file in a git repo.
+- Your resume lives in a `.md` file in a **git repo**.
 - Tailored variants are one `cp` and edit away.
-- Every time you apply somewhere, you convert to PDF in one click.
-- The PDF is ATS-friendly, watermark-free, and never touched a server.
-
-There is no going back to drag-and-drop tools once you have this workflow.
+- Every time you apply somewhere, you [convert to PDF](/markdown-to-pdf/) in **one click**.
+- The PDF is **ATS-friendly, watermark-free**, and was never edited on any server.
+- There is **no going back** to drag-and-drop tools once you have this workflow.
 
 **[Convert your resume now →](/markdown-to-pdf/)**

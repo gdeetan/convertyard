@@ -28,6 +28,7 @@ import { BatchCompressVideosIllustration } from './batch-compress-videos'
 import { AudioBitrateIllustration } from './audio-bitrate'
 import { ExtractAudioIllustration } from './extract-audio'
 import { BrowserVideoEditingIllustration } from './browser-video-editing'
+import { MarkdownResumeToPdfIllustration } from './markdown-resume-to-pdf'
 
 export const articleIllustrations: Record<string, ComponentType> = {
   'compress-pdf-without-uploading-privacy-guide': CompressPdfPrivacyIllustration,
@@ -58,4 +59,5 @@ export const articleIllustrations: Record<string, ComponentType> = {
   'audio-bitrate-explained': AudioBitrateIllustration,
   'extract-audio-from-mp4': ExtractAudioIllustration,
   'browser-video-editing-2026': BrowserVideoEditingIllustration,
+  'markdown-resume-to-pdf': MarkdownResumeToPdfIllustration,
 }
