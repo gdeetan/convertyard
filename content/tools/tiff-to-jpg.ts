@@ -63,23 +63,27 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'What is TIFF format and why are the files so large?',
-      a: 'TIFF (Tagged Image File Format) is an uncompressed or losslessly-compressed image format used by scanners, cameras, and print workflows. A single 300 DPI scan of an A4 page can be 25–100MB as TIFF. Converting to JPG at quality 85 typically produces a file 10–50x smaller with no perceptible quality difference for most uses.',
+      a: 'TIFF (<strong>Tagged Image File Format</strong>) is an image file format used in many areas such as <strong>scanners, cameras and print</strong>. A <strong>300 DPI A4 scan</strong> will typically be around <strong>25-100MB</strong> as a TIFF file. Converting such a file to JPG with <strong>quality set to 85</strong> will result in a file <strong>10-50 times smaller</strong> with <strong>no visible loss of quality</strong> for most uses.',
     },
     {
       q: 'Does converting TIFF to JPG reduce quality?',
-      a: 'JPG is a lossy format, so some pixel data is discarded during compression. At quality 85 the difference is imperceptible for photographs and scanned documents. If you need pixel-perfect lossless output, use the TIFF to PNG tool instead.',
+      a: 'JPG is a <strong>lossy format</strong>, meaning it <strong>discards pixel data</strong> when it&rsquo;s compressed. For photographs and other scanned material, though, the <strong>difference at 85% is usually invisible</strong>. For <strong>lossless, pixel-exact output</strong>, you might prefer to use the <a href="/tiff-to-png/" class="text-primary underline">TIFF to PNG</a> tool.',
     },
     {
       q: 'How much smaller will my JPG files be?',
-      a: 'TIFF files from scanners and cameras are large — a typical 300 DPI scanned page converts from 25MB TIFF to 500KB–2MB JPG at quality 85. That is a 10–50x reduction. ConvertYard shows exact byte savings per file in your results.',
+      a: 'Files from scanners and cameras are big. Scanned pages at <strong>300 Dots Per Inch</strong> are typically around <strong>25MB in TIFF format</strong>. After conversion to JPG at <strong>quality 85</strong>, they need only around <strong>500KB to 2MB</strong>. The <strong>exact size in bytes</strong> for all files is shown in the results of ConvertYard.',
     },
     {
       q: 'Can I convert 1,000 TIFF files at once?',
-      a: 'Yes. Drop all your files and ConvertYard processes them in your browser — no uploads, no server. TIFF files can be very large in memory, so 1,000 high-resolution TIFFs may take several minutes. All results download as a single ZIP.',
+      a: 'Yes. Drop all your files and ConvertYard <strong>processes them in your browser</strong> — <strong>no uploads, no server</strong>. TIFF files can be <strong>very large in memory</strong>, so <strong>1,000 high-resolution TIFFs may take several minutes</strong>. All results download as a <strong>single ZIP</strong>.',
+    },
+    {
+      q: 'Is there a batch size limit?',
+      a: 'Technically, yes, but it depends on the <strong>size of the TIFF files</strong> you want to convert. If you&rsquo;re working with <strong>large files (let&rsquo;s say over 40MB)</strong>, do <strong>batches of 10 to 20</strong>. If you have a computer with <strong>lots of memory and a fast processor</strong>, you&rsquo;ll be able to convert more files per batch.',
     },
     {
       q: 'Are my files uploaded to your servers?',
-      a: 'Never. Conversion runs entirely in your browser using WebAssembly. Your files never leave your device.',
+      a: 'Nope, <strong>nothing is uploaded to a server</strong>. Conversion runs <strong>entirely in your browser</strong> using <strong>WebAssembly</strong>. Your files <strong>never leave your device</strong>.',
     },
   ],
 
