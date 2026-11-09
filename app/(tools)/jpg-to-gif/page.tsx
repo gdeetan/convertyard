@@ -33,49 +33,54 @@ export default function Page() {
           <h2 className="mt-10 text-2xl font-semibold text-fg">What is GIF?</h2>
 
           <p className="mt-4 text-base text-fg-muted">
-            GIF stands for <strong>Graphics Interchange Format</strong> and has
-            been around <strong>since 1987</strong>. Typically used for{' '}
-            <strong>short animated images (or &lsquo;loops&rsquo;)</strong>, GIF
-            files can also be used to add an <strong>emotional reaction to a
-            message or form part of a meme</strong>. GIFs are different from JPG
-            files in that GIFs can contain <strong>multiple frames within a
-            single file</strong>, allowing the file to be animated.
+            GIF (or <strong>Graphics Interchange Format</strong>) was introduced
+            in <strong>1987</strong>. This format is used for{' '}
+            <strong>short, animated clips</strong> (or more popularly known as{' '}
+            <strong>memes</strong>), adding an <strong>emotional aspect to a
+            message or article</strong>. The main difference between a JPG and
+            a GIF file is that the latter is <strong>made up of multiple frames
+            contained within a file</strong>. Another difference is that GIFs
+            support only <strong>up to 256 colors</strong> and use{' '}
+            <strong>older compression methods</strong>, so image encoding
+            isn&rsquo;t as efficient, resulting in <strong>larger file
+            sizes</strong>.
           </p>
 
           <p className="mt-4 text-base text-fg-muted">
-            GIFs are <strong>limited to 256 colors</strong> and use{' '}
-            <strong>older compression methods</strong>, resulting in{' '}
-            <strong>lower-quality photos</strong>.
-          </p>
-
-          <p className="mt-4 text-base text-fg-muted">
-            Because GIF only supports images with 256 colors,{' '}
-            <strong>photo-quality gradients are normally verboten</strong>. A
-            gradient of this type could be a <strong>sky, a sunset, even the
-            colors of human skin, a dark shadow</strong>. Such an image would
-            contain <strong>thousands of individually distinct colors</strong>,
-            which a GIF would map to <strong>256 colors for the entire
+            Because GIFs only support images that have 256 colors,{' '}
+            <strong>gradients that would look really good in JPGs just
+            aren&rsquo;t going to look as good in a GIF format</strong>. This
+            kind of gradient would look photographic, like a{' '}
+            <strong>blue sky, a colorful sunset, human skin tones, or even a
+            dark shadow</strong>. Such an image would contain{' '}
+            <strong>thousands of individual colors</strong>, and the GIF would
+            map all of those to <strong>256 colors for the entire
             image</strong>.
           </p>
 
           <p className="mt-4 text-base text-fg-muted">
-            This results in <strong>extremely visible banding between the
-            colors in the gradient</strong>, rather than a smooth transition.
-            Instead, the gradient will be <strong>dotty with grainy
-            dithering</strong> in otherwise flat regions of the image, and it
-            may even <strong>shift in color somewhat from the original</strong>{' '}
-            in regions of the image where there are no close matches in the
-            palette. But the <strong>greater the area of the image</strong>{' '}
-            that the gradient is supposed to fill (for example, a{' '}
-            <strong>full-frame sky</strong> as opposed to a gradient used on a
-            button), the <strong>greater the impact</strong> of this sort of
-            problem.
+            The difference between the colors in the gradient is so extreme
+            that instead of smooth transitions between colors, there are{' '}
+            <strong>large bands of solid color</strong>. Areas of the image
+            that are otherwise flat will be made up of{' '}
+            <strong>dots of very coarse dithering</strong>. In some cases, the
+            color may even <strong>shift from the original shade</strong> and
+            may not match at all in areas of the image where there are{' '}
+            <strong>no suitable colors in the palette</strong>. The degree to
+            which this type of problem occurs will be affected by the{' '}
+            <strong>area of the image that the gradient is intended to
+            cover</strong> and the element against which it will be viewed
+            (for example, a <strong>full-height background sky</strong> would
+            be very noticeable, whereas a <strong>gradient used for a
+            button</strong> would not).
           </p>
 
           <p className="mt-4 text-base text-fg-muted">
-            However, GIFs are <strong>supported by every application</strong>:
-            all browsers, all mobile phones, all instant messengers and email
-            clients, even all <strong>old web forums</strong>.
+            However, one huge advantage of GIFs is that they are{' '}
+            <strong>supported on nearly every platform</strong>, not just
+            browsers. Users can open them on{' '}
+            <strong>any website, software, or email platforms</strong>; even{' '}
+            <strong>legacy software</strong> supports this format.
           </p>
 
           <h2 className="mt-10 text-2xl font-semibold text-fg">
@@ -84,32 +89,34 @@ export default function Page() {
 
           <ul className="mt-4 list-disc space-y-2 pl-6 text-base text-fg-muted">
             <li>
-              <strong>Turn a sequence of photos into a short animation:</strong>{' '}
-              A sequence of JPGs can easily be transformed into a{' '}
-              <strong>short animated clip</strong> and then be uploaded to, for
-              example, <strong>Twitter or Tumblr</strong> and then be embedded
-              on a blog or website. <strong>Before-and-after images, product
-              rotations and step-by-step instructions</strong> are no problem.
-              Already have a clip? Try{' '}
+              <strong>Transform a sequence of photos into an animated
+              short:</strong> Use a sequence of JPGs to create and upload a{' '}
+              <strong>short animated film</strong> to services such as{' '}
+              <strong>Twitter or Tumblr</strong>. These can then be embedded on
+              a blog or website. <strong>Before and after images, product
+              rotations, and step-by-step guides</strong> are all made easy.
+              If you have already made a video, then perhaps{' '}
               <Link href="/video-to-gif/" className="text-primary underline">
                 video to GIF
               </Link>
-              {' '}instead.
+              {' '}is the better option.
             </li>
             <li>
-              <strong>Share animations in places where video would not be
-              compatible.</strong> Slack, Discord, iMessage, Reddit, email, and
-              old websites for forums all play GIFs within the communication
-              medium, whereas <strong>MP4s are often blocked or embedded
-              awkwardly</strong>. Going the other direction? Use{' '}
+              When <strong>sharing animation on platforms that don&rsquo;t
+              support video playback</strong>, GIFs work better in{' '}
+              <strong>Slack, Discord, iMessage, Reddit, emails</strong>, and on
+              many <strong>older forum websites</strong>, whereas{' '}
+              <strong>MP4s are often prohibited or embed awkwardly</strong>. To
+              share a GIF by converting it to a video, such as for sharing on
+              Vimeo, share it with our online{' '}
               <Link href="/gif-to-mp4/" className="text-primary underline">
                 GIF to MP4
               </Link>
-              .
+              {' '}converter.
             </li>
             <li>
-              Immediately create <strong>funny memes, or reactions</strong> to
-              things you have captured with your phone.
+              Immediately create <strong>funny memes or reactions</strong>{' '}
+              from things you captured with your phone.
             </li>
             <li>
               <strong>Works on anything.</strong> Even{' '}
@@ -138,10 +145,10 @@ export default function Page() {
             <li>
               JPG supports a <strong>full color range (millions of
               colors)</strong>, whereas GIF is <strong>limited to 256
-              colors</strong>. Photos will look{' '}
-              <strong>banded, dirty, or pixelated</strong> when converted to
-              GIF, for example, <strong>skies, human skin tones,
-              gradients</strong>, etc.
+              colors</strong>. Photos can look{' '}
+              <strong>banded and pixelated with lots of noise</strong> when
+              converted to GIF, especially if the photos contain{' '}
+              <strong>landscapes, people, or gradients</strong>.
             </li>
             <li>
               <strong>JPG retains the fine photo detail.</strong> GIFs tend to{' '}
@@ -149,11 +156,13 @@ export default function Page() {
               they can display <strong>only 256 colors</strong>.
             </li>
             <li>
-              The <strong>photo format that everyone uses for single
-              images</strong>: sites, printers, photo applications, etc. So if
-              you only have one still image and you don&rsquo;t need to make an
-              animation, then <strong>just keep it as a JPG</strong>. You might
-              also consider converting it to{' '}
+              For <strong>single images, such as photos</strong>, it is
+              easiest to <strong>upload JPEGs to sites, print them at stores,
+              use them in photo applications</strong>, etc. If you only have
+              one image that is stationary and you don&rsquo;t plan to make an
+              animation out of it, then <strong>just stick with a JPG</strong>.
+              For other uses, like WebP or transparent backgrounds, convert it
+              to a{' '}
               <Link href="/jpg-to-webp/" className="text-primary underline">
                 WebP
               </Link>
@@ -161,7 +170,7 @@ export default function Page() {
               <Link href="/jpg-to-png/" className="text-primary underline">
                 PNG
               </Link>
-              {' '}for other uses.
+              .
             </li>
           </ul>
         </section>
