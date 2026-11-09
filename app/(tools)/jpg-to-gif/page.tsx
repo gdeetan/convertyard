@@ -90,13 +90,22 @@ export default function Page() {
               example, <strong>Twitter or Tumblr</strong> and then be embedded
               on a blog or website. <strong>Before-and-after images, product
               rotations and step-by-step instructions</strong> are no problem.
+              Already have a clip? Try{' '}
+              <Link href="/video-to-gif/" className="text-primary underline">
+                video to GIF
+              </Link>
+              {' '}instead.
             </li>
             <li>
               <strong>Share animations in places where video would not be
               compatible.</strong> Slack, Discord, iMessage, Reddit, email, and
               old websites for forums all play GIFs within the communication
               medium, whereas <strong>MP4s are often blocked or embedded
-              awkwardly</strong>.
+              awkwardly</strong>. Going the other direction? Use{' '}
+              <Link href="/gif-to-mp4/" className="text-primary underline">
+                GIF to MP4
+              </Link>
+              .
             </li>
             <li>
               Immediately create <strong>funny memes, or reactions</strong> to
@@ -119,7 +128,12 @@ export default function Page() {
               for one picture is <strong>much smaller than a GIF file</strong>{' '}
               for that same image. JPG is meant for{' '}
               <strong>images</strong>, and GIF is meant for{' '}
-              <strong>simple graphics like logos or cartoons</strong>.
+              <strong>simple graphics like logos or cartoons</strong>. If you
+              already have a large GIF, shrink it with{' '}
+              <Link href="/compress-gif/" className="text-primary underline">
+                Compress GIF
+              </Link>
+              .
             </li>
             <li>
               JPG supports a <strong>full color range (millions of
