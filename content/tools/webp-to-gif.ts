@@ -55,11 +55,11 @@ export const config: ToolConfig = {
     },
     {
       q: 'What happens to WebP colours when converting to GIF?',
-      a: 'GIF supports a maximum of 256 colours per frame, while WebP can represent millions. The converter builds the best 256-colour palette it can and applies dithering to approximate the remaining colours. Smooth gradients will show visible banding; flat-colour graphics and simple animations convert with less visible degradation.',
+      a: 'GIF only supports 256 colors per frame, whereas WebP can have millions of colors. When converting, the GIF colors are chosen by the conversion tool, and then the tool attempts to mix these colors (dithering) to try and create the missing colors. Images with lots of colors, such as photos and smooth gradients, look banded or speckled. However, flat images, such as logos and simple animations, generally convert well, and you won&rsquo;t notice much of a difference.',
     },
     {
       q: 'Why is the GIF so much larger than the original WebP?',
-      a: 'GIF is a significantly less efficient format than WebP — especially for animations. An animated WebP typically becomes 2–5× larger as a GIF because GIF can only store 256 colours per frame and uses a simpler compression algorithm. To reduce GIF file size, lower the frame rate or shrink the output width.',
+      a: 'For animations, GIFs are typically much larger than their WebP counterparts, even when saving the same source clip. A GIF can be 2-5 times the size of the same animation saved as a WebP because a GIF can only contain 256 colors per frame and uses a less efficient frame-compression scheme than WebP. Reducing a GIF&rsquo;s frame rate or output width can quickly reduce file size.',
     },
     {
       q: 'Does it handle both animated and static WebP?',
