@@ -67,7 +67,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Which platforms still need GIF instead of WebP?',
-      a: 'As of 2026, most email clients (Outlook, Apple Mail, Gmail on mobile) do not support animated WebP but do support animated GIF. Some legacy CMS platforms and social media embeds also default to GIF for animated content. GIF is the safe fallback when you cannot control what the viewer\'s platform supports.',
+      a: 'Animated WebP is not compatible with most email clients in 2026, such as Outlook, Apple Mail, and Gmail on mobile, which display the image broken or show only the first frame. All email clients play back animated GIFs, however. Some older CMS systems, as well as social media embeds, may also not display animated WebPs. GIF is the safer choice when you have no idea what email client the recipient is using.',
     },
   ],
   relatedTools: ['gif-to-webp', 'avif-to-gif', 'jpg-to-gif', 'png-to-gif', 'webp-to-jpg'],
