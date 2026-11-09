@@ -55,7 +55,7 @@ export const config: ToolConfig = {
     },
     {
       q: 'Why do my GIF colors look wrong after converting from JPG?',
-      a: 'GIF is hard-limited to 256 colors per frame. JPG photos typically contain millions of distinct colors — converting to GIF quantizes them down to the closest 256, causing visible banding and color shifts in gradients and skin tones. This is inherent to the GIF format, not a conversion error. If color fidelity matters, use WebP or MP4 instead.',
+      a: 'When converting a JPG photo to a GIF, the <strong>millions of colors</strong> in the photo are reduced to the <strong>closest of the 256 colors</strong> that a GIF can display per frame. This can result in <strong>banding and color shifting</strong>, particularly on <strong>gradient areas, in skies, and on human skin</strong>. This is <strong>not a bug with the converter, it&rsquo;s a limitation of GIFs</strong>. If you need to show off color in your animation, consider using <strong>WebP or even MP4 animations</strong>.',
     },
     {
       q: 'How do I control the animation speed?',
