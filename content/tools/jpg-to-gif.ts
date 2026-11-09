@@ -12,6 +12,24 @@ export const config: ToolConfig = {
   outputExt: '.gif',
   convertFn: (files, opts, onProgress, onResult) => gifConvert(files, opts, onProgress, onResult),
   enablePresets: true,
+  howItWorks: [
+    {
+      label: 'Drop your JPGs in order',
+      desc: 'You can add JPG frames by uploading them, browsing to local files, or pasting from the clipboard. The files are ordered by their name, so simply number all frames (e.g., frame-001.jpg, frame-002.jpg, …).',
+    },
+    {
+      label: 'Set frame rate, size, and loop',
+      desc: 'Specify frames per second (10-24), image width (all frames to the same width), and other properties. Choose an infinite or fixed loop counter.',
+    },
+    {
+      label: 'Click Convert',
+      desc: 'ffmpeg.wasm does a two-pass palette optimization for you locally in the browser: first, it creates an optimized 256-color palette for your frames, and then it encodes the animated GIF from there.',
+    },
+    {
+      label: 'Download the GIF',
+      desc: 'You can then view the animation and either save it as a single GIF or download it with other conversions as a ZIP file.',
+    },
+  ],
   limitationNote: {
     summary: 'GIF is limited to 256 colours per frame',
     body: 'Photos with many colours will show banding in GIF output. Use high-quality source JPGs for the best result.',
