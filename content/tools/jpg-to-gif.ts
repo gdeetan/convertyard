@@ -59,15 +59,15 @@ export const config: ToolConfig = {
     },
     {
       q: 'How do I control the animation speed?',
-      a: 'Use the frame rate slider. 10fps is typical for simple web animations. 24fps matches standard video. Higher fps means faster animation and a larger file. Lower fps creates a more slideshow-like effect with a smaller file.',
+      a: 'Control the frame rate with a <strong>slider</strong>. Basic web animations usually run at <strong>10fps</strong>. For animations that play like video, <strong>24fps</strong> is a good value. For <strong>faster animations that are bigger files</strong>, increase the fps. For <strong>slower animations that look more like a slideshow and are smaller files</strong>, decrease the fps.',
     },
     {
       q: 'Can I make a GIF that plays once and stops?',
-      a: 'Yes — set the loop count to 1. The default (0) loops infinitely. You can also set exact loop counts for situations where you want the animation to play a specific number of times before freezing.',
+      a: 'Yes — <strong>set the loop count to 1</strong>. This is the default for <strong>&lsquo;loop&rsquo; set to 0</strong>. You can also specify an <strong>exact number of loops</strong>. This is useful for animated GIFs that you want to <strong>play a certain number of times and then stop</strong>.',
     },
     {
       q: 'Should I use JPG to GIF or JPG to WebP for animations?',
-      a: 'If you need broad compatibility (old email clients, Slack, older social platforms), GIF is still the safest choice. If you are publishing to a modern web page, animated WebP is 25–40% smaller and supports full color. GIF is the universal fallback; WebP is the modern upgrade.',
+      a: 'If you need to be <strong>really cross-browser compatible</strong> (e.g. <strong>old email clients, Slack</strong>, etc.), then stick with GIFs. However, if you are deploying on the web, then GIFs are <strong>roughly 25-40% larger than animated WebP</strong> and support <strong>full color</strong>. In the end, <strong>GIFs are a universal fallback, but WebP is the better modern choice</strong> for most new web work.',
     },
   ],
   relatedTools: ['png-to-gif', 'webp-to-gif', 'jpg-to-webp'],
