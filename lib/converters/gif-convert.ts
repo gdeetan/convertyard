@@ -197,6 +197,12 @@ async function sequenceToGif(files: File[], opts: ToolOptions): Promise<File> {
   const loop = typeof opts.loop === 'number' ? opts.loop : 0
   const maxColors = clampColors(opts.maxColors)
 
+  // Sort by filename so sequentially-named frames (frame-001.png, frame-010.png,
+  // frame-2.png) play in the intended order regardless of drop/pick order.
+  files = [...files].sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }),
+  )
+
   // Get first frame dimensions for target canvas size.
   const bmp = await createImageBitmap(files[0])
   const fw = bmp.width
