@@ -1,5 +1,6 @@
 import { gifConvert } from '@/lib/converters/gif-convert'
 import { PngToGifPreview } from '@/components/tools/png-to-gif-preview'
+import { PngToGifExplainer } from '@/components/png-to-gif/explainer'
 import type { ToolConfig } from '@/lib/types'
 
 export const config: ToolConfig = {
@@ -68,19 +69,19 @@ export const config: ToolConfig = {
     },
     {
       q: 'What happens to PNG colours when converting to GIF?',
-      a: 'GIF supports a maximum of 256 colours per frame. PNGs often contain millions of colours. The converter builds the best 256-colour palette it can from your image and applies dithering to approximate the lost colours. Photographs and gradients show visible banding; flat-colour graphics and icons convert cleanly.',
+      a: 'GIF supports a <strong>maximum of 256 colors per frame</strong>, while PNG files often contain <strong>millions of colors</strong>. So we calculate a good 256-color palette for you and then use <strong>dithering</strong> to approximate the missing colors. <strong>Flat colored graphics and icons</strong> will look good. <strong>Photos and gradients</strong> will have visible banding.',
     },
     {
       q: 'Does GIF support transparency from PNG?',
-      a: 'GIF supports binary transparency only — pixels are either fully transparent or fully opaque. PNG alpha channels are thresholded: semi-transparent edges from anti-aliasing become either fully transparent or fully opaque. Clean logos on solid backgrounds convert well; soft shadows will have hard edges.',
+      a: 'The GIF file can only have <strong>binary transparency</strong> (i.e., pixels are either fully transparent or fully opaque). PNG files contain <strong>full alpha channels</strong>, which are thresholded during conversion; thus, <strong>anti-aliased edges</strong> are converted to either fully transparent or fully opaque pixels. <strong>Clean solid-background logos</strong> are converted well, but <strong>soft shadows have harsh edges</strong>.',
     },
     {
       q: 'Can I create an animated GIF from multiple PNGs?',
-      a: 'Yes. Drop multiple PNGs and they animate in the order shown. Each file becomes one frame at the frame rate you set. File names are sorted alphabetically, so name them sequentially (frame-001.png, frame-002.png, etc.) to control the order.',
+      a: 'Yes. To create an <strong>animated GIF from PNG files</strong>, simply drop the PNGs on the GIF button <strong>in the order you want them to appear</strong>, and they will be played back as an animation, with each file as a <strong>single frame at the frame rate specified</strong>. Files are <strong>sorted alphabetically by name</strong>, so it&rsquo;s best to name the files in sequence (e.g., frame-001.png, frame-002.png, etc.).',
     },
     {
       q: 'Why is my GIF file larger than the original PNGs?',
-      a: 'GIF uses an older LZW compression algorithm that is far less efficient than PNG compression, especially for images with smooth gradients. A high-colour PNG animation can become a very large GIF. Reduce the output width or frame rate to keep the GIF to a manageable size.',
+      a: 'GIF uses the old <strong>LZW compression</strong>, which is a lot less efficient than PNG compression, especially for <strong>smooth gradients in high-resolution images with lots of color</strong>. To keep the GIF output within a reasonable size, <strong>reduce the output width or frame rate</strong>.',
     },
   ],
   howItWorks: [
@@ -95,4 +96,5 @@ export const config: ToolConfig = {
     title: 'Convert PNG or (Animated) APNG files to GIF - Nothing Uploads',
     description: 'Convert static PNGs or animated APNG files to GIF in your browser. Auto-detects animation, live preview, batch up to 1000 files. Nothing uploads.',
   },
+  explainer: PngToGifExplainer,
 }
