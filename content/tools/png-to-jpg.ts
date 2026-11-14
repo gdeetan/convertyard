@@ -108,7 +108,7 @@ export const config: ToolConfig = {
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'batch-convert-images'],
 
   meta: {
-    title: 'PNG to JPG Converter',
+    title: 'Convert PNG to JPG in Your Browser — Free',
     description:
       'Convert a larger PNG file format into a smaller JPG without compromising image quality for uploading images to websites, sending photos for print, or emailing to users of older, legacy software.',
   },

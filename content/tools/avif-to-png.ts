@@ -71,7 +71,7 @@ export const config: ToolConfig = {
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'avif-browser-support', 'lossless-vs-lossy'],
 
   meta: {
-    title: 'AVIF to PNG Converter',
+    title: 'Convert AVIF to PNG in Your Browser — Free',
     description:
       'Convert AVIF to a lossless PNG format to retain near pixel-perfect quality if you need to edit graphic images on editing software or need to send these assets to a print shop. Nothing is uploaded. No Signup. 100% Free.',
   },

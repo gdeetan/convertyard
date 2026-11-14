@@ -87,7 +87,7 @@ export const config: ToolConfig = {
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'batch-convert-images'],
 
   meta: {
-    title: 'JPG to PNG Converter',
+    title: 'Convert JPG to PNG in Your Browser — Free',
     description:
       'Convert JPG to PNG files to preserve quality, transparency support, and lossless quality. PNG files are ideal for graphic files like logos, screenshots, UI mockups, anything that requires a lot of sharp lines or text.',
   },

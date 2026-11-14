@@ -140,7 +140,7 @@ export const config: ToolConfig = {
   relatedArticles: ['avif-vs-webp-vs-jpeg-2026', 'avif-browser-support', 'lossless-vs-lossy'],
 
   meta: {
-    title: 'PNG to AVIF Converter',
+    title: 'Convert PNG to AVIF — 90% Smaller, in Browser',
     description:
       "Convert PNG files to AVIF to significantly reduced file size if you're uploading images to a website so it loads faster. Nothing uploads and it's free.",
   },
