@@ -49,27 +49,23 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Why convert FLAC to MP3?',
-      a: 'FLAC is a lossless format — it preserves every audio sample exactly. That\'s great for archiving, but FLAC files are large (typically 20–40 MB for a 4-minute song) and many devices and streaming platforms don\'t support them. Converting to MP3 makes the files playable on any device, much smaller, and compatible with every music platform and media player.',
+      a: 'By saving FLACs, we save the original recorded music in <strong>full quality</strong>, but the files are very large (typically <strong>20-40MB per 4-minute track</strong>). Most devices and many online music services do not support FLACs. In order to be able to use your archived music on your iPod, on your PC, on streaming services, etc., we need to convert the files to MP3s. MP3s are <strong>much smaller</strong> than their parent files and are <strong>compatible with absolutely every music service and every media player</strong> on the planet.',
     },
     {
       q: 'Do I lose quality converting FLAC to MP3?',
-      a: 'Yes. FLAC is lossless; MP3 is lossy. Converting introduces compression artifacts. At 256 kbps or higher, the difference is inaudible to most listeners on typical headphones and speakers — including in blind tests. At 128 kbps, differences may be audible on good equipment with certain music (cymbals, complex orchestral passages). Use 192–256 kbps for a safe balance of quality and size.',
+      a: 'FLAC is <strong>lossless</strong> while MP3 is <a href="/blog/lossless-vs-lossy/">lossy</a>. When converting between formats, you will hear the effects of compression as <strong>artifacts</strong>. Most people cannot hear the difference between FLAC and MP3 at <a href="/blog/audio-bitrate-explained/"><strong>256 kbps</strong></a> and higher on average headphones and speakers. Blind tests cannot tell the difference. At <strong>128 kbps</strong>, some differences can be heard on good equipment playing back certain sorts of music (cymbals, complex sections of large orchestral pieces), but it\'s generally safe to go with <strong>192-256 kbps</strong>.',
     },
     {
       q: 'Should I keep the original FLAC?',
-      a: 'Yes, always. FLAC is your archive — the file you re-encode from in the future. The MP3 is for listening, sharing, and uploading to platforms. Once you convert FLAC to MP3, you can\'t recover the lost quality. Keep the original FLAC on a hard drive or cloud backup.',
-    },
-    {
-      q: 'What bitrate should I use for FLAC source material?',
-      a: '192 kbps is a good default — transparent on most equipment. Use 256 kbps if you want to be certain there\'s no audible difference. Use 320 kbps only if you plan to edit the MP3 later, since re-encoding a lossy file degrades quality further.',
+      a: 'It\'s always best to save your <strong>archive</strong> as FLAC, the file you encode from in the future. The MP3 you\'re encoding to now is just for <strong>listening, sharing, and uploading</strong> to sites. If you convert FLAC to MP3, you <strong>cannot get back the quality you lost</strong>. This file should be kept on your <strong>hard drive or in cloud backup</strong>.',
     },
     {
       q: 'Can I batch convert FLAC files?',
-      a: 'Yes. Drop as many FLAC files as you need. ConvertYard processes them one at a time in your browser and packages all the MP3s into a single ZIP for download. There is no hard file count limit, though very large batches will take proportionally longer.',
+      a: 'You can upload <strong>as many FLAC files as you like</strong>. ConvertYard converts <strong>one file at a time in your browser</strong>. All the converted MP3 files will be packaged in a <strong>single ZIP file</strong>, which you can download from your browser. While there is <strong>no upper limit</strong> for the number of files, very large numbers of files will take increasingly longer to process in proportion.',
     },
     {
       q: 'Are my files uploaded to a server?',
-      a: 'Never. Conversion runs entirely in your browser using ffmpeg.wasm — a full media processing engine compiled to WebAssembly. Your files never leave your device. ConvertYard\'s servers only deliver the tool code — they never see your files.',
+      a: 'No, because the conversion runs <strong>entirely in your browser</strong> using <strong>ffmpeg.wasm</strong> — a full media processing engine compiled to <strong>WebAssembly</strong>. Your files <strong>never leave your device</strong>. ConvertYard\'s servers only deliver the tool code — they never see your files.',
     },
   ],
   relatedTools: ['compress-mp3', 'wav-to-mp3', 'audio-trimmer', 'extract-audio', 'mp4-to-mp3'],
