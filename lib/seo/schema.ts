@@ -20,7 +20,7 @@ export const BASE_URL = 'https://convertyard.com'
 export function softwareApplicationSchema(config: ToolConfig) {
   return {
     '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
+    '@type': 'WebApplication',
     name: config.title,
     url: `${BASE_URL}/${config.slug}/`,
     applicationCategory: 'UtilitiesApplication',
@@ -143,7 +143,7 @@ export function howToSchema(config: { title: string; slug: string; options?: unk
 export function textSoftwareApplicationSchema(config: TextToolConfig) {
   return {
     '@context': 'https://schema.org',
-    '@type': 'SoftwareApplication',
+    '@type': 'WebApplication',
     name: config.title,
     url: `${BASE_URL}/${config.slug}/`,
     applicationCategory: 'DeveloperApplication',
