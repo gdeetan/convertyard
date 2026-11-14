@@ -117,7 +117,7 @@ export const config: ToolConfig = {
   relatedTools: ['mp4-to-webp', 'gif-to-mp4', 'webp-to-gif', 'mp4-to-mp3'],
   relatedArticles: ['how-browser-based-file-conversion-works', 'batch-convert-images'],
   meta: {
-    title: 'Video to GIF Converter - Convert MP4, MOV, WEBM, AVI, MKV, FLV or M4V to GIF',
+    title: 'Video to GIF Converter — MP4, MOV, WEBM, AVI to GIF',
     description:
       'Convert a short video clip (MP4, MOV, WEBM, AVI, MKV, FLV, M4V, etc.) to an animated GIF. Set the start/stop time, frame rate, and width before converting.',
   },

@@ -65,7 +65,7 @@ export const config: ToolConfig = {
   relatedTools: ['markdown-to-pdf', 'pdf-to-csv', 'compress-pdf', 'pdf-to-excel'],
   relatedArticles: [],
   meta: {
-    title: 'Convert CSV Files to PDF without Uploading Anything to a Server. No Conversion Limits.',
+    title: 'Convert CSV to PDF in Browser — No Uploads, Free',
     description:
       'Free CSV to PDF converter. Nothing uploads to a server, so you can convert even confidential documents without risk of a data breach.',
   },

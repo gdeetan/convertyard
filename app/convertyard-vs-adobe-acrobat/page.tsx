@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     'ConvertYard is free, requires no account, and never uploads your files. Adobe Acrobat Online costs $13–23/month, requires an Adobe account, and uploads files to Adobe cloud.',
   openGraph: {
-    title: 'ConvertYard vs Adobe Acrobat Online — Which Is Better for You?',
+    title: 'ConvertYard vs Adobe Acrobat: Which Is Better?',
     description:
       'ConvertYard converts files in your browser for free. Adobe Acrobat Online starts at $13/month and uploads to Adobe servers. See the full comparison.',
     url: 'https://convertyard.com/convertyard-vs-adobe-acrobat',
