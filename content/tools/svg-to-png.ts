@@ -46,23 +46,19 @@ export const config: ToolConfig = {
   faq: [
     {
       q: 'Are my SVG files uploaded to convert them?',
-      a: 'No. Conversion uses your browser\'s built-in Canvas API entirely on your device — no data is sent to any server. The SVG is rendered locally inside a canvas element, and the resulting PNG is generated in memory in your browser. ConvertYard\'s servers only deliver the tool\'s code; they never see your files.',
+      a: 'Conversion uses only the <strong>browser&rsquo;s native Canvas API</strong> and runs <strong>entirely on your device</strong>. The SVG is rendered within the canvas element, and the resulting PNG is <strong>generated in memory on your device</strong>. As the tool is provided by servers of ConvertYard, they <strong>only host the code</strong> for the tool. <strong>Your files will not be sent to any server</strong>.',
     },
     {
       q: 'SVG is scalable — what resolution does the PNG come out at?',
-      a: 'The PNG resolution is determined by the scale multiplier or the custom width you set. A 24×24px SVG at 2× scale outputs a 48×48px PNG. Unlike raster-to-raster conversions, SVG-to-PNG never introduces blur or interpolation artifacts — the vector renders at pixel-perfect sharpness at whatever size you choose.',
+      a: 'The <strong>PNG resolution can be set with the scale multiplier or with a custom width</strong>. A <strong>24×24px SVG set to 2× will render a 48×48px PNG</strong>. Note that this is different from a <strong>raster-to-raster conversion</strong>. Unlike such a conversion, <strong>SVG-to-PNG never results in any blur or interpolation artifacts</strong>. The vector is rendered at <strong>pixel-perfect sharpness at any size</strong>.',
     },
     {
       q: 'What scale should I use for web icons?',
-      a: '2× is the standard for retina and high-DPI screens. If your SVG is 24×24px, 2× outputs 48×48px — displayed at 24×24px in the browser, it looks sharp on all screens. For app store submissions, use the Custom Width field to hit exact required dimensions (e.g. 1024px for Apple App Store).',
-    },
-    {
-      q: 'Will the background be transparent?',
-      a: 'Yes, by default. PNG supports alpha transparency, and the Transparent background toggle is on by default. Turn it off and specify a fill colour if you need a solid-background PNG.',
+      a: '<strong>2× is the standard for high-resolution, i.e., retina screens, as well as high-DPI monitors</strong>. So if your SVG has a size of 24×24px, 2× will, for example, result in <strong>48×48px</strong>, which will then be displayed by the browser at the correct resolution of 24×24px. For <strong>app store submissions</strong>, you can then use the <strong>Custom Width field</strong> to enter the exact required size (e.g. <strong>1024px for the Apple App Store</strong>).',
     },
     {
       q: 'My SVG uses an external font — will it render correctly?',
-      a: 'SVGs referencing external fonts (Google Fonts, system fonts by name) may fall back to a different font in the Canvas rendering environment. For reliable text rendering, embed the font in the SVG as base64 data, or convert text to outlines in your design tool before exporting.',
+      a: 'SVGs that use <strong>external fonts</strong> (like <strong>Google Fonts or system fonts by name</strong>) may <strong>fail to render text in Canvas</strong>. To get around this, <strong>embed your fonts in the SVG as base64 data</strong> or <strong>convert the text to outlines</strong> in your design application before exporting the SVG.',
     },
   ],
   relatedTools: ['png-to-svg', 'svg-to-jpg', 'svg-to-webp'],
