@@ -14,6 +14,13 @@ import type { Quality as MbQuality } from 'mediabunny'
 
 const OPFS_DIR = 'compress-video-out'
 
+// Below this source size, finalize the mux in memory instead of streaming to
+// OPFS. OPFS stream.close() + handle.getFile() takes 15–30 s on 400 MB–1 GB
+// outputs in Chromium (incl. Edge), freezing the progress bar between 97%
+// and 100%. V8's ~2 GB Uint8Array ceiling means in-memory is only safe below
+// ~1.2 GB source; above that we still need the streaming path.
+const OPFS_MIN_BYTES = 1200 * 1024 * 1024
+
 export function isMediabunnySupported(): boolean {
   if (typeof navigator === 'undefined') return false
   if (!navigator.storage?.getDirectory) return false
@@ -122,6 +129,67 @@ function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise
   })
 }
 
+// Emit interpolated progress from `from` to `to` while `promise` is pending.
+// Prevents the UI bar from visibly stalling at 96/98 while OPFS close +
+// getFile run (15–30 s on Chromium for 400 MB+ outputs). Ticks every 400 ms.
+async function runWithTicks<T>(
+  promise: Promise<T>,
+  from: number,
+  to: number,
+  onProgress: (pct: number) => void,
+): Promise<T> {
+  let current = from
+  onProgress(current)
+  let settled = false
+  const tick = () => {
+    if (settled) return
+    const remaining = to - current
+    const step = Math.max(0.1, remaining * 0.1)
+    current = Math.min(to, current + step)
+    onProgress(current)
+    setTimeout(tick, 400)
+  }
+  setTimeout(tick, 400)
+  try {
+    return await promise
+  } finally {
+    settled = true
+    onProgress(to)
+  }
+}
+
+// In-memory sink for mediabunny's positional writes. MP4 muxing writes
+// headers at position 0 at the end, so writes are NOT sequential — track a
+// growable buffer and memcpy each chunk at its position. Only used below
+// OPFS_MIN_BYTES, so total output comfortably fits under V8's ~2 GB cap.
+function createMemorySink(): {
+  bridge: WritableStream<{ type: 'write'; data: Uint8Array; position: number }>
+  finalize: () => Uint8Array
+} {
+  let buf = new Uint8Array(1024 * 1024)
+  let highWater = 0
+  const ensure = (needed: number) => {
+    if (buf.length >= needed) return
+    let cap = buf.length
+    while (cap < needed) cap *= 2
+    const next = new Uint8Array(cap)
+    next.set(buf)
+    buf = next
+  }
+  const bridge = new WritableStream<{ type: 'write'; data: Uint8Array; position: number }>({
+    write(chunk) {
+      const end = chunk.position + chunk.data.byteLength
+      ensure(end)
+      buf.set(chunk.data, chunk.position)
+      if (end > highWater) highWater = end
+    },
+  })
+  return {
+    bridge,
+    finalize: () => buf.subarray(0, highWater),
+  }
+}
+
 function logPhase(phase: string, pct: number | null = null): void {
   const suffix = pct == null ? '' : ` pct=${pct}`
   console.info(`[compress-video][phase] codec=mediabunny phase=${phase}${suffix}`)
@@ -216,28 +284,34 @@ export async function compressVideoWithMediabunny(
 
   onProgress(5)
 
-  const opfs = await openOpfsWritable(baseName)
-  if (!opfs) {
+  // Size-gate: in-memory for small/medium sources (no OPFS finalize tax),
+  // OPFS streaming for anything that would risk the V8 Uint8Array ceiling.
+  const useOpfs = file.size >= OPFS_MIN_BYTES
+  const opfs = useOpfs ? await openOpfsWritable(baseName) : null
+  if (useOpfs && !opfs) {
     return new Error('Could not open temporary storage for large-file compression. Try again, or use a smaller file.')
   }
+  const memorySink = useOpfs ? null : createMemorySink()
+  logPhase(useOpfs ? 'sink-opfs' : 'sink-memory', 5)
 
   try {
     const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS })
     // Bridge mediabunny's { type: 'write', data, position } chunks to the
-    // OPFS FileSystemWritableFileStream's positional write() signature.
-    // Direct typing mismatch: StreamTarget expects
-    // WritableStream<StreamTargetChunk>, OPFS is WritableStream<FileSystemWriteChunkType>.
-    const bridge = new WritableStream<{ type: 'write'; data: Uint8Array; position: number }>({
-      async write(chunk) {
-        // Cast: the DOM lib types Uint8Array<ArrayBufferLike> but OPFS
-        // accepts BufferSource which allows any Uint8Array in practice.
-        await opfs.stream.write({
-          type: 'write',
-          position: chunk.position,
-          data: chunk.data as unknown as BufferSource,
+    // chosen sink. OPFS path forwards to FileSystemWritableFileStream;
+    // in-memory path memcpy's into a growable buffer.
+    const bridge = memorySink
+      ? memorySink.bridge
+      : new WritableStream<{ type: 'write'; data: Uint8Array; position: number }>({
+          async write(chunk) {
+            // Cast: the DOM lib types Uint8Array<ArrayBufferLike> but OPFS
+            // accepts BufferSource which allows any Uint8Array in practice.
+            await opfs!.stream.write({
+              type: 'write',
+              position: chunk.position,
+              data: chunk.data as unknown as BufferSource,
+            })
+          },
         })
-      },
-    })
     const output = new Output({
       format: new Mp4OutputFormat(),
       target: new StreamTarget(bridge),
@@ -284,19 +358,31 @@ export async function compressVideoWithMediabunny(
     await conversion.execute()
     logPhase('execute-done', 95)
 
-    onProgress(96)
-    // OPFS stream close can hang silently on 5 GB+ outputs (Chromium OPFS
-    // has occasional "waiting on writes" hangs after huge sequential writes).
-    // Cap at 60s — that's ~10x normal for a multi-GB flush.
-    logPhase('opfs-close-start', 96)
-    await withTimeout(opfs.stream.close(), 60_000, 'mediabunny: opfs.stream.close()')
-    logPhase('opfs-close-done', 96)
-    onProgress(98)
+    if (memorySink) {
+      // In-memory finalize: a Uint8Array → File is a direct wrap, no I/O.
+      logPhase('memory-finalize', 96)
+      const bytes = memorySink.finalize()
+      onProgress(100)
+      logPhase('done', 100)
+      return new File([bytes as BlobPart], `${baseName}.mp4`, { type: 'video/mp4' })
+    }
+
+    // OPFS path: interpolate 95→99 while the two awaits run so the bar
+    // doesn't visibly stall on Chromium's slow stream.close / getFile.
+    logPhase('opfs-close-start', 95)
+    await runWithTicks(
+      withTimeout(opfs!.stream.close(), 60_000, 'mediabunny: opfs.stream.close()'),
+      95, 98, onProgress,
+    )
+    logPhase('opfs-close-done', 98)
 
     logPhase('opfs-getFile-start', 98)
-    const opfsFile = await withTimeout(opfs.handle.getFile(), 30_000, 'mediabunny: opfs.handle.getFile()')
-    logPhase('opfs-getFile-done', 98)
-    cleanupOldOpfs(opfs.fileName).catch(() => {})
+    const opfsFile = await runWithTicks(
+      withTimeout(opfs!.handle.getFile(), 30_000, 'mediabunny: opfs.handle.getFile()'),
+      98, 99, onProgress,
+    )
+    logPhase('opfs-getFile-done', 99)
+    cleanupOldOpfs(opfs!.fileName).catch(() => {})
 
     // Rename via wrapping. new File() shares the underlying blob reference
     // in Chromium so this doesn't copy the bytes.
@@ -305,14 +391,16 @@ export async function compressVideoWithMediabunny(
     return new File([opfsFile], `${baseName}.mp4`, { type: 'video/mp4' })
   } catch (err) {
     // Cleanup on failure — leaving partial files in OPFS wastes quota.
-    try { await opfs.stream.close() } catch { /* already closed */ }
-    try {
-      const root = await navigator.storage.getDirectory()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const dir = await (root as any).getDirectoryHandle(OPFS_DIR, { create: false })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (dir as any).removeEntry(opfs.fileName).catch(() => {})
-    } catch { /* best-effort */ }
+    if (opfs) {
+      try { await opfs.stream.close() } catch { /* already closed */ }
+      try {
+        const root = await navigator.storage.getDirectory()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const dir = await (root as any).getDirectoryHandle(OPFS_DIR, { create: false })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (dir as any).removeEntry(opfs.fileName).catch(() => {})
+      } catch { /* best-effort */ }
+    }
     return err instanceof Error ? err : new Error(String(err))
   }
 }
