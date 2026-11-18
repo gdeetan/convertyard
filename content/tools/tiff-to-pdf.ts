@@ -36,19 +36,19 @@ export const config: ToolConfig = {
     },
     {
       q: 'Can multiple TIFFs become a single multi-page PDF?',
-      a: 'Yes. Set output to "Combine into one PDF" and drop all your TIFFs. Pages are sorted by filename — name them sequentially (001.tiff, 002.tiff, etc.) to control the page order.',
+      a: 'Yes. To convert all TIFFs into a single PDF, set the output to &ldquo;Combine into one PDF,&rdquo; then drop all your TIFFs into the tool. Pages are sorted by filename, so make sure you have named them sequentially (e.g., 001.tiff, 002.tiff, etc.).',
     },
     {
       q: 'Does conversion preserve the original TIFF resolution?',
-      a: 'Yes. The pixel dimensions of each TIFF are preserved exactly when embedded as a PDF page. No downscaling or resampling is applied unless your TIFF contains resolution metadata that the PDF embeds as DPI hints.',
+      a: 'Yes. All TIFFs are converted to PDF, and the pixel dimensions are preserved. The only exception is if the TIFF contains resolution metadata, which will then be used as DPI hints by the PDF.',
     },
     {
       q: 'Why does my multi-page TIFF only produce one page in the PDF?',
-      a: 'Multi-page TIFF files (where multiple scans are packed into one .tiff) are treated as a single image using the first frame only. To convert all frames, export each frame as a separate TIFF file first, then combine them here.',
+      a: 'Files containing multiple pages (so-called multi-page TIFFs) will be embedded as single images using the first frame only. In order to include all frames in your output, you will have to export them as separate TIFF files first and then import them here.',
     },
     {
       q: 'Is the output suitable for legal or archival submission?',
-      a: 'The output is a standard PDF/1.7 file. Some workflows require PDF/A for long-term archival — check the requirements of the receiving system. PDF/A conversion is not currently available in this tool.',
+      a: 'The output is simply a standard PDF/1.7 file. Although many workflows can make do with this, PDF/A might be required for long-term archival purposes. However, this is not currently possible with this tool. Check with the receiving system for requirements.',
     },
   ],
 
